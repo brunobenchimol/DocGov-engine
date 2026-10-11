@@ -51,6 +51,9 @@ jobs:
             fs.writeFileSync('smoke_test/tpl.docx', Buffer.from(b64, 'base64'));
             fs.writeFileSync('smoke_test/st.json', JSON.stringify({processo_id: 'CI-TEST', objeto: {descricao: 'Teste CI'}}));
           "
+          ${{ matrix.run_cmd }} --version
+          ${{ matrix.run_cmd }} -v
+          ${{ matrix.run_cmd }} --help
           ${{ matrix.run_cmd }} --template smoke_test/tpl.docx --state smoke_test/st.json --out smoke_test/out.docx
           test -f smoke_test/out.docx && echo "Smoke Test Aprovado: Binário standalone gerou o documento com sucesso!"
 

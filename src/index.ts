@@ -8,6 +8,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
+export const VERSION = "0.0.3";
+
 // --- Função Central de Injeção ---
 export async function processDocument(
   templatePath: string,
@@ -45,7 +47,7 @@ export async function processDocument(
 // --- Modo MCP Server ---
 async function runMcpServer() {
   const server = new Server(
-    { name: "docgov-docx-engine", version: "0.0.2" },
+    { name: "docgov-docx-engine", version: VERSION },
     { capabilities: { tools: {} } }
   );
 
@@ -109,13 +111,21 @@ async function runMcpServer() {
 
 // --- Modo CLI ---
 async function runCli(args: string[]) {
+  if (args.includes("--version") || args.includes("-v")) {
+    console.log(`docgov-docx-engine v${VERSION}`);
+    return;
+  }
+
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-DocGov Docx Engine — CLI & MCP Server
+DocGov Docx Engine v${VERSION} — CLI & MCP Server
+
 Uso:
-  docgov-docx                                                               (Inicia como servidor MCP via stdio por padrão)
-  docgov-docx --mcp                                                         (Inicia como servidor MCP via stdio)
-  docgov-docx --inject --template <arquivo.docx> --state <estado.json> --out <saida.docx>
+  docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
+  docgov-docx --mcp                               Inicia como servidor MCP via stdio
+  docgov-docx --inject --template <arq.docx> --state <estado.json> --out <saida.docx>
+  docgov-docx -v, --version                       Exibe a versão do software
+  docgov-docx -h, --help                          Exibe esta mensagem de ajuda
 `);
     return;
   }
@@ -142,13 +152,15 @@ Uso:
 if (import.meta.main) {
   const args = process.argv.slice(2);
 
-  // Se tiver flag explícita de CLI (--inject, --template, --help, -h), roda CLI.
+  // Se tiver flag explícita de CLI (--inject, --template, --help, -h, --version, -v), roda CLI.
   // Caso contrário (sem args ou com --mcp), sobe como MCP server imediatamente.
   if (
     args.includes("--inject") ||
     args.includes("--template") ||
     args.includes("--help") ||
-    args.includes("-h")
+    args.includes("-h") ||
+    args.includes("--version") ||
+    args.includes("-v")
   ) {
     runCli(args);
   } else {

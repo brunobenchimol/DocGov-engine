@@ -11,27 +11,21 @@ Compilado em **binário standalone** (Windows `x64` e Linux `x64`) via Bun — n
 ### Windows (PowerShell)
 ```powershell
 curl.exe -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/latest/download/docgov-docx-windows-x64.exe" -o docgov-docx.exe
+.\docgov-docx.exe -v
 ```
 
 ### Linux / WSL (Bash)
 ```bash
 curl -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/latest/download/docgov-docx-linux-x64" -o docgov-docx
 chmod +x docgov-docx
+./docgov-docx -v
 ```
 
 ---
 
-## 2. Modos de Uso
+## 2. Modos de Uso e Parâmetros
 
-### A) Modo CLI (Linha de Comando)
-
-Substitui tags delimitadas por `{{` e `}}` no documento `.docx` preservando integralmente estilos tipográficos, margens, cabeçalhos, tabelas e cláusulas *boilerplate*:
-
-```powershell
-./docgov-docx --inject --template modelo.docx --state estado_caso.json --out resultado.docx
-```
-
-### B) Modo Servidor MCP (Padrão / `--mcp`)
+### A) Modo Servidor MCP (Padrão / `--mcp`)
 
 Ao ser executado **sem argumentos** (ou com a flag opcional `--mcp`), o binário inicia imediatamente um servidor MCP sobre `stdio` expondo a ferramenta **`fill_docx_template`**:
 
@@ -40,6 +34,33 @@ Ao ser executado **sem argumentos** (ou com a flag opcional `--mcp`), o binário
   - `templatePath` (`string`): Caminho para o modelo `.docx`.
   - `statePath` (`string`): Caminho para o arquivo `.json` com os dados.
   - `outputPath` (`string`): Caminho de saída do `.docx` preenchido.
+
+### B) Modo CLI (Linha de Comando)
+
+Substitui tags delimitadas por `{{` e `}}` no documento `.docx` preservando integralmente estilos tipográficos, margens, cabeçalhos, tabelas e cláusulas *boilerplate*:
+
+```powershell
+# Injeção de template via linha de comando
+./docgov-docx --inject --template modelo.docx --state estado_caso.json --out resultado.docx
+
+# Verificar a versão instalada
+./docgov-docx -v
+./docgov-docx --version
+
+# Exibir ajuda e lista de parâmetros
+./docgov-docx -h
+./docgov-docx --help
+```
+
+| Parâmetro | Descrição |
+| :--- | :--- |
+| *(sem argumentos)* ou `--mcp` | Inicia o servidor MCP via `stdio` (comportamento padrão). |
+| `--inject` | Ativa explicitamente o modo CLI de injeção de documento. |
+| `--template <caminho>` | Caminho do arquivo modelo `.docx` de entrada (ativa o modo CLI). |
+| `--state <caminho>` | Caminho do arquivo `.json` contendo os dados a serem injetados. |
+| `--out <caminho>` | Caminho onde o arquivo `.docx` preenchido será salvo. |
+| `-v`, `--version` | Exibe a versão atual do binário (`docgov-docx-engine vX.Y.Z`). |
+| `-h`, `--help` | Exibe o resumo de uso e parâmetros disponíveis. |
 
 ---
 
