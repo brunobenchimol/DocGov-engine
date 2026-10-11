@@ -45,7 +45,7 @@ export async function processDocument(
 // --- Modo MCP Server ---
 async function runMcpServer() {
   const server = new Server(
-    { name: "docgov-docx-engine", version: "1.0.0" },
+    { name: "docgov-docx-engine", version: "0.0.1" },
     { capabilities: { tools: {} } }
   );
 
