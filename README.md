@@ -31,9 +31,9 @@ Substitui tags delimitadas por `{{` e `}}` no documento `.docx` preservando inte
 ./docgov-docx --inject --template modelo.docx --state estado_caso.json --out resultado.docx
 ```
 
-### B) Modo Servidor MCP (`--mcp`)
+### B) Modo Servidor MCP (Padrão / `--mcp`)
 
-Inicia um servidor MCP sobre `stdio` expondo a ferramenta **`fill_docx_template`**:
+Ao ser executado **sem argumentos** (ou com a flag opcional `--mcp`), o binário inicia imediatamente um servidor MCP sobre `stdio` expondo a ferramenta **`fill_docx_template`**:
 
 - **Ferramenta:** `fill_docx_template`
 - **Parâmetros obrigatórios:**
@@ -45,6 +45,8 @@ Inicia um servidor MCP sobre `stdio` expondo a ferramenta **`fill_docx_template`
 
 ## 3. Configuração nos Principais Agentes MCP
 
+Como o modo MCP é o padrão quando nenhum argumento é passado, basta apontar para o executável (a flag `--mcp` é opcional):
+
 ### Google Antigravity (AGY)
 Edite `~/.gemini/config/mcp_config.json` (ou acesse **Additional Options (...) > MCP Servers**):
 ```json
@@ -52,7 +54,7 @@ Edite `~/.gemini/config/mcp_config.json` (ou acesse **Additional Options (...) >
   "mcpServers": {
     "docgov_docx": {
       "command": "C:/caminho/para/docgov-docx.exe",
-      "args": ["--mcp"]
+      "args": []
     }
   }
 }
@@ -61,10 +63,10 @@ Edite `~/.gemini/config/mcp_config.json` (ou acesse **Additional Options (...) >
 ### Claude Code (CLI)
 ```powershell
 # Windows
-claude mcp add docgov_docx -- "C:\caminho\para\docgov-docx.exe" --mcp
+claude mcp add docgov_docx -- "C:\caminho\para\docgov-docx.exe"
 
 # Linux / macOS
-claude mcp add docgov_docx -- "/caminho/para/docgov-docx" --mcp
+claude mcp add docgov_docx -- "/caminho/para/docgov-docx"
 ```
 
 ### Claude Desktop / Cursor / Windsurf
@@ -74,7 +76,7 @@ No arquivo `claude_desktop_config.json`, `.cursor/mcp.json` ou `~/.codeium/winds
   "mcpServers": {
     "docgov_docx": {
       "command": "C:/caminho/para/docgov-docx.exe",
-      "args": ["--mcp"]
+      "args": []
     }
   }
 }

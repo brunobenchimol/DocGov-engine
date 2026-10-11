@@ -1,6 +1,6 @@
 {
   "name": "docgov-docx-engine",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "Motor standalone de injeção em modelos Word (.docx) e servidor MCP via stdio para o ecossistema DocGov",
   "main": "src/index.ts",
   "type": "module",

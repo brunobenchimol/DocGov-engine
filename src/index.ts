@@ -45,7 +45,7 @@ export async function processDocument(
 // --- Modo MCP Server ---
 async function runMcpServer() {
   const server = new Server(
-    { name: "docgov-docx-engine", version: "0.0.1" },
+    { name: "docgov-docx-engine", version: "0.0.2" },
     { capabilities: { tools: {} } }
   );
 
@@ -109,12 +109,13 @@ async function runMcpServer() {
 
 // --- Modo CLI ---
 async function runCli(args: string[]) {
-  if (args.includes("--help") || args.length === 0) {
+  if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-DocGov Docx Engine — CLI
+DocGov Docx Engine — CLI & MCP Server
 Uso:
+  docgov-docx                                                               (Inicia como servidor MCP via stdio por padrão)
+  docgov-docx --mcp                                                         (Inicia como servidor MCP via stdio)
   docgov-docx --inject --template <arquivo.docx> --state <estado.json> --out <saida.docx>
-  docgov-docx --mcp    (Inicia como servidor MCP via stdio)
 `);
     return;
   }
@@ -140,10 +141,18 @@ Uso:
 // --- Entrada Principal ---
 if (import.meta.main) {
   const args = process.argv.slice(2);
-  if (args.includes("--mcp")) {
-    runMcpServer();
-  } else {
+
+  // Se tiver flag explícita de CLI (--inject, --template, --help, -h), roda CLI.
+  // Caso contrário (sem args ou com --mcp), sobe como MCP server imediatamente.
+  if (
+    args.includes("--inject") ||
+    args.includes("--template") ||
+    args.includes("--help") ||
+    args.includes("-h")
+  ) {
     runCli(args);
+  } else {
+    runMcpServer();
   }
 }
 
