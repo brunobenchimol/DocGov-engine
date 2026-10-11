@@ -1,0 +1,17 @@
+# Dependências e artefatos de compilação
+node_modules/
+dist/
+dist-release/
+smoke_test/
+temp_test_run/
+bin/*
+!bin/.gitkeep
+**/docgov-docx
+**/docgov-docx.exe
+*.exe
+
+# Sistema e ambiente
+.env
+.DS_Store
+Thumbs.db
+

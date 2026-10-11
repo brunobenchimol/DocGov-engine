@@ -1,0 +1,21 @@
+{
+  "name": "docgov-docx-engine",
+  "version": "1.0.0",
+  "description": "Motor standalone de injeção em modelos Word (.docx) e servidor MCP via stdio para o ecossistema DocGov",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "build:linux": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-docx",
+    "build:windows": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-docx.exe"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
+    "docx-templates": "^4.13.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "bun-types": "latest"
+  }
+}
+
