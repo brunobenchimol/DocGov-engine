@@ -15,6 +15,7 @@ import {
   buildDocxTemplate,
   compareSemver,
   replaceBinaryOnDisk,
+  detectHierarchicalListItem,
   type SlotsManifest,
 } from "../src/index.ts";
 
@@ -493,5 +494,135 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(outXml).toContain("<w:b/>");
     expect(outXml).toContain("Alternativa 1:");
     expect(outXml).toContain(" Solução em nuvem.");
+  });
+
+  test("deve processar listas iterativas aninhadas multinível (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo e achatamento de árvore JSON", async () => {
+    expect(detectHierarchicalListItem("1.1 Item nível 1").level).toBe(1);
+    expect(detectHierarchicalListItem("1.1.1 Item nível 2").level).toBe(2);
+    expect(detectHierarchicalListItem("1.1.1.1 Item nível 3").level).toBe(3);
+    expect(detectHierarchicalListItem("1.1.1.1.1 Item nível 4").level).toBe(4);
+
+    const nestedRawPath = resolve(tempDir, "nested_raw.docx");
+    const nestedManifestPath = resolve(tempDir, "nested_manifest.json");
+    const nestedTplPath = resolve(tempDir, "nested_tpl.docx");
+    const nestedStatePath = resolve(tempDir, "nested_state.json");
+    const nestedOutPath = resolve(tempDir, "nested_out.docx");
+
+    const zip = new JSZip();
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    // Parágrafo com <w:numPr> nativo do Word para validar detecção no inspect_docx e limpeza de conflito
+    zip.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="ListParagraph"/>
+        <w:numPr><w:ilvl w:val="1"/><w:numId w:val="5"/></w:numPr>
+      </w:pPr>
+      <w:r><w:t>Item de lista original a ser substituído por árvore multinível</w:t></w:r>
+    </w:p>
+  </w:body>
+</w:document>`
+    );
+    writeFileSync(
+      nestedRawPath,
+      await zip.generateAsync({ type: "nodebuffer" })
+    );
+
+    const rawInspect = await inspectDocx(nestedRawPath);
+    expect(rawInspect.paragraphs[0].numbering).toEqual({
+      numId: "5",
+      level: 1,
+    });
+
+    const manifest: SlotsManifest = {
+      replace_paragraphs: [
+        {
+          start_p: 0,
+          end_p: 0,
+          tag: "{{tr.especificacoes_hierarquicas}}",
+        },
+      ],
+    };
+    writeFileSync(nestedManifestPath, JSON.stringify(manifest, null, 2));
+    await buildDocxTemplate(nestedRawPath, nestedManifestPath, nestedTplPath);
+
+    // Estado contendo árvore recursiva aninhada até o nível 1.1.1.1.1
+    const nestedState = {
+      tr: {
+        especificacoes_hierarquicas: [
+          {
+            numero: "1.1",
+            titulo: "Infraestrutura de Nuvem",
+            texto: "Requisitos gerais do ambiente.",
+            subitens: [
+              {
+                numero: "1.1.1",
+                titulo: "Computação",
+                texto: "Instâncias dedicadas.",
+                subitens: [
+                  {
+                    numero: "1.1.1.1",
+                    titulo: "Processamento",
+                    texto: "Mínimo de 16 vCPUs.",
+                    subitens: [
+                      {
+                        numero: "1.1.1.1.1",
+                        titulo: "Arquitetura",
+                        texto: "Compatível com x86_64 de última geração.",
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    };
+    writeFileSync(nestedStatePath, JSON.stringify(nestedState, null, 2));
+
+    await processDocument(nestedTplPath, nestedStatePath, nestedOutPath);
+
+    const outInspect = await inspectDocx(nestedOutPath);
+    expect(outInspect.paragraphs.length).toBe(4);
+    expect(outInspect.paragraphs[0].text).toBe(
+      "1.1 Infraestrutura de Nuvem: Requisitos gerais do ambiente."
+    );
+    expect(outInspect.paragraphs[1].text).toBe(
+      "1.1.1 Computação: Instâncias dedicadas."
+    );
+    expect(outInspect.paragraphs[2].text).toBe(
+      "1.1.1.1 Processamento: Mínimo de 16 vCPUs."
+    );
+    expect(outInspect.paragraphs[3].text).toBe(
+      "1.1.1.1.1 Arquitetura: Compatível com x86_64 de última geração."
+    );
+
+    // Verifica no XML que <w:numPr> conflitante foi removido e que os recuos <w:ind> são progressivos (360, 720, 1080, 1440)
+    const outZip = await JSZip.loadAsync(readFileSync(nestedOutPath));
+    const outXml = await outZip.file("word/document.xml")!.async("string");
+    expect(outXml).not.toContain("<w:numPr>");
+    expect(outXml).toContain('w:left="360"');
+    expect(outXml).toContain('w:left="720"');
+    expect(outXml).toContain('w:left="1080"');
+    expect(outXml).toContain('w:left="1440"');
   });
 });
