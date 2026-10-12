@@ -19,7 +19,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -160,8 +160,25 @@ function getAllElements(root: Node, tagName: string): Element[] {
 }
 
 function extractParagraphText(p: Element): string {
-  const tNodes = getAllElements(p, "w:t");
-  return tNodes.map((t) => t.textContent ?? "").join("");
+  const parts: string[] = [];
+  function walk(node: Node) {
+    if (!node || !node.childNodes) return;
+    for (let i = 0; i < node.childNodes.length; i++) {
+      const child = node.childNodes[i];
+      if (isElementMatch(child, "w:t")) {
+        parts.push(child.textContent ?? "");
+      } else if (
+        isElementMatch(child, "w:br") ||
+        isElementMatch(child, "w:cr")
+      ) {
+        parts.push("\n");
+      } else if (child.nodeType === 1) {
+        walk(child);
+      }
+    }
+  }
+  walk(p);
+  return parts.join("");
 }
 
 function extractParagraphStyle(p: Element): string | null {
@@ -179,9 +196,7 @@ function extractParagraphStyle(p: Element): string | null {
 function extractCellText(tc: Element): string {
   const paragraphs = getDirectChildElements(tc, "w:p");
   if (paragraphs.length === 0) {
-    return getAllElements(tc, "w:t")
-      .map((t) => t.textContent ?? "")
-      .join("");
+    return extractParagraphText(tc);
   }
   return paragraphs.map((p) => extractParagraphText(p)).join("\n");
 }
@@ -191,38 +206,148 @@ function normalizeTag(tag: string): string {
   return tag.includes("{{") ? tag : `{{${tag}}}`;
 }
 
-function findFirstRunProperties(paragraphs: Element[]): Element | null {
+export function hasBoldProperty(rPr: Element | null): boolean {
+  if (!rPr) return false;
+  const bList = [
+    ...getDirectChildElements(rPr, "w:b"),
+    ...getDirectChildElements(rPr, "w:bCs"),
+  ];
+  if (bList.length === 0) return false;
+  return bList.some((b) => {
+    const val = b.getAttribute("w:val") || b.getAttribute("val");
+    return val !== "0" && val !== "false";
+  });
+}
+
+export function stripBoldFromRPr(rPr: Element): Element {
+  const cloned = rPr.cloneNode(true) as Element;
+  const toRemove = [
+    ...getDirectChildElements(cloned, "w:b"),
+    ...getDirectChildElements(cloned, "w:bCs"),
+  ];
+  for (const el of toRemove) {
+    cloned.removeChild(el);
+  }
+  return cloned;
+}
+
+function stripBoldFromPPr(pPr: Element): Element {
+  const cloned = pPr.cloneNode(true) as Element;
+  const pRPrList = getDirectChildElements(cloned, "w:rPr");
+  for (const pRPr of pRPrList) {
+    const toRemove = [
+      ...getDirectChildElements(pRPr, "w:b"),
+      ...getDirectChildElements(pRPr, "w:bCs"),
+    ];
+    for (const el of toRemove) {
+      pRPr.removeChild(el);
+    }
+  }
+  return cloned;
+}
+
+function addBoldToRPr(doc: Document, baseRPr: Element | null): Element {
+  const cloned = baseRPr
+    ? stripBoldFromRPr(baseRPr)
+    : doc.createElement("w:rPr");
+  cloned.appendChild(doc.createElement("w:b"));
+  cloned.appendChild(doc.createElement("w:bCs"));
+  return cloned;
+}
+
+export function findBodyRunProperties(paragraphs: Element[]): Element | null {
+  let firstRPr: Element | null = null;
+  let hasNonBoldTextRun = false;
+
   for (const p of paragraphs) {
     if (!p) continue;
     const runs = getDirectChildElements(p, "w:r");
     for (const r of runs) {
+      const text = getAllElements(r, "w:t")
+        .map((t) => t.textContent ?? "")
+        .join("")
+        .trim();
+      if (!text) continue;
+
       const rPrList = getDirectChildElements(r, "w:rPr");
-      if (rPrList.length > 0) {
-        return rPrList[0].cloneNode(true) as Element;
+      const rPr = rPrList.length > 0 ? rPrList[0] : null;
+
+      if (!firstRPr && rPr) {
+        firstRPr = rPr.cloneNode(true) as Element;
+      }
+
+      if (!hasBoldProperty(rPr)) {
+        hasNonBoldTextRun = true;
+        if (rPr) {
+          // Preferir o <w:rPr> da primeira run de corpo (sem negrito)
+          return rPr.cloneNode(true) as Element;
+        }
       }
     }
   }
-  return null;
+
+  // Se havia runs sem rPr explícito (texto normal) e a 1ª run tinha <w:b/>,
+  // preserva fonte/tamanho da 1ª run mas remove <w:b/> e <w:bCs/>
+  if (firstRPr && hasNonBoldTextRun && hasBoldProperty(firstRPr)) {
+    return stripBoldFromRPr(firstRPr);
+  }
+  return firstRPr;
+}
+
+function findBodyParagraphProperties(paragraphs: Element[]): Element | null {
+  let firstPPr: Element | null = null;
+  for (const p of paragraphs) {
+    if (!p) continue;
+    const pPrList = getDirectChildElements(p, "w:pPr");
+    const pPr = pPrList.length > 0 ? pPrList[0] : null;
+    if (!firstPPr && pPr) {
+      firstPPr = pPr.cloneNode(true) as Element;
+    }
+    const runs = getDirectChildElements(p, "w:r");
+    const hasNonBoldRun = runs.some((r) => {
+      const text = getAllElements(r, "w:t")
+        .map((t) => t.textContent ?? "")
+        .join("")
+        .trim();
+      if (!text) return false;
+      const rPr = getDirectChildElements(r, "w:rPr")[0] ?? null;
+      return !hasBoldProperty(rPr);
+    });
+    if (hasNonBoldRun && pPr) {
+      return stripBoldFromPPr(pPr);
+    }
+  }
+  return firstPPr ? stripBoldFromPPr(firstPPr) : null;
 }
 
 function setParagraphSingleRunText(
   doc: Document,
   p: Element,
   text: string,
-  fallbackRPr?: Element | null
+  preferredRPr?: Element | null,
+  preferredPPr?: Element | null
 ): void {
   const pPrList = getDirectChildElements(p, "w:pPr");
-  const clonedPPr =
-    pPrList.length > 0 ? (pPrList[0].cloneNode(true) as Element) : null;
+  let clonedPPr =
+    preferredPPr !== undefined
+      ? preferredPPr
+      : pPrList.length > 0
+        ? (pPrList[0].cloneNode(true) as Element)
+        : null;
 
-  const clonedRPr = findFirstRunProperties([p]) ?? fallbackRPr ?? null;
+  const clonedRPr =
+    preferredRPr !== undefined ? preferredRPr : findBodyRunProperties([p]);
+
+  if (clonedPPr && !hasBoldProperty(clonedRPr)) {
+    clonedPPr = stripBoldFromPPr(clonedPPr);
+  }
 
   while (p.firstChild) {
     p.removeChild(p.firstChild);
   }
 
   if (clonedPPr) {
-    p.appendChild(clonedPPr);
+    p.appendChild(clonedPPr.cloneNode(true));
   }
 
   const r = doc.createElement("w:r");
@@ -252,9 +377,10 @@ function setTableCellSingleParagraphText(
     existingParagraphs.length > 0
       ? existingParagraphs[0]
       : doc.createElement("w:p");
-  const fallbackRPr = findFirstRunProperties(existingParagraphs);
+  const bodyRPr = findBodyRunProperties(existingParagraphs);
+  const bodyPPr = findBodyParagraphProperties(existingParagraphs);
 
-  setParagraphSingleRunText(doc, firstP, text, fallbackRPr);
+  setParagraphSingleRunText(doc, firstP, text, bodyRPr, bodyPPr);
 
   while (tc.firstChild) {
     tc.removeChild(tc.firstChild);
@@ -280,7 +406,7 @@ function appendTextRunToTableCell(
     tc.appendChild(lastP);
   }
 
-  const clonedRPr = findFirstRunProperties(paragraphs);
+  const clonedRPr = findBodyRunProperties(paragraphs);
   const r = doc.createElement("w:r");
   if (clonedRPr) {
     r.appendChild(clonedRPr);
@@ -559,13 +685,15 @@ export async function buildDocxTemplate(
         start_p,
         sliceEnd + 1
       );
-      const fallbackRPr = findFirstRunProperties(paragraphRange);
+      const bodyRPr = findBodyRunProperties(paragraphRange);
+      const bodyPPr = findBodyParagraphProperties(paragraphRange);
 
       setParagraphSingleRunText(
         docXml,
         targetP,
         normalizeTag(tag),
-        fallbackRPr
+        bodyRPr,
+        bodyPPr
       );
 
       for (let i = start_p + 1; i <= sliceEnd; i++) {
@@ -730,6 +858,117 @@ export async function buildDocxTemplate(
 // 3. Função Central de Injeção (fill_docx_template / processDocument)
 // ============================================================================
 
+function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
+  let modified = false;
+  const paragraphs = getAllElements(xmlDoc, "w:p");
+
+  for (const p of paragraphs) {
+    const parent = p.parentNode;
+    if (!parent) continue;
+
+    const hasBrElements =
+      getAllElements(p, "w:br").length > 0 ||
+      getAllElements(p, "w:cr").length > 0;
+    const fullText = extractParagraphText(p);
+    const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
+    const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
+
+    if (!hasLineBreaks && !hasMarkdownBold) {
+      continue;
+    }
+
+    const pPrList = getDirectChildElements(p, "w:pPr");
+    let basePPr =
+      pPrList.length > 0 ? (pPrList[0].cloneNode(true) as Element) : null;
+    const detectedRPr = findBodyRunProperties([p]);
+
+    let normalRPr: Element | null;
+    if (hasMarkdownBold) {
+      normalRPr = detectedRPr ? stripBoldFromRPr(detectedRPr) : null;
+      if (basePPr) {
+        basePPr = stripBoldFromPPr(basePPr);
+      }
+    } else {
+      normalRPr = detectedRPr ? (detectedRPr.cloneNode(true) as Element) : null;
+    }
+
+    const lines = fullText.split(/\r?\n/);
+
+    for (const line of lines) {
+      const newP = xmlDoc.createElement("w:p");
+      if (basePPr) {
+        newP.appendChild(basePPr.cloneNode(true));
+      }
+
+      const segments = line.split(/(\*\*[^*]+\*\*)/g);
+      for (const seg of segments) {
+        if (!seg) continue;
+        const isBoldSeg =
+          seg.startsWith("**") && seg.endsWith("**") && seg.length > 4;
+        const cleanText = isBoldSeg ? seg.slice(2, -2) : seg;
+
+        const r = xmlDoc.createElement("w:r");
+        const rPrToUse = isBoldSeg
+          ? addBoldToRPr(xmlDoc, normalRPr)
+          : normalRPr
+            ? (normalRPr.cloneNode(true) as Element)
+            : null;
+        if (rPrToUse) {
+          r.appendChild(rPrToUse);
+        }
+
+        const t = xmlDoc.createElement("w:t");
+        t.setAttribute("xml:space", "preserve");
+        t.textContent = cleanText;
+        r.appendChild(t);
+        newP.appendChild(r);
+      }
+
+      parent.insertBefore(newP, p);
+    }
+
+    parent.removeChild(p);
+    modified = true;
+  }
+
+  return modified;
+}
+
+async function postProcessInjectedDocxBuffer(
+  rawBuffer: Uint8Array
+): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(rawBuffer);
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  let anyModified = false;
+
+  const fileNames = Object.keys(zip.files).sort();
+  for (const name of fileNames) {
+    if (
+      name === "word/document.xml" ||
+      /^word\/(header|footer)\d*\.xml$/i.test(name)
+    ) {
+      const partFile = zip.file(name);
+      if (!partFile) continue;
+      const xmlStr = await partFile.async("string");
+      const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
+      if (postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc)) {
+        zip.file(name, serializer.serializeToString(xmlDoc));
+        anyModified = true;
+      }
+    }
+  }
+
+  if (!anyModified) {
+    return Buffer.from(rawBuffer);
+  }
+
+  return await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+  });
+}
+
 export async function processDocument(
   templatePath: string,
   statePath: string,
@@ -759,7 +998,8 @@ export async function processDocument(
     noSandbox: true,
   });
 
-  writeFileSync(resolvedOutput, Buffer.from(outputBuffer));
+  const finalBuffer = await postProcessInjectedDocxBuffer(outputBuffer);
+  writeFileSync(resolvedOutput, finalBuffer);
   return {
     success: true,
     message: `Documento gerado com sucesso em: ${resolvedOutput}`,
