@@ -402,4 +402,96 @@ describe("DocGov Docx Engine v0.1.0", () => {
       replaceBinaryOnDisk(fakeBinPath, new Uint8Array(10), 1024)
     ).toThrow("Binário baixado inválido ou corrompido");
   });
+
+  test("deve evitar herança indevida de negrito e renderizar **negrito** seletivo e quebras \\n em múltiplos <w:p>", async () => {
+    const mixedDocxPath = resolve(tempDir, "mixed_bold.docx");
+    const mixedManifestPath = resolve(tempDir, "mixed_manifest.json");
+    const mixedTplPath = resolve(tempDir, "mixed_tpl.docx");
+    const mixedStatePath = resolve(tempDir, "mixed_state.json");
+    const mixedOutPath = resolve(tempDir, "mixed_out.docx");
+
+    const zip = new JSZip();
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    // Célula onde o 1º parágrafo é um subtítulo em negrito (<w:b/>) e o 2º é corpo normal (sem <w:b/>)
+    zip.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:p>
+            <w:r><w:rPr><w:rFonts w:ascii="Arial"/><w:b/><w:bCs/></w:rPr><w:t>Levantamento de Mercado</w:t></w:r>
+          </w:p>
+          <w:p>
+            <w:r><w:rPr><w:rFonts w:ascii="Arial"/></w:rPr><w:t>Texto normal do corpo da célula.</w:t></w:r>
+          </w:p>
+        </w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+    );
+    writeFileSync(mixedDocxPath, await zip.generateAsync({ type: "nodebuffer" }));
+
+    const manifest: SlotsManifest = {
+      replace_table_cells: [
+        {
+          table_index: 0,
+          row_index: 0,
+          cell_index: 0,
+          tag: "{{etp.justificativa}}",
+        },
+      ],
+    };
+    writeFileSync(mixedManifestPath, JSON.stringify(manifest, null, 2));
+
+    await buildDocxTemplate(mixedDocxPath, mixedManifestPath, mixedTplPath);
+
+    // Verifica que o template parametrizado NÃO herdou <w:b/> na tag {{etp.justificativa}}
+    const tplZip = await JSZip.loadAsync(readFileSync(mixedTplPath));
+    const tplXml = await tplZip.file("word/document.xml")!.async("string");
+    expect(tplXml).not.toContain("<w:b/>");
+    expect(tplXml).toContain("{{etp.justificativa}}");
+
+    // Injeta texto com múltiplos parágrafos (\n) e negrito seletivo (**...**)
+    const state = {
+      etp: {
+        justificativa:
+          "**Alternativa 1:** Solução em nuvem.\n**Alternativa 2:** Solução local.",
+      },
+    };
+    writeFileSync(mixedStatePath, JSON.stringify(state, null, 2));
+
+    await processDocument(mixedTplPath, mixedStatePath, mixedOutPath);
+
+    const outInspect = await inspectDocx(mixedOutPath);
+    expect(outInspect.tables[0].rows[0].cells[0].text).toBe(
+      "Alternativa 1: Solução em nuvem.\nAlternativa 2: Solução local."
+    );
+
+    // Verifica no XML final que foram criados 2 <w:p> e que o <w:b/> está apenas nos rótulos
+    const outZip = await JSZip.loadAsync(readFileSync(mixedOutPath));
+    const outXml = await outZip.file("word/document.xml")!.async("string");
+    expect(outXml).not.toContain("**");
+    expect(outXml).toContain("<w:b/>");
+    expect(outXml).toContain("Alternativa 1:");
+    expect(outXml).toContain(" Solução em nuvem.");
+  });
 });
