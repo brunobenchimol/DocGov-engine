@@ -161,23 +161,24 @@ function getAllElements(root: Node, tagName: string): Element[] {
 
 function extractParagraphText(p: Element): string {
   const parts: string[] = [];
-  function walk(node: Node) {
+  function walk(node: Node, insideWT: boolean) {
     if (!node || !node.childNodes) return;
     for (let i = 0; i < node.childNodes.length; i++) {
       const child = node.childNodes[i];
-      if (isElementMatch(child, "w:t")) {
-        parts.push(child.textContent ?? "");
-      } else if (
+      if (
         isElementMatch(child, "w:br") ||
         isElementMatch(child, "w:cr")
       ) {
         parts.push("\n");
+      } else if (child.nodeType === 3 && insideWT) {
+        parts.push(child.nodeValue ?? "");
       } else if (child.nodeType === 1) {
-        walk(child);
+        const nowInsideWT = insideWT || isElementMatch(child, "w:t");
+        walk(child, nowInsideWT);
       }
     }
   }
-  walk(p);
+  walk(p, isElementMatch(p, "w:t"));
   return parts.join("");
 }
 
