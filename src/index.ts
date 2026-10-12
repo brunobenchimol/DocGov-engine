@@ -1,5 +1,14 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  mkdirSync,
+  renameSync,
+  unlinkSync,
+  chmodSync,
+} from "node:fs";
+import { resolve, dirname, basename } from "node:path";
+import { spawn } from "node:child_process";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { createReport } from "docx-templates";
@@ -10,7 +19,8 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.1.0";
+export const VERSION = "0.2.0";
+export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
 // Interfaces e Tipos
@@ -86,6 +96,21 @@ export interface SlotsManifest {
   replace_table_cells?: ReplaceTableCellRule[];
   loop_table_rows?: LoopTableRowsRule[];
   replace_inline?: ReplaceInlineRule[];
+}
+
+export interface SelfUpdateOptions {
+  checkOnly?: boolean;
+  force?: boolean;
+  targetPath?: string;
+}
+
+export interface SelfUpdateResult {
+  updated: boolean;
+  updateAvailable: boolean;
+  currentVersion: string;
+  latestVersion: string;
+  targetPath: string;
+  message: string;
 }
 
 // ============================================================================
@@ -293,7 +318,6 @@ function applyInlineReplacementsToXmlDoc(
         const parentRun = extraT.parentNode as Element | null;
         if (parentRun && isElementMatch(parentRun, "w:r")) {
           parentRun.removeChild(extraT);
-          // Remove o <w:r> se restar apenas <w:rPr> (sem <w:drawing>, <w:pict>, <w:br>, <w:tab>)
           const remainingChildren = getDirectChildElements(parentRun);
           const hasNonRPr = remainingChildren.some(
             (ch) => !isElementMatch(ch, "w:rPr")
@@ -743,6 +767,280 @@ export async function processDocument(
 }
 
 // ============================================================================
+// 4. Verificação de Versão e Auto-Atualização (Self-Update)
+// ============================================================================
+
+export function compareSemver(current: string, latest: string): number {
+  const cleanCurrent = current.replace(/^v/i, "").trim();
+  const cleanLatest = latest.replace(/^v/i, "").trim();
+
+  const partsA = cleanCurrent.split(".").map((n) => parseInt(n, 10) || 0);
+  const partsB = cleanLatest.split(".").map((n) => parseInt(n, 10) || 0);
+
+  for (let i = 0; i < Math.max(partsA.length, partsB.length); i++) {
+    const a = partsA[i] ?? 0;
+    const b = partsB[i] ?? 0;
+    if (a < b) return -1;
+    if (a > b) return 1;
+  }
+  return 0;
+}
+
+export function getPlatformAssetName(platform: string = process.platform): string {
+  return platform === "win32"
+    ? "docgov-docx-windows-x64.exe"
+    : "docgov-docx-linux-x64";
+}
+
+export function resolveSelfBinaryPath(customTargetPath?: string): string {
+  if (customTargetPath) {
+    return resolve(customTargetPath);
+  }
+  const execBase = basename(process.execPath).toLowerCase();
+  if (
+    execBase === "bun" ||
+    execBase === "bun.exe" ||
+    execBase === "node" ||
+    execBase === "node.exe"
+  ) {
+    return resolve(
+      process.platform === "win32"
+        ? "./bin/docgov-docx.exe"
+        : "./bin/docgov-docx"
+    );
+  }
+  return resolve(process.execPath);
+}
+
+export function cleanupOldBinaryBackup(binaryPath?: string): void {
+  try {
+    const target = binaryPath ?? resolveSelfBinaryPath();
+    const oldBackup = `${target}.old`;
+    if (existsSync(oldBackup)) {
+      unlinkSync(oldBackup);
+    }
+  } catch {
+    // Ignora caso ainda esteja bloqueado pelo SO
+  }
+}
+
+export async function fetchLatestReleaseInfo(
+  repo: string = GITHUB_REPO
+): Promise<{
+  tag: string;
+  version: string;
+  downloadUrl: string;
+  assetName: string;
+}> {
+  const assetName = getPlatformAssetName();
+
+  // Tentativa 1: API oficial do GitHub
+  try {
+    const apiRes = await fetch(
+      `https://api.github.com/repos/${repo}/releases/latest`,
+      {
+        headers: {
+          "User-Agent": `docgov-docx-engine/${VERSION}`,
+          Accept: "application/vnd.github+json",
+        },
+      }
+    );
+
+    if (apiRes.ok) {
+      const data = (await apiRes.json()) as {
+        tag_name?: string;
+        assets?: Array<{ name: string; browser_download_url: string }>;
+      };
+      if (data.tag_name) {
+        const tag = data.tag_name;
+        const version = tag.replace(/^v/i, "");
+        const matchedAsset = data.assets?.find((a) => a.name === assetName);
+        const downloadUrl =
+          matchedAsset?.browser_download_url ??
+          `https://github.com/${repo}/releases/download/${tag}/${assetName}`;
+        return { tag, version, downloadUrl, assetName };
+      }
+    }
+  } catch {
+    // Prossegue para o fallback via redirecionamento HTTP
+  }
+
+  // Tentativa 2 (Fallback anti-Rate Limit): Redirecionamento de /releases/latest
+  const redirectRes = await fetch(
+    `https://github.com/${repo}/releases/latest`,
+    {
+      redirect: "follow",
+      headers: {
+        "User-Agent": `docgov-docx-engine/${VERSION}`,
+      },
+    }
+  );
+
+  if (!redirectRes.ok) {
+    throw new Error(
+      `Não foi possível consultar a última release em github.com/${repo} (HTTP ${redirectRes.status})`
+    );
+  }
+
+  const finalUrl = redirectRes.url;
+  const tagMatch = finalUrl.match(/\/releases\/tag\/([^/?#]+)/i);
+  if (!tagMatch || !tagMatch[1]) {
+    throw new Error(
+      `Não foi possível identificar a versão mais recente a partir da URL: ${finalUrl}`
+    );
+  }
+
+  const tag = decodeURIComponent(tagMatch[1]);
+  const version = tag.replace(/^v/i, "");
+  const downloadUrl = `https://github.com/${repo}/releases/download/${tag}/${assetName}`;
+  return { tag, version, downloadUrl, assetName };
+}
+
+export function replaceBinaryOnDisk(
+  targetPath: string,
+  newBinaryBuffer: Uint8Array,
+  minBytes: number = 1024
+): void {
+  if (newBinaryBuffer.byteLength < minBytes) {
+    throw new Error(
+      `Binário baixado inválido ou corrompido (${newBinaryBuffer.byteLength} bytes, mínimo esperado: ${minBytes} bytes)`
+    );
+  }
+
+  const resolvedTarget = resolve(targetPath);
+  const parentDir = dirname(resolvedTarget);
+  if (!existsSync(parentDir)) {
+    mkdirSync(parentDir, { recursive: true });
+  }
+
+  const tempNewPath = `${resolvedTarget}.new`;
+  const oldBackupPath = `${resolvedTarget}.old`;
+
+  writeFileSync(tempNewPath, Buffer.from(newBinaryBuffer));
+
+  if (process.platform !== "win32") {
+    chmodSync(tempNewPath, 0o755);
+    renameSync(tempNewPath, resolvedTarget);
+    return;
+  }
+
+  // Estratégia Windows: renomeia o executável atual (mesmo em execução) para .old e move o .new para o destino
+  if (existsSync(oldBackupPath)) {
+    try {
+      unlinkSync(oldBackupPath);
+    } catch {
+      // Ignora se já bloqueado
+    }
+  }
+
+  if (existsSync(resolvedTarget)) {
+    renameSync(resolvedTarget, oldBackupPath);
+  }
+
+  try {
+    renameSync(tempNewPath, resolvedTarget);
+  } catch (err) {
+    // Rollback caso o rename do .new falhe
+    if (!existsSync(resolvedTarget) && existsSync(oldBackupPath)) {
+      try {
+        renameSync(oldBackupPath, resolvedTarget);
+      } catch {
+        // Ignora erro de rollback
+      }
+    }
+    throw err;
+  }
+
+  // Tenta remover o .old imediatamente; se for o próprio processo em execução, agenda limpeza em background
+  if (existsSync(oldBackupPath)) {
+    try {
+      unlinkSync(oldBackupPath);
+    } catch {
+      try {
+        const child = spawn(
+          "cmd.exe",
+          [
+            "/c",
+            `ping 127.0.0.1 -n 2 > nul & del /f /q "${oldBackupPath}"`,
+          ],
+          {
+            detached: true,
+            stdio: "ignore",
+            windowsHide: true,
+          }
+        );
+        child.unref();
+      } catch {
+        // Será limpo automaticamente na próxima inicialização via cleanupOldBinaryBackup()
+      }
+    }
+  }
+}
+
+export async function selfUpdate(
+  options: SelfUpdateOptions = {}
+): Promise<SelfUpdateResult> {
+  const targetPath = resolveSelfBinaryPath(options.targetPath);
+  const latest = await fetchLatestReleaseInfo();
+  const cmp = compareSemver(VERSION, latest.version);
+  const updateAvailable = cmp < 0;
+
+  if (options.checkOnly) {
+    const msg = updateAvailable
+      ? `Nova versão disponível: v${latest.version} (atual: v${VERSION}). Execute 'docgov-docx --update' para atualizar.`
+      : `Você já está na versão mais recente (v${VERSION}).`;
+    return {
+      updated: false,
+      updateAvailable,
+      currentVersion: VERSION,
+      latestVersion: latest.version,
+      targetPath,
+      message: msg,
+    };
+  }
+
+  if (!options.force && !updateAvailable) {
+    return {
+      updated: false,
+      updateAvailable: false,
+      currentVersion: VERSION,
+      latestVersion: latest.version,
+      targetPath,
+      message: `Você já está na versão mais recente (v${VERSION}). Use '--force-update' para forçar a reinstalação.`,
+    };
+  }
+
+  console.log(
+    `Baixando ${latest.assetName} (v${latest.version}) de ${latest.downloadUrl} ...`
+  );
+  const res = await fetch(latest.downloadUrl, {
+    redirect: "follow",
+    headers: {
+      "User-Agent": `docgov-docx-engine/${VERSION}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error(
+      `Falha ao baixar o binário da release v${latest.version} (HTTP ${res.status})`
+    );
+  }
+
+  const arrayBuffer = await res.arrayBuffer();
+  // Binário standalone Bun tem ~50-100MB; exigimos pelo menos 1 MB para evitar páginas de erro
+  replaceBinaryOnDisk(targetPath, new Uint8Array(arrayBuffer), 1024 * 1024);
+
+  return {
+    updated: true,
+    updateAvailable,
+    currentVersion: VERSION,
+    latestVersion: latest.version,
+    targetPath,
+    message: `Atualizado com sucesso para v${latest.version} em: ${targetPath}`,
+  };
+}
+
+// ============================================================================
 // Modo Servidor MCP (stdio)
 // ============================================================================
 
@@ -919,9 +1217,38 @@ Uso:
   docgov-docx --inspect <arq.docx> [--out <mapa.json>]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx>
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
+  docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
+  docgov-docx -u, --update                        Atualiza o binário para a versão mais recente (se houver)
+  docgov-docx --force-update                      Força o download e reinstalação da última release
   docgov-docx -v, --version                       Exibe a versão do software
   docgov-docx -h, --help                          Exibe esta mensagem de ajuda
 `);
+    return;
+  }
+
+  // 0) Modo Auto-Atualização (--check-update, --update, -u, --force-update)
+  if (
+    args.includes("--check-update") ||
+    args.includes("--update") ||
+    args.includes("-u") ||
+    args.includes("--force-update")
+  ) {
+    const checkOnly = args.includes("--check-update");
+    const force = args.includes("--force-update");
+    const outIdx = args.indexOf("--out");
+    const customTarget = outIdx !== -1 ? args[outIdx + 1] : undefined;
+
+    try {
+      const res = await selfUpdate({
+        checkOnly,
+        force,
+        targetPath: customTarget,
+      });
+      console.log(res.message);
+    } catch (err: any) {
+      console.error(`Erro na atualização: ${err.message}`);
+      process.exit(1);
+    }
     return;
   }
 
@@ -1015,6 +1342,7 @@ Uso:
 // ============================================================================
 
 if (import.meta.main) {
+  cleanupOldBinaryBackup();
   const args = process.argv.slice(2);
 
   // Se tiver flag explícita de CLI, roda CLI.
@@ -1024,6 +1352,10 @@ if (import.meta.main) {
     args.includes("--build-template") ||
     args.includes("--inject") ||
     args.includes("--template") ||
+    args.includes("--check-update") ||
+    args.includes("--update") ||
+    args.includes("-u") ||
+    args.includes("--force-update") ||
     args.includes("--help") ||
     args.includes("-h") ||
     args.includes("--version") ||

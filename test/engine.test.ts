@@ -1,5 +1,6 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import {
+  readFileSync,
   writeFileSync,
   existsSync,
   unlinkSync,
@@ -12,6 +13,8 @@ import {
   processDocument,
   inspectDocx,
   buildDocxTemplate,
+  compareSemver,
+  replaceBinaryOnDisk,
   type SlotsManifest,
 } from "../src/index.ts";
 
@@ -374,5 +377,29 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(finalInspection.tables[1].rows[2].cells[1].text).toBe(
       "Uso do motor automatizado build_docx_template"
     );
+  });
+
+  test("deve comparar versões SemVer corretamente (compareSemver)", () => {
+    expect(compareSemver("0.1.0", "0.2.0")).toBe(-1);
+    expect(compareSemver("v0.2.0", "0.2.0")).toBe(0);
+    expect(compareSemver("0.10.0", "0.2.0")).toBe(1);
+    expect(compareSemver("1.0.0", "0.9.9")).toBe(1);
+  });
+
+  test("deve substituir binário em disco com segurança (replaceBinaryOnDisk)", () => {
+    const fakeBinPath = resolve(tempDir, "fake-docgov-docx.exe");
+    writeFileSync(fakeBinPath, "VERSAO_ANTIGA_CONTEUDO_INICIAL");
+
+    const newPayload = new Uint8Array(2048).fill(65); // 2048 bytes de 'A'
+    replaceBinaryOnDisk(fakeBinPath, newPayload, 1024);
+
+    expect(existsSync(fakeBinPath)).toBe(true);
+    expect(existsSync(`${fakeBinPath}.new`)).toBe(false);
+    expect(readFileSync(fakeBinPath).byteLength).toBe(2048);
+
+    // Deve rejeitar payload menor que o mínimo exigido
+    expect(() =>
+      replaceBinaryOnDisk(fakeBinPath, new Uint8Array(10), 1024)
+    ).toThrow("Binário baixado inválido ou corrompido");
   });
 });
