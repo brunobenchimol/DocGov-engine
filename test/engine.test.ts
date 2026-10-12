@@ -1,7 +1,19 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { writeFileSync, existsSync, unlinkSync, mkdirSync, rmdirSync } from "node:fs";
+import {
+  writeFileSync,
+  existsSync,
+  unlinkSync,
+  mkdirSync,
+  rmSync,
+} from "node:fs";
 import { resolve } from "node:path";
-import { processDocument } from "../src/index.ts";
+import JSZip from "jszip";
+import {
+  processDocument,
+  inspectDocx,
+  buildDocxTemplate,
+  type SlotsManifest,
+} from "../src/index.ts";
 
 // Base64 de um .docx OpenXML válido contendo as tags {{processo_id}} e {{objeto.descricao}}
 const MINIMAL_DOCX_BASE64 =
@@ -23,38 +35,165 @@ const MINIMAL_DOCX_BASE64 =
   "55HQKq8AAADvAAAAEQAAAAAAAAAAAAAAAADvAQAAd29yZC9kb2N1bWVudC54bWxQSwUGAAAAAAMA" +
   "AwC5AAAAzQIAAAAA";
 
-describe("DocGov Docx Engine", () => {
+async function createSampleRawDocx(targetPath: string): Promise<void> {
+  const zip = new JSZip();
+
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/header1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/>
+  <Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>
+</Types>`
+  );
+
+  zip.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+  );
+
+  zip.file(
+    "word/_rels/document.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdHeader1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>
+  <Relationship Id="rIdFooter1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>
+</Relationships>`
+  );
+
+  zip.file(
+    "word/header1.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr><w:pStyle w:val="Header"/></w:pPr>
+    <w:r><w:t>Defensoria Pública </w:t></w:r>
+    <w:r><w:t>do Estado do Pará</w:t></w:r>
+  </w:p>
+</w:hdr>`
+  );
+
+  zip.file(
+    "word/footer1.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:ftr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:p>
+    <w:pPr><w:pStyle w:val="Footer"/></w:pPr>
+    <w:r><w:t>Processo Administrativo nº 000/2026</w:t></w:r>
+  </w:p>
+</w:ftr>`
+  );
+
+  zip.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>ESTUDO TÉCNICO PRELIMINAR</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Normal"/></w:pPr>
+      <w:r><w:t>Órgão: Defensoria Pública </w:t></w:r>
+      <w:r><w:t>do Estado do Pará</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>1. DESCRIÇÃO DA NECESSIDADE</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="BodyText"/></w:pPr>
+      <w:r><w:rPr><w:i/></w:rPr><w:t>Texto original parágrafo 1 a substituir.</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="BodyText"/></w:pPr>
+      <w:r><w:t>Texto original parágrafo 2 a remover.</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Unidade Requisitante</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Diretoria Antiga</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Responsável</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Servidor Antigo</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:b/><w:t>Risco</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:b/><w:t>Mitigação</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Risco antigo 1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Mitigação antiga 1</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Risco antigo 2</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Mitigação antiga 2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Risco antigo 3</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Mitigação antiga 3</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:sectPr>
+      <w:headerReference w:type="default" r:id="rIdHeader1"/>
+      <w:footerReference w:type="default" r:id="rIdFooter1"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`
+  );
+
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  writeFileSync(targetPath, buf);
+}
+
+describe("DocGov Docx Engine v0.1.0", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
   const outputPath = resolve(tempDir, "resultado_final.docx");
 
-  beforeAll(() => {
+  // Arquivos do teste E2E (inspect -> build-template -> fill)
+  const rawDocxPath = resolve(tempDir, "bruto_sem_tags.docx");
+  const inspectJsonPath = resolve(tempDir, "inspecao.json");
+  const manifestPath = resolve(tempDir, "slots_manifest.json");
+  const builtTemplatePath = resolve(tempDir, "template_parametrizado.docx");
+  const e2eStatePath = resolve(tempDir, "e2e_state.json");
+  const e2eFinalDocxPath = resolve(tempDir, "e2e_final.docx");
+
+  beforeAll(async () => {
     if (!existsSync(tempDir)) {
       mkdirSync(tempDir, { recursive: true });
     }
-    // Cria o template .docx válido a partir do base64
     writeFileSync(templatePath, Buffer.from(MINIMAL_DOCX_BASE64, "base64"));
 
-    // Cria o mock de dados do estado_caso.json
     const mockState = {
       processo_id: "POC-2026-PA-001",
       objeto: {
-        descricao: "Contratação de plataforma em nuvem para o Órgão Y"
-      }
+        descricao: "Contratação de plataforma em nuvem para o Órgão Y",
+      },
     };
     writeFileSync(statePath, JSON.stringify(mockState, null, 2), "utf-8");
+
+    await createSampleRawDocx(rawDocxPath);
   });
 
   afterAll(() => {
-    // Limpeza
-    if (existsSync(templatePath)) unlinkSync(templatePath);
-    if (existsSync(statePath)) unlinkSync(statePath);
-    if (existsSync(outputPath)) unlinkSync(outputPath);
-    if (existsSync(tempDir)) rmdirSync(tempDir);
+    if (existsSync(tempDir)) {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
-  test("deve processar o template e injetar variáveis sem erros", async () => {
+  test("deve processar o template básico e injetar variáveis sem erros", async () => {
     const result = await processDocument(templatePath, statePath, outputPath);
 
     expect(result.success).toBe(true);
@@ -66,5 +205,174 @@ describe("DocGov Docx Engine", () => {
       processDocument("caminho_inexistente.docx", statePath, outputPath)
     ).rejects.toThrow("Template não encontrado");
   });
-});
 
+  test("Fluxo Completo E2E: inspect_docx -> build_docx_template -> fill_docx_template", async () => {
+    // 1. Inspecionar documento bruto (sem tags)
+    const inspection = await inspectDocx(rawDocxPath, inspectJsonPath);
+
+    expect(existsSync(inspectJsonPath)).toBe(true);
+    expect(inspection.headers.length).toBe(1);
+    expect(inspection.headers[0].text).toBe(
+      "Defensoria Pública do Estado do Pará"
+    );
+    expect(inspection.footers.length).toBe(1);
+    expect(inspection.footers[0].text).toBe(
+      "Processo Administrativo nº 000/2026"
+    );
+
+    expect(inspection.paragraphs.length).toBe(5);
+    expect(inspection.paragraphs[0]).toEqual({
+      index: 0,
+      style: "Heading1",
+      text: "ESTUDO TÉCNICO PRELIMINAR",
+    });
+    expect(inspection.paragraphs[3]).toEqual({
+      index: 3,
+      style: "BodyText",
+      text: "Texto original parágrafo 1 a substituir.",
+    });
+
+    expect(inspection.tables.length).toBe(2);
+    expect(inspection.tables[0].rows.length).toBe(2);
+    expect(inspection.tables[1].rows.length).toBe(4);
+
+    // 2. Construir template parametrizado via slots_manifest.json
+    const manifest: SlotsManifest = {
+      replace_paragraphs: [
+        {
+          start_p: 3,
+          end_p: 4,
+          tag: "{{estudo.descricao_necessidade}}",
+        },
+      ],
+      replace_table_cells: [
+        {
+          table_index: 0,
+          row_index: 0,
+          cell_index: 1,
+          tag: "{{metadados.unidade_requisitante}}",
+        },
+        {
+          table_index: 0,
+          row_index: 1,
+          cell_index: 1,
+          tag: "{{metadados.responsavel}}",
+        },
+      ],
+      loop_table_rows: [
+        {
+          table_index: 1,
+          header_row_index: 0,
+          template_row_index: 1,
+          remove_from_row: 2,
+          remove_to_row: 3,
+          for_open_tag: "{{FOR r IN gestao_riscos}}",
+          for_close_tag: "{{END-FOR r}}",
+          cell_tags: ["{{$r.risco}}", "{{$r.mitigacao}}"],
+        },
+      ],
+      replace_inline: [
+        {
+          find: "Defensoria Pública do Estado do Pará",
+          replace: "{{metadados.orgao_entidade}}",
+        },
+        {
+          find: "000/2026",
+          replace: "{{metadados.numero_processo}}",
+        },
+      ],
+    };
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), "utf-8");
+
+    const buildRes = await buildDocxTemplate(
+      rawDocxPath,
+      manifestPath,
+      builtTemplatePath
+    );
+    expect(buildRes.success).toBe(true);
+    expect(existsSync(builtTemplatePath)).toBe(true);
+
+    // Verificar estrutura do template construído
+    const tplInspection = await inspectDocx(builtTemplatePath);
+    expect(tplInspection.paragraphs.length).toBe(4); // Parágrafo 4 foi consolidado no 3
+    expect(tplInspection.paragraphs[3].style).toBe("BodyText");
+    expect(tplInspection.paragraphs[3].text).toBe(
+      "{{estudo.descricao_necessidade}}"
+    );
+    expect(tplInspection.headers[0].text).toBe("{{metadados.orgao_entidade}}");
+    expect(tplInspection.footers[0].text).toBe(
+      "Processo Administrativo nº {{metadados.numero_processo}}"
+    );
+    expect(tplInspection.tables[1].rows.length).toBe(2); // Linhas 2 e 3 removidas
+
+    // 3. Preencher o template construído com dados reais (fill_docx_template)
+    const e2eState = {
+      metadados: {
+        orgao_entidade: "Secretaria de Estado de Administração (SEAD/PA)",
+        numero_processo: "PAE-2026/88990",
+        unidade_requisitante: "Diretoria de Governança e Tecnologia",
+        responsavel: "Bruno Benchimol",
+      },
+      estudo: {
+        descricao_necessidade:
+          "Necessidade de modernização da infraestrutura de automação documental.",
+      },
+      gestao_riscos: [
+        {
+          risco: "Indisponibilidade temporária do serviço",
+          mitigacao: "Arquitetura redundante multi-zona",
+        },
+        {
+          risco: "Atraso na migração de modelos legados",
+          mitigacao: "Uso do motor automatizado build_docx_template",
+        },
+      ],
+    };
+    writeFileSync(e2eStatePath, JSON.stringify(e2eState, null, 2), "utf-8");
+
+    const fillRes = await processDocument(
+      builtTemplatePath,
+      e2eStatePath,
+      e2eFinalDocxPath
+    );
+    expect(fillRes.success).toBe(true);
+    expect(existsSync(e2eFinalDocxPath)).toBe(true);
+
+    // 4. Inspecionar documento final gerado para comprovar substituição completa
+    const finalInspection = await inspectDocx(e2eFinalDocxPath);
+
+    expect(finalInspection.headers[0].text).toBe(
+      "Secretaria de Estado de Administração (SEAD/PA)"
+    );
+    expect(finalInspection.footers[0].text).toBe(
+      "Processo Administrativo nº PAE-2026/88990"
+    );
+    expect(finalInspection.paragraphs[1].text).toBe(
+      "Órgão: Secretaria de Estado de Administração (SEAD/PA)"
+    );
+    expect(finalInspection.paragraphs[3].text).toBe(
+      "Necessidade de modernização da infraestrutura de automação documental."
+    );
+    expect(finalInspection.tables[0].rows[0].cells[1].text).toBe(
+      "Diretoria de Governança e Tecnologia"
+    );
+    expect(finalInspection.tables[0].rows[1].cells[1].text).toBe(
+      "Bruno Benchimol"
+    );
+
+    // Tabela 1 deve ter 1 linha de cabeçalho + 2 linhas geradas pelo loop FOR
+    expect(finalInspection.tables[1].rows.length).toBe(3);
+    expect(finalInspection.tables[1].rows[1].cells[0].text).toBe(
+      "Indisponibilidade temporária do serviço"
+    );
+    expect(finalInspection.tables[1].rows[1].cells[1].text).toBe(
+      "Arquitetura redundante multi-zona"
+    );
+    expect(finalInspection.tables[1].rows[2].cells[0].text).toBe(
+      "Atraso na migração de modelos legados"
+    );
+    expect(finalInspection.tables[1].rows[2].cells[1].text).toBe(
+      "Uso do motor automatizado build_docx_template"
+    );
+  });
+});
