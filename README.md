@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.2.1`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.2.2`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -45,7 +45,7 @@ O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponi
 Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **3 ferramentas**:
 
 1. **`inspect_docx`**
-   - Faz a engenharia reversa estrutural de qualquer `.docx` bruto, retornando um JSON com `headers`, `footers`, `paragraphs` (`index: 0..N`, `style`, `text`) e `tables` (`index: 0..M`, `rows`, `cells`), preservando quebras de linha (`<w:br/>` $\rightarrow$ `\n`).
+   - Faz a engenharia reversa estrutural de qualquer `.docx` bruto, retornando um JSON com `headers`, `footers`, `paragraphs` (`index: 0..N`, `style`, `text`, e metadados `numbering: { numId, level }` quando presentes) e `tables` (`index: 0..M`, `rows`, `cells`), preservando quebras de linha (`<w:br/>` $\rightarrow$ `\n`).
    - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*).
 
 2. **`build_docx_template`**
@@ -53,7 +53,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
    - Parâmetros: `sourcePath`, `manifestPath`, `outputPath` (*todos obrigatórios*).
 
 3. **`fill_docx_template`**
-   - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais e suporte a negrito seletivo via `**texto**`).
+   - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais, negrito seletivo via `**texto**` e suporte nativo a **listas hierárquicas aninhadas em múltiplos níveis** como `1.1`, `1.1.1`, `1.1.1.1`, `1.1.1.1.1` com recuo `<w:ind>` progressivo e achatamento recursivo de árvores JSON `subitens`).
    - Parâmetros: `templatePath`, `statePath`, `outputPath` (*todos obrigatórios*).
 
 ---

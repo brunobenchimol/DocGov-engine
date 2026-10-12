@@ -19,12 +19,17 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.2.1";
+export const VERSION = "0.2.2";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
 // Interfaces e Tipos
 // ============================================================================
+
+export interface ParagraphNumberingInfo {
+  numId: string;
+  level: number;
+}
 
 export interface HeaderFooterParagraphInfo {
   part: string;
@@ -32,12 +37,14 @@ export interface HeaderFooterParagraphInfo {
   paragraphIndex: number;
   style: string | null;
   text: string;
+  numbering?: ParagraphNumberingInfo;
 }
 
 export interface BodyParagraphInfo {
   index: number;
   style: string | null;
   text: string;
+  numbering?: ParagraphNumberingInfo;
 }
 
 export interface TableCellInfo {
@@ -68,6 +75,14 @@ export interface ReplaceParagraphRule {
   tag: string;
 }
 
+export interface LoopParagraphsRule {
+  start_p: number;
+  end_p: number;
+  for_open_tag: string;
+  for_close_tag: string;
+  item_tag: string;
+}
+
 export interface ReplaceTableCellRule {
   table_index: number;
   row_index: number;
@@ -93,6 +108,7 @@ export interface ReplaceInlineRule {
 
 export interface SlotsManifest {
   replace_paragraphs?: ReplaceParagraphRule[];
+  loop_paragraphs?: LoopParagraphsRule[];
   replace_table_cells?: ReplaceTableCellRule[];
   loop_table_rows?: LoopTableRowsRule[];
   replace_inline?: ReplaceInlineRule[];
@@ -192,6 +208,26 @@ function extractParagraphStyle(p: Element): string | null {
     pStyleList[0].getAttribute("val") ||
     null
   );
+}
+
+function extractParagraphNumbering(
+  p: Element
+): ParagraphNumberingInfo | undefined {
+  const pPrList = getDirectChildElements(p, "w:pPr");
+  if (pPrList.length === 0) return undefined;
+  const numPrList = getDirectChildElements(pPrList[0], "w:numPr");
+  if (numPrList.length === 0) return undefined;
+  const numIdEl = getDirectChildElements(numPrList[0], "w:numId")[0];
+  const ilvlEl = getDirectChildElements(numPrList[0], "w:ilvl")[0];
+  const numId =
+    numIdEl?.getAttribute("w:val") || numIdEl?.getAttribute("val") || null;
+  if (!numId || numId === "0") return undefined;
+  const ilvlStr =
+    ilvlEl?.getAttribute("w:val") || ilvlEl?.getAttribute("val") || "0";
+  return {
+    numId,
+    level: parseInt(ilvlStr, 10) || 0,
+  };
 }
 
 function extractCellText(tc: Element): string {
@@ -575,11 +611,15 @@ export async function inspectDocx(
   }
 
   const bodyParagraphs = getDirectChildElements(body, "w:p");
-  const paragraphs: BodyParagraphInfo[] = bodyParagraphs.map((p, index) => ({
-    index,
-    style: extractParagraphStyle(p),
-    text: extractParagraphText(p),
-  }));
+  const paragraphs: BodyParagraphInfo[] = bodyParagraphs.map((p, index) => {
+    const numbering = extractParagraphNumbering(p);
+    return {
+      index,
+      style: extractParagraphStyle(p),
+      text: extractParagraphText(p),
+      ...(numbering ? { numbering } : {}),
+    };
+  });
 
   const bodyTables = getDirectChildElements(body, "w:tbl");
   const tables: TableInfo[] = bodyTables.map((tbl, index) => {
@@ -693,6 +733,65 @@ export async function buildDocxTemplate(
         docXml,
         targetP,
         normalizeTag(tag),
+        bodyRPr,
+        bodyPPr
+      );
+
+      for (let i = start_p + 1; i <= sliceEnd; i++) {
+        const pToRemove = originalBodyParagraphs[i];
+        if (pToRemove && pToRemove.parentNode === body) {
+          body.removeChild(pToRemove);
+        }
+      }
+    }
+  }
+
+  // 2.1b. loop_paragraphs
+  if (manifest.loop_paragraphs && manifest.loop_paragraphs.length > 0) {
+    for (const rule of manifest.loop_paragraphs) {
+      const { start_p, end_p, for_open_tag, for_close_tag, item_tag } = rule;
+      if (start_p < 0 || start_p >= originalBodyParagraphs.length) {
+        throw new Error(
+          `Índice start_p (${start_p}) fora do intervalo de parágrafos (0..${originalBodyParagraphs.length - 1})`
+        );
+      }
+      const targetP = originalBodyParagraphs[start_p];
+      const sliceEnd = Math.min(end_p, originalBodyParagraphs.length - 1);
+      const paragraphRange = originalBodyParagraphs.slice(
+        start_p,
+        sliceEnd + 1
+      );
+      const bodyRPr = findBodyRunProperties(paragraphRange);
+      const bodyPPr = findBodyParagraphProperties(paragraphRange);
+
+      const normalizedOpenTag = normalizeTag(for_open_tag).replace(
+        /\bFOR\s+\$([a-zA-Z_]\w*)\s+IN\b/i,
+        "FOR $1 IN"
+      );
+      const normalizedCloseTag = normalizeTag(for_close_tag).replace(
+        /\bEND-FOR\s+\$([a-zA-Z_]\w*)\b/i,
+        "END-FOR $1"
+      );
+      const forVarMatch = normalizedOpenTag.match(
+        /\bFOR\s+([a-zA-Z_]\w*)\s+IN\b/i
+      );
+      const iteratorVar = forVarMatch ? forVarMatch[1] : null;
+      let normalizedItemTag = normalizeTag(item_tag);
+      if (iteratorVar && normalizedItemTag) {
+        const varRegex = new RegExp(
+          `(\\{\\{\\s*(?:INS\\s+|\\=\\s*)?)${iteratorVar}\\b`,
+          "g"
+        );
+        normalizedItemTag = normalizedItemTag.replace(
+          varRegex,
+          `$1$${iteratorVar}`
+        );
+      }
+
+      setParagraphSingleRunText(
+        docXml,
+        targetP,
+        `${normalizedOpenTag}${normalizedItemTag}${normalizedCloseTag}`,
         bodyRPr,
         bodyPPr
       );
@@ -859,6 +958,276 @@ export async function buildDocxTemplate(
 // 3. Função Central de Injeção (fill_docx_template / processDocument)
 // ============================================================================
 
+export function detectHierarchicalListItem(line: string): {
+  isListItem: boolean;
+  hasExplicitMarker: boolean;
+  level: number;
+} {
+  // 1) Numeração decimal multinível: 1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1 ...
+  const multiDecimalMatch = line.match(
+    /^\s*(?:\*\*)?(\d+(?:\.\d+)+)\.?(?:\*\*)?(?:\s+|\s*[-–—:]\s*)/
+  );
+  if (multiDecimalMatch) {
+    const segments = multiDecimalMatch[1].split(".");
+    return {
+      isListItem: true,
+      hasExplicitMarker: true,
+      level: Math.max(1, segments.length - 1),
+    };
+  }
+
+  // 2) Alíneas (a), b)) ou numerais romanos em minúsculo (i), ii), iii))
+  const alphaOrRomanMatch = line.match(
+    /^(\s*)(?:\*\*)?(?:[a-z]|[ivxlcdm]+)\)(?:\*\*)?\s+/i
+  );
+  if (alphaOrRomanMatch) {
+    const leadingSpaces = alphaOrRomanMatch[1].length;
+    return {
+      isListItem: true,
+      hasExplicitMarker: true,
+      level: Math.max(2, Math.floor(leadingSpaces / 2) + 2),
+    };
+  }
+
+  // 3) Marcadores / Bullets (-, •, *)
+  const bulletMatch = line.match(/^(\s*)(?:\*\*)?[-•*](?:\*\*)?\s+/);
+  if (bulletMatch) {
+    const leadingSpaces = bulletMatch[1].length;
+    return {
+      isListItem: true,
+      hasExplicitMarker: true,
+      level: Math.max(1, Math.floor(leadingSpaces / 2) + 1),
+    };
+  }
+
+  // 4) Item decimal simples (1. Texto, 2) Texto)
+  const singleDecimalMatch = line.match(
+    /^\s*(?:\*\*)?(\d+)[\.\)](?:\*\*)?\s+/
+  );
+  if (singleDecimalMatch) {
+    return {
+      isListItem: true,
+      hasExplicitMarker: true,
+      level: 0,
+    };
+  }
+
+  return {
+    isListItem: false,
+    hasExplicitMarker: false,
+    level: 0,
+  };
+}
+
+function buildLineParagraphProperties(
+  xmlDoc: Document,
+  basePPr: Element | null,
+  listInfo: { isListItem: boolean; hasExplicitMarker: boolean; level: number }
+): Element | null {
+  if (!listInfo.isListItem) {
+    return basePPr ? (basePPr.cloneNode(true) as Element) : null;
+  }
+
+  const pPr = basePPr
+    ? (basePPr.cloneNode(true) as Element)
+    : xmlDoc.createElement("w:pPr");
+
+  // Se a linha já possui marcador explícito (ex.: 1.1.1, a), •), remove <w:numPr>
+  // herdado do template para evitar dupla numeração pelo Word
+  if (listInfo.hasExplicitMarker) {
+    const numPrList = getDirectChildElements(pPr, "w:numPr");
+    for (const numPr of numPrList) {
+      pPr.removeChild(numPr);
+    }
+  }
+
+  // Aplica recuo progressivo (<w:ind>) proporcional ao subnível (level >= 1)
+  if (listInfo.level >= 1) {
+    const leftTwips = listInfo.level * 360;
+    const hangingTwips = 360;
+    const existingIndList = getDirectChildElements(pPr, "w:ind");
+    const ind =
+      existingIndList.length > 0
+        ? existingIndList[0]
+        : xmlDoc.createElement("w:ind");
+
+    ind.removeAttribute("w:firstLine");
+    ind.removeAttribute("firstLine");
+    ind.setAttribute("w:left", String(leftTwips));
+    ind.setAttribute("w:hanging", String(hangingTwips));
+
+    if (existingIndList.length === 0) {
+      pPr.appendChild(ind);
+    }
+  }
+
+  return pPr;
+}
+
+function flattenRecursiveItemsArray(
+  items: any[],
+  parentPrefix: string = "1"
+): { lines: string[]; flatObjects: any[] } {
+  const lines: string[] = [];
+  const flatObjects: any[] = [];
+
+  items.forEach((item, idx) => {
+    const currentIndex = idx + 1;
+    if (typeof item === "string") {
+      lines.push(item);
+      flatObjects.push({ texto: item });
+      return;
+    }
+
+    if (typeof item === "object" && item !== null) {
+      const explicitNum =
+        item.numero ?? item.codigo ?? item.id ?? item.item ?? null;
+      const computedNum = explicitNum
+        ? String(explicitNum).trim()
+        : `${parentPrefix}.${currentIndex}`;
+
+      const titulo = item.titulo ?? item.rotulo ?? item.nome ?? "";
+      const texto =
+        item.texto ?? item.descricao ?? item.conteudo ?? item.valor ?? "";
+
+      let formattedLine = "";
+      if (titulo && texto) {
+        formattedLine = `**${computedNum} ${titulo}:** ${texto}`;
+      } else if (titulo) {
+        formattedLine = `**${computedNum} ${titulo}**`;
+      } else if (texto) {
+        const textStr = String(texto).trim();
+        const startsWithNum =
+          textStr.startsWith(computedNum) ||
+          textStr.startsWith(`**${computedNum}`);
+        formattedLine = startsWithNum
+          ? textStr
+          : `**${computedNum}** ${textStr}`;
+      } else {
+        formattedLine = `**${computedNum}**`;
+      }
+
+      lines.push(formattedLine);
+
+      const children =
+        item.subitens ?? item.itens ?? item.children ?? item.filhos ?? null;
+
+      const flatClone: Record<string, any> = {
+        ...item,
+        numero: computedNum,
+        texto_formatado: formattedLine,
+      };
+      delete flatClone.subitens;
+      delete flatClone.itens;
+      delete flatClone.children;
+      delete flatClone.filhos;
+      flatObjects.push(flatClone);
+
+      if (Array.isArray(children) && children.length > 0) {
+        const childRes = flattenRecursiveItemsArray(children, computedNum);
+        lines.push(...childRes.lines);
+        flatObjects.push(...childRes.flatObjects);
+      }
+    }
+  });
+
+  return { lines, flatObjects };
+}
+
+function isHierarchicalListArray(arr: any[]): boolean {
+  if (arr.length === 0) return false;
+  if (arr.every((x) => typeof x === "string")) return true;
+  return arr.some(
+    (x) =>
+      typeof x === "object" &&
+      x !== null &&
+      (Array.isArray(x.subitens) ||
+        Array.isArray(x.itens) ||
+        Array.isArray(x.children) ||
+        Array.isArray(x.filhos))
+  );
+}
+
+async function extractTemplateForLoopTargets(
+  templateBuffer: Buffer
+): Promise<Set<string>> {
+  const targets = new Set<string>();
+  try {
+    const zip = await JSZip.loadAsync(templateBuffer);
+    const fileNames = Object.keys(zip.files);
+    for (const name of fileNames) {
+      if (
+        name === "word/document.xml" ||
+        /^word\/(header|footer)\d*\.xml$/i.test(name)
+      ) {
+        const xmlStr = await zip.file(name)!.async("string");
+        const matches = xmlStr.matchAll(
+          /\bFOR\s+\$?[a-zA-Z_]\w*\s+IN\s+([a-zA-Z0-9_.$]+)/gi
+        );
+        for (const m of matches) {
+          const fullExpr = m[1];
+          targets.add(fullExpr);
+          const lastProp = fullExpr.split(".").pop();
+          if (lastProp) targets.add(lastProp);
+        }
+      }
+    }
+  } catch {
+    // Ignora caso não seja possível extrair previamente
+  }
+  return targets;
+}
+
+export function normalizeNestedListsInState(
+  data: any,
+  forLoopTargets: Set<string> = new Set(),
+  currentPath: string = ""
+): any {
+  if (Array.isArray(data)) {
+    const propName = currentPath.split(".").pop() ?? "";
+    const isUsedInForLoop =
+      forLoopTargets.has(currentPath) || forLoopTargets.has(propName);
+
+    const hasNestedSubitems = data.some(
+      (x) =>
+        typeof x === "object" &&
+        x !== null &&
+        (Array.isArray(x.subitens) ||
+          Array.isArray(x.itens) ||
+          Array.isArray(x.children) ||
+          Array.isArray(x.filhos))
+    );
+
+    if (isUsedInForLoop) {
+      if (hasNestedSubitems) {
+        return flattenRecursiveItemsArray(data).flatObjects;
+      }
+      return data.map((item, idx) =>
+        normalizeNestedListsInState(item, forLoopTargets, `${currentPath}[${idx}]`)
+      );
+    }
+
+    if (isHierarchicalListArray(data)) {
+      return flattenRecursiveItemsArray(data).lines.join("\n");
+    }
+
+    return data.map((item, idx) =>
+      normalizeNestedListsInState(item, forLoopTargets, `${currentPath}[${idx}]`)
+    );
+  }
+
+  if (typeof data === "object" && data !== null) {
+    const result: Record<string, any> = {};
+    for (const [k, v] of Object.entries(data)) {
+      const nextPath = currentPath ? `${currentPath}.${k}` : k;
+      result[k] = normalizeNestedListsInState(v, forLoopTargets, nextPath);
+    }
+    return result;
+  }
+
+  return data;
+}
+
 function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
   let modified = false;
   const paragraphs = getAllElements(xmlDoc, "w:p");
@@ -873,8 +1242,19 @@ function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
     const fullText = extractParagraphText(p);
     const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
     const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
+    const singleLineListInfo = detectHierarchicalListItem(fullText);
+    const hasMultiLevelItem =
+      singleLineListInfo.isListItem && singleLineListInfo.level >= 1;
+    const hasNumberingConflict =
+      singleLineListInfo.hasExplicitMarker &&
+      extractParagraphNumbering(p) !== undefined;
 
-    if (!hasLineBreaks && !hasMarkdownBold) {
+    if (
+      !hasLineBreaks &&
+      !hasMarkdownBold &&
+      !hasMultiLevelItem &&
+      !hasNumberingConflict
+    ) {
       continue;
     }
 
@@ -897,8 +1277,14 @@ function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
 
     for (const line of lines) {
       const newP = xmlDoc.createElement("w:p");
-      if (basePPr) {
-        newP.appendChild(basePPr.cloneNode(true));
+      const lineListInfo = detectHierarchicalListItem(line);
+      const linePPr = buildLineParagraphProperties(
+        xmlDoc,
+        basePPr,
+        lineListInfo
+      );
+      if (linePPr) {
+        newP.appendChild(linePPr);
       }
 
       const segments = line.split(/(\*\*[^*]+\*\*)/g);
@@ -989,7 +1375,9 @@ export async function processDocument(
   }
 
   const templateBuffer = readFileSync(resolvedTemplate);
-  const stateData = JSON.parse(readFileSync(resolvedState, "utf-8"));
+  const rawStateData = JSON.parse(readFileSync(resolvedState, "utf-8"));
+  const forLoopTargets = await extractTemplateForLoopTargets(templateBuffer);
+  const stateData = normalizeNestedListsInState(rawStateData, forLoopTargets);
 
   const outputBuffer = await createReport({
     template: templateBuffer,
