@@ -54,6 +54,8 @@ jobs:
           ${{ matrix.run_cmd }} --version
           ${{ matrix.run_cmd }} -v
           ${{ matrix.run_cmd }} --help
+          ${{ matrix.run_cmd }} --inspect smoke_test/tpl.docx --out smoke_test/inspect.json
+          test -f smoke_test/inspect.json && echo "Smoke Test Inspect Aprovado!"
           ${{ matrix.run_cmd }} --template smoke_test/tpl.docx --state smoke_test/st.json --out smoke_test/out.docx
           test -f smoke_test/out.docx && echo "Smoke Test Aprovado: Binário standalone gerou o documento com sucesso!"
 
