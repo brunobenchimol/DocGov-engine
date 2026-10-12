@@ -1,6 +1,6 @@
 {
   "name": "docgov-docx-engine",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Motor standalone de inspeção, construção de templates e injeção em modelos Word (.docx) e servidor MCP via stdio para o ecossistema DocGov",
   "main": "src/index.ts",
   "type": "module",

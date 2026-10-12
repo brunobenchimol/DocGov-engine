@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.1.0`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.2.0`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -6,7 +6,7 @@ Compilado em **binário standalone** (Windows `x64` e Linux `x64`) via Bun — n
 
 ---
 
-## 1. Download Rápido (Binário Pré-Compilado)
+## 1. Download Rápido e Auto-Atualização
 
 ### Windows (PowerShell)
 ```powershell
@@ -19,6 +19,19 @@ curl.exe -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/late
 curl -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/latest/download/docgov-docx-linux-x64" -o docgov-docx
 chmod +x docgov-docx
 ./docgov-docx -v
+```
+
+### Auto-Atualização do Binário (`Self-Update`)
+Depois de baixado pela primeira vez, o próprio binário consegue verificar novas releases no GitHub e atualizar a si mesmo:
+```powershell
+# Verificar se há uma nova versão disponível
+./docgov-docx --check-update
+
+# Atualizar automaticamente para a versão mais recente (se houver)
+./docgov-docx --update
+
+# Forçar download e reinstalação da última release
+./docgov-docx --force-update
 ```
 
 ---
@@ -57,13 +70,14 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 # 3. Preencher template com o JSON de estado do processo
 ./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.docx
 
-# Verificar a versão instalada
-./docgov-docx -v
-./docgov-docx --version
+# 4. Verificar / Atualizar o próprio binário
+./docgov-docx --check-update
+./docgov-docx --update
+./docgov-docx --force-update
 
-# Exibir ajuda e lista de parâmetros
+# Verificar a versão instalada e exibir ajuda
+./docgov-docx -v
 ./docgov-docx -h
-./docgov-docx --help
 ```
 
 | Parâmetro | Descrição |
@@ -77,6 +91,9 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 | `--template <caminho>` | Caminho do arquivo modelo `.docx` de entrada (usado com `--inject`). |
 | `--state <caminho>` | Caminho do arquivo `.json` contendo os dados a serem injetados (usado com `--inject`). |
 | `--out <caminho>` | Caminho do arquivo de saída (`.json` no `--inspect`, `.docx` nos demais). |
+| `--check-update` | Consulta o GitHub Releases e informa se há uma nova versão disponível. |
+| `-u`, `--update` | Atualiza o próprio binário para a versão mais recente (caso haja atualização). |
+| `--force-update` | Força o download e substituição do binário pela última release publicada. |
 | `-v`, `--version` | Exibe a versão atual do binário (`docgov-docx-engine vX.Y.Z`). |
 | `-h`, `--help` | Exibe o resumo de uso e parâmetros disponíveis. |
 
