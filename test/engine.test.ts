@@ -12,6 +12,9 @@ import JSZip from "jszip";
 import {
   processDocument,
   inspectDocx,
+  compactInspectionResult,
+  bootstrapCase,
+  generateAuditDocx,
   buildDocxTemplate,
   compareSemver,
   replaceBinaryOnDisk,
@@ -625,4 +628,161 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(outXml).toContain('w:left="1080"');
     expect(outXml).toContain('w:left="1440"');
   });
+
+  test("deve filtrar parágrafos e células vazias no modo compacto preservando os índices originais (compactInspectionResult)", () => {
+    const fullMock = {
+      headers: [
+        { part: "word/header1.xml", index: 0, paragraphIndex: 0, style: null, text: "   " },
+        { part: "word/header1.xml", index: 1, paragraphIndex: 1, style: "Header", text: "Cabeçalho Oficial" },
+      ],
+      footers: [
+        { part: "word/footer1.xml", index: 0, paragraphIndex: 0, style: null, text: "" },
+      ],
+      paragraphs: [
+        { index: 0, style: null, text: "" },
+        { index: 1, style: "Heading1", text: "1. OBJETO" },
+        { index: 2, style: null, text: "   \n  " },
+        { index: 3, style: "BodyText", text: "Texto do parágrafo 3." },
+      ],
+      tables: [
+        {
+          index: 0,
+          rows: [
+            {
+              rowIndex: 0,
+              cells: [
+                { cellIndex: 0, text: "" },
+                { cellIndex: 1, text: "   " },
+              ],
+            },
+            {
+              rowIndex: 1,
+              cells: [
+                { cellIndex: 0, text: "Unidade Requisitante" },
+                { cellIndex: 1, text: "" },
+                { cellIndex: 2, text: "Diretoria de TI" },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    const compacted = compactInspectionResult(fullMock);
+
+    expect(compacted.headers.length).toBe(1);
+    expect(compacted.headers[0].index).toBe(1);
+    expect(compacted.footers.length).toBe(0);
+
+    // Deve manter apenas os parágrafos 1 e 3 com seus índices originais intactos
+    expect(compacted.paragraphs.length).toBe(2);
+    expect(compacted.paragraphs[0].index).toBe(1);
+    expect(compacted.paragraphs[1].index).toBe(3);
+
+    // Deve omitir a rowIndex 0 (toda vazia) e manter a rowIndex 1 apenas com cellIndex 0 e 2
+    expect(compacted.tables[0].rows.length).toBe(1);
+    expect(compacted.tables[0].rows[0].rowIndex).toBe(1);
+    expect(compacted.tables[0].rows[0].cells).toEqual([
+      { cellIndex: 0, text: "Unidade Requisitante" },
+      { cellIndex: 2, text: "Diretoria de TI" },
+    ]);
+  });
+
+  test("deve inicializar diretório do caso, copiar uploads e inspecionar .docx automaticamente (bootstrapCase)", async () => {
+    const mockUploadsDir = resolve(tempDir, "mock_uploads");
+    const mockCaseDir = resolve(tempDir, "mock_case_seduc");
+    mkdirSync(mockUploadsDir, { recursive: true });
+
+    // Cria um .docx e um .pdf simulado na pasta de uploads
+    const uploadedDocx = resolve(mockUploadsDir, "modelo_etp_pge.docx");
+    await createSampleRawDocx(uploadedDocx);
+    writeFileSync(resolve(mockUploadsDir, "dfd_assinado.pdf"), "PDF_CONTENT");
+
+    const res = await bootstrapCase(mockCaseDir, mockUploadsDir);
+
+    expect(existsSync(resolve(mockCaseDir, "inputs"))).toBe(true);
+    expect(existsSync(resolve(mockCaseDir, "state"))).toBe(true);
+    expect(existsSync(resolve(mockCaseDir, "output"))).toBe(true);
+
+    expect(res.copiedFiles.sort()).toEqual([
+      "dfd_assinado.pdf",
+      "modelo_etp_pge.docx",
+    ]);
+    expect(res.inspectedDocx.length).toBe(1);
+    expect(res.inspectedDocx[0].fileName).toBe("modelo_etp_pge.docx");
+    expect(existsSync(res.inspectedDocx[0].structurePath)).toBe(true);
+    expect(res.inspectedDocx[0].compactStructure.paragraphs.length).toBe(5);
+  });
+
+  test("deve gerar relatório de auditoria executivo em Word (.docx) a partir de JSON (generateAuditDocx)", async () => {
+    const auditJsonPath = resolve(tempDir, "relatorio_auditoria_etp.json");
+    const auditDocxPath = resolve(tempDir, "Relatorio_Auditoria_ETP.docx");
+
+    const mockAuditData = {
+      processo_id: "PAE-2026/12345",
+      artefato_auditado: "Estudo Técnico Preliminar (ETP)",
+      iteracao_auditoria: 1,
+      status_global: "APROVADO COM RESSALVAS",
+      contagem: {
+        bloqueantes: 1,
+        alertas: 2,
+        conformes: 12,
+      },
+      resumo_executivo:
+        "**Parecer Preliminar:** O Estudo Técnico Preliminar apresenta boa aderência geral.\nContudo, exige saneamento quanto à memória de cálculo da estimativa de preços.",
+      apontamentos: [
+        {
+          id: "ACH-01",
+          severidade: "BLOQUEANTE",
+          vulnerabilidade: "Ausência de memória de cálculo detalhada",
+          base_legal: "Lei nº 14.133/2021, art. 18, § 1º, IV e VI",
+          localizacao: "Seção 6 - Estimativa do Valor da Contratação",
+          analise_risco:
+            "Risco elevado de questionamento pelo TCE/TCU por sobrepreço ou orçamento deficiente.",
+          redacao_saneadora:
+            "**Incluir quadro comparativo** contendo no mínimo 3 cotações válidas no Painel de Preços.",
+        },
+      ],
+    };
+    writeFileSync(auditJsonPath, JSON.stringify(mockAuditData, null, 2), "utf-8");
+
+    const res = await generateAuditDocx(auditJsonPath, auditDocxPath);
+    expect(res.success).toBe(true);
+    expect(existsSync(auditDocxPath)).toBe(true);
+
+    const auditInspection = await inspectDocx(auditDocxPath);
+
+    // 1. Título centralizado
+    expect(auditInspection.paragraphs[0].text).toBe(
+      "RELATÓRIO DE AUDITORIA CEGA E CONFORMIDADE LEGAL (CONTROLE EXTERNO / RED TEAM)"
+    );
+
+    // 2. Resumo executivo quebrado em múltiplos parágrafos pelo pós-processador e sem asteriscos residuais
+    const allParagraphTexts = auditInspection.paragraphs.map((p) => p.text);
+    expect(allParagraphTexts).toContain("1. RESUMO EXECUTIVO");
+    expect(allParagraphTexts).toContain(
+      "Parecer Preliminar: O Estudo Técnico Preliminar apresenta boa aderência geral."
+    );
+    expect(allParagraphTexts).toContain(
+      "Contudo, exige saneamento quanto à memória de cálculo da estimativa de preços."
+    );
+    expect(allParagraphTexts).toContain("2. QUADRO DETALHADO DE APONTAMENTOS");
+
+    // 3. Tabelas (Quadro de Metadados + Quadro de Apontamentos)
+    expect(auditInspection.tables.length).toBe(2);
+    expect(auditInspection.tables[0].rows[0].cells[1].text).toBe("PAE-2026/12345");
+    expect(auditInspection.tables[0].rows[1].cells[3].text).toBe(
+      "APROVADO COM RESSALVAS"
+    );
+
+    // Cabeçalho de 7 colunas e 1 linha de apontamento
+    expect(auditInspection.tables[1].rows.length).toBe(2);
+    expect(auditInspection.tables[1].rows[0].cells.length).toBe(7);
+    expect(auditInspection.tables[1].rows[1].cells[0].text).toBe("ACH-01");
+    expect(auditInspection.tables[1].rows[1].cells[1].text).toBe("BLOQUEANTE");
+    expect(auditInspection.tables[1].rows[1].cells[6].text).toBe(
+      "Incluir quadro comparativo contendo no mínimo 3 cotações válidas no Painel de Preços."
+    );
+  });
 });
+
