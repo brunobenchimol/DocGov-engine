@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.1`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.2`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -45,7 +45,8 @@ O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponi
 Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **5 ferramentas**:
 
 1. **`bootstrap_case`**
-   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia todos os arquivos enviados pelo usuário em `uploadsDir` (`.user_uploaded`) para `inputs/` preservando seus nomes originais e inspeciona automaticamente todos os arquivos `.docx` encontrados em `inputs/`, salvando `state/estrutura_<nome>.json` e retornando o mapa estrutural compacto.
+   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
+   - **Salvaguarda Assíncrona Não-Bloqueante (`v0.3.2`):** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O agente recebe o retorno imediato com `backgroundFiles` e `backgroundCopy: { status: "started", ... }`, e o progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*).
 
 2. **`inspect_docx`**
@@ -70,8 +71,11 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 ### B) Modo CLI (Linha de Comando)
 
 ```powershell
-# 1. Inicializar pasta do caso, copiar uploads e inspecionar modelos .docx
+# 1. Inicializar pasta do caso, copiar uploads e inspecionar modelos .docx (não-bloqueante para PDFs)
 ./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded
+
+# Opcional: aguardar cópia de PDFs em segundo plano antes de encerrar o comando
+./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --wait
 
 # 2. Inspecionar estrutura de um .docx bruto (opcionalmente com --compact)
 ./docgov-docx --inspect documento_bruto.docx --out estrutura.json --compact
@@ -98,7 +102,8 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 | Parâmetro | Descrição |
 | :--- | :--- |
 | *(sem argumentos)* ou `--mcp` | Inicia o servidor MCP via `stdio` (comportamento padrão). |
-| `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia `--uploads-dir` e inspeciona todos os `.docx`. |
+| `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia e inspeciona `.docx` imediatamente e inicia salvaguarda de PDFs em background. |
+| `--wait` | Aguarda a conclusão da cópia dos arquivos em segundo plano no `--bootstrap-case` antes de encerrar o CLI. |
 | `--inspect <arq.docx>` | Extrai o mapa estrutural JSON (cabeçalhos, rodapés, parágrafos e tabelas) do `.docx`. |
 | `--compact` | Filtra parágrafos e células vazias no `--inspect` preservando os índices originais 0-based. |
 | `--build-template` | Gera um template `.docx` parametrizado a partir de `--source`, `--manifest` e `--out`. |

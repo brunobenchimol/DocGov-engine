@@ -14,6 +14,7 @@ import {
   inspectDocx,
   compactInspectionResult,
   bootstrapCase,
+  waitForBackgroundCopy,
   generateAuditDocx,
   cleanHumanText,
   buildDocxTemplate,
@@ -689,7 +690,7 @@ describe("DocGov Docx Engine v0.1.0", () => {
     ]);
   });
 
-  test("deve inicializar diretório do caso, copiar uploads e inspecionar .docx automaticamente (bootstrapCase)", async () => {
+  test("deve inicializar diretório do caso com inspeção síncrona imediata de .docx e salvaguarda assíncrona de PDFs (bootstrapCase v0.3.2)", async () => {
     const mockUploadsDir = resolve(tempDir, "mock_uploads");
     const mockCaseDir = resolve(tempDir, "mock_case_01");
     mkdirSync(mockUploadsDir, { recursive: true });
@@ -705,14 +706,27 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(existsSync(resolve(mockCaseDir, "state"))).toBe(true);
     expect(existsSync(resolve(mockCaseDir, "output"))).toBe(true);
 
-    expect(res.copiedFiles.sort()).toEqual([
-      "dfd_assinado.pdf",
-      "modelo_etp_base.docx",
-    ]);
+    // .docx foi copiado imediatamente e inspecionado
+    expect(res.copiedFiles).toEqual(["modelo_etp_base.docx"]);
+    expect(res.backgroundFiles).toEqual(["dfd_assinado.pdf"]);
+    expect(res.backgroundCopy.status).toBe("started");
     expect(res.inspectedDocx.length).toBe(1);
     expect(res.inspectedDocx[0].fileName).toBe("modelo_etp_base.docx");
     expect(existsSync(res.inspectedDocx[0].structurePath)).toBe(true);
     expect(res.inspectedDocx[0].compactStructure.paragraphs.length).toBe(5);
+
+    // O status inicial de salvaguarda foi gravado em state/salvaguarda_status.json
+    const statusPath = resolve(mockCaseDir, "state", "salvaguarda_status.json");
+    expect(existsSync(statusPath)).toBe(true);
+
+    // Aguarda a conclusão da cópia em segundo plano
+    await waitForBackgroundCopy(mockCaseDir);
+
+    // Agora o PDF também existe em inputs/ e o status está completed
+    expect(existsSync(resolve(mockCaseDir, "inputs", "dfd_assinado.pdf"))).toBe(true);
+    const finalStatus = JSON.parse(readFileSync(statusPath, "utf-8"));
+    expect(finalStatus.status).toBe("completed");
+    expect(finalStatus.completedFiles).toContain("dfd_assinado.pdf");
   });
 
   test("deve gerar relatório de auditoria em layout vertical corrido A4 (ZERO tabelas), múltiplos trechos por ID e sanitização de texto (generateAuditDocx v0.3.1)", async () => {

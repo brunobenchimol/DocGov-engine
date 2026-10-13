@@ -21,7 +21,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.3.1";
+export const VERSION = "0.3.2";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -131,9 +131,28 @@ export interface SelfUpdateResult {
   message: string;
 }
 
+export interface BackgroundCopyInfo {
+  status: "started" | "idle" | "completed";
+  totalFiles: number;
+  files: string[];
+  message: string;
+}
+
+export interface SalvaguardaStatus {
+  status: "in_progress" | "completed" | "partial_error";
+  totalFiles: number;
+  pendingFiles: string[];
+  completedFiles: string[];
+  failedFiles: Array<{ file: string; error: string }>;
+  startedAt: string;
+  updatedAt?: string;
+}
+
 export interface BootstrapCaseResult {
   caseDir: string;
   copiedFiles: string[];
+  backgroundFiles: string[];
+  backgroundCopy: BackgroundCopyInfo;
   inspectedDocx: Array<{
     fileName: string;
     docxPath: string;
@@ -733,9 +752,72 @@ export async function inspectDocx(
   return finalResult;
 }
 
+export const activeBackgroundCopies = new Map<string, Promise<void>>();
+
+export async function executeBackgroundCopyTask(
+  sourceDir: string,
+  destDir: string,
+  stateDir: string,
+  files: string[]
+): Promise<void> {
+  const statusFilePath = resolve(stateDir, "salvaguarda_status.json");
+  const pending = [...files];
+  const completed: string[] = [];
+  const failed: Array<{ file: string; error: string }> = [];
+
+  const updateStatus = (status: SalvaguardaStatus["status"]) => {
+    try {
+      const data: SalvaguardaStatus = {
+        status,
+        totalFiles: files.length,
+        pendingFiles: pending.filter(
+          (f) => !completed.includes(f) && !failed.some((x) => x.file === f)
+        ),
+        completedFiles: [...completed],
+        failedFiles: [...failed],
+        startedAt,
+        updatedAt: new Date().toISOString(),
+      };
+      writeFileSync(statusFilePath, JSON.stringify(data, null, 2), "utf-8");
+    } catch {
+      // Ignora erro de gravação de status para não interromper I/O
+    }
+  };
+
+  const startedAt = new Date().toISOString();
+  updateStatus("in_progress");
+
+  for (const file of files) {
+    const src = resolve(sourceDir, file);
+    const dest = resolve(destDir, file);
+    try {
+      copyFileSync(src, dest);
+      completed.push(file);
+    } catch (err: any) {
+      failed.push({ file, error: err.message });
+    }
+    updateStatus(
+      completed.length + failed.length === files.length
+        ? failed.length === 0
+          ? "completed"
+          : "partial_error"
+        : "in_progress"
+    );
+  }
+}
+
+export async function waitForBackgroundCopy(caseDir: string): Promise<void> {
+  const resolved = resolve(caseDir);
+  const active = activeBackgroundCopies.get(resolved);
+  if (active) {
+    await active;
+  }
+}
+
 export async function bootstrapCase(
   caseDir: string,
-  uploadsDir?: string
+  uploadsDir?: string,
+  options: { waitBackground?: boolean; detachedCli?: boolean } = {}
 ): Promise<BootstrapCaseResult> {
   const resolvedCaseDir = resolve(caseDir);
   const inputsDir = resolve(resolvedCaseDir, "inputs");
@@ -747,19 +829,92 @@ export async function bootstrapCase(
   mkdirSync(outputDir, { recursive: true });
 
   const copiedFiles: string[] = [];
+  const backgroundFiles: string[] = [];
+
   if (uploadsDir && existsSync(uploadsDir)) {
     const resolvedUploadsDir = resolve(uploadsDir);
     const entries = readdirSync(resolvedUploadsDir, { withFileTypes: true });
+
+    const syncEntries: string[] = [];
+    const bgEntries: string[] = [];
+
     for (const entry of entries) {
       if (entry.isFile()) {
-        const src = resolve(resolvedUploadsDir, entry.name);
-        const dest = resolve(inputsDir, entry.name);
-        copyFileSync(src, dest);
-        copiedFiles.push(entry.name);
+        const isDocx =
+          entry.name.toLowerCase().endsWith(".docx") &&
+          !entry.name.startsWith("~$");
+        if (isDocx) {
+          syncEntries.push(entry.name);
+        } else {
+          bgEntries.push(entry.name);
+        }
+      }
+    }
+
+    // 1. Cópia síncrona imediata apenas dos modelos .docx para inspeção rápida
+    for (const fileName of syncEntries) {
+      const src = resolve(resolvedUploadsDir, fileName);
+      const dest = resolve(inputsDir, fileName);
+      copyFileSync(src, dest);
+      copiedFiles.push(fileName);
+    }
+
+    // 2. Inicia cópia assíncrona não-bloqueante de PDFs e anexos pesados
+    if (bgEntries.length > 0) {
+      backgroundFiles.push(...bgEntries);
+
+      if (options.detachedCli) {
+        try {
+          const binPath = resolveSelfBinaryPath();
+          const child = spawn(
+            binPath,
+            [
+              "--internal-bg-copy",
+              "--source",
+              resolvedUploadsDir,
+              "--dest",
+              inputsDir,
+              "--state",
+              stateDir,
+              "--files",
+              JSON.stringify(bgEntries),
+            ],
+            {
+              detached: true,
+              stdio: "ignore",
+              windowsHide: true,
+            }
+          );
+          child.unref();
+        } catch {
+          // Fallback para execução in-process caso spawn falhe
+          const bgPromise = executeBackgroundCopyTask(
+            resolvedUploadsDir,
+            inputsDir,
+            stateDir,
+            bgEntries
+          );
+          activeBackgroundCopies.set(resolvedCaseDir, bgPromise);
+          if (options.waitBackground) {
+            await bgPromise;
+          }
+        }
+      } else {
+        const bgPromise = executeBackgroundCopyTask(
+          resolvedUploadsDir,
+          inputsDir,
+          stateDir,
+          bgEntries
+        );
+        activeBackgroundCopies.set(resolvedCaseDir, bgPromise);
+        if (options.waitBackground) {
+          await bgPromise;
+        }
       }
     }
   }
 
+  // 3. Inspeciona todos os arquivos .docx encontrados em inputs/
   const inputEntries = readdirSync(inputsDir, { withFileTypes: true });
   const inspectedDocx: BootstrapCaseResult["inspectedDocx"] = [];
   for (const entry of inputEntries) {
@@ -781,7 +936,23 @@ export async function bootstrapCase(
     }
   }
 
-  return { caseDir: resolvedCaseDir, copiedFiles, inspectedDocx };
+  const bgCopyInfo: BackgroundCopyInfo = {
+    status: backgroundFiles.length > 0 ? "started" : "idle",
+    totalFiles: backgroundFiles.length,
+    files: backgroundFiles,
+    message:
+      backgroundFiles.length > 0
+        ? `Salvaguarda de ${backgroundFiles.length} arquivo(s) volumoso(s) (.pdf e anexos) iniciada em segundo plano para inputs/. Acompanhe em state/salvaguarda_status.json.`
+        : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
+  };
+
+  return {
+    caseDir: resolvedCaseDir,
+    copiedFiles,
+    backgroundFiles,
+    backgroundCopy: bgCopyInfo,
+    inspectedDocx,
+  };
 }
 
 // ============================================================================
@@ -2705,7 +2876,7 @@ DocGov Docx Engine v${VERSION} — CLI & MCP Server
 Uso:
   docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
-  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>]
+  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--wait]
   docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx>
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
@@ -2716,6 +2887,31 @@ Uso:
   docgov-docx -v, --version                       Exibe a versão do software
   docgov-docx -h, --help                          Exibe esta mensagem de ajuda
 `);
+    return;
+  }
+
+  // 0a) Modo interno de cópia em segundo plano desanexada
+  if (args.includes("--internal-bg-copy")) {
+    const sourceIdx = args.indexOf("--source");
+    const destIdx = args.indexOf("--dest");
+    const stateIdx = args.indexOf("--state");
+    const filesIdx = args.indexOf("--files");
+    if (
+      sourceIdx !== -1 &&
+      destIdx !== -1 &&
+      stateIdx !== -1 &&
+      filesIdx !== -1
+    ) {
+      try {
+        const sourceDir = args[sourceIdx + 1];
+        const destDir = args[destIdx + 1];
+        const stateDir = args[stateIdx + 1];
+        const files: string[] = JSON.parse(args[filesIdx + 1]);
+        await executeBackgroundCopyTask(sourceDir, destDir, stateDir, files);
+      } catch {
+        process.exit(1);
+      }
+    }
     return;
   }
 
@@ -2750,6 +2946,7 @@ Uso:
     const caseDirIdx = args.indexOf("--case-dir");
     const uploadsDirIdx = args.indexOf("--uploads-dir");
     const bootstrapIdx = args.indexOf("--bootstrap-case");
+    const wait = args.includes("--wait");
 
     let caseDir: string | undefined;
     if (caseDirIdx !== -1 && args[caseDirIdx + 1]) {
@@ -2772,7 +2969,10 @@ Uso:
     }
 
     try {
-      const res = await bootstrapCase(caseDir, uploadsDir);
+      const res = await bootstrapCase(caseDir, uploadsDir, {
+        waitBackground: wait,
+        detachedCli: !wait,
+      });
       console.log(JSON.stringify(res, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
@@ -2922,6 +3122,7 @@ if (import.meta.main) {
   // Se tiver flag explícita de CLI, roda CLI.
   // Caso contrário (sem args ou com --mcp), sobe como MCP server imediatamente.
   if (
+    args.includes("--internal-bg-copy") ||
     args.includes("--bootstrap-case") ||
     args.includes("--inspect") ||
     args.includes("--build-template") ||
