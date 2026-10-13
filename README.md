@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.0`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.1`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -62,7 +62,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
    - Parâmetros: `templatePath`, `statePath`, `outputPath` (*todos obrigatórios*).
 
 5. **`generate_audit_docx`**
-   - Gera nativamente um documento Word (`.docx`) executivo e formatado em OpenXML (paisagem A4) a partir do arquivo `state/relatorio_auditoria.json`, contendo título institucional centralizado, quadro de metadados e status global, seção `1. RESUMO EXECUTIVO` e seção `2. QUADRO DETALHADO DE APONTAMENTOS` (tabela de 7 colunas com cabeçalho sombreado e bordas).
+   - Gera nativamente um Parecer de Auditoria Técnico-Jurídica em Word (`.docx`) em layout editorial vertical corrido (folha A4 retrato, **zero tabelas** `<w:tbl>`, 100% da largura útil da página), sanitizando automaticamente crases Markdown, coordenadas de máquina (`[T0:...]`) e códigos de enum (`V1..V6`), e renderizando fichas verticais completas com múltiplos trechos transcritos (`trechos_documento`) em blocos de citação recuados.
    - Parâmetros: `auditJsonPath`, `outputPath` (*todos obrigatórios*).
 
 ---

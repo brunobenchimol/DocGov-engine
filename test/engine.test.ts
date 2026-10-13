@@ -15,6 +15,7 @@ import {
   compactInspectionResult,
   bootstrapCase,
   generateAuditDocx,
+  cleanHumanText,
   buildDocxTemplate,
   compareSemver,
   replaceBinaryOnDisk,
@@ -714,35 +715,74 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(res.inspectedDocx[0].compactStructure.paragraphs.length).toBe(5);
   });
 
-  test("deve gerar relatório de auditoria executivo em Word (.docx) a partir de JSON (generateAuditDocx)", async () => {
+  test("deve gerar relatório de auditoria em layout vertical corrido A4 (ZERO tabelas), múltiplos trechos por ID e sanitização de texto (generateAuditDocx v0.3.1)", async () => {
     const auditJsonPath = resolve(tempDir, "relatorio_auditoria_etp.json");
     const auditDocxPath = resolve(tempDir, "Relatorio_Auditoria_ETP.docx");
 
+    // Testa diretamente a sanitização de crases, coordenadas, caminhos e enums
+    expect(
+      cleanHumanText(
+        "No arquivo `cases/caso_exemplo/output/ETP_Exemplo.docx` [T0:R30:C1] [P034] ocorreu `V5_FALSA_PLURALIDADE`"
+      )
+    ).toBe(
+      "No arquivo ETP_Exemplo.docx ocorreu Levantamento de Mercado e Parcelamento do Objeto"
+    );
+
     const mockAuditData = {
-      processo_id: "PROC-2026/12345",
-      artefato_auditado: "Estudo Técnico Preliminar (ETP)",
+      processo_id: "`PROC-2026/12345`",
+      orgao_entidade: "Secretaria Executiva Demandante (ORGAO_DEMANDANTE)",
+      artefato_auditado: "cases/caso_exemplo/output/ETP_Exemplo.docx",
+      regime_juridico: "Lei Federal nº 14.133/2021 e Regulamento Local",
       iteracao_auditoria: 1,
-      status_global: "APROVADO COM RESSALVAS",
+      status_global: "APTO COM ALERTAS",
       contagem: {
-        bloqueantes: 1,
+        bloqueantes: 0,
         alertas: 2,
         conformes: 12,
       },
       resumo_executivo:
-        "**Parecer Preliminar:** O Estudo Técnico Preliminar apresenta boa aderência geral.\nContudo, exige saneamento quanto à memória de cálculo da estimativa de preços.",
+        "**Parecer Preliminar:** O documento `cases/caso_exemplo/output/ETP_Exemplo.docx` apresenta aderência geral.\nContudo, exige saneamento preventivo nos trechos destacados.",
       apontamentos: [
         {
-          id: "ACH-01",
+          id: "AUD-01",
+          severidade: "ALERTA",
+          vulnerabilidade: "V5_FALSA_PLURALIDADE",
+          base_legal: "Lei nº 14.133/2021, art. 18, § 1º, IV e VI; Súmula de Jurisprudência nº 247",
+          trechos_documento: [
+            {
+              secao_legivel: "[T0:R30:C1] Seção 4 — Levantamento de Mercado",
+              texto_transcrito:
+                "Foram identificadas `apenas duas soluções` proprietárias que atendem integralmente ao lote único.",
+            },
+            {
+              secao_legivel: "[P034] Seção 8 — Justificativa para o Não Parcelamento",
+              texto_transcrito:
+                "O agrupamento em lote único mostra-se mais conveniente para a gestão contratual.",
+            },
+          ],
+          risco_controle_externo:
+            "Risco elevado de questionamento pelo Órgão de Controle em razão da combinação entre levantamento restrito (`[T0:R30:C1]`) e ausência de demonstração técnica de inviabilidade de parcelamento (`[P034]`).",
+          redacao_saneadora_sugerida:
+            "**Reestruturar a justificativa** demonstrando, com dados objetivos de mercado, a inviabilidade técnica ou perda de economia de escala na divisão em itens.",
+        },
+        {
+          id: "AUD-02",
           severidade: "BLOQUEANTE",
-          vulnerabilidade: "Ausência de memória de cálculo detalhada",
-          base_legal: "Lei nº 14.133/2021, art. 18, § 1º, IV e VI",
-          localizacao: "Seção 6 - Estimativa do Valor da Contratação",
+          titulo_apontamento: "Exigência de Marca ou Especificação Restritiva",
+          base_legal: "Lei nº 14.133/2021, art. 41, I",
+          localizacao: "[T0:R12:C1] Seção 3 — Requisitos da Contratação",
+          trecho_impugnado:
+            "Processador exclusivo da linha ` Modelo X-Pro 9900 ` sem menção a equivalência.",
           analise_risco:
-            "Risco elevado de questionamento pelo Órgão de Controle por sobrepreço ou orçamento deficiente.",
+            "Configura direcionamento vedado pelo art. 41 da Lei nº 14.133/2021.",
           redacao_saneadora:
-            "**Incluir quadro comparativo** contendo no mínimo 3 cotações válidas no Painel de Preços.",
+            "Inserir a expressão **«ou equivalente, ou similar, ou de melhor qualidade»** acompanhada de parâmetros objetivos de desempenho.",
         },
       ],
+      metadados_agente: {
+        coordenada_interna: "[T0:R30:C1]",
+        token_debug: "SEGREDO_DE_MAQUINA_NAO_IMPRIMIR",
+      },
     };
     writeFileSync(auditJsonPath, JSON.stringify(mockAuditData, null, 2), "utf-8");
 
@@ -750,39 +790,68 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(res.success).toBe(true);
     expect(existsSync(auditDocxPath)).toBe(true);
 
+    // 1. Verifica no XML bruto que NÃO há <w:tbl>, NÃO há crases (`), NÃO há coordenadas [T0:...] e NÃO há metadados_agente
+    const auditZip = await JSZip.loadAsync(readFileSync(auditDocxPath));
+    const auditXml = await auditZip.file("word/document.xml")!.async("string");
+    expect(auditXml).not.toContain("<w:tbl");
+    expect(auditXml).not.toContain("`");
+    expect(auditXml).not.toContain("[T0:");
+    expect(auditXml).not.toContain("[P034]");
+    expect(auditXml).not.toContain("V5_FALSA_PLURALIDADE");
+    expect(auditXml).not.toContain("SEGREDO_DE_MAQUINA_NAO_IMPRIMIR");
+    expect(auditXml).not.toContain("cases/caso_exemplo/output/");
+
+    // 2. Inspeciona a estrutura gerada via inspectDocx
     const auditInspection = await inspectDocx(auditDocxPath);
+    expect(auditInspection.tables.length).toBe(0);
 
-    // 1. Título centralizado
-    expect(auditInspection.paragraphs[0].text).toBe(
-      "RELATÓRIO DE AUDITORIA CEGA E CONFORMIDADE LEGAL (CONTROLE EXTERNO / RED TEAM)"
-    );
-
-    // 2. Resumo executivo quebrado em múltiplos parágrafos pelo pós-processador e sem asteriscos residuais
     const allParagraphTexts = auditInspection.paragraphs.map((p) => p.text);
-    expect(allParagraphTexts).toContain("1. RESUMO EXECUTIVO");
-    expect(allParagraphTexts).toContain(
-      "Parecer Preliminar: O Estudo Técnico Preliminar apresenta boa aderência geral."
-    );
-    expect(allParagraphTexts).toContain(
-      "Contudo, exige saneamento quanto à memória de cálculo da estimativa de preços."
-    );
-    expect(allParagraphTexts).toContain("2. QUADRO DETALHADO DE APONTAMENTOS");
 
-    // 3. Tabelas (Quadro de Metadados + Quadro de Apontamentos)
-    expect(auditInspection.tables.length).toBe(2);
-    expect(auditInspection.tables[0].rows[0].cells[1].text).toBe("PROC-2026/12345");
-    expect(auditInspection.tables[0].rows[1].cells[3].text).toBe(
-      "APROVADO COM RESSALVAS"
+    // Cabeçalho Institucional
+    expect(allParagraphTexts[0]).toBe(
+      "PARECER DE AUDITORIA TÉCNICO-JURÍDICA E CONTROLE DE DIRECIONAMENTO"
+    );
+    expect(allParagraphTexts[1]).toBe(
+      "Auditoria Cega de Conformidade Legal e Competitividade (Controle Externo)"
     );
 
-    // Cabeçalho de 7 colunas e 1 linha de apontamento
-    expect(auditInspection.tables[1].rows.length).toBe(2);
-    expect(auditInspection.tables[1].rows[0].cells.length).toBe(7);
-    expect(auditInspection.tables[1].rows[1].cells[0].text).toBe("ACH-01");
-    expect(auditInspection.tables[1].rows[1].cells[1].text).toBe("BLOQUEANTE");
-    expect(auditInspection.tables[1].rows[1].cells[6].text).toBe(
-      "Incluir quadro comparativo contendo no mínimo 3 cotações válidas no Painel de Preços."
+    // Seção 1: Identificação e Escopo
+    expect(allParagraphTexts).toContain("1. IDENTIFICAÇÃO E ESCOPO DA AUDITORIA");
+    expect(allParagraphTexts).toContain("Processo: PROC-2026/12345");
+    expect(allParagraphTexts).toContain("Documento Auditado: ETP_Exemplo.docx");
+    expect(allParagraphTexts).toContain(
+      "Diagnóstico Global: APTO COM ALERTAS PREVENTIVOS (0 Bloqueantes | 2 Alertas | 12 Conformes)"
+    );
+
+    // Seção 2: Parecer Executivo
+    expect(allParagraphTexts).toContain("2. PARECER EXECUTIVO DE CONTROLE EXTERNO");
+    expect(allParagraphTexts).toContain(
+      "Parecer Preliminar: O documento ETP_Exemplo.docx apresenta aderência geral."
+    );
+
+    // Seção 3: Fichas Verticais Individualizadas com múltiplos trechos transcritos
+    expect(allParagraphTexts).toContain(
+      "3. DETALHAMENTO INDIVIDUALIZADO DOS APONTAMENTOS (ID POR ID)"
+    );
+    expect(allParagraphTexts).toContain(
+      "[AUD-01] ALERTA PREVENTIVO — Levantamento de Mercado e Parcelamento do Objeto"
+    );
+    expect(allParagraphTexts).toContain(
+      "• Trecho 1 — Localização no documento: Seção 4 — Levantamento de Mercado"
+    );
+    expect(allParagraphTexts).toContain(
+      '"«Foram identificadas apenas duas soluções proprietárias que atendem integralmente ao lote único.»"'
+    );
+    expect(allParagraphTexts).toContain(
+      "• Trecho 2 — Localização no documento: Seção 8 — Justificativa para o Não Parcelamento"
+    );
+    expect(allParagraphTexts).toContain(
+      '"«O agrupamento em lote único mostra-se mais conveniente para a gestão contratual.»"'
+    );
+    expect(allParagraphTexts).toContain(
+      "[AUD-02] BLOQUEANTE — Exigência de Marca ou Especificação Restritiva"
     );
   });
 });
+
 
