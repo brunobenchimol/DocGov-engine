@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.2.2`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.0`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,41 +36,56 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Ciclo de Vida `.docx`: 3 Operações Integradas
+## 2. Ciclo de Vida `.docx`: 5 Operações Integradas
 
-O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **3 operações fundamentais**:
+O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **5 operações fundamentais**:
 
 ### A) Modo Servidor MCP (Padrão / `--mcp`)
 
-Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **3 ferramentas**:
+Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **5 ferramentas**:
 
-1. **`inspect_docx`**
+1. **`bootstrap_case`**
+   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia todos os arquivos enviados pelo usuário em `uploadsDir` (`.user_uploaded`) para `inputs/` preservando seus nomes originais e inspeciona automaticamente todos os arquivos `.docx` encontrados em `inputs/`, salvando `state/estrutura_<nome>.json` e retornando o mapa estrutural compacto.
+   - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*).
+
+2. **`inspect_docx`**
    - Faz a engenharia reversa estrutural de qualquer `.docx` bruto, retornando um JSON com `headers`, `footers`, `paragraphs` (`index: 0..N`, `style`, `text`, e metadados `numbering: { numId, level }` quando presentes) e `tables` (`index: 0..M`, `rows`, `cells`), preservando quebras de linha (`<w:br/>` $\rightarrow$ `\n`).
-   - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*).
+   - **Modo Compacto (`compact`):** Por padrão no retorno MCP, omite parágrafos, cabeçalhos, rodapés e células vazias (`text.trim() === ""`) mantendo intactos os índices originais 0-based (`index`, `rowIndex`, `cellIndex`), reduzindo o consumo de contexto em ~75%.
+   - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
 
-2. **`build_docx_template`**
+3. **`build_docx_template`**
    - Transforma um `.docx` bruto (sem tags) em um template parametrizado com tags `{{...}}` a partir de um arquivo `slots_manifest.json`, preservando 100% da formatação visual (`<w:pPr>`, `<w:rPr>` de corpo sem herança indevida de negrito de subtítulos, `<w:tblPr>`, cabeçalhos, rodapés e imagens).
    - Parâmetros: `sourcePath`, `manifestPath`, `outputPath` (*todos obrigatórios*).
 
-3. **`fill_docx_template`**
+4. **`fill_docx_template`**
    - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais, negrito seletivo via `**texto**` e suporte nativo a **listas hierárquicas aninhadas em múltiplos níveis** como `1.1`, `1.1.1`, `1.1.1.1`, `1.1.1.1.1` com recuo `<w:ind>` progressivo e achatamento recursivo de árvores JSON `subitens`).
    - Parâmetros: `templatePath`, `statePath`, `outputPath` (*todos obrigatórios*).
+
+5. **`generate_audit_docx`**
+   - Gera nativamente um documento Word (`.docx`) executivo e formatado em OpenXML (paisagem A4) a partir do arquivo `state/relatorio_auditoria.json`, contendo título institucional centralizado, quadro de metadados e status global, seção `1. RESUMO EXECUTIVO` e seção `2. QUADRO DETALHADO DE APONTAMENTOS` (tabela de 7 colunas com cabeçalho sombreado e bordas).
+   - Parâmetros: `auditJsonPath`, `outputPath` (*todos obrigatórios*).
 
 ---
 
 ### B) Modo CLI (Linha de Comando)
 
 ```powershell
-# 1. Inspecionar estrutura de um .docx bruto
-./docgov-docx --inspect documento_bruto.docx --out estrutura.json
+# 1. Inicializar pasta do caso, copiar uploads e inspecionar modelos .docx
+./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded
 
-# 2. Construir template parametrizado a partir de um .docx bruto + manifesto de slots
+# 2. Inspecionar estrutura de um .docx bruto (opcionalmente com --compact)
+./docgov-docx --inspect documento_bruto.docx --out estrutura.json --compact
+
+# 3. Construir template parametrizado a partir de um .docx bruto + manifesto de slots
 ./docgov-docx --build-template --source documento_bruto.docx --manifest slots_manifest.json --out template.docx
 
-# 3. Preencher template com o JSON de estado do processo
+# 4. Preencher template com o JSON de estado do processo
 ./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.docx
 
-# 4. Verificar / Atualizar o próprio binário
+# 5. Gerar Relatório de Auditoria em Word (.docx) a partir do JSON de auditoria
+./docgov-docx --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.docx
+
+# 6. Verificar / Atualizar o próprio binário
 ./docgov-docx --check-update
 ./docgov-docx --update
 ./docgov-docx --force-update
@@ -83,9 +98,15 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 | Parâmetro | Descrição |
 | :--- | :--- |
 | *(sem argumentos)* ou `--mcp` | Inicia o servidor MCP via `stdio` (comportamento padrão). |
+| `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia `--uploads-dir` e inspeciona todos os `.docx`. |
 | `--inspect <arq.docx>` | Extrai o mapa estrutural JSON (cabeçalhos, rodapés, parágrafos e tabelas) do `.docx`. |
+| `--compact` | Filtra parágrafos e células vazias no `--inspect` preservando os índices originais 0-based. |
 | `--build-template` | Gera um template `.docx` parametrizado a partir de `--source`, `--manifest` e `--out`. |
 | `--inject` | Preenche um template `.docx` a partir de `--template`, `--state` e `--out`. |
+| `--generate-audit-docx` | Gera um parecer de auditoria `.docx` executivo a partir de `--audit-json` e `--out`. |
+| `--case-dir <dir>` | Caminho da pasta do caso (usado com `--bootstrap-case`). |
+| `--uploads-dir <dir>` | Caminho opcional da pasta `.user_uploaded` (usado com `--bootstrap-case`). |
+| `--audit-json <caminho>` | Caminho do arquivo `relatorio_auditoria.json` (usado com `--generate-audit-docx`). |
 | `--source <caminho>` | Caminho do `.docx` bruto original (usado com `--build-template` ou `--inspect`). |
 | `--manifest <caminho>` | Caminho do arquivo `slots_manifest.json` (usado com `--build-template`). |
 | `--template <caminho>` | Caminho do arquivo modelo `.docx` de entrada (usado com `--inject`). |

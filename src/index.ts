@@ -6,6 +6,8 @@ import {
   renameSync,
   unlinkSync,
   chmodSync,
+  readdirSync,
+  copyFileSync,
 } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { spawn } from "node:child_process";
@@ -19,7 +21,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.2.2";
+export const VERSION = "0.3.0";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -127,6 +129,43 @@ export interface SelfUpdateResult {
   latestVersion: string;
   targetPath: string;
   message: string;
+}
+
+export interface BootstrapCaseResult {
+  caseDir: string;
+  copiedFiles: string[];
+  inspectedDocx: Array<{
+    fileName: string;
+    docxPath: string;
+    structurePath: string;
+    compactStructure: DocxInspectionResult;
+  }>;
+}
+
+export interface AuditFinding {
+  id?: string;
+  severidade?: string;
+  vulnerabilidade?: string;
+  base_legal?: string;
+  localizacao?: string;
+  analise_risco?: string;
+  redacao_saneadora?: string;
+  [key: string]: any;
+}
+
+export interface AuditReportData {
+  processo_id?: string;
+  artefato_auditado?: string;
+  iteracao_auditoria?: number | string;
+  status_global?: string;
+  contagem?: {
+    bloqueantes?: number;
+    alertas?: number;
+    conformes?: number;
+  };
+  resumo_executivo?: string;
+  apontamentos?: AuditFinding[];
+  [key: string]: any;
 }
 
 // ============================================================================
@@ -545,12 +584,32 @@ async function ensureContentTypesOverride(zip: JSZip): Promise<void> {
 }
 
 // ============================================================================
-// 1. Função de Inspeção Estrutural (inspect_docx)
+// 1. Função de Inspeção Estrutural (inspect_docx) & Bootstrap de Caso
 // ============================================================================
+
+export function compactInspectionResult(
+  full: DocxInspectionResult
+): DocxInspectionResult {
+  return {
+    headers: full.headers.filter((h) => h.text.trim() !== ""),
+    footers: full.footers.filter((f) => f.text.trim() !== ""),
+    paragraphs: full.paragraphs.filter((p) => p.text.trim() !== ""),
+    tables: full.tables.map((t) => ({
+      index: t.index,
+      rows: t.rows
+        .map((r) => ({
+          rowIndex: r.rowIndex,
+          cells: r.cells.filter((c) => c.text.trim() !== ""),
+        }))
+        .filter((r) => r.cells.length > 0),
+    })),
+  };
+}
 
 export async function inspectDocx(
   docxPath: string,
-  outputPath?: string
+  outputPath?: string,
+  compact: boolean = false
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolve(docxPath);
   if (!existsSync(resolvedDocx)) {
@@ -646,12 +705,69 @@ export async function inspectDocx(
     tables,
   };
 
+  const finalResult = compact ? compactInspectionResult(result) : result;
+
   if (outputPath) {
     const resolvedOut = resolve(outputPath);
-    writeFileSync(resolvedOut, JSON.stringify(result, null, 2), "utf-8");
+    const outDir = dirname(resolvedOut);
+    if (!existsSync(outDir)) {
+      mkdirSync(outDir, { recursive: true });
+    }
+    writeFileSync(resolvedOut, JSON.stringify(finalResult, null, 2), "utf-8");
   }
 
-  return result;
+  return finalResult;
+}
+
+export async function bootstrapCase(
+  caseDir: string,
+  uploadsDir?: string
+): Promise<BootstrapCaseResult> {
+  const resolvedCaseDir = resolve(caseDir);
+  const inputsDir = resolve(resolvedCaseDir, "inputs");
+  const stateDir = resolve(resolvedCaseDir, "state");
+  const outputDir = resolve(resolvedCaseDir, "output");
+
+  mkdirSync(inputsDir, { recursive: true });
+  mkdirSync(stateDir, { recursive: true });
+  mkdirSync(outputDir, { recursive: true });
+
+  const copiedFiles: string[] = [];
+  if (uploadsDir && existsSync(uploadsDir)) {
+    const resolvedUploadsDir = resolve(uploadsDir);
+    const entries = readdirSync(resolvedUploadsDir, { withFileTypes: true });
+    for (const entry of entries) {
+      if (entry.isFile()) {
+        const src = resolve(resolvedUploadsDir, entry.name);
+        const dest = resolve(inputsDir, entry.name);
+        copyFileSync(src, dest);
+        copiedFiles.push(entry.name);
+      }
+    }
+  }
+
+  const inputEntries = readdirSync(inputsDir, { withFileTypes: true });
+  const inspectedDocx: BootstrapCaseResult["inspectedDocx"] = [];
+  for (const entry of inputEntries) {
+    if (
+      entry.isFile() &&
+      entry.name.toLowerCase().endsWith(".docx") &&
+      !entry.name.startsWith("~$")
+    ) {
+      const docxPath = resolve(inputsDir, entry.name);
+      const base = entry.name.replace(/\.docx$/i, "");
+      const structurePath = resolve(stateDir, `estrutura_${base}.json`);
+      const full = await inspectDocx(docxPath, structurePath);
+      inspectedDocx.push({
+        fileName: entry.name,
+        docxPath,
+        structurePath,
+        compactStructure: compactInspectionResult(full),
+      });
+    }
+  }
+
+  return { caseDir: resolvedCaseDir, copiedFiles, inspectedDocx };
 }
 
 // ============================================================================
@@ -1388,10 +1504,365 @@ export async function processDocument(
   });
 
   const finalBuffer = await postProcessInjectedDocxBuffer(outputBuffer);
+  const outDir = dirname(resolvedOutput);
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
   writeFileSync(resolvedOutput, finalBuffer);
   return {
     success: true,
     message: `Documento gerado com sucesso em: ${resolvedOutput}`,
+  };
+}
+
+// ============================================================================
+// 3b. Geração Nativa de Relatório de Auditoria em Word (generate_audit_docx)
+// ============================================================================
+
+function escapeXml(value: unknown): string {
+  const str = value === null || value === undefined ? "" : String(value);
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;");
+}
+
+export async function generateAuditDocx(
+  auditJsonPath: string,
+  outputPath: string
+): Promise<{ success: boolean; outputPath: string; message: string }> {
+  const resolvedAuditJson = resolve(auditJsonPath);
+  const resolvedOutput = resolve(outputPath);
+
+  if (!existsSync(resolvedAuditJson)) {
+    throw new Error(
+      `Arquivo JSON de auditoria não encontrado: ${resolvedAuditJson}`
+    );
+  }
+
+  const raw: AuditReportData = JSON.parse(
+    readFileSync(resolvedAuditJson, "utf-8")
+  );
+
+  const processoId =
+    raw.processo_id ??
+    raw.processo ??
+    raw.metadados?.processo_id ??
+    raw.metadados?.numero_processo ??
+    "N/A";
+  const artefatoAuditado =
+    raw.artefato_auditado ??
+    raw.artefato ??
+    raw.documento_auditado ??
+    "N/A";
+  const iteracaoAuditoria =
+    raw.iteracao_auditoria ?? raw.iteracao ?? 1;
+  const statusGlobal =
+    raw.status_global ??
+    raw.status ??
+    raw.parecer_global ??
+    "EM ANÁLISE";
+
+  const apontamentosList: AuditFinding[] = Array.isArray(raw.apontamentos)
+    ? raw.apontamentos
+    : Array.isArray(raw.achados)
+      ? raw.achados
+      : [];
+
+  const bloqueantes =
+    raw.contagem?.bloqueantes ??
+    raw.resumo_contagem?.bloqueantes ??
+    apontamentosList.filter((a) =>
+      /bloqueante|cr[ií]tic|alta|grave/i.test(String(a.severidade ?? ""))
+    ).length;
+  const alertas =
+    raw.contagem?.alertas ??
+    raw.resumo_contagem?.alertas ??
+    apontamentosList.filter((a) =>
+      /alerta|m[eé]dia|moderad|ressalva/i.test(String(a.severidade ?? ""))
+    ).length;
+  const conformes =
+    raw.contagem?.conformes ??
+    raw.resumo_contagem?.conformes ??
+    0;
+
+  const resumoExecutivo =
+    raw.resumo_executivo ??
+    raw.parecer_executivo ??
+    raw.resumo ??
+    "Sem resumo executivo informado.";
+
+  const tblBordersXml = `
+    <w:tblBorders>
+      <w:top w:val="single" w:sz="6" w:space="0" w:color="888888"/>
+      <w:left w:val="single" w:sz="6" w:space="0" w:color="888888"/>
+      <w:bottom w:val="single" w:sz="6" w:space="0" w:color="888888"/>
+      <w:right w:val="single" w:sz="6" w:space="0" w:color="888888"/>
+      <w:insideH w:val="single" w:sz="4" w:space="0" w:color="BFBFBF"/>
+      <w:insideV w:val="single" w:sz="4" w:space="0" w:color="BFBFBF"/>
+    </w:tblBorders>`;
+
+  const buildMetaCell = (text: string, isHeaderLabel: boolean): string => {
+    const shd = isHeaderLabel
+      ? `<w:shd w:val="clear" w:color="auto" w:fill="EDEDED"/>`
+      : "";
+    const bold = isHeaderLabel ? `<w:b/><w:bCs/>` : "";
+    return `<w:tc>
+      <w:tcPr>${shd}<w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="120" w:type="dxa"/><w:right w:w="120" w:type="dxa"/></w:tcMar></w:tcPr>
+      <w:p>
+        <w:pPr><w:spacing w:after="0"/></w:pPr>
+        <w:r>
+          <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>${bold}<w:sz w:val="20"/><w:szCs w:val="20"/></w:rPr>
+          <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+        </w:r>
+      </w:p>
+    </w:tc>`;
+  };
+
+  const buildFindingCell = (text: string, isHeader: boolean = false): string => {
+    const shd = isHeader
+      ? `<w:shd w:val="clear" w:color="auto" w:fill="D9E2F3"/>`
+      : "";
+    const bold = isHeader ? `<w:b/><w:bCs/>` : "";
+    return `<w:tc>
+      <w:tcPr>${shd}<w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tcMar></w:tcPr>
+      <w:p>
+        <w:pPr><w:spacing w:after="40"/></w:pPr>
+        <w:r>
+          <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>${bold}<w:sz w:val="18"/><w:szCs w:val="18"/></w:rPr>
+          <w:t xml:space="preserve">${escapeXml(text)}</w:t>
+        </w:r>
+      </w:p>
+    </w:tc>`;
+  };
+
+  const findingsHeaderColumns = [
+    "ID",
+    "Severidade",
+    "Vulnerabilidade",
+    "Base Legal",
+    "Localização",
+    "Análise de Risco (Controle Externo)",
+    "Redação Saneadora / Recomendação",
+  ];
+
+  const findingsHeaderRowXml = `<w:tr>
+    <w:trPr><w:tblHeader/></w:trPr>
+    ${findingsHeaderColumns.map((col) => buildFindingCell(col, true)).join("\n")}
+  </w:tr>`;
+
+  const findingsDataRowsXml =
+    apontamentosList.length > 0
+      ? apontamentosList
+          .map((item, idx) => {
+            const id = item.id ?? item.codigo ?? `AP-${idx + 1}`;
+            const severidade =
+              item.severidade ?? item.gravidade ?? item.criticidade ?? "N/A";
+            const vulnerabilidade =
+              item.vulnerabilidade ??
+              item.achado ??
+              item.descricao ??
+              item.titulo ??
+              "";
+            const baseLegal =
+              item.base_legal ?? item.fundamentacao_legal ?? item.norma ?? "";
+            const localizacao =
+              item.localizacao ?? item.secao ?? item.item ?? "";
+            const analiseRisco =
+              item.analise_risco ?? item.risco_tcu_tce ?? item.risco ?? "";
+            const redacaoSaneadora =
+              item.redacao_saneadora ??
+              item.recomendacao ??
+              item.acao_corretiva ??
+              "";
+
+            return `<w:tr>
+              ${buildFindingCell(String(id))}
+              ${buildFindingCell(String(severidade))}
+              ${buildFindingCell(String(vulnerabilidade))}
+              ${buildFindingCell(String(baseLegal))}
+              ${buildFindingCell(String(localizacao))}
+              ${buildFindingCell(String(analiseRisco))}
+              ${buildFindingCell(String(redacaoSaneadora))}
+            </w:tr>`;
+          })
+          .join("\n")
+      : `<w:tr>
+          ${buildFindingCell("-")}
+          ${buildFindingCell("CONFORME")}
+          ${buildFindingCell("Nenhuma impropriedade ou vulnerabilidade identificada.")}
+          ${buildFindingCell("-")}
+          ${buildFindingCell("-")}
+          ${buildFindingCell("-")}
+          ${buildFindingCell("-")}
+        </w:tr>`;
+
+  const rawDocumentXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <w:body>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Title"/>
+        <w:jc w:val="center"/>
+        <w:spacing w:after="240"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:bCs/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>
+        <w:t>RELATÓRIO DE AUDITORIA CEGA E CONFORMIDADE LEGAL (CONTROLE EXTERNO / RED TEAM)</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="5000" w:type="pct"/>
+        ${tblBordersXml}
+      </w:tblPr>
+      <w:tr>
+        ${buildMetaCell("Processo", true)}
+        ${buildMetaCell(String(processoId), false)}
+        ${buildMetaCell("Artefato Auditado", true)}
+        ${buildMetaCell(String(artefatoAuditado), false)}
+      </w:tr>
+      <w:tr>
+        ${buildMetaCell("Iteração", true)}
+        ${buildMetaCell(String(iteracaoAuditoria), false)}
+        ${buildMetaCell("Status Global", true)}
+        ${buildMetaCell(String(statusGlobal), false)}
+      </w:tr>
+      <w:tr>
+        ${buildMetaCell("Bloqueantes", true)}
+        ${buildMetaCell(String(bloqueantes), false)}
+        ${buildMetaCell("Alertas", true)}
+        ${buildMetaCell(String(alertas), false)}
+      </w:tr>
+      <w:tr>
+        ${buildMetaCell("Conformes", true)}
+        ${buildMetaCell(String(conformes), false)}
+        ${buildMetaCell("Total de Apontamentos", true)}
+        ${buildMetaCell(String(apontamentosList.length), false)}
+      </w:tr>
+    </w:tbl>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1"/>
+        <w:spacing w:before="280" w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+        <w:t>1. RESUMO EXECUTIVO</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:jc w:val="both"/>
+        <w:spacing w:after="160"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:sz w:val="21"/><w:szCs w:val="21"/></w:rPr>
+        <w:t xml:space="preserve">${escapeXml(resumoExecutivo)}</w:t>
+      </w:r>
+    </w:p>
+    <w:p>
+      <w:pPr>
+        <w:pStyle w:val="Heading1"/>
+        <w:spacing w:before="280" w:after="120"/>
+      </w:pPr>
+      <w:r>
+        <w:rPr><w:rFonts w:ascii="Arial" w:hAnsi="Arial"/><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+        <w:t>2. QUADRO DETALHADO DE APONTAMENTOS</w:t>
+      </w:r>
+    </w:p>
+    <w:tbl>
+      <w:tblPr>
+        <w:tblW w:w="5000" w:type="pct"/>
+        ${tblBordersXml}
+      </w:tblPr>
+      ${findingsHeaderRowXml}
+      ${findingsDataRowsXml}
+    </w:tbl>
+    <w:sectPr>
+      <w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/>
+      <w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1134" w:header="708" w:footer="708" w:gutter="0"/>
+    </w:sectPr>
+  </w:body>
+</w:document>`;
+
+  const parser = new DOMParser();
+  const serializer = new XMLSerializer();
+  const docXml = parser.parseFromString(rawDocumentXml, "application/xml");
+  postProcessRichTextAndLineBreaksInXmlDoc(docXml);
+
+  const zip = new JSZip();
+
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>
+</Types>`
+  );
+
+  zip.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+  );
+
+  zip.file(
+    "word/_rels/document.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
+</Relationships>`
+  );
+
+  zip.file(
+    "word/styles.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:style w:type="paragraph" w:default="1" w:styleId="Normal">
+    <w:name w:val="Normal"/>
+    <w:rPr>
+      <w:rFonts w:ascii="Arial" w:hAnsi="Arial"/>
+      <w:sz w:val="21"/>
+      <w:szCs w:val="21"/>
+    </w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Title">
+    <w:name w:val="Title"/>
+    <w:pPr><w:jc w:val="center"/></w:pPr>
+    <w:rPr><w:b/><w:bCs/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>
+  </w:style>
+  <w:style w:type="paragraph" w:styleId="Heading1">
+    <w:name w:val="heading 1"/>
+    <w:rPr><w:b/><w:bCs/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>
+  </w:style>
+</w:styles>`
+  );
+
+  zip.file("word/document.xml", serializer.serializeToString(docXml));
+
+  const outDir = dirname(resolvedOutput);
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+
+  const outBuffer = await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+  });
+  writeFileSync(resolvedOutput, outBuffer);
+
+  return {
+    success: true,
+    outputPath: resolvedOutput,
+    message: `Relatório de Auditoria (.docx) gerado com sucesso em: ${resolvedOutput}`,
   };
 }
 
@@ -1683,9 +2154,30 @@ async function runMcpServer() {
     return {
       tools: [
         {
+          name: "bootstrap_case",
+          description:
+            "Cria a estrutura de diretórios do caso (inputs/, state/, output/), copia todos os arquivos enviados pelo usuário em uploadsDir (.user_uploaded) para inputs/ preservando seus nomes originais e inspeciona automaticamente todos os arquivos .docx encontrados em inputs/.",
+          inputSchema: {
+            type: "object",
+            required: ["caseDir"],
+            properties: {
+              caseDir: {
+                type: "string",
+                description:
+                  "Caminho absoluto da pasta do caso (ex.: C:/.../cases/caso_exemplo)",
+              },
+              uploadsDir: {
+                type: "string",
+                description:
+                  "Caminho absoluto opcional da pasta .user_uploaded da sessão para cópia automática",
+              },
+            },
+          },
+        },
+        {
           name: "inspect_docx",
           description:
-            "Realiza a engenharia reversa estrutural de qualquer arquivo Word (.docx), extraindo cabeçalhos (headers), rodapés (footers), parágrafos indexados (0..N com estilo e texto) e tabelas indexadas (0..M com linhas e células).",
+            "Realiza a engenharia reversa estrutural de qualquer arquivo Word (.docx), extraindo cabeçalhos (headers), rodapés (footers), parágrafos indexados (0..N com estilo e texto) e tabelas indexadas (0..M com linhas e células). Retorna por padrão a versão compacta (sem células/parágrafos vazios, preservando os índices originais).",
           inputSchema: {
             type: "object",
             required: ["docxPath"],
@@ -1699,13 +2191,18 @@ async function runMcpServer() {
                 description:
                   "Caminho opcional onde o mapa estrutural JSON será gravado no disco",
               },
+              compact: {
+                type: "boolean",
+                description:
+                  "Se true (padrão no retorno MCP), omite parágrafos e células vazias preservando os índices originais 0-based",
+              },
             },
           },
         },
         {
           name: "build_docx_template",
           description:
-            "Transforma um documento Word (.docx) bruto (sem tags) em um template parametrizado com tags {{...}} a partir de um arquivo slots_manifest.json (suportando replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline), preservando 100% da formatação visual.",
+            "Transforma um documento Word (.docx) bruto (sem tags) em um template parametrizado com tags {{...}} a partir de um arquivo slots_manifest.json (suportando replace_paragraphs, loop_paragraphs, replace_table_cells, loop_table_rows e replace_inline), preservando 100% da formatação visual.",
           inputSchema: {
             type: "object",
             required: ["sourcePath", "manifestPath", "outputPath"],
@@ -1750,6 +2247,26 @@ async function runMcpServer() {
             },
           },
         },
+        {
+          name: "generate_audit_docx",
+          description:
+            "Gera um documento Word (.docx) executivo e formatado na pasta output/ a partir do arquivo state/relatorio_auditoria.json.",
+          inputSchema: {
+            type: "object",
+            required: ["auditJsonPath", "outputPath"],
+            properties: {
+              auditJsonPath: {
+                type: "string",
+                description: "Caminho do arquivo relatorio_auditoria.json",
+              },
+              outputPath: {
+                type: "string",
+                description:
+                  "Caminho onde o .docx do Relatório de Auditoria será salvo (ex.: cases/<caso>/output/Relatorio_Auditoria_ETP.docx)",
+              },
+            },
+          },
+        },
       ],
     };
   });
@@ -1758,17 +2275,40 @@ async function runMcpServer() {
     const toolName = request.params.name;
 
     try {
-      if (toolName === "inspect_docx") {
-        const { docxPath, outputPath } = request.params.arguments as {
-          docxPath: string;
-          outputPath?: string;
+      if (toolName === "bootstrap_case") {
+        const { caseDir, uploadsDir } = request.params.arguments as {
+          caseDir: string;
+          uploadsDir?: string;
         };
-        const inspection = await inspectDocx(docxPath, outputPath);
+        const res = await bootstrapCase(caseDir, uploadsDir);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(inspection, null, 2),
+              text: JSON.stringify(res, null, 2),
+            },
+          ],
+        };
+      }
+
+      if (toolName === "inspect_docx") {
+        const { docxPath, outputPath, compact } = request.params.arguments as {
+          docxPath: string;
+          outputPath?: string;
+          compact?: boolean;
+        };
+        const inspection = await inspectDocx(
+          docxPath,
+          outputPath,
+          compact === true
+        );
+        const mcpPayload =
+          compact === false ? inspection : compactInspectionResult(inspection);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(mcpPayload, null, 2),
             },
           ],
         };
@@ -1803,6 +2343,17 @@ async function runMcpServer() {
           statePath,
           outputPath
         );
+        return {
+          content: [{ type: "text", text: result.message }],
+        };
+      }
+
+      if (toolName === "generate_audit_docx") {
+        const { auditJsonPath, outputPath } = request.params.arguments as {
+          auditJsonPath: string;
+          outputPath: string;
+        };
+        const result = await generateAuditDocx(auditJsonPath, outputPath);
         return {
           content: [{ type: "text", text: result.message }],
         };
@@ -1843,9 +2394,11 @@ DocGov Docx Engine v${VERSION} — CLI & MCP Server
 Uso:
   docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
-  docgov-docx --inspect <arq.docx> [--out <mapa.json>]
+  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>]
+  docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx>
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
+  docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx>
   docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
   docgov-docx -u, --update                        Atualiza o binário para a versão mais recente (se houver)
   docgov-docx --force-update                      Força o download e reinstalação da última release
@@ -1881,11 +2434,48 @@ Uso:
     return;
   }
 
+  // 0b) Modo --bootstrap-case
+  if (args.includes("--bootstrap-case")) {
+    const caseDirIdx = args.indexOf("--case-dir");
+    const uploadsDirIdx = args.indexOf("--uploads-dir");
+    const bootstrapIdx = args.indexOf("--bootstrap-case");
+
+    let caseDir: string | undefined;
+    if (caseDirIdx !== -1 && args[caseDirIdx + 1]) {
+      caseDir = args[caseDirIdx + 1];
+    } else if (
+      args[bootstrapIdx + 1] &&
+      !args[bootstrapIdx + 1].startsWith("--")
+    ) {
+      caseDir = args[bootstrapIdx + 1];
+    }
+
+    const uploadsDir =
+      uploadsDirIdx !== -1 ? args[uploadsDirIdx + 1] : undefined;
+
+    if (!caseDir) {
+      console.error(
+        "Erro: Informe o diretório do caso usando --case-dir <dir>."
+      );
+      process.exit(1);
+    }
+
+    try {
+      const res = await bootstrapCase(caseDir, uploadsDir);
+      console.log(JSON.stringify(res, null, 2));
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
   // 1) Modo --inspect
   if (args.includes("--inspect")) {
     const inspectIdx = args.indexOf("--inspect");
     const sourceIdx = args.indexOf("--source");
     const outIdx = args.indexOf("--out");
+    const compact = args.includes("--compact");
 
     let docxPath: string | undefined;
     if (sourceIdx !== -1 && args[sourceIdx + 1]) {
@@ -1905,7 +2495,7 @@ Uso:
     }
 
     try {
-      const res = await inspectDocx(docxPath, outPath);
+      const res = await inspectDocx(docxPath, outPath, compact);
       console.log(JSON.stringify(res, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
@@ -1933,6 +2523,37 @@ Uso:
         args[manifestIdx + 1],
         args[outIdx + 1]
       );
+      console.log(res.message);
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // 2b) Modo --generate-audit-docx
+  if (args.includes("--generate-audit-docx")) {
+    const auditJsonIdx = args.indexOf("--audit-json");
+    const stateIdx = args.indexOf("--state");
+    const outIdx = args.indexOf("--out");
+
+    const auditJsonPath =
+      auditJsonIdx !== -1
+        ? args[auditJsonIdx + 1]
+        : stateIdx !== -1
+          ? args[stateIdx + 1]
+          : undefined;
+    const outPath = outIdx !== -1 ? args[outIdx + 1] : undefined;
+
+    if (!auditJsonPath || !outPath) {
+      console.error(
+        "Erro: Parâmetros obrigatórios para --generate-audit-docx: --audit-json e --out."
+      );
+      process.exit(1);
+    }
+
+    try {
+      const res = await generateAuditDocx(auditJsonPath, outPath);
       console.log(res.message);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
@@ -1977,10 +2598,12 @@ if (import.meta.main) {
   // Se tiver flag explícita de CLI, roda CLI.
   // Caso contrário (sem args ou com --mcp), sobe como MCP server imediatamente.
   if (
+    args.includes("--bootstrap-case") ||
     args.includes("--inspect") ||
     args.includes("--build-template") ||
     args.includes("--inject") ||
     args.includes("--template") ||
+    args.includes("--generate-audit-docx") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||
@@ -1995,3 +2618,4 @@ if (import.meta.main) {
     runMcpServer();
   }
 }
+
