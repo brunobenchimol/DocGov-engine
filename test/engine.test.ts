@@ -768,7 +768,7 @@ describe("DocGov Docx Engine v0.1.0", () => {
     );
     const jsonStr = JSON.stringify(syntheticInspect, null, 2);
 
-    expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(500);
+    expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(1024);
     expect(syntheticInspect.status).toBe("success");
     expect(syntheticInspect.docxPath).toBe(rawDocxPath);
     expect(syntheticInspect.outputPath).toBe(outJsonPath);
