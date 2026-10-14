@@ -9,7 +9,7 @@ import {
   readdirSync,
   copyFileSync,
 } from "node:fs";
-import { resolve, dirname, basename } from "node:path";
+import { resolve, dirname, basename, relative } from "node:path";
 import { spawn } from "node:child_process";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
@@ -21,7 +21,7 @@ import {
   ListToolsRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.3.2";
+export const VERSION = "0.3.3";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -148,17 +148,48 @@ export interface SalvaguardaStatus {
   updatedAt?: string;
 }
 
+export interface BootstrapCaseInspectedDocx {
+  fileName: string;
+  docxPath: string;
+  structurePath: string;
+  tablesCount: number;
+  paragraphsCount: number;
+  compactStructure: DocxInspectionResult;
+}
+
 export interface BootstrapCaseResult {
+  status: "success";
   caseDir: string;
   copiedFiles: string[];
   backgroundFiles: string[];
   backgroundCopy: BackgroundCopyInfo;
-  inspectedDocx: Array<{
-    fileName: string;
-    docxPath: string;
-    structurePath: string;
-    compactStructure: DocxInspectionResult;
-  }>;
+  inspectedDocx: BootstrapCaseInspectedDocx[];
+}
+
+export interface BootstrapCaseSyntheticDocx {
+  filename: string;
+  structure_json: string;
+  tables_count: number;
+  paragraphs_count: number;
+}
+
+export interface BootstrapCaseSyntheticResult {
+  status: "success";
+  caseDir: string;
+  docx_inspected: BootstrapCaseSyntheticDocx[];
+  background_copy: {
+    status: "active" | "started" | "idle" | "completed" | "partial_error";
+    message: string;
+  };
+}
+
+export interface InspectDocxSyntheticResult {
+  status: "success";
+  docxPath: string;
+  outputPath: string;
+  tables: number;
+  rows: number;
+  paragraphs: number;
 }
 
 export interface AuditDocumentExcerpt {
@@ -927,11 +958,14 @@ export async function bootstrapCase(
       const base = entry.name.replace(/\.docx$/i, "");
       const structurePath = resolve(stateDir, `estrutura_${base}.json`);
       const full = await inspectDocx(docxPath, structurePath);
+      const compact = compactInspectionResult(full);
       inspectedDocx.push({
         fileName: entry.name,
         docxPath,
         structurePath,
-        compactStructure: compactInspectionResult(full),
+        tablesCount: compact.tables.length,
+        paragraphsCount: compact.paragraphs.length,
+        compactStructure: compact,
       });
     }
   }
@@ -947,11 +981,60 @@ export async function bootstrapCase(
   };
 
   return {
+    status: "success",
     caseDir: resolvedCaseDir,
     copiedFiles,
     backgroundFiles,
     backgroundCopy: bgCopyInfo,
     inspectedDocx,
+  };
+}
+
+export function formatBootstrapCaseSyntheticResult(
+  res: BootstrapCaseResult,
+  userCaseDir?: string
+): BootstrapCaseSyntheticResult {
+  return {
+    status: "success",
+    caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
+    docx_inspected: res.inspectedDocx.map((item) => {
+      const relPath = relative(res.caseDir, item.structurePath).replace(
+        /\\/g,
+        "/"
+      );
+      return {
+        filename: item.fileName,
+        structure_json: relPath,
+        tables_count: item.tablesCount,
+        paragraphs_count: item.paragraphsCount,
+      };
+    }),
+    background_copy: {
+      status:
+        res.backgroundCopy.status === "started"
+          ? "active"
+          : res.backgroundCopy.status,
+      message: res.backgroundCopy.message,
+    },
+  };
+}
+
+export function formatInspectDocxSyntheticResult(
+  docxPath: string,
+  outputPath: string,
+  inspection: DocxInspectionResult
+): InspectDocxSyntheticResult {
+  let totalRows = 0;
+  for (const table of inspection.tables) {
+    totalRows += table.rows.length;
+  }
+  return {
+    status: "success",
+    docxPath,
+    outputPath,
+    tables: inspection.tables.length,
+    rows: totalRows,
+    paragraphs: inspection.paragraphs.length,
   };
 }
 
@@ -2638,7 +2721,7 @@ async function runMcpServer() {
         {
           name: "bootstrap_case",
           description:
-            "Cria a estrutura de diretórios do caso (inputs/, state/, output/), copia todos os arquivos enviados pelo usuário em uploadsDir (.user_uploaded) para inputs/ preservando seus nomes originais e inspeciona automaticamente todos os arquivos .docx encontrados em inputs/.",
+            "Cria a estrutura de diretórios do caso (inputs/, state/, output/), copia todos os arquivos enviados em uploadsDir (.user_uploaded) para inputs/, inspeciona os .docx salvando os mapas estruturais em state/estrutura_<nome>.json e inicia salvaguarda em segundo plano de PDFs. Retorna diretamente na resposta MCP um sumário executivo sintético (< 1 KB) com status, contagens e referências dos arquivos salvos.",
           inputSchema: {
             type: "object",
             required: ["caseDir"],
@@ -2659,7 +2742,7 @@ async function runMcpServer() {
         {
           name: "inspect_docx",
           description:
-            "Realiza a engenharia reversa estrutural de qualquer arquivo Word (.docx), extraindo cabeçalhos (headers), rodapés (footers), parágrafos indexados (0..N com estilo e texto) e tabelas indexadas (0..M com linhas e células). Retorna por padrão a versão compacta (sem células/parágrafos vazios, preservando os índices originais).",
+            "Realiza a engenharia reversa estrutural de qualquer arquivo Word (.docx), gravando o mapa estrutural detalhado no arquivo outputPath especificado (ou no caminho padrão <docx>_estrutura.json). Retorna diretamente na chamada MCP um sumário executivo sintético (< 1 KB) contendo status, outputPath e contagens de tabelas, linhas e parágrafos.",
           inputSchema: {
             type: "object",
             required: ["docxPath"],
@@ -2671,12 +2754,12 @@ async function runMcpServer() {
               outputPath: {
                 type: "string",
                 description:
-                  "Caminho opcional onde o mapa estrutural JSON será gravado no disco",
+                  "Caminho onde o mapa estrutural JSON detalhado será gravado no disco (se omitido, salva automaticamente como <docx>_estrutura.json)",
               },
               compact: {
                 type: "boolean",
                 description:
-                  "Se true (padrão no retorno MCP), omite parágrafos e células vazias preservando os índices originais 0-based",
+                  "Se true (padrão), grava no JSON os dados compactos omitindo parágrafos e células vazias",
               },
             },
           },
@@ -2763,11 +2846,12 @@ async function runMcpServer() {
           uploadsDir?: string;
         };
         const res = await bootstrapCase(caseDir, uploadsDir);
+        const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(res, null, 2),
+              text: JSON.stringify(synthetic, null, 2),
             },
           ],
         };
@@ -2779,18 +2863,31 @@ async function runMcpServer() {
           outputPath?: string;
           compact?: boolean;
         };
+        const resolvedDocx = resolve(docxPath);
+        const effectiveOutputPath = outputPath
+          ? resolve(outputPath)
+          : resolve(
+              dirname(resolvedDocx),
+              `estrutura_${basename(resolvedDocx, ".docx")}.json`
+            );
+
         const inspection = await inspectDocx(
-          docxPath,
-          outputPath,
-          compact === true
+          resolvedDocx,
+          effectiveOutputPath,
+          compact !== false
         );
-        const mcpPayload =
-          compact === false ? inspection : compactInspectionResult(inspection);
+
+        const synthetic = formatInspectDocxSyntheticResult(
+          docxPath,
+          effectiveOutputPath,
+          inspection
+        );
+
         return {
           content: [
             {
               type: "text",
-              text: JSON.stringify(mcpPayload, null, 2),
+              text: JSON.stringify(synthetic, null, 2),
             },
           ],
         };
@@ -2973,7 +3070,8 @@ Uso:
         waitBackground: wait,
         detachedCli: !wait,
       });
-      console.log(JSON.stringify(res, null, 2));
+      const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
+      console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -3007,7 +3105,16 @@ Uso:
 
     try {
       const res = await inspectDocx(docxPath, outPath, compact);
-      console.log(JSON.stringify(res, null, 2));
+      if (outPath) {
+        const synthetic = formatInspectDocxSyntheticResult(
+          docxPath,
+          resolve(outPath),
+          res
+        );
+        console.log(JSON.stringify(synthetic, null, 2));
+      } else {
+        console.log(JSON.stringify(res, null, 2));
+      }
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);

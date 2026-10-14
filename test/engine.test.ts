@@ -14,6 +14,8 @@ import {
   inspectDocx,
   compactInspectionResult,
   bootstrapCase,
+  formatBootstrapCaseSyntheticResult,
+  formatInspectDocxSyntheticResult,
   waitForBackgroundCopy,
   generateAuditDocx,
   cleanHumanText,
@@ -707,13 +709,30 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(existsSync(resolve(mockCaseDir, "output"))).toBe(true);
 
     // .docx foi copiado imediatamente e inspecionado
+    expect(res.status).toBe("success");
     expect(res.copiedFiles).toEqual(["modelo_etp_base.docx"]);
     expect(res.backgroundFiles).toEqual(["dfd_assinado.pdf"]);
     expect(res.backgroundCopy.status).toBe("started");
     expect(res.inspectedDocx.length).toBe(1);
     expect(res.inspectedDocx[0].fileName).toBe("modelo_etp_base.docx");
+    expect(res.inspectedDocx[0].tablesCount).toBe(2);
+    expect(res.inspectedDocx[0].paragraphsCount).toBe(5);
     expect(existsSync(res.inspectedDocx[0].structurePath)).toBe(true);
     expect(res.inspectedDocx[0].compactStructure.paragraphs.length).toBe(5);
+
+    // Valida que o formato sintético gerado para a resposta MCP é conciso (< 1 KB)
+    const syntheticMcp = formatBootstrapCaseSyntheticResult(res, "cases/caso_01");
+    const syntheticJson = JSON.stringify(syntheticMcp, null, 2);
+    expect(Buffer.byteLength(syntheticJson, "utf-8")).toBeLessThan(1024);
+    expect(syntheticMcp.status).toBe("success");
+    expect(syntheticMcp.caseDir).toBe("cases/caso_01");
+    expect(syntheticMcp.docx_inspected[0]).toEqual({
+      filename: "modelo_etp_base.docx",
+      structure_json: "state/estrutura_modelo_etp_base.json",
+      tables_count: 2,
+      paragraphs_count: 5,
+    });
+    expect(syntheticMcp.background_copy.status).toBe("active");
 
     // O status inicial de salvaguarda foi gravado em state/salvaguarda_status.json
     const statusPath = resolve(mockCaseDir, "state", "salvaguarda_status.json");
@@ -727,6 +746,30 @@ describe("DocGov Docx Engine v0.1.0", () => {
     const finalStatus = JSON.parse(readFileSync(statusPath, "utf-8"));
     expect(finalStatus.status).toBe("completed");
     expect(finalStatus.completedFiles).toContain("dfd_assinado.pdf");
+  });
+
+  test("deve gerar sumário sintético executivo (< 1 KB) para inspect_docx persistindo o JSON detalhado no disco (v0.3.3)", async () => {
+    const rawDocxPath = resolve(tempDir, "sample_raw_for_inspect.docx");
+    const outJsonPath = resolve(tempDir, "state", "estrutura_inspect.json");
+    await createSampleRawDocx(rawDocxPath);
+
+    const fullInspection = await inspectDocx(rawDocxPath, outJsonPath, true);
+    expect(existsSync(outJsonPath)).toBe(true);
+
+    const syntheticInspect = formatInspectDocxSyntheticResult(
+      rawDocxPath,
+      outJsonPath,
+      fullInspection
+    );
+    const jsonStr = JSON.stringify(syntheticInspect, null, 2);
+
+    expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(500);
+    expect(syntheticInspect.status).toBe("success");
+    expect(syntheticInspect.docxPath).toBe(rawDocxPath);
+    expect(syntheticInspect.outputPath).toBe(outJsonPath);
+    expect(syntheticInspect.tables).toBe(2);
+    expect(syntheticInspect.rows).toBe(5); // Tabela 1: 2 linhas, Tabela 2: 3 linhas
+    expect(syntheticInspect.paragraphs).toBe(5);
   });
 
   test("deve gerar relatório de auditoria em layout vertical corrido A4 (ZERO tabelas), múltiplos trechos por ID e sanitização de texto (generateAuditDocx v0.3.1)", async () => {

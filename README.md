@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.2`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.3`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -46,12 +46,13 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 
 1. **`bootstrap_case`**
    - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
-   - **Salvaguarda Assíncrona Não-Bloqueante (`v0.3.2`):** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O agente recebe o retorno imediato com `backgroundFiles` e `backgroundCopy: { status: "started", ... }`, e o progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
+   - **Salvaguarda Assíncrona Não-Bloqueante:** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
+   - **Retorno Sintético Executivo (< 1 KB — `v0.3.3`):** Para economizar contexto e eliminar desvios por arquivos de log (`output.txt`), o retorno MCP devolve estritamente um JSON conciso com contadores (`tables_count`, `paragraphs_count`), referências em disco (`structure_json`) e status da salvaguarda (`background_copy`).
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*).
 
 2. **`inspect_docx`**
-   - Faz a engenharia reversa estrutural de qualquer `.docx` bruto, retornando um JSON com `headers`, `footers`, `paragraphs` (`index: 0..N`, `style`, `text`, e metadados `numbering: { numId, level }` quando presentes) e `tables` (`index: 0..M`, `rows`, `cells`), preservando quebras de linha (`<w:br/>` $\rightarrow$ `\n`).
-   - **Modo Compacto (`compact`):** Por padrão no retorno MCP, omite parágrafos, cabeçalhos, rodapés e células vazias (`text.trim() === ""`) mantendo intactos os índices originais 0-based (`index`, `rowIndex`, `cellIndex`), reduzindo o consumo de contexto em ~75%.
+   - Faz a engenharia reversa estrutural de qualquer `.docx` bruto (headers, footers, parágrafos indexados `0..N` e tabelas indexadas `0..M`).
+   - **Persistência em Disco e Retorno Sintético (< 1 KB — `v0.3.3`):** O mapa estrutural detalhado é salvo no arquivo `outputPath` indicado (ou automaticamente em `<docx>_estrutura.json` caso omitido), enquanto a chamada MCP devolve apenas o sumário executivo conciso (`status`, `docxPath`, `outputPath`, `tables`, `rows`, `paragraphs`), evitando transferências volumosas (> 46 KB) de texto bruto.
    - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**
