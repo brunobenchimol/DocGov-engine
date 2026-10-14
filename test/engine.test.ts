@@ -768,7 +768,7 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(syntheticInspect.docxPath).toBe(rawDocxPath);
     expect(syntheticInspect.outputPath).toBe(outJsonPath);
     expect(syntheticInspect.tables).toBe(2);
-    expect(syntheticInspect.rows).toBe(5); // Tabela 1: 2 linhas, Tabela 2: 3 linhas
+    expect(syntheticInspect.rows).toBe(6); // Tabela 1: 2 linhas, Tabela 2: 4 linhas
     expect(syntheticInspect.paragraphs).toBe(5);
   });
 
