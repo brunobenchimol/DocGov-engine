@@ -23,6 +23,10 @@ import {
   compareSemver,
   replaceBinaryOnDisk,
   detectHierarchicalListItem,
+  DOCX_ENGINE_INSTRUCTIONS,
+  DOCX_WORKFLOW_GUIDE_TEXT,
+  getMcpPromptsDefinition,
+  getMcpToolsDefinition,
   type SlotsManifest,
 } from "../src/index.ts";
 
@@ -733,6 +737,7 @@ describe("DocGov Docx Engine v0.1.0", () => {
       paragraphs_count: 5,
     });
     expect(syntheticMcp.background_copy.status).toBe("active");
+    expect(syntheticMcp.next_step_hint).toContain("build_docx_template");
 
     // O status inicial de salvaguarda foi gravado em state/salvaguarda_status.json
     const statusPath = resolve(mockCaseDir, "state", "salvaguarda_status.json");
@@ -770,6 +775,7 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(syntheticInspect.tables).toBe(2);
     expect(syntheticInspect.rows).toBe(6); // Tabela 1: 2 linhas, Tabela 2: 4 linhas
     expect(syntheticInspect.paragraphs).toBe(5);
+    expect(syntheticInspect.next_step_hint).toContain("build_docx_template");
   });
 
   test("deve gerar relatório de auditoria em layout vertical corrido A4 (ZERO tabelas), múltiplos trechos por ID e sanitização de texto (generateAuditDocx v0.3.1)", async () => {
@@ -908,6 +914,84 @@ describe("DocGov Docx Engine v0.1.0", () => {
     expect(allParagraphTexts).toContain(
       "[AUD-02] BLOQUEANTE — Exigência de Marca ou Especificação Restritiva"
     );
+  });
+
+  test("deve implementar as 4 camadas nativas de Autodescoberta (Self-Discovery) no servidor MCP (v0.4.0)", () => {
+    // 1. Camada 1: instructions contendo pipeline canônico e sintaxe
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("1. **bootstrap_case**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("2. **inspect_docx**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("3. **build_docx_template**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("4. **fill_docx_template**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("5. **generate_audit_docx**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("{{FOR item IN lista}}");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("1.1, 1.1.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("inspecao_output.json");
+
+    // 2. Camada 2: ListTools enriquecido com pré/pós-condições, descriptions em todas as propriedades e annotations
+    const tools = getMcpToolsDefinition();
+    expect(tools.length).toBe(5);
+    const toolNames = tools.map((t) => t.name);
+    expect(toolNames).toEqual([
+      "bootstrap_case",
+      "inspect_docx",
+      "build_docx_template",
+      "fill_docx_template",
+      "generate_audit_docx",
+    ]);
+
+    for (const tool of tools) {
+      // Descrição rica com pré-condição e pós-condição
+      expect(tool.description).toBeDefined();
+      expect(tool.description!.length).toBeGreaterThan(50);
+      expect(tool.description).toContain("Quando usar");
+      expect(tool.description).toContain("Próximo Passo");
+
+      // Todas as propriedades do inputSchema devem conter descrição semântica
+      expect(tool.inputSchema.properties).toBeDefined();
+      for (const [, propDef] of Object.entries(
+        tool.inputSchema.properties as Record<string, { description?: string }>
+      )) {
+        expect(propDef.description).toBeDefined();
+        expect(propDef.description!.length).toBeGreaterThan(10);
+      }
+
+      // Anotações nativas do protocolo MCP
+      expect(tool.annotations).toBeDefined();
+      expect(typeof tool.annotations!.readOnlyHint).toBe("boolean");
+      expect(typeof tool.annotations!.destructiveHint).toBe("boolean");
+      expect(typeof tool.annotations!.idempotentHint).toBe("boolean");
+    }
+
+    // Validação específica da recomendação de transição no fill_docx_template
+    const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
+    expect(fillTool.description).toContain("inspecao_output.json");
+
+    // 3. Camada 3: Capacitador prompts nativo (ListPrompts e GetPrompt)
+    const prompts = getMcpPromptsDefinition();
+    expect(prompts.length).toBe(1);
+    expect(prompts[0].name).toBe("docx_workflow_guide");
+    expect(prompts[0].description).toBeDefined();
+    expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("Guia de Arquitetura");
+    expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("slots_manifest.json");
+    expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("inspecao_output.json");
+
+    // 4. Camada 4: Next Step Hints nas ferramentas
+    const bootstrapSynthetic = formatBootstrapCaseSyntheticResult({
+      status: "success",
+      caseDir: "cases/test",
+      copiedFiles: [],
+      backgroundFiles: [],
+      backgroundCopy: { status: "idle", totalFiles: 0, files: [], message: "" },
+      inspectedDocx: [],
+    });
+    expect(bootstrapSynthetic.next_step_hint).toContain("build_docx_template");
+
+    const inspectSynthetic = formatInspectDocxSyntheticResult(
+      "test.docx",
+      "test_estrutura.json",
+      { headers: [], footers: [], paragraphs: [], tables: [] }
+    );
+    expect(inspectSynthetic.next_step_hint).toContain("build_docx_template");
   });
 });
 

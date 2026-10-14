@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.3.3`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.4.0`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,7 +36,18 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Ciclo de Vida `.docx`: 5 Operações Integradas
+## 2. Autodescoberta Nativa no MCP (Self-Discovery — `v0.4.0`)
+
+O servidor MCP é **100% autodescritivo e autoexplicativo** pelo protocolo nativo do MCP, dispensando documentações externas:
+
+1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)** e a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`).
+2. **Tools Enriquecidas com Annotations:** Todas as 5 ferramentas trazem descrições detalhadas com **Pré-condições** ("Quando usar") e **Pós-condições** ("Próximo Passo"), todas as propriedades com descrições e exemplos claros, e anotações de protocolo (`readOnlyHint`, `destructiveHint`, `idempotentHint`).
+3. **Capacitador de Prompts (`prompts: {}`):** O prompt nativo `docx_workflow_guide` pode ser consultado sob demanda pelo cliente MCP para obter o manual completo de arquitetura, exemplos de `slots_manifest.json`, `estado_caso.json` e `relatorio_auditoria.json`.
+4. **Respostas Guiadas (*Next Step Hints*):** Cada ferramenta executada inclui uma dica do próximo passo recomendado (por exemplo, orientando rodar `inspect_docx` sobre `output/` gerando `state/inspecao_output.json` antes de acionar a auditoria externa).
+
+---
+
+## 3. Ciclo de Vida `.docx`: 5 Operações Integradas
 
 O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **5 operações fundamentais**:
 
@@ -47,12 +58,12 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 1. **`bootstrap_case`**
    - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
    - **Salvaguarda Assíncrona Não-Bloqueante:** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
-   - **Retorno Sintético Executivo (< 1 KB — `v0.3.3`):** Para economizar contexto e eliminar desvios por arquivos de log (`output.txt`), o retorno MCP devolve estritamente um JSON conciso com contadores (`tables_count`, `paragraphs_count`), referências em disco (`structure_json`) e status da salvaguarda (`background_copy`).
+   - **Retorno Sintético com Next Step Hint (< 1 KB):** Devolve um JSON conciso com contadores, referências em disco e a orientação do próximo passo recomendado.
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*).
 
 2. **`inspect_docx`**
    - Faz a engenharia reversa estrutural de qualquer `.docx` bruto (headers, footers, parágrafos indexados `0..N` e tabelas indexadas `0..M`).
-   - **Persistência em Disco e Retorno Sintético (< 1 KB — `v0.3.3`):** O mapa estrutural detalhado é salvo no arquivo `outputPath` indicado (ou automaticamente em `<docx>_estrutura.json` caso omitido), enquanto a chamada MCP devolve apenas o sumário executivo conciso (`status`, `docxPath`, `outputPath`, `tables`, `rows`, `paragraphs`), evitando transferências volumosas (> 46 KB) de texto bruto.
+   - **Persistência em Disco e Retorno Sintético (< 1 KB):** O mapa estrutural detalhado é salvo no arquivo `outputPath` indicado (ou automaticamente em `<docx>_estrutura.json` caso omitido), enquanto a chamada MCP devolve apenas o sumário executivo conciso (`status`, `docxPath`, `outputPath`, `tables`, `rows`, `paragraphs`, `next_step_hint`).
    - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**

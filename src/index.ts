@@ -19,10 +19,108 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  ListPromptsRequestSchema,
+  GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.3.3";
+export const VERSION = "0.4.0";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
+
+// ============================================================================
+// Autodescoberta MCP (Self-Discovery): Instruções e Guias Nativos
+// ============================================================================
+
+export const DOCX_ENGINE_INSTRUCTIONS = `
+Servidor MCP standalone para manipulação, engenharia reversa, construção de templates, injeção de dados e auditoria técnico-jurídica de documentos Microsoft Word (.docx) no ecossistema DocGov.
+
+### Ordem Canônica do Pipeline de Documentos (.docx):
+1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), copia e inspeciona imediatamente minutas .docx de uploadsDir para inputs/ (gerando state/estrutura_<nome>.json) e inicia salvaguarda assíncrona de PDFs.
+2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, identificando cabeçalhos, rodapés, parágrafos (0..N) e coordenadas de tabelas (linhas e células 0-based), persistindo o JSON detalhado em disco.
+3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas).
+4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado, resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
+   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json) para fornecer o mapa estrutural atualizado ao agente auditor.
+5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com fichas individualizadas e transcrições probatórias integrais.
+
+### Sintaxe Suportada de Tags e Formatação:
+- Variáveis Simples: {{variavel}} ou {{objeto.propriedade}}
+- Loops em Tabelas e Listas: {{FOR item IN lista}} ... {{$item.prop}} ... {{END-FOR item}}
+- Condicionais: {{IF condicao}} ... {{END-IF}}
+- Negrito Seletivo: **texto em negrito** dentro de strings é convertido automaticamente em runs <w:b/> sem herança indevida do estilo do subtítulo.
+- Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
+- Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
+`.trim();
+
+export const DOCX_WORKFLOW_GUIDE_TEXT = `
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx
+
+Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
+
+---
+
+## 1. Pipeline Canônico de 5 Passos
+
+### Passo 1: Inicialização do Caso (bootstrap_case)
+- **Chamada:** \`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded" })\`
+- **Efeito:**
+  - Cria as pastas \`inputs/\`, \`state/\` e \`output/\`.
+  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\`.
+  - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \`state/salvaguarda_status.json\`).
+  - Retorna um JSON sintético (< 1 KB) com status, contadores e referências dos arquivos.
+
+### Passo 2: Mapeamento Estrutural (inspect_docx)
+- **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
+- **Efeito:**
+  - Analisa o OpenXML bruto (\`document.xml\`, \`header1.xml\`, \`footer1.xml\`).
+  - Retorna um sumário executivo (< 1 KB) contendo o total de tabelas, linhas e parágrafos, gravando a estrutura indexada detalhada em \`outputPath\`.
+  - Use os índices 0-based de parágrafos e células de tabelas para montar o \`slots_manifest.json\`.
+
+### Passo 3: Parametrização do Template (build_docx_template)
+- **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx" })\`
+- **Estrutura do slots_manifest.json:**
+\`\`\`json
+{
+  "replace_paragraphs": [
+    { "start_p": 3, "end_p": 5, "tag": "{{estudo.descricao_necessidade}}" }
+  ],
+  "replace_table_cells": [
+    { "table_index": 0, "row_index": 0, "cell_index": 1, "tag": "{{metadados.unidade_requisitante}}" }
+  ],
+  "loop_table_rows": [
+    {
+      "table_index": 1,
+      "header_row_index": 0,
+      "template_row_index": 1,
+      "remove_from_row": 2,
+      "remove_to_row": 6,
+      "for_open_tag": "{{FOR r IN gestao_riscos}}",
+      "for_close_tag": "{{END-FOR r}}",
+      "cell_tags": ["{{$r.risco}}", "{{$r.mitigacao}}"]
+    }
+  ],
+  "replace_inline": [
+    { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }
+  ]
+}
+\`\`\`
+
+### Passo 4: Injeção de Dados e Geração da Minuta (fill_docx_template)
+- **Chamada:** \`fill_docx_template({ templatePath: "cases/<nome_caso>/state/template_etp.docx", statePath: "cases/<nome_caso>/state/estado_caso.json", outputPath: "cases/<nome_caso>/output/ETP_Final.docx" })\`
+- **Recursos Nativos:**
+  - Textos com \`**negrito**\` são renderizados em negrito seletivo (<w:b/>) sem contaminação do parágrafo.
+  - Quebras \`\\n\` são convertidas em parágrafos reais <w:p>.
+  - Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
+
+### Passo de Transição: Inspeção do Documento Gerado
+- Antes de iniciar a auditoria externa, execute \`inspect_docx\` sobre \`output/ETP_Final.docx\` gerando \`state/inspecao_output.json\`.
+- Isso garante coordenadas exatas e fidelidade textual para a análise de conformidade do auditor.
+
+### Passo 5: Parecer Executivo de Auditoria (generate_audit_docx)
+- **Chamada:** \`generate_audit_docx({ auditJsonPath: "cases/<nome_caso>/state/relatorio_auditoria.json", outputPath: "cases/<nome_caso>/output/Relatorio_Auditoria_ETP.docx" })\`
+- **Características:**
+  - Layout editorial vertical A4 corrido (ZERO tabelas <w:tbl>, 100% largura útil).
+  - Sanitização de crases markdown, coordenadas técnicas e códigos de enum.
+  - Fichas verticais individualizadas com múltiplos trechos probatórios transcritos em blocos de citação recuados.
+`.trim();
 
 // ============================================================================
 // Interfaces e Tipos
@@ -181,6 +279,7 @@ export interface BootstrapCaseSyntheticResult {
     status: "active" | "started" | "idle" | "completed" | "partial_error";
     message: string;
   };
+  next_step_hint: string;
 }
 
 export interface InspectDocxSyntheticResult {
@@ -190,6 +289,7 @@ export interface InspectDocxSyntheticResult {
   tables: number;
   rows: number;
   paragraphs: number;
+  next_step_hint: string;
 }
 
 export interface AuditDocumentExcerpt {
@@ -1016,6 +1116,8 @@ export function formatBootstrapCaseSyntheticResult(
           : res.backgroundCopy.status,
       message: res.backgroundCopy.message,
     },
+    next_step_hint:
+      "Estrutura do caso criada e modelos inspecionados em state/. Próximo passo recomendado: consulte o JSON estrutural gerado e elabore o slots_manifest.json para chamar 'build_docx_template'.",
   };
 }
 
@@ -1035,6 +1137,7 @@ export function formatInspectDocxSyntheticResult(
     tables: inspection.tables.length,
     rows: totalRows,
     paragraphs: inspection.paragraphs.length,
+    next_step_hint: `Inspeção concluída e gravada no outputPath com ${inspection.paragraphs.length} parágrafos e ${inspection.tables.length} tabelas (${totalRows} linhas). Próximo passo recomendado: use os índices reportados no JSON para criar o slots_manifest.json e chame 'build_docx_template' (ou, se este foi o documento final gerado em output/, prossiga para a auditoria externa).`,
   };
 }
 
@@ -2709,130 +2812,217 @@ export async function selfUpdate(
 // Modo Servidor MCP (stdio)
 // ============================================================================
 
+export function getMcpPromptsDefinition() {
+  return [
+    {
+      name: "docx_workflow_guide",
+      description:
+        "Guia canônico e manual de arquitetura do docgov-docx: ordem do pipeline (1..5), sintaxe de tags, estrutura do slots_manifest.json e boas práticas de injeção.",
+      arguments: [],
+    },
+  ];
+}
+
+export function getMcpToolsDefinition() {
+  return [
+    {
+      name: "bootstrap_case",
+      description:
+        "Cria a estrutura de pastas do caso (inputs/, state/, output/), copia minutas .docx de uploadsDir para inputs/ de forma síncrona imediata salvando mapas estruturais em state/estrutura_<nome>.json, e inicia salvaguarda assíncrona de PDFs/anexos pesados em segundo plano.\n" +
+        "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
+        "- Pós-condição & Próximo Passo: Pastas criadas e minutas .docx inspecionadas. Próximo passo recomendado: inspecionar detalhes adicionais com 'inspect_docx' (se necessário) ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
+      inputSchema: {
+        type: "object",
+        required: ["caseDir"],
+        properties: {
+          caseDir: {
+            type: "string",
+            description:
+              "Caminho absoluto ou relativo da pasta raiz do caso (ex.: 'C:/workspace/cases/caso_exemplo' ou 'cases/caso_exemplo'). As subpastas inputs/, state/ e output/ serão criadas dentro dele.",
+          },
+          uploadsDir: {
+            type: "string",
+            description:
+              "Caminho opcional da pasta contendo os uploads originais do usuário (ex.: 'C:/workspace/.user_uploaded'). Arquivos .docx são copiados e inspecionados imediatamente; PDFs e outros anexos pesados são transferidos em segundo plano sem travar a chamada.",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "inspect_docx",
+      description:
+        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx), extraindo cabeçalhos, rodapés, parágrafos indexados (0..N) e tabelas indexadas (0..M com linhas e células 0-based), salvando o JSON detalhado em outputPath e retornando um sumário executivo sintético (< 1 KB).\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para descobrir os índices exatos de parágrafos e células que serão substituídos no modelo, OU após 'fill_docx_template' sobre o arquivo gerado em output/ para preparar o mapa estrutural para auditoria externa.\n" +
+        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural detalhado. Próximo passo recomendado: mapear as tags no 'slots_manifest.json' com base nos índices reportados e chamar 'build_docx_template' (ou, na fase pós-geração, prosseguir para 'generate_audit_docx').",
+      inputSchema: {
+        type: "object",
+        required: ["docxPath"],
+        properties: {
+          docxPath: {
+            type: "string",
+            description:
+              "Caminho absoluto ou relativo do arquivo Word bruto a ser inspecionado (ex.: 'C:/workspace/cases/caso_exemplo/inputs/modelo_etp.docx' ou 'C:/workspace/cases/caso_exemplo/output/ETP_Exemplo.docx').",
+          },
+          outputPath: {
+            type: "string",
+            description:
+              "Caminho onde o mapa estrutural JSON detalhado será gravado no disco (ex.: 'C:/workspace/cases/caso_exemplo/state/estrutura_etp.json' ou 'C:/workspace/cases/caso_exemplo/state/inspecao_output.json'). Se omitido, salva automaticamente como <docx>_estrutura.json.",
+          },
+          compact: {
+            type: "boolean",
+            description:
+              "Se true (padrão), omite parágrafos e células vazias no JSON de saída para economizar espaço em disco, preservando intactos os índices originais 0-based.",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "build_docx_template",
+      description:
+        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline.\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração do arquivo 'slots_manifest.json'.\n" +
+        "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath. Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
+      inputSchema: {
+        type: "object",
+        required: ["sourcePath", "manifestPath", "outputPath"],
+        properties: {
+          sourcePath: {
+            type: "string",
+            description:
+              "Caminho do arquivo Word (.docx) bruto original, sem tags (ex.: 'C:/workspace/cases/caso_exemplo/inputs/modelo_etp.docx').",
+          },
+          manifestPath: {
+            type: "string",
+            description:
+              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json'). Estrutura esperada: { replace_paragraphs: [{ start_p, end_p, tag }], replace_table_cells: [{ table_index, row_index, cell_index, tag }], loop_table_rows: [{ table_index, header_row_index, template_row_index, for_open_tag, for_close_tag, cell_tags: [...] }], replace_inline: [{ find, replace }] }.",
+          },
+          outputPath: {
+            type: "string",
+            description:
+              "Caminho onde o novo arquivo template .docx parametrizado será salvo (ex.: 'C:/workspace/cases/caso_exemplo/state/template_etp.docx').",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "fill_docx_template",
+      description:
+        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível (1.1, 1.1.1, etc.).\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
+        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath. Próximo passo recomendado: para fins de auditoria externa, execute 'inspect_docx' sobre este arquivo gerado em output/ (gerando state/inspecao_output.json) antes de acionar a auditoria e 'generate_audit_docx'.",
+      inputSchema: {
+        type: "object",
+        required: ["templatePath", "statePath", "outputPath"],
+        properties: {
+          templatePath: {
+            type: "string",
+            description:
+              "Caminho do arquivo modelo Word (.docx) parametrizado com tags {{...}} gerado pelo build_docx_template (ex.: 'C:/workspace/cases/caso_exemplo/state/template_etp.docx').",
+          },
+          statePath: {
+            type: "string",
+            description:
+              "Caminho do arquivo JSON contendo o estado do caso/processo com os dados a serem injetados nas tags (ex.: 'C:/workspace/cases/caso_exemplo/state/estado_caso.json'). Objeto contendo campos correspondentes às tags do template (ex.: { processo_id: '...', objeto: { descricao: '...' }, itens: [...] }).",
+          },
+          outputPath: {
+            type: "string",
+            description:
+              "Caminho de saída onde o documento final compilado será gerado (ex.: 'C:/workspace/cases/caso_exemplo/output/ETP_Exemplo.docx').",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "generate_audit_docx",
+      description:
+        "Gera um Relatório de Auditoria Técnico-Jurídica em formato Word (.docx) em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com sanitização automática de crases Markdown, coordenadas e códigos de enum, e transcrição integral de trechos probatórios (trechos_documento) em blocos de citação recuados.\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após a auditoria do documento gerado e consolidação do arquivo 'relatorio_auditoria.json'.\n" +
+        "- Pós-condição & Próximo Passo: Gera o documento .docx executivo do parecer de auditoria em outputPath. Conclui formalmente o ciclo de auditoria do processo.",
+      inputSchema: {
+        type: "object",
+        required: ["auditJsonPath", "outputPath"],
+        properties: {
+          auditJsonPath: {
+            type: "string",
+            description:
+              "Caminho do arquivo relatorio_auditoria.json gerado pelo agente auditor (ex.: 'C:/workspace/cases/caso_exemplo/state/relatorio_auditoria.json'). Estrutura esperada: { processo_id, artefato_auditado, status_global, contagem: { bloqueantes, alertas, conformes }, resumo_executivo, apontamentos: [{ id, vulnerabilidade, status, base_legal, analise, redacao_saneadora, trechos_documento: [{ secao_legivel, texto_transcrito }] }] }.",
+          },
+          outputPath: {
+            type: "string",
+            description:
+              "Caminho onde o arquivo .docx do parecer de auditoria executivo será salvo (ex.: 'C:/workspace/cases/caso_exemplo/output/Relatorio_Auditoria_ETP.docx').",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+  ];
+}
+
 async function runMcpServer() {
   const server = new Server(
     { name: "docgov-docx-engine", version: VERSION },
-    { capabilities: { tools: {} } }
+    {
+      capabilities: {
+        tools: {},
+        prompts: {},
+      },
+      instructions: DOCX_ENGINE_INSTRUCTIONS,
+    }
   );
+
+  server.setRequestHandler(ListPromptsRequestSchema, async () => {
+    return {
+      prompts: getMcpPromptsDefinition(),
+    };
+  });
+
+  server.setRequestHandler(GetPromptRequestSchema, async (request) => {
+    const promptName = request.params.name;
+    if (promptName === "docx_workflow_guide") {
+      return {
+        description: "Guia Canônico do Ciclo de Vida docgov-docx",
+        messages: [
+          {
+            role: "user",
+            content: {
+              type: "text",
+              text: DOCX_WORKFLOW_GUIDE_TEXT,
+            },
+          },
+        ],
+      };
+    }
+    throw new Error(`Prompt desconhecido: ${promptName}`);
+  });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => {
     return {
-      tools: [
-        {
-          name: "bootstrap_case",
-          description:
-            "Cria a estrutura de diretórios do caso (inputs/, state/, output/), copia todos os arquivos enviados em uploadsDir (.user_uploaded) para inputs/, inspeciona os .docx salvando os mapas estruturais em state/estrutura_<nome>.json e inicia salvaguarda em segundo plano de PDFs. Retorna diretamente na resposta MCP um sumário executivo sintético (< 1 KB) com status, contagens e referências dos arquivos salvos.",
-          inputSchema: {
-            type: "object",
-            required: ["caseDir"],
-            properties: {
-              caseDir: {
-                type: "string",
-                description:
-                  "Caminho absoluto da pasta do caso (ex.: C:/.../cases/caso_exemplo)",
-              },
-              uploadsDir: {
-                type: "string",
-                description:
-                  "Caminho absoluto opcional da pasta .user_uploaded da sessão para cópia automática",
-              },
-            },
-          },
-        },
-        {
-          name: "inspect_docx",
-          description:
-            "Realiza a engenharia reversa estrutural de qualquer arquivo Word (.docx), gravando o mapa estrutural detalhado no arquivo outputPath especificado (ou no caminho padrão <docx>_estrutura.json). Retorna diretamente na chamada MCP um sumário executivo sintético (< 1 KB) contendo status, outputPath e contagens de tabelas, linhas e parágrafos.",
-          inputSchema: {
-            type: "object",
-            required: ["docxPath"],
-            properties: {
-              docxPath: {
-                type: "string",
-                description: "Caminho do arquivo .docx a ser inspecionado",
-              },
-              outputPath: {
-                type: "string",
-                description:
-                  "Caminho onde o mapa estrutural JSON detalhado será gravado no disco (se omitido, salva automaticamente como <docx>_estrutura.json)",
-              },
-              compact: {
-                type: "boolean",
-                description:
-                  "Se true (padrão), grava no JSON os dados compactos omitindo parágrafos e células vazias",
-              },
-            },
-          },
-        },
-        {
-          name: "build_docx_template",
-          description:
-            "Transforma um documento Word (.docx) bruto (sem tags) em um template parametrizado com tags {{...}} a partir de um arquivo slots_manifest.json (suportando replace_paragraphs, loop_paragraphs, replace_table_cells, loop_table_rows e replace_inline), preservando 100% da formatação visual.",
-          inputSchema: {
-            type: "object",
-            required: ["sourcePath", "manifestPath", "outputPath"],
-            properties: {
-              sourcePath: {
-                type: "string",
-                description: "Caminho do arquivo .docx bruto original",
-              },
-              manifestPath: {
-                type: "string",
-                description:
-                  "Caminho do arquivo slots_manifest.json com as regras de parametrização",
-              },
-              outputPath: {
-                type: "string",
-                description:
-                  "Caminho onde o novo template .docx parametrizado será salvo",
-              },
-            },
-          },
-        },
-        {
-          name: "fill_docx_template",
-          description:
-            "Preenche um modelo Word (.docx) substituindo variáveis e tabelas com base no JSON de estado do processo, gerando uma minuta limpa sem código residual.",
-          inputSchema: {
-            type: "object",
-            required: ["templatePath", "statePath", "outputPath"],
-            properties: {
-              templatePath: {
-                type: "string",
-                description: "Caminho do arquivo modelo .docx",
-              },
-              statePath: {
-                type: "string",
-                description: "Caminho do arquivo estado_caso.json",
-              },
-              outputPath: {
-                type: "string",
-                description: "Caminho onde o .docx final gerado será salvo",
-              },
-            },
-          },
-        },
-        {
-          name: "generate_audit_docx",
-          description:
-            "Gera um documento Word (.docx) executivo e formatado na pasta output/ a partir do arquivo state/relatorio_auditoria.json.",
-          inputSchema: {
-            type: "object",
-            required: ["auditJsonPath", "outputPath"],
-            properties: {
-              auditJsonPath: {
-                type: "string",
-                description: "Caminho do arquivo relatorio_auditoria.json",
-              },
-              outputPath: {
-                type: "string",
-                description:
-                  "Caminho onde o .docx do Relatório de Auditoria será salvo (ex.: cases/<caso>/output/Relatorio_Auditoria_ETP.docx)",
-              },
-            },
-          },
-        },
-      ],
+      tools: getMcpToolsDefinition(),
     };
   });
 
@@ -2905,8 +3095,10 @@ async function runMcpServer() {
           manifestPath,
           outputPath
         );
+        const nextHint =
+          "Próximo passo recomendado: elabore ou atualize o arquivo de estado (ex.: state/estado_caso.json) e chame 'fill_docx_template' para injetar os dados e gerar a minuta final.";
         return {
-          content: [{ type: "text", text: result.message }],
+          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
         };
       }
 
@@ -2922,8 +3114,10 @@ async function runMcpServer() {
           statePath,
           outputPath
         );
+        const nextHint =
+          "Próximo passo recomendado: para fins de auditoria externa, execute 'inspect_docx' sobre este arquivo gerado em output/ (gerando state/inspecao_output.json) antes de acionar a auditoria e 'generate_audit_docx'.";
         return {
-          content: [{ type: "text", text: result.message }],
+          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
         };
       }
 
@@ -2933,8 +3127,10 @@ async function runMcpServer() {
           outputPath: string;
         };
         const result = await generateAuditDocx(auditJsonPath, outputPath);
+        const nextHint =
+          "Ciclo de auditoria concluído: o parecer em layout vertical A4 (zero tabelas) está pronto em output/ para revisão e assinatura.";
         return {
-          content: [{ type: "text", text: result.message }],
+          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
         };
       }
     } catch (err: any) {
