@@ -1176,6 +1176,11 @@ function normalizeSearchText(str: string): string {
     .toUpperCase();
 }
 
+function matchesWord(text: string, word: string): boolean {
+  const pattern = new RegExp(`(^|[^A-Z0-9])${word}([^A-Z0-9]|$)`);
+  return pattern.test(text);
+}
+
 export function extractSemanticTypeAndOrgan(rawContent: string): {
   docType?: string;
   organ?: string;
@@ -1186,18 +1191,18 @@ export function extractSemanticTypeAndOrgan(rawContent: string): {
   if (
     text.includes("DOCUMENTO DE FORMALIZACAO DA DEMANDA") ||
     text.includes("FORMALIZACAO DA DEMANDA") ||
-    /\bDFD\b/.test(text)
+    matchesWord(text, "DFD")
   ) {
     docType = "DFD";
   } else if (
     text.includes("ESTUDO TECNICO PRELIMINAR") ||
-    /\bETP\b/.test(text)
+    matchesWord(text, "ETP")
   ) {
     docType = "ETP";
   } else if (
     text.includes("TERMO DE REFERENCIA") ||
     text.includes("PROJETO BASICO") ||
-    /\bTR\b/.test(text)
+    matchesWord(text, "TR")
   ) {
     docType = "TR";
   } else if (
@@ -1621,12 +1626,15 @@ export function formatBootstrapCaseSyntheticResult(
   res: BootstrapCaseResult,
   userCaseDir?: string
 ): BootstrapCaseSyntheticResult {
+  const hasIngested = !!(res.ingestedFiles && res.ingestedFiles.length > 0);
+  const docxLimit = hasIngested ? 1 : 4;
+
   return {
     status: "success",
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
-    ...(res.ingestedFiles && res.ingestedFiles.length > 0
+    ...(hasIngested
       ? {
-          ingested_files: res.ingestedFiles.slice(0, 4).map((item) => ({
+          ingested_files: res.ingestedFiles!.slice(0, 4).map((item) => ({
             original: item.original_name,
             saved_as: item.saved_as,
             type: item.detected_type,
@@ -1634,7 +1642,7 @@ export function formatBootstrapCaseSyntheticResult(
           })),
         }
       : {}),
-    docx_inspected: res.inspectedDocx.slice(0, 4).map((item) => {
+    docx_inspected: res.inspectedDocx.slice(0, docxLimit).map((item) => {
       const relPath = relative(res.caseDir, item.structurePath).replace(
         /\\/g,
         "/"
@@ -1651,10 +1659,13 @@ export function formatBootstrapCaseSyntheticResult(
         res.backgroundCopy.status === "started"
           ? "active"
           : res.backgroundCopy.status,
-      message: res.backgroundCopy.message,
+      message:
+        res.backgroundFiles.length > 0
+          ? `Salvaguarda de ${res.backgroundFiles.length} anexo(s) ativa em segundo plano.`
+          : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
     },
     next_step_hint:
-      "Estrutura do caso criada e modelos inspecionados em state/. Próximo passo recomendado: consulte o JSON estrutural gerado e elabore o slots_manifest.json para chamar 'build_docx_template'.",
+      "Estrutura criada e modelos inspecionados. Elabore o slots_manifest.json para 'build_docx_template'.",
   };
 }
 
