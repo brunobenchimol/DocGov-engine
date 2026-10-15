@@ -238,4 +238,7 @@ bun test
 # Compilar binários standalone
 bun run build:windows
 bun run build:linux
+
+# Disparar validação de CI no GitHub Actions sob demanda (manual)
+gh workflow run ci.yml
 ```
