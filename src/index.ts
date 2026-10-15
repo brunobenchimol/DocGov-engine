@@ -1173,6 +1173,7 @@ function normalizeSearchText(str: string): string {
   return str
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_\-]+/g, " ")
     .toUpperCase();
 }
 
@@ -1201,6 +1202,7 @@ export function extractSemanticTypeAndOrgan(rawContent: string): {
     docType = "ETP";
   } else if (
     text.includes("TERMO DE REFERENCIA") ||
+    text.includes("TERMO REFERENCIA") ||
     text.includes("PROJETO BASICO") ||
     matchesWord(text, "TR")
   ) {
@@ -1627,7 +1629,7 @@ export function formatBootstrapCaseSyntheticResult(
   userCaseDir?: string
 ): BootstrapCaseSyntheticResult {
   const hasIngested = !!(res.ingestedFiles && res.ingestedFiles.length > 0);
-  const docxLimit = hasIngested ? 1 : 4;
+  const docxLimit = res.ingestedFiles && res.ingestedFiles.length > 2 ? 0 : 1;
 
   return {
     status: "success",
@@ -1661,11 +1663,11 @@ export function formatBootstrapCaseSyntheticResult(
           : res.backgroundCopy.status,
       message:
         res.backgroundFiles.length > 0
-          ? `Salvaguarda de ${res.backgroundFiles.length} anexo(s) ativa em segundo plano.`
+          ? "Salvaguarda ativa em segundo plano."
           : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
     },
     next_step_hint:
-      "Estrutura criada e modelos inspecionados. Elabore o slots_manifest.json para 'build_docx_template'.",
+      "Estrutura criada. Elabore o slots_manifest.json para 'build_docx_template'.",
   };
 }
 
