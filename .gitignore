@@ -9,6 +9,7 @@ bin/*
 **/docgov-docx
 **/docgov-docx.exe
 *.exe
+bun.lock
 
 # Sistema e ambiente
 .env

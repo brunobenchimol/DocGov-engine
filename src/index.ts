@@ -9,7 +9,7 @@ import {
   readdirSync,
   copyFileSync,
 } from "node:fs";
-import { resolve, dirname, basename, relative } from "node:path";
+import { resolve, dirname, basename, relative, extname } from "node:path";
 import { spawn } from "node:child_process";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
@@ -23,7 +23,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.5.0";
+export const VERSION = "0.5.1";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -34,7 +34,7 @@ export const DOCX_ENGINE_INSTRUCTIONS = `
 Servidor MCP standalone para manipulação, engenharia reversa, construção de templates, injeção de dados e auditoria técnico-jurídica de documentos Microsoft Word (.docx) no ecossistema DocGov.
 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
-1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), copia e inspeciona imediatamente minutas .docx de uploadsDir para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
+1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\x03\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
 2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas) e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
 3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas).
 4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
@@ -50,9 +50,10 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 - Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
 - Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
 - Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.
-`.trim();
+- Nomenclatura Semântica & Magic Bytes: Preservação de nomes humanos, auto-batismo de uploads anônimos (media_*) com prefixo semântico e hash curto de 4 caracteres, e inferência de extensão por magic bytes (PK\x03\x04 para .docx e %PDF para .pdf).
+\`.trim();
 
-export const DOCX_WORKFLOW_GUIDE_TEXT = `
+export const DOCX_WORKFLOW_GUIDE_TEXT = \`
 # Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
@@ -62,12 +63,13 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 ## 1. Pipeline Canônico de 5 Passos
 
 ### Passo 1: Inicialização do Caso (bootstrap_case)
-- **Chamada:** \`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded" })\`
+- **Chamada:** \\\`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded", fileRenameMap: { "media_179...": "ETP_Modelo.docx" } })\\\`
 - **Efeito:**
-  - Cria as pastas \`inputs/\`, \`state/\` e \`output/\`.
-  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\` com \`toc_map\`.
-  - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \`state/salvaguarda_status.json\`).
-  - Retorna um JSON sintético (< 1 KB) com status, contadores e referências dos arquivos.
+  - Cria as pastas \\\`inputs/\\\`, \\\`state/\\\` e \\\`output/\\\`.
+  - Resolve nomes legíveis: preserva nomes originais humanos, aceita \\\`fileRenameMap\\\` explícito ou realiza auto-batismo semântico de anexos opacos (\\\`media_*\\\` -> \\\`<TIPO>_<ORGAO>_<hash4>.<ext>\\\`) com inferência de extensão via magic bytes (\\\`PK\\x03\\x04\\\` para .docx e \\\`%PDF\\\` para .pdf).
+  - Copia minutas \\\`.docx\\\` para \\\`inputs/\\\` e as inspeciona instantaneamente, gravando \\\`state/estrutura_<stem>.json\\\` com \\\`toc_map\\\`.
+  - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \\\`state/salvaguarda_status.json\\\`).
+  - Retorna um JSON sintético (< 1 KB) com status, contadores, \\\`ingested_files\\\` e referências dos arquivos.
 
 ### Passo 2: Mapeamento Estrutural (inspect_docx)
 - **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
@@ -280,6 +282,33 @@ export interface SalvaguardaStatus {
   updatedAt?: string;
 }
 
+export interface BackgroundCopyFileItem {
+  source: string;
+  target: string;
+}
+
+export type BackgroundCopyInput = string[] | BackgroundCopyFileItem[];
+
+export interface IngestedFileSummary {
+  original_name: string;
+  saved_as: string;
+  detected_type: string;
+  structure_json?: string;
+}
+
+export interface IngestedFileSyntheticItem {
+  original: string;
+  saved_as: string;
+  type: string;
+  structure?: string;
+}
+
+export interface BootstrapCaseOptions {
+  fileRenameMap?: Record<string, string>;
+  waitBackground?: boolean;
+  detachedCli?: boolean;
+}
+
 export interface BootstrapCaseInspectedDocx {
   fileName: string;
   docxPath: string;
@@ -296,6 +325,7 @@ export interface BootstrapCaseResult {
   backgroundFiles: string[];
   backgroundCopy: BackgroundCopyInfo;
   inspectedDocx: BootstrapCaseInspectedDocx[];
+  ingestedFiles?: IngestedFileSummary[];
 }
 
 export interface BootstrapCaseSyntheticDocx {
@@ -308,6 +338,7 @@ export interface BootstrapCaseSyntheticDocx {
 export interface BootstrapCaseSyntheticResult {
   status: "success";
   caseDir: string;
+  ingested_files?: IngestedFileSyntheticItem[];
   docx_inspected: BootstrapCaseSyntheticDocx[];
   background_copy: {
     status: "active" | "started" | "idle" | "completed" | "partial_error";
@@ -1051,16 +1082,306 @@ export async function inspectDocx(
   return finalResult;
 }
 
+// ============================================================================
+// Autodescoberta e Auto-Batismo Semântico de Arquivos (v0.5.1)
+// ============================================================================
+
+export function detectFileExtensionFromBuffer(buf: Buffer): string | null {
+  if (!buf || buf.length < 4) return null;
+  // PK\x03\x04 -> .docx (Zip archive)
+  if (
+    buf[0] === 0x50 &&
+    buf[1] === 0x4b &&
+    buf[2] === 0x03 &&
+    buf[3] === 0x04
+  ) {
+    return ".docx";
+  }
+  // %PDF -> .pdf
+  if (
+    buf[0] === 0x25 &&
+    buf[1] === 0x50 &&
+    buf[2] === 0x44 &&
+    buf[3] === 0x46
+  ) {
+    return ".pdf";
+  }
+  return null;
+}
+
+export function isOpaqueFileName(fileName: string): boolean {
+  const base = basename(fileName);
+  const stem = base.includes(".")
+    ? base.substring(0, base.lastIndexOf("."))
+    : base;
+  const lower = stem.toLowerCase();
+
+  if (
+    lower.startsWith("media_") ||
+    lower.startsWith("tmp_") ||
+    lower.startsWith("upload_") ||
+    lower.startsWith("file_")
+  ) {
+    return true;
+  }
+
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(stem)) {
+    return true;
+  }
+
+  const hexOnlyRegex = /^[0-9a-f]{16,}$/i;
+  if (hexOnlyRegex.test(stem)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function sanitizeFileName(name: string): string {
+  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
+}
+
+export function extractHash4(
+  fileName: string,
+  fallbackBuffer?: Buffer
+): string {
+  const base = basename(fileName);
+  const stem = base.includes(".")
+    ? base.substring(0, base.lastIndexOf("."))
+    : base;
+
+  const matches = stem.match(/[0-9a-zA-Z]{4,}$/);
+  if (matches) {
+    const matched = matches[0];
+    return matched.slice(-4).toLowerCase();
+  }
+
+  if (fallbackBuffer && fallbackBuffer.length > 0) {
+    let hash = 0;
+    for (let i = 0; i < Math.min(fallbackBuffer.length, 1024); i++) {
+      hash = ((hash << 5) - hash + fallbackBuffer[i]) | 0;
+    }
+    return (Math.abs(hash) % 0xffff).toString(16).padStart(4, "0");
+  }
+
+  return "0000";
+}
+
+function normalizeSearchText(str: string): string {
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+}
+
+export function extractSemanticTypeAndOrgan(rawContent: string): {
+  docType?: string;
+  organ?: string;
+} {
+  const text = normalizeSearchText(rawContent);
+
+  let docType: string | undefined;
+  if (
+    text.includes("DOCUMENTO DE FORMALIZACAO DA DEMANDA") ||
+    text.includes("FORMALIZACAO DA DEMANDA") ||
+    /\bDFD\b/.test(text)
+  ) {
+    docType = "DFD";
+  } else if (
+    text.includes("ESTUDO TECNICO PRELIMINAR") ||
+    /\bETP\b/.test(text)
+  ) {
+    docType = "ETP";
+  } else if (
+    text.includes("TERMO DE REFERENCIA") ||
+    text.includes("PROJETO BASICO") ||
+    /\bTR\b/.test(text)
+  ) {
+    docType = "TR";
+  } else if (
+    text.includes("MATRIZ DE RISCO") ||
+    text.includes("GERENCIAMENTO DE RISCO")
+  ) {
+    docType = "MATRIZ_RISCOS";
+  } else if (text.includes("EDITAL")) {
+    docType = "EDITAL";
+  } else if (text.includes("MINUTA DE CONTRATO") || text.includes("CONTRATO")) {
+    docType = "CONTRATO";
+  }
+
+    let organ: string | undefined;
+  const organMatch = text.match(
+    /\b(ORGAO_[A-Z0-9]+|SECRETARIA_[A-Z0-9]+|ENTIDADE_[A-Z0-9]+|DEPARTAMENTO_[A-Z0-9]+)\b/
+  );
+  if (organMatch) {
+    organ = organMatch[1];
+  } else if (
+    matchesWord(text, "ORGAO A") ||
+    text.includes("ORGAO PUBLICO CONTRATANTE")
+  ) {
+    organ = "ORGAO_A";
+  } else if (
+    matchesWord(text, "ORGAO B") ||
+    text.includes("SECRETARIA EXECUTIVA DEMANDANTE")
+  ) {
+    organ = "ORGAO_B";
+  } else if (
+    matchesWord(text, "ORGAO C") ||
+    text.includes("CONSULTORIA JURIDICA GERAL")
+  ) {
+    organ = "ORGAO_C";
+  }
+
+  return { docType, organ };
+}
+
+export async function detectDocxSemanticInfo(
+  buf: Buffer
+): Promise<{ docType?: string; organ?: string }> {
+  try {
+    const zip = await JSZip.loadAsync(buf);
+    let combinedText = "";
+
+    const coreFile = zip.file("docProps/core.xml");
+    if (coreFile) {
+      const coreXml = await coreFile.async("text");
+      combinedText += " " + coreXml;
+    }
+
+    const docFile = zip.file("word/document.xml");
+    if (docFile) {
+      const docXml = await docFile.async("text");
+      combinedText += " " + docXml.substring(0, 50000);
+    }
+
+    const headerFile =
+      zip.file("word/header1.xml") || zip.file("word/header2.xml");
+    if (headerFile) {
+      const headerXml = await headerFile.async("text");
+      combinedText += " " + headerXml;
+    }
+
+    return extractSemanticTypeAndOrgan(combinedText);
+  } catch {
+    return {};
+  }
+}
+
+export function detectPdfSemanticInfo(
+  buf: Buffer
+): { docType?: string; organ?: string } {
+  try {
+    const textChunk = buf.toString("latin1", 0, Math.min(buf.length, 65536));
+    return extractSemanticTypeAndOrgan(textChunk);
+  } catch {
+    return {};
+  }
+}
+
+export async function resolveTargetFileName(
+  originalFileName: string,
+  fileBuffer: Buffer,
+  fileRenameMap?: Record<string, string>
+): Promise<{ targetFileName: string; detectedType: string; isOpaque: boolean }> {
+  let currentExt = extname(originalFileName).toLowerCase();
+  const magicExt = detectFileExtensionFromBuffer(fileBuffer);
+
+  if (!currentExt && magicExt) {
+    currentExt = magicExt;
+  }
+
+  // 1. Prioridade 1: fileRenameMap
+  if (fileRenameMap) {
+    let mapped = fileRenameMap[originalFileName];
+    if (!mapped && originalFileName.includes(".")) {
+      const stem = originalFileName.substring(
+        0,
+        originalFileName.lastIndexOf(".")
+      );
+      mapped = fileRenameMap[stem];
+    }
+    if (mapped) {
+      let target = sanitizeFileName(mapped);
+      if (!extname(target) && currentExt) {
+        target += currentExt;
+      }
+      const typeInfo = extractSemanticTypeAndOrgan(target);
+      return {
+        targetFileName: target,
+        detectedType:
+          typeInfo.docType ||
+          (currentExt === ".docx"
+            ? "DOCX"
+            : currentExt === ".pdf"
+            ? "PDF"
+            : "ANEXO"),
+        isOpaque: false,
+      };
+    }
+  }
+
+  // 2. Prioridade 2: Preservação de Nomes Legíveis
+  const isOpaque = isOpaqueFileName(originalFileName);
+  if (!isOpaque) {
+    let target = originalFileName;
+    if (!extname(target) && currentExt) {
+      target += currentExt;
+    }
+    const typeInfo = extractSemanticTypeAndOrgan(target);
+    return {
+      targetFileName: target,
+      detectedType:
+        typeInfo.docType ||
+        (currentExt === ".docx"
+          ? "DOCX"
+          : currentExt === ".pdf"
+          ? "PDF"
+          : "ANEXO"),
+      isOpaque: false,
+    };
+  }
+
+  // 3. Prioridade 3: Auto-Batismo Semântico de Anexos Opacos (media_*)
+  let semInfo: { docType?: string; organ?: string } = {};
+  if (currentExt === ".docx") {
+    semInfo = await detectDocxSemanticInfo(fileBuffer);
+  } else if (currentExt === ".pdf") {
+    semInfo = detectPdfSemanticInfo(fileBuffer);
+  }
+
+  const detectedType =
+    semInfo.docType || (currentExt === ".docx" ? "DOC" : "ANEXO");
+  const hash4 = extractHash4(originalFileName, fileBuffer);
+
+  let targetStem = detectedType;
+  if (semInfo.organ) {
+    targetStem += `_${semInfo.organ}`;
+  }
+  targetStem += `_${hash4}`;
+
+  const targetFileName = `${targetStem}${currentExt || ".bin"}`;
+  return {
+    targetFileName,
+    detectedType,
+    isOpaque: true,
+  };
+}
+
 export const activeBackgroundCopies = new Map<string, Promise<void>>();
 
 export async function executeBackgroundCopyTask(
   sourceDir: string,
   destDir: string,
   stateDir: string,
-  files: string[]
+  files: BackgroundCopyInput
 ): Promise<void> {
   const statusFilePath = resolve(stateDir, "salvaguarda_status.json");
-  const pending = [...files];
+  const normalizedItems: BackgroundCopyFileItem[] = files.map((item) =>
+    typeof item === "string" ? { source: item, target: item } : item
+  );
+  const pending = normalizedItems.map((i) => i.target);
   const completed: string[] = [];
   const failed: Array<{ file: string; error: string }> = [];
 
@@ -1068,7 +1389,7 @@ export async function executeBackgroundCopyTask(
     try {
       const data: SalvaguardaStatus = {
         status,
-        totalFiles: files.length,
+        totalFiles: normalizedItems.length,
         pendingFiles: pending.filter(
           (f) => !completed.includes(f) && !failed.some((x) => x.file === f)
         ),
@@ -1086,17 +1407,17 @@ export async function executeBackgroundCopyTask(
   const startedAt = new Date().toISOString();
   updateStatus("in_progress");
 
-  for (const file of files) {
-    const src = resolve(sourceDir, file);
-    const dest = resolve(destDir, file);
+  for (const item of normalizedItems) {
+    const src = resolve(sourceDir, item.source);
+    const dest = resolve(destDir, item.target);
     try {
       copyFileSync(src, dest);
-      completed.push(file);
+      completed.push(item.target);
     } catch (err: any) {
-      failed.push({ file, error: err.message });
+      failed.push({ file: item.target, error: err.message });
     }
     updateStatus(
-      completed.length + failed.length === files.length
+      completed.length + failed.length === normalizedItems.length
         ? failed.length === 0
           ? "completed"
           : "partial_error"
@@ -1116,7 +1437,7 @@ export async function waitForBackgroundCopy(caseDir: string): Promise<void> {
 export async function bootstrapCase(
   caseDir: string,
   uploadsDir?: string,
-  options: { waitBackground?: boolean; detachedCli?: boolean } = {}
+  options: BootstrapCaseOptions = {}
 ): Promise<BootstrapCaseResult> {
   const resolvedCaseDir = resolve(caseDir);
   const inputsDir = resolve(resolvedCaseDir, "inputs");
@@ -1129,39 +1450,67 @@ export async function bootstrapCase(
 
   const copiedFiles: string[] = [];
   const backgroundFiles: string[] = [];
+  const ingestedFiles: IngestedFileSummary[] = [];
+  const bgItems: BackgroundCopyFileItem[] = [];
 
   if (uploadsDir && existsSync(uploadsDir)) {
     const resolvedUploadsDir = resolve(uploadsDir);
     const entries = readdirSync(resolvedUploadsDir, { withFileTypes: true });
 
-    const syncEntries: string[] = [];
-    const bgEntries: string[] = [];
-
     for (const entry of entries) {
-      if (entry.isFile()) {
+      if (entry.isFile() && !entry.name.startsWith("~$")) {
+        const srcPath = resolve(resolvedUploadsDir, entry.name);
+        const buf = readFileSync(srcPath);
+
+        const resolved = await resolveTargetFileName(
+          entry.name,
+          buf,
+          options.fileRenameMap
+        );
+
+        let finalTarget = resolved.targetFileName;
+        let counter = 1;
+        const usedNames = new Set([
+          ...copiedFiles,
+          ...bgItems.map((b) => b.target),
+        ]);
+        while (usedNames.has(finalTarget)) {
+          const ext = extname(finalTarget);
+          const stem = ext ? finalTarget.slice(0, -ext.length) : finalTarget;
+          finalTarget = `${stem}_${counter}${ext}`;
+          counter++;
+        }
+
         const isDocx =
-          entry.name.toLowerCase().endsWith(".docx") &&
-          !entry.name.startsWith("~$");
+          finalTarget.toLowerCase().endsWith(".docx") ||
+          detectFileExtensionFromBuffer(buf) === ".docx";
+
         if (isDocx) {
-          syncEntries.push(entry.name);
+          const destPath = resolve(inputsDir, finalTarget);
+          copyFileSync(srcPath, destPath);
+          copiedFiles.push(finalTarget);
+          ingestedFiles.push({
+            original_name: entry.name,
+            saved_as: finalTarget,
+            detected_type: resolved.detectedType,
+          });
         } else {
-          bgEntries.push(entry.name);
+          bgItems.push({
+            source: entry.name,
+            target: finalTarget,
+          });
+          backgroundFiles.push(finalTarget);
+          ingestedFiles.push({
+            original_name: entry.name,
+            saved_as: finalTarget,
+            detected_type: resolved.detectedType,
+          });
         }
       }
     }
 
-    // 1. Cópia síncrona imediata apenas dos modelos .docx para inspeção rápida
-    for (const fileName of syncEntries) {
-      const src = resolve(resolvedUploadsDir, fileName);
-      const dest = resolve(inputsDir, fileName);
-      copyFileSync(src, dest);
-      copiedFiles.push(fileName);
-    }
-
     // 2. Inicia cópia assíncrona não-bloqueante de PDFs e anexos pesados
-    if (bgEntries.length > 0) {
-      backgroundFiles.push(...bgEntries);
-
+    if (bgItems.length > 0) {
       if (options.detachedCli) {
         try {
           const binPath = resolveSelfBinaryPath();
@@ -1176,7 +1525,7 @@ export async function bootstrapCase(
               "--state",
               stateDir,
               "--files",
-              JSON.stringify(bgEntries),
+              JSON.stringify(bgItems),
             ],
             {
               detached: true,
@@ -1191,7 +1540,7 @@ export async function bootstrapCase(
             resolvedUploadsDir,
             inputsDir,
             stateDir,
-            bgEntries
+            bgItems
           );
           activeBackgroundCopies.set(resolvedCaseDir, bgPromise);
           if (options.waitBackground) {
@@ -1203,7 +1552,7 @@ export async function bootstrapCase(
           resolvedUploadsDir,
           inputsDir,
           stateDir,
-          bgEntries
+          bgItems
         );
         activeBackgroundCopies.set(resolvedCaseDir, bgPromise);
         if (options.waitBackground) {
@@ -1235,6 +1584,15 @@ export async function bootstrapCase(
         paragraphsCount: compact.paragraphs.length,
         compactStructure: compact,
       });
+
+      const relStructure = relative(resolvedCaseDir, structurePath).replace(
+        /\\/g,
+        "/"
+      );
+      const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+      if (match) {
+        match.structure_json = relStructure;
+      }
     }
   }
 
@@ -1255,6 +1613,7 @@ export async function bootstrapCase(
     backgroundFiles,
     backgroundCopy: bgCopyInfo,
     inspectedDocx,
+    ingestedFiles,
   };
 }
 
@@ -1265,7 +1624,17 @@ export function formatBootstrapCaseSyntheticResult(
   return {
     status: "success",
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
-    docx_inspected: res.inspectedDocx.map((item) => {
+    ...(res.ingestedFiles && res.ingestedFiles.length > 0
+      ? {
+          ingested_files: res.ingestedFiles.slice(0, 4).map((item) => ({
+            original: item.original_name,
+            saved_as: item.saved_as,
+            type: item.detected_type,
+            ...(item.structure_json ? { structure: item.structure_json } : {}),
+          })),
+        }
+      : {}),
+    docx_inspected: res.inspectedDocx.slice(0, 4).map((item) => {
       const relPath = relative(res.caseDir, item.structurePath).replace(
         /\\/g,
         "/"
@@ -3257,9 +3626,9 @@ export function getMcpToolsDefinition() {
     {
       name: "bootstrap_case",
       description:
-        "Cria a estrutura de pastas do caso (inputs/, state/, output/), copia minutas .docx de uploadsDir para inputs/ de forma síncrona imediata salvando mapas estruturais em state/estrutura_<nome>.json, e inicia salvaguarda assíncrona de PDFs/anexos pesados em segundo plano.\n" +
+        "Cria a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia minutas .docx para inputs/ de forma síncrona imediata salvando mapas estruturais em state/estrutura_<nome>.json, e inicia salvaguarda assíncrona de PDFs/anexos pesados em segundo plano.\n" +
         "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
-        "- Pós-condição & Próximo Passo: Pastas criadas e minutas .docx inspecionadas. Próximo passo recomendado: inspecionar detalhes adicionais com 'inspect_docx' (se necessário) ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
+        "- Pós-condição & Próximo Passo: Pastas criadas, arquivos batizados e minutas .docx inspecionadas. Próximo passo recomendado: inspecionar detalhes adicionais com 'inspect_docx' (se necessário) ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
       inputSchema: {
         type: "object",
         required: ["caseDir"],
@@ -3273,6 +3642,14 @@ export function getMcpToolsDefinition() {
             type: "string",
             description:
               "Caminho opcional da pasta contendo os uploads originais do usuário (ex.: 'C:/workspace/.user_uploaded'). Arquivos .docx são copiados e inspecionados imediatamente; PDFs e outros anexos pesados são transferidos em segundo plano sem travar a chamada.",
+          },
+          fileRenameMap: {
+            type: "object",
+            description:
+              "Mapeamento explícito opcional de nomes de arquivos originais para nomes canônicos (ex.: { 'media_1792069974647_14a93b9d': 'ETP_Modelo.docx' }). Se omitido, o motor preserva nomes legíveis ou auto-batiza anexos opacos com base no conteúdo e magic bytes.",
+            additionalProperties: {
+              type: "string",
+            },
           },
         },
       },
@@ -3460,11 +3837,13 @@ async function runMcpServer() {
 
     try {
       if (toolName === "bootstrap_case") {
-        const { caseDir, uploadsDir } = request.params.arguments as {
+        const { caseDir, uploadsDir, fileRenameMap } = request.params
+          .arguments as {
           caseDir: string;
           uploadsDir?: string;
+          fileRenameMap?: Record<string, string>;
         };
-        const res = await bootstrapCase(caseDir, uploadsDir);
+        const res = await bootstrapCase(caseDir, uploadsDir, { fileRenameMap });
         const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
         return {
           content: [
@@ -3598,7 +3977,7 @@ DocGov Docx Engine v${VERSION} — CLI & MCP Server
 Uso:
   docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
-  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--wait]
+  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
   docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx>
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
@@ -3628,7 +4007,7 @@ Uso:
         const sourceDir = args[sourceIdx + 1];
         const destDir = args[destIdx + 1];
         const stateDir = args[stateIdx + 1];
-        const files: string[] = JSON.parse(args[filesIdx + 1]);
+        const files: BackgroundCopyInput = JSON.parse(args[filesIdx + 1]);
         await executeBackgroundCopyTask(sourceDir, destDir, stateDir, files);
       } catch {
         process.exit(1);
@@ -3667,6 +4046,7 @@ Uso:
   if (args.includes("--bootstrap-case")) {
     const caseDirIdx = args.indexOf("--case-dir");
     const uploadsDirIdx = args.indexOf("--uploads-dir");
+    const renameMapIdx = args.indexOf("--rename-map");
     const bootstrapIdx = args.indexOf("--bootstrap-case");
     const wait = args.includes("--wait");
 
@@ -3683,6 +4063,17 @@ Uso:
     const uploadsDir =
       uploadsDirIdx !== -1 ? args[uploadsDirIdx + 1] : undefined;
 
+    let fileRenameMap: Record<string, string> | undefined;
+    if (renameMapIdx !== -1 && args[renameMapIdx + 1]) {
+      try {
+        fileRenameMap = JSON.parse(args[renameMapIdx + 1]);
+      } catch {
+        console.error(
+          "Aviso: Falha ao interpretar --rename-map como JSON válido."
+        );
+      }
+    }
+
     if (!caseDir) {
       console.error(
         "Erro: Informe o diretório do caso usando --case-dir <dir>."
@@ -3694,6 +4085,7 @@ Uso:
       const res = await bootstrapCase(caseDir, uploadsDir, {
         waitBackground: wait,
         detachedCli: !wait,
+        fileRenameMap,
       });
       const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
       console.log(JSON.stringify(synthetic, null, 2));

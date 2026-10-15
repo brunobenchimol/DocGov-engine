@@ -32,6 +32,11 @@ import {
   safeReadJsonFile,
   unflattenDotKeys,
   buildTocMap,
+  detectFileExtensionFromBuffer,
+  isOpaqueFileName,
+  extractHash4,
+  extractSemanticTypeAndOrgan,
+  resolveTargetFileName,
   type SlotsManifest,
 } from "../src/index.ts";
 
@@ -176,7 +181,7 @@ async function createSampleRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.1.0", () => {
+describe("DocGov Docx Engine v0.5.1", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1153,6 +1158,148 @@ describe("DocGov Docx Engine v0.1.0", () => {
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
     expect(buildTool.description).toContain("auto-reparo");
+  });
+
+  test("deve classificar nomes opacos vs legíveis corretamente (isOpaqueFileName v0.5.1)", () => {
+    expect(isOpaqueFileName("media_1792069974647_14a93b9d")).toBe(true);
+    expect(isOpaqueFileName("media_1791815270384_d0baeff4.docx")).toBe(true);
+    expect(isOpaqueFileName("tmp_12345.pdf")).toBe(true);
+    expect(isOpaqueFileName("upload_9999.docx")).toBe(true);
+    expect(isOpaqueFileName("file_001.bin")).toBe(true);
+    expect(isOpaqueFileName("550e8400-e29b-41d4-a716-446655440000.docx")).toBe(true);
+    expect(isOpaqueFileName("14a93b9d0123456789abcdef.docx")).toBe(true);
+
+    expect(isOpaqueFileName("ETP_Modelo.docx")).toBe(false);
+    expect(isOpaqueFileName("modelo_etp_base.docx")).toBe(false);
+    expect(isOpaqueFileName("dfd_assinado.pdf")).toBe(false);
+    expect(isOpaqueFileName("Termo_de_Referencia_Padrao.docx")).toBe(false);
+    expect(isOpaqueFileName("Edital_01_2026.pdf")).toBe(false);
+  });
+
+  test("deve inferir extensão via magic bytes em arquivos sem extensão (detectFileExtensionFromBuffer v0.5.1)", () => {
+    // 50 4B 03 04 -> .docx
+    const docxMagicBuf = Buffer.from([0x50, 0x4b, 0x03, 0x04, 0x14, 0x00]);
+    expect(detectFileExtensionFromBuffer(docxMagicBuf)).toBe(".docx");
+
+    // 25 50 44 46 -> .pdf
+    const pdfMagicBuf = Buffer.from([0x25, 0x50, 0x44, 0x46, 0x2d, 0x31]);
+    expect(detectFileExtensionFromBuffer(pdfMagicBuf)).toBe(".pdf");
+
+    // Outros buffers ou curto
+    expect(detectFileExtensionFromBuffer(Buffer.from([0x00, 0x01]))).toBeNull();
+    expect(detectFileExtensionFromBuffer(Buffer.from("PLAIN TEXT"))).toBeNull();
+  });
+
+  test("deve extrair hash curto de 4 caracteres de nomes opacos (extractHash4 v0.5.1)", () => {
+    expect(extractHash4("media_1792069974647_14a93b9d")).toBe("3b9d");
+    expect(extractHash4("media_1791815270384_d0baeff4.docx")).toBe("eff4");
+    expect(extractHash4("tmp_abc1234")).toBe("1234");
+  });
+
+  test("deve resolver nomes de arquivos respeitando as 3 regras: fileRenameMap, preservação de nomes legíveis e auto-batismo semântico (resolveTargetFileName v0.5.1)", async () => {
+    const rawDocxBuf = Buffer.from(MINIMAL_DOCX_BASE64, "base64");
+
+    // Regra 1: Prioridade fileRenameMap
+    const res1 = await resolveTargetFileName(
+      "media_1792069974647_14a93b9d",
+      rawDocxBuf,
+      { "media_1792069974647_14a93b9d": "ETP_Minuta.docx" }
+    );
+    expect(res1.targetFileName).toBe("ETP_Minuta.docx");
+    expect(res1.detectedType).toBe("ETP");
+    expect(res1.isOpaque).toBe(false);
+
+    // Regra 2: Preservação de nome legível humano (com extensão)
+    const res2 = await resolveTargetFileName("ETP_Modelo.docx", rawDocxBuf);
+    expect(res2.targetFileName).toBe("ETP_Modelo.docx");
+    expect(res2.detectedType).toBe("ETP");
+    expect(res2.isOpaque).toBe(false);
+
+    // Regra 2b: Preservação de nome legível sem extensão inferida por magic bytes
+    const res2b = await resolveTargetFileName("Termo_Referencia_Juridico", rawDocxBuf);
+    expect(res2b.targetFileName).toBe("Termo_Referencia_Juridico.docx");
+    expect(res2b.detectedType).toBe("TR");
+    expect(res2b.isOpaque).toBe(false);
+
+    // Regra 3: Auto-batismo de arquivo opaco media_*
+    const sampleDocxPath = resolve(tempDir, "auto_name_sample.docx");
+    await createSampleRawDocx(sampleDocxPath);
+    const sampleDocxBuf = readFileSync(sampleDocxPath);
+    const res3 = await resolveTargetFileName(
+      "media_1792069974647_14a93b9d",
+      sampleDocxBuf
+    );
+    // Deve conter tipo ETP, órgão ORGAO_A (pois createSampleRawDocx contém 'Órgão Público Contratante (ORGAO_A)' e 'Estudo Técnico Preliminar') e hash 3b9d
+    expect(res3.targetFileName).toBe("ETP_ORGAO_A_3b9d.docx");
+    expect(res3.detectedType).toBe("ETP");
+    expect(res3.isOpaque).toBe(true);
+  });
+
+  test("deve executar bootstrapCase com auto-batismo de media_*, magic bytes e fileRenameMap com payload < 1024 bytes (v0.5.1)", async () => {
+    const caseDir = resolve(tempDir, "case_v051_test");
+    const uploadsDir = resolve(tempDir, "uploads_v051_test");
+    mkdirSync(uploadsDir, { recursive: true });
+
+    // 1. Arquivo opaco media_* sem extensão contendo buffer de .docx (ORGAO_A + ETP)
+    const sampleDocxPath = resolve(tempDir, "sample_v051.docx");
+    await createSampleRawDocx(sampleDocxPath);
+    const docxBuf = readFileSync(sampleDocxPath);
+    writeFileSync(resolve(uploadsDir, "media_1792069974647_14a93b9d"), docxBuf);
+
+    // 2. Arquivo opaco media_* sem extensão contendo magic bytes %PDF com texto
+    const pdfBuf = Buffer.from("%PDF-1.4\n%TERMO DE REFERENCIA ORGAO_B\n%%EOF");
+    writeFileSync(resolve(uploadsDir, "media_9999999999999_fa12"), pdfBuf);
+
+    // 3. Arquivo com nome humano legível
+    writeFileSync(resolve(uploadsDir, "modelo_tr_legivel.docx"), docxBuf);
+
+    // 4. Arquivo com override explícito via fileRenameMap
+    writeFileSync(resolve(uploadsDir, "tmp_renamed_anexo"), pdfBuf);
+
+    const res = await bootstrapCase(caseDir, uploadsDir, {
+      fileRenameMap: { tmp_renamed_anexo: "DFD_Planejamento.pdf" },
+      waitBackground: true,
+    });
+
+    expect(res.status).toBe("success");
+    // Valida que o .docx foi batizado e copiado para inputs/
+    expect(existsSync(resolve(caseDir, "inputs", "ETP_ORGAO_A_3b9d.docx"))).toBe(true);
+    expect(existsSync(resolve(caseDir, "inputs", "modelo_tr_legivel.docx"))).toBe(true);
+
+    // Valida que os mapas estruturais foram gerados em state/
+    expect(existsSync(resolve(caseDir, "state", "estrutura_ETP_ORGAO_A_3b9d.json"))).toBe(true);
+    expect(existsSync(resolve(caseDir, "state", "estrutura_modelo_tr_legivel.json"))).toBe(true);
+
+    // Valida que os PDFs em background foram salvos com os nomes corretos
+    expect(existsSync(resolve(caseDir, "inputs", "TR_ORGAO_B_fa12.pdf"))).toBe(true);
+    expect(existsSync(resolve(caseDir, "inputs", "DFD_Planejamento.pdf"))).toBe(true);
+
+    // Valida ingestedFiles
+    expect(res.ingestedFiles).toBeDefined();
+    expect(res.ingestedFiles!.length).toBe(4);
+
+    // Valida payload sintético MCP (< 1024 bytes estrito)
+    const synthetic = formatBootstrapCaseSyntheticResult(res, "cases/v051");
+    const jsonStr = JSON.stringify(synthetic, null, 2);
+    const byteLength = Buffer.byteLength(jsonStr, "utf-8");
+
+    expect(byteLength).toBeLessThan(1024);
+    expect(synthetic.ingested_files).toBeDefined();
+    expect(synthetic.ingested_files!.length).toBe(4);
+    expect(synthetic.ingested_files![0].saved_as).toBe("ETP_ORGAO_A_3b9d.docx");
+    expect(synthetic.ingested_files![0].type).toBe("ETP");
+    expect(synthetic.ingested_files![0].structure).toBe("state/estrutura_ETP_ORGAO_A_3b9d.json");
+  });
+
+  test("deve documentar suporte a fileRenameMap e auto-batismo nas ferramentas MCP (v0.5.1)", () => {
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("media_*");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("fileRenameMap");
+
+    const tools = getMcpToolsDefinition();
+    const bootstrapTool = tools.find((t) => t.name === "bootstrap_case")!;
+    expect(bootstrapTool.description).toContain("fileRenameMap");
+    expect(bootstrapTool.description).toContain("media_*");
+    expect(bootstrapTool.inputSchema.properties.fileRenameMap).toBeDefined();
   });
 });
 

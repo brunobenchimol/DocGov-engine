@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.5.0`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.5.1`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,15 +36,17 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Autodescoberta & Resiliência Nativa no MCP (`v0.5.0`)
+## 2. Autodescoberta & Resiliência Nativa no MCP (`v0.5.1`)
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e resiliente a falhas sintáticas**:
 
 1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)**, a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`), além das capacidades de auto-reparo de JSON e unflattening.
-2. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB) que poupa dezenas de chamadas paginadas de leitura.
-3. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8 (`\uFEFF`), *trailing commas* (vírgulas antes de `}` ou `]`) e escapa quebras de linha literais (`\r\n` crus) em strings JSON, regravando o arquivo corrigido no disco sem interromper a execução do agente.
-4. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta MCP informa a linha e coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI` e instruindo o uso de `replace_file_content`.
-5. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para a hierarquia `{ etp: { necessidade: "..." } }`, garantindo o preenchimento correto de slots `{{etp.necessidade}}`.
+2. **Preservação de Nomes Legíveis & Auto-Batismo Semântico de Anexos (`v0.5.1`):** Em plataformas baseadas em sessão que rebatizam uploads com hashes opacos (`media_*`, `tmp_*`), o motor inspeciona o conteúdo OpenXML/PDF para auto-batizar os arquivos (`<TIPO>_<ORGAO>_<hash4>.<ext>`, ex.: `ETP_ORGAO_A_3b9d.docx`), preserva nomes legíveis humanos e aceita mapeamento explícito via `fileRenameMap`.
+3. **Inferência de Extensão por Magic Bytes (`v0.5.1`):** Identifica arquivos enviados sem extensão inspecionando os primeiros bytes (`50 4B 03 04` para `.docx` e `25 50 44 46` para `.pdf`).
+4. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB) que poupa dezenas de chamadas paginadas de leitura.
+5. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8 (`\uFEFF`), *trailing commas* (vírgulas antes de `}` ou `]`) e escapa quebras de linha literais (`\r\n` crus) em strings JSON, regravando o arquivo corrigido no disco sem interromper a execução do agente.
+6. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta MCP informa a linha e coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI` e instruindo o uso de `replace_file_content`.
+7. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para a hierarquia `{ etp: { necessidade: "..." } }`, garantindo o preenchimento correto de slots `{{etp.necessidade}}`.
 
 ---
 
@@ -57,10 +59,10 @@ O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponi
 Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **5 ferramentas**:
 
 1. **`bootstrap_case`**
-   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
+   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita mapeamento opcional `fileRenameMap`, copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
    - **Salvaguarda Assíncrona Não-Bloqueante:** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
-   - **Retorno Sintético com Next Step Hint (< 1 KB):** Devolve um JSON conciso com contadores, referências em disco e a orientação do próximo passo recomendado.
-   - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*).
+   - **Retorno Sintético com `ingested_files` (< 1 KB):** Devolve um JSON conciso com contadores, referências em disco, mapa de arquivos ingeridos (`ingested_files`) e a orientação do próximo passo recomendado.
+   - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*), `fileRenameMap` (*opcional*).
 
 2. **`inspect_docx`**
    - Faz a engenharia reversa estrutural de qualquer `.docx` bruto (headers, footers, parágrafos indexados `0..N` e tabelas indexadas `0..M`).
@@ -89,6 +91,9 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 ```powershell
 # 1. Inicializar pasta do caso, copiar uploads e inspecionar modelos .docx (não-bloqueante para PDFs)
 ./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded
+
+# Com mapeamento explícito de nomes de arquivos
+./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --rename-map '{"media_1792069974647_14a93b9d": "ETP_Modelo.docx"}'
 
 # Opcional: aguardar cópia de PDFs em segundo plano antes de encerrar o comando
 ./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --wait
