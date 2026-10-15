@@ -1303,28 +1303,29 @@ export function formatInspectDocxSyntheticResult(
     [];
   const tocMap = inspection.toc_map;
   if (tocMap) {
-    // Adiciona as primeiras 4 seções
-    for (const s of tocMap.sections.slice(0, 4)) {
+    // Adiciona até 2 seções principais
+    for (const s of tocMap.sections.slice(0, 2)) {
       toc_summary.push({
         coord: s.coord,
-        title: s.title.length > 36 ? `${s.title.slice(0, 33)}...` : s.title,
+        title: s.title.length > 28 ? `${s.title.slice(0, 25)}...` : s.title,
         ...(s.suggested_target_slot ? { target: s.suggested_target_slot } : {}),
       });
     }
-    // Adiciona os primeiros 3 campos de formulário
-    for (const f of tocMap.form_fields.slice(0, 3)) {
+    // Adiciona até 2 campos de formulário principais
+    for (const f of tocMap.form_fields.slice(0, 2)) {
       toc_summary.push({
         coord: f.coord,
-        title: f.title.length > 32 ? `${f.title.slice(0, 29)}...` : f.title,
+        title: f.title.length > 28 ? `${f.title.slice(0, 25)}...` : f.title,
         ...(f.suggested_target_slot ? { target: f.suggested_target_slot } : {}),
       });
     }
-    // Adiciona as primeiras 2 tabelas
-    for (const t of tocMap.tables.slice(0, 2)) {
-      const headerSample = t.headers.slice(0, 3).join(", ");
+    // Adiciona 1 tabela resumida
+    if (tocMap.tables.length > 0) {
+      const t = tocMap.tables[0];
+      const headerSample = t.headers.slice(0, 2).join(", ");
       toc_summary.push({
         coord: `T${t.table_index}`,
-        title: `Tabela (${t.rows}x${t.cols})${
+        title: `Tbl (${t.rows}x${t.cols})${
           headerSample ? ` [${headerSample}]` : ""
         }`,
       });
@@ -1339,7 +1340,8 @@ export function formatInspectDocxSyntheticResult(
     rows: totalRows,
     paragraphs: inspection.paragraphs.length,
     ...(toc_summary.length > 0 ? { toc_summary } : {}),
-    next_step_hint: `Inspeção concluída com toc_map gravado em outputPath (${inspection.paragraphs.length} parágrafos, ${inspection.tables.length} tabelas). Próximo passo recomendado: consulte toc_summary/toc_map para criar o slots_manifest.json e chame 'build_docx_template' (ou prossiga para auditoria se for minuta final).`,
+    next_step_hint:
+      "Inspeção gravada com toc_map em outputPath. Próximo passo: elabore slots_manifest.json usando toc_summary/toc_map e chame 'build_docx_template' (ou audite se for output/).",
   };
 }
 
