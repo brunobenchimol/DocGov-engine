@@ -51,9 +51,9 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 - Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
 - Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.
 - Nomenclatura Semântica & Magic Bytes: Preservação de nomes humanos, auto-batismo de uploads anônimos (media_*) com prefixo semântico e hash curto de 4 caracteres, e inferência de extensão por magic bytes (PK\x03\x04 para .docx e %PDF para .pdf).
-\`.trim();
+`.trim();
 
-export const DOCX_WORKFLOW_GUIDE_TEXT = \`
+export const DOCX_WORKFLOW_GUIDE_TEXT = `
 # Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
@@ -63,13 +63,13 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 ## 1. Pipeline Canônico de 5 Passos
 
 ### Passo 1: Inicialização do Caso (bootstrap_case)
-- **Chamada:** \\\`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded", fileRenameMap: { "media_179...": "ETP_Modelo.docx" } })\\\`
+- **Chamada:** \`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded", fileRenameMap: { "media_179...": "ETP_Modelo.docx" } })\`
 - **Efeito:**
-  - Cria as pastas \\\`inputs/\\\`, \\\`state/\\\` e \\\`output/\\\`.
-  - Resolve nomes legíveis: preserva nomes originais humanos, aceita \\\`fileRenameMap\\\` explícito ou realiza auto-batismo semântico de anexos opacos (\\\`media_*\\\` -> \\\`<TIPO>_<ORGAO>_<hash4>.<ext>\\\`) com inferência de extensão via magic bytes (\\\`PK\\x03\\x04\\\` para .docx e \\\`%PDF\\\` para .pdf).
-  - Copia minutas \\\`.docx\\\` para \\\`inputs/\\\` e as inspeciona instantaneamente, gravando \\\`state/estrutura_<stem>.json\\\` com \\\`toc_map\\\`.
-  - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \\\`state/salvaguarda_status.json\\\`).
-  - Retorna um JSON sintético (< 1 KB) com status, contadores, \\\`ingested_files\\\` e referências dos arquivos.
+  - Cria as pastas \`inputs/\`, \`state/\` e \`output/\`.
+  - Resolve nomes legíveis: preserva nomes originais humanos, aceita \`fileRenameMap\` explícito ou realiza auto-batismo semântico de anexos opacos (\`media_*\` -> \`<TIPO>_<ORGAO>_<hash4>.<ext>\`) com inferência de extensão via magic bytes (\`PK\\x03\\x04\` para .docx e \`%PDF\` para .pdf).
+  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\` com \`toc_map\`.
+  - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \`state/salvaguarda_status.json\`).
+  - Retorna um JSON sintético (< 1 KB) com status, contadores, \`ingested_files\` e referências dos arquivos.
 
 ### Passo 2: Mapeamento Estrutural (inspect_docx)
 - **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
