@@ -1307,15 +1307,15 @@ export function formatInspectDocxSyntheticResult(
     for (const s of tocMap.sections.slice(0, 2)) {
       toc_summary.push({
         coord: s.coord,
-        title: s.title.length > 28 ? `${s.title.slice(0, 25)}...` : s.title,
+        title: s.title.length > 25 ? `${s.title.slice(0, 22)}...` : s.title,
         ...(s.suggested_target_slot ? { target: s.suggested_target_slot } : {}),
       });
     }
-    // Adiciona até 2 campos de formulário principais
-    for (const f of tocMap.form_fields.slice(0, 2)) {
+    // Adiciona 1 campo de formulário principal
+    for (const f of tocMap.form_fields.slice(0, 1)) {
       toc_summary.push({
         coord: f.coord,
-        title: f.title.length > 28 ? `${f.title.slice(0, 25)}...` : f.title,
+        title: f.title.length > 25 ? `${f.title.slice(0, 22)}...` : f.title,
         ...(f.suggested_target_slot ? { target: f.suggested_target_slot } : {}),
       });
     }
@@ -1341,7 +1341,7 @@ export function formatInspectDocxSyntheticResult(
     paragraphs: inspection.paragraphs.length,
     ...(toc_summary.length > 0 ? { toc_summary } : {}),
     next_step_hint:
-      "Inspeção gravada com toc_map em outputPath. Próximo passo: elabore slots_manifest.json usando toc_summary/toc_map e chame 'build_docx_template' (ou audite se for output/).",
+      "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.",
   };
 }
 
