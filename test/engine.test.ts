@@ -27,6 +27,11 @@ import {
   DOCX_WORKFLOW_GUIDE_TEXT,
   getMcpPromptsDefinition,
   getMcpToolsDefinition,
+  sanitizeJsonString,
+  formatJsonErrorWithSnippet,
+  safeReadJsonFile,
+  unflattenDotKeys,
+  buildTocMap,
   type SlotsManifest,
 } from "../src/index.ts";
 
@@ -992,6 +997,162 @@ describe("DocGov Docx Engine v0.1.0", () => {
       { headers: [], footers: [], paragraphs: [], tables: [] }
     );
     expect(inspectSynthetic.next_step_hint).toContain("build_docx_template");
+  });
+
+  test("deve construir o índice estrutural rápido (toc_map) no topo da inspeção e expor toc_summary compacto (< 1 KB) no MCP (v0.5.0)", async () => {
+    const rawDocxPath = resolve(tempDir, "sample_raw_for_toc.docx");
+    const outJsonPath = resolve(tempDir, "state", "estrutura_com_toc.json");
+    await createSampleRawDocx(rawDocxPath);
+
+    const inspection = await inspectDocx(rawDocxPath, outJsonPath, true);
+    expect(existsSync(outJsonPath)).toBe(true);
+
+    // 1. Verifica se toc_map está presente e estruturado
+    expect(inspection.toc_map).toBeDefined();
+    const toc = inspection.toc_map!;
+
+    // 2. Seções identificadas
+    expect(toc.sections.length).toBeGreaterThanOrEqual(2);
+    const titulos = toc.sections.map((s) => s.title);
+    expect(titulos).toContain("ESTUDO TÉCNICO PRELIMINAR");
+    expect(titulos).toContain("1. DESCRIÇÃO DA NECESSIDADE");
+    const secObj = toc.sections.find((s) => s.title === "1. DESCRIÇÃO DA NECESSIDADE");
+    expect(secObj?.coord).toBe("P2");
+    expect(secObj?.suggested_target_slot).toBe("P3");
+
+    // 3. Campos de formulário em tabelas
+    expect(toc.form_fields.length).toBeGreaterThanOrEqual(2);
+    const ffLabels = toc.form_fields.map((f) => f.title);
+    expect(ffLabels).toContain("Unidade Requisitante");
+    expect(ffLabels).toContain("Responsável");
+    const reqField = toc.form_fields.find((f) => f.title === "Unidade Requisitante");
+    expect(reqField?.coord).toBe("T0.R0.C0");
+    expect(reqField?.suggested_target_slot).toBe("T0.R0.C1");
+
+    // 4. Resumo das tabelas
+    expect(toc.tables.length).toBe(2);
+    expect(toc.tables[1].table_index).toBe(1);
+    expect(toc.tables[1].headers).toEqual(["Risco", "Mitigação"]);
+    expect(toc.tables[1].sample_row_coord).toBe("T1.R1");
+
+    // 5. Verifica se no arquivo gerado no disco o toc_map está gravado no topo
+    const fileContent = readFileSync(outJsonPath, "utf-8");
+    const tocMapPos = fileContent.indexOf('"toc_map"');
+    const paragraphsPos = fileContent.indexOf('"paragraphs"');
+    expect(tocMapPos).toBeGreaterThan(-1);
+    expect(paragraphsPos).toBeGreaterThan(-1);
+    expect(tocMapPos).toBeLessThan(paragraphsPos);
+
+    // 6. Verifica o retorno sintético com toc_summary e teto estrito (< 1024 bytes)
+    const synthetic = formatInspectDocxSyntheticResult(
+      rawDocxPath,
+      outJsonPath,
+      inspection
+    );
+    expect(synthetic.toc_summary).toBeDefined();
+    expect(synthetic.toc_summary!.length).toBeGreaterThan(0);
+    const jsonStr = JSON.stringify(synthetic, null, 2);
+    expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(1024);
+  });
+
+  test("deve auto-sanear arquivos JSON (BOM, trailing commas, quebras de linha literais em strings) regravando em disco sem interromper a execução (safeReadJsonFile v0.5.0)", () => {
+    // 1. Arquivo com BOM UTF-8
+    const bomFilePath = resolve(tempDir, "teste_bom.json");
+    writeFileSync(bomFilePath, "\uFEFF{\n  \"parametro\": \"valor_com_bom\"\n}", "utf-8");
+    const resBom = safeReadJsonFile<{ parametro: string }>(bomFilePath);
+    expect(resBom.parametro).toBe("valor_com_bom");
+
+    // 2. Arquivo com trailing commas (em objeto e array)
+    const trailingCommaPath = resolve(tempDir, "teste_trailing_comma.json");
+    const rawTrailing = `{\n  "objeto": {\n    "descricao": "Item Com Trailing Comma",\n  },\n  "itens": [\n    1,\n    2,\n  ],\n}`;
+    writeFileSync(trailingCommaPath, rawTrailing, "utf-8");
+    const resTrailing = safeReadJsonFile<{ objeto: { descricao: string }; itens: number[] }>(trailingCommaPath);
+    expect(resTrailing.objeto.descricao).toBe("Item Com Trailing Comma");
+    expect(resTrailing.itens).toEqual([1, 2]);
+
+    // O arquivo em disco deve ter sido regravado limpo (sem a vírgula antes de })
+    const diskContent = readFileSync(trailingCommaPath, "utf-8");
+    expect(diskContent).not.toMatch(/,\s*}/);
+    expect(diskContent).not.toMatch(/,\s*]/);
+
+    // 3. Arquivo com quebra de linha literal não escapada dentro de string JSON
+    const unescapedNewlinePath = resolve(tempDir, "teste_unescaped_newline.json");
+    const rawNewline = "{\n  \"justificativa\": \"Linha 1 da justificativa\nLinha 2 da justificativa com quebra crua\"\n}";
+    writeFileSync(unescapedNewlinePath, rawNewline, "utf-8");
+    const resNewline = safeReadJsonFile<{ justificativa: string }>(unescapedNewlinePath);
+    expect(resNewline.justificativa).toBe("Linha 1 da justificativa\nLinha 2 da justificativa com quebra crua");
+  });
+
+  test("deve emitir diagnóstico cirúrgico com linha, coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI em falhas irrecuperáveis de JSON (v0.5.0)", () => {
+    const corruptPath = resolve(tempDir, "teste_corrupt.json");
+    const corruptContent = `{\n  "linha1": "ok",\n  "linha2": "ok",\n  "linha3": "ok",\n  "chave_com_erro": [\n    sem_aspas: 123\n  ],\n  "linha7": "ok",\n  "linha8": "ok"\n}`;
+    writeFileSync(corruptPath, corruptContent, "utf-8");
+
+    try {
+      safeReadJsonFile(corruptPath);
+      throw new Error("Deveria ter falhado com erro sintático");
+    } catch (err: any) {
+      const msg = err.message;
+      expect(msg).toContain("ERRO DE SINTAXE JSON em");
+      expect(msg).toContain("na Linha");
+      expect(msg).toContain("Trecho com erro:");
+      expect(msg).toContain("<-- ERRO AQUI");
+      expect(msg).toContain("Corrija diretamente esta linha usando replace_file_content.");
+    }
+  });
+
+  test("deve desaninhar (unflatten) automaticamente chaves na raiz com notação de ponto no estado_caso.json e injetar com sucesso nos templates (v0.5.0)", async () => {
+    // 1. Teste unitário de unflattenDotKeys
+    const flatObj = {
+      processo_id: "POC-2026-DOT-01",
+      "objeto.descricao": "Fornecimento de infraestrutura",
+      "metadados.unidade.sigla": "DEMANDANTE",
+      "metadados.unidade.codigo": 123,
+    };
+    const nested = unflattenDotKeys(flatObj);
+    expect(nested.processo_id).toBe("POC-2026-DOT-01");
+    expect(nested.objeto?.descricao).toBe("Fornecimento de infraestrutura");
+    expect(nested.metadados?.unidade?.sigla).toBe("DEMANDANTE");
+    expect(nested.metadados?.unidade?.codigo).toBe(123);
+    // Preserva também a chave flat original
+    expect(nested["objeto.descricao"]).toBe("Fornecimento de infraestrutura");
+
+    // 2. Teste E2E de preenchimento de template Word usando chaves flat com ponto
+    const dotStatePath = resolve(tempDir, "state_com_ponto.json");
+    const dotOutDocx = resolve(tempDir, "resultado_com_ponto.docx");
+    writeFileSync(
+      dotStatePath,
+      JSON.stringify(
+        {
+          processo_id: "PROC-PONTO-2026",
+          "objeto.descricao": "Objeto preenchido via notação de ponto resiliente",
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    const result = await processDocument(templatePath, dotStatePath, dotOutDocx);
+    expect(result.success).toBe(true);
+    expect(existsSync(dotOutDocx)).toBe(true);
+  });
+
+  test("deve expor autodescoberta e resiliência v0.5.0 nas instruções e ferramentas do servidor MCP (v0.5.0)", () => {
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("toc_map");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("safeReadJsonFile");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("unflatten");
+
+    const tools = getMcpToolsDefinition();
+    const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
+    expect(inspectTool.description).toContain("toc_map");
+    expect(inspectTool.description).toContain("toc_summary");
+
+    const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
+    expect(fillTool.description).toContain("unflatten");
+
+    const buildTool = tools.find((t) => t.name === "build_docx_template")!;
+    expect(buildTool.description).toContain("auto-reparo");
   });
 });
 

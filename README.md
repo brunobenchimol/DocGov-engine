@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.4.0`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.5.0`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,14 +36,15 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Autodescoberta Nativa no MCP (Self-Discovery — `v0.4.0`)
+## 2. Autodescoberta & Resiliência Nativa no MCP (`v0.5.0`)
 
-O servidor MCP é **100% autodescritivo e autoexplicativo** pelo protocolo nativo do MCP, dispensando documentações externas:
+O servidor MCP é **100% autodescritivo, autoexplicativo e resiliente a falhas sintáticas**:
 
-1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)** e a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`).
-2. **Tools Enriquecidas com Annotations:** Todas as 5 ferramentas trazem descrições detalhadas com **Pré-condições** ("Quando usar") e **Pós-condições** ("Próximo Passo"), todas as propriedades com descrições e exemplos claros, e anotações de protocolo (`readOnlyHint`, `destructiveHint`, `idempotentHint`).
-3. **Capacitador de Prompts (`prompts: {}`):** O prompt nativo `docx_workflow_guide` pode ser consultado sob demanda pelo cliente MCP para obter o manual completo de arquitetura, exemplos de `slots_manifest.json`, `estado_caso.json` e `relatorio_auditoria.json`.
-4. **Respostas Guiadas (*Next Step Hints*):** Cada ferramenta executada inclui uma dica do próximo passo recomendado (por exemplo, orientando rodar `inspect_docx` sobre `output/` gerando `state/inspecao_output.json` antes de acionar a auditoria externa).
+1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)**, a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`), além das capacidades de auto-reparo de JSON e unflattening.
+2. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB) que poupa dezenas de chamadas paginadas de leitura.
+3. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8 (`\uFEFF`), *trailing commas* (vírgulas antes de `}` ou `]`) e escapa quebras de linha literais (`\r\n` crus) em strings JSON, regravando o arquivo corrigido no disco sem interromper a execução do agente.
+4. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta MCP informa a linha e coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI` e instruindo o uso de `replace_file_content`.
+5. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para a hierarquia `{ etp: { necessidade: "..." } }`, garantindo o preenchimento correto de slots `{{etp.necessidade}}`.
 
 ---
 
@@ -63,15 +64,18 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 
 2. **`inspect_docx`**
    - Faz a engenharia reversa estrutural de qualquer `.docx` bruto (headers, footers, parágrafos indexados `0..N` e tabelas indexadas `0..M`).
-   - **Persistência em Disco e Retorno Sintético (< 1 KB):** O mapa estrutural detalhado é salvo no arquivo `outputPath` indicado (ou automaticamente em `<docx>_estrutura.json` caso omitido), enquanto a chamada MCP devolve apenas o sumário executivo conciso (`status`, `docxPath`, `outputPath`, `tables`, `rows`, `paragraphs`, `next_step_hint`).
+   - **Índice Estrutural Rápido (`toc_map`):** Salva no topo do JSON em `outputPath` o mapa de seções, perguntas de formulários e tabelas.
+   - **Retorno Sintético (`toc_summary` < 1 KB):** A chamada MCP devolve as coordenadas e títulos chave (`toc_summary`), status, contadores e `next_step_hint`, evitando arquivos temporários de log.
    - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**
    - Transforma um `.docx` bruto (sem tags) em um template parametrizado com tags `{{...}}` a partir de um arquivo `slots_manifest.json`, preservando 100% da formatação visual (`<w:pPr>`, `<w:rPr>` de corpo sem herança indevida de negrito de subtítulos, `<w:tblPr>`, cabeçalhos, rodapés e imagens).
+   - Suportado pelo parser tolerante de JSON com auto-reparo e diagnóstico cirúrgico.
    - Parâmetros: `sourcePath`, `manifestPath`, `outputPath` (*todos obrigatórios*).
 
 4. **`fill_docx_template`**
    - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais, negrito seletivo via `**texto**` e suporte nativo a **listas hierárquicas aninhadas em múltiplos níveis** como `1.1`, `1.1.1`, `1.1.1.1`, `1.1.1.1.1` com recuo `<w:ind>` progressivo e achatamento recursivo de árvores JSON `subitens`).
+   - Suporta desaninhamento automático de chaves com notação de ponto (`"etp.necessidade"`).
    - Parâmetros: `templatePath`, `statePath`, `outputPath` (*todos obrigatórios*).
 
 5. **`generate_audit_docx`**

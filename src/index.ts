@@ -23,7 +23,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.4.0";
+export const VERSION = "0.5.0";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -34,20 +34,22 @@ export const DOCX_ENGINE_INSTRUCTIONS = `
 Servidor MCP standalone para manipulação, engenharia reversa, construção de templates, injeção de dados e auditoria técnico-jurídica de documentos Microsoft Word (.docx) no ecossistema DocGov.
 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
-1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), copia e inspeciona imediatamente minutas .docx de uploadsDir para inputs/ (gerando state/estrutura_<nome>.json) e inicia salvaguarda assíncrona de PDFs.
-2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, identificando cabeçalhos, rodapés, parágrafos (0..N) e coordenadas de tabelas (linhas e células 0-based), persistindo o JSON detalhado em disco.
-3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas).
-4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado, resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
-   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json) para fornecer o mapa estrutural atualizado ao agente auditor.
+1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), copia e inspeciona imediatamente minutas .docx de uploadsDir para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
+2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas) e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
+3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas).
+4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
+   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map) para fornecer o mapa estrutural atualizado ao agente auditor.
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com fichas individualizadas e transcrições probatórias integrais.
 
-### Sintaxe Suportada de Tags e Formatação:
+### Sintaxe Suportada de Tags e Recursos de Resiliência:
 - Variáveis Simples: {{variavel}} ou {{objeto.propriedade}}
+- Notação de Ponto Resiliente: Chaves na raiz como "etp.necessidade" são automaticamente desaninhadas (unflattened) para resolver {{etp.necessidade}}.
 - Loops em Tabelas e Listas: {{FOR item IN lista}} ... {{$item.prop}} ... {{END-FOR item}}
 - Condicionais: {{IF condicao}} ... {{END-IF}}
 - Negrito Seletivo: **texto em negrito** dentro de strings é convertido automaticamente em runs <w:b/> sem herança indevida do estilo do subtítulo.
 - Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
 - Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
+- Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
@@ -63,7 +65,7 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 - **Chamada:** \`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded" })\`
 - **Efeito:**
   - Cria as pastas \`inputs/\`, \`state/\` e \`output/\`.
-  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\`.
+  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\` com \`toc_map\`.
   - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \`state/salvaguarda_status.json\`).
   - Retorna um JSON sintético (< 1 KB) com status, contadores e referências dos arquivos.
 
@@ -71,11 +73,15 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 - **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
 - **Efeito:**
   - Analisa o OpenXML bruto (\`document.xml\`, \`header1.xml\`, \`footer1.xml\`).
-  - Retorna um sumário executivo (< 1 KB) contendo o total de tabelas, linhas e parágrafos, gravando a estrutura indexada detalhada em \`outputPath\`.
-  - Use os índices 0-based de parágrafos e células de tabelas para montar o \`slots_manifest.json\`.
+  - Constrói o índice estrutural rápido \`toc_map\` no topo do JSON contendo:
+    - Seções/Títulos: \`{ "coord": "P12", "title": "1. OBJETO", "suggested_target_slot": "P13" }\`
+    - Campos/Perguntas de Formulários: \`{ "coord": "T0.R4.C0", "title": "Qual a necessidade?", "suggested_target_slot": "T0.R5.C0" }\`
+    - Tabelas: \`{ "table_index": 1, "rows": 15, "cols": 6, "headers": [...], "sample_row_coord": "T1.R1" }\`
+  - Retorna um sumário executivo conciso (\`toc_summary\`) de tamanho < 1 KB no corpo da chamada MCP.
 
 ### Passo 3: Parametrização do Template (build_docx_template)
 - **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx" })\`
+- **Tolerância a JSON:** Se o \`slots_manifest.json\` contiver trailing commas ou quebras em strings, o motor repara automaticamente o arquivo e o regrava limpo.
 - **Estrutura do slots_manifest.json:**
 \`\`\`json
 {
@@ -106,6 +112,7 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 ### Passo 4: Injeção de Dados e Geração da Minuta (fill_docx_template)
 - **Chamada:** \`fill_docx_template({ templatePath: "cases/<nome_caso>/state/template_etp.docx", statePath: "cases/<nome_caso>/state/estado_caso.json", outputPath: "cases/<nome_caso>/output/ETP_Final.docx" })\`
 - **Recursos Nativos:**
+  - Auto-saneamento de JSON e desaninhamento (*unflatten*) automático de chaves com notação de ponto (ex.: \`"etp.objeto": "..."\`).
   - Textos com \`**negrito**\` são renderizados em negrito seletivo (<w:b/>) sem contaminação do parágrafo.
   - Quebras \`\\n\` são convertidas em parágrafos reais <w:p>.
   - Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
@@ -162,7 +169,34 @@ export interface TableInfo {
   rows: TableRowInfo[];
 }
 
+export interface TocParagraphItem {
+  coord: string;
+  title: string;
+  suggested_target_slot?: string;
+}
+
+export interface TocFormCellItem {
+  coord: string;
+  title: string;
+  suggested_target_slot?: string;
+}
+
+export interface TocTableItem {
+  table_index: number;
+  rows: number;
+  cols: number;
+  headers: string[];
+  sample_row_coord?: string;
+}
+
+export interface DocxTocMap {
+  sections: TocParagraphItem[];
+  form_fields: TocFormCellItem[];
+  tables: TocTableItem[];
+}
+
 export interface DocxInspectionResult {
+  toc_map?: DocxTocMap;
   headers: HeaderFooterParagraphInfo[];
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
@@ -289,6 +323,11 @@ export interface InspectDocxSyntheticResult {
   tables: number;
   rows: number;
   paragraphs: number;
+  toc_summary?: Array<{
+    coord: string;
+    title: string;
+    target?: string;
+  }>;
   next_step_hint: string;
 }
 
@@ -751,10 +790,136 @@ async function ensureContentTypesOverride(zip: JSZip): Promise<void> {
 // 1. Função de Inspeção Estrutural (inspect_docx) & Bootstrap de Caso
 // ============================================================================
 
+export function buildTocMap(
+  paragraphs: BodyParagraphInfo[],
+  tables: TableInfo[]
+): DocxTocMap {
+  const sections: TocParagraphItem[] = [];
+  const form_fields: TocFormCellItem[] = [];
+  const tocTables: TocTableItem[] = [];
+
+  // 1. Mapeamento de Títulos e Seções em Parágrafos
+  for (let i = 0; i < paragraphs.length; i++) {
+    const p = paragraphs[i];
+    const text = p.text.trim();
+    if (!text || text.length > 150) continue;
+
+    const hasHeadingStyle =
+      p.style !== null &&
+      /^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(p.style);
+
+    const isNumberedSection =
+      /^(?:(?:\d+(?:\.\d+)*|[A-Z]|\b[IVXLCDM]+\b)[\.\-\)\s]|CL[ÁA]USULA|SE[ÇC][ÃA]O|CAP[IÍ]TULO|ANEXO)\s+[A-ZÀ-Ú0-9]/i.test(
+        text
+      );
+
+    const isCommonAdminHeader =
+      /^(?:ESTUDO T[EÉ]CNICO PRELIMINAR|TERMO DE REFER[EÊ]NCIA|PROJETO B[AÁ]SICO|JUSTIFICATIVA|OBJETO(?:\s+DA\s+CONTRATA[ÇC][ÃA]O)?|DISPOSI[ÇC][ÕO]ES GERAIS|MATRIZ DE RISCOS|CRONOGRAMA|PESQUISA DE PRE[ÇC]OS|CRIT[EÉ]RIOS DE HABILITA[ÇC][ÃA]O|DISPOSI[ÇC][ÕO]ES FINAIS)\b/i.test(
+        text
+      );
+
+    const isAllCapsTitle =
+      text.length >= 4 &&
+      text.length <= 100 &&
+      text === text.toUpperCase() &&
+      /[A-ZÀ-Ú]/.test(text) &&
+      !/[;,.]$/.test(text) &&
+      !text.includes("\n");
+
+    if (
+      hasHeadingStyle ||
+      isNumberedSection ||
+      isCommonAdminHeader ||
+      isAllCapsTitle
+    ) {
+      sections.push({
+        coord: `P${p.index}`,
+        title: text,
+        suggested_target_slot:
+          i + 1 < paragraphs.length ? `P${paragraphs[i + 1].index}` : undefined,
+      });
+    }
+  }
+
+  // 2. Mapeamento de Campos e Perguntas em Tabelas de Formulário
+  for (const tbl of tables) {
+    for (let rIdx = 0; rIdx < tbl.rows.length; rIdx++) {
+      const row = tbl.rows[rIdx];
+      for (let cIdx = 0; cIdx < row.cells.length; cIdx++) {
+        const cell = row.cells[cIdx];
+        const txt = cell.text.trim();
+        if (!txt || txt.length > 250) continue;
+
+        const isQuestion = txt.endsWith("?") || txt.includes("?");
+        const isLabel =
+          txt.endsWith(":") && txt.length <= 100 && !txt.includes("\n");
+        const isNumberedPrompt =
+          /^\d+(\.\d+)*\s+[A-ZÀ-Ú]/i.test(txt) && txt.length <= 100;
+        const isTwoColKey =
+          row.cells.length === 2 &&
+          cIdx === 0 &&
+          txt.length <= 100 &&
+          !txt.includes("\n");
+
+        if (isQuestion || isLabel || isNumberedPrompt || isTwoColKey) {
+          let suggestedTarget: string | undefined;
+
+          // Se houver célula adjacente à direita na mesma linha
+          if (cIdx + 1 < row.cells.length) {
+            suggestedTarget = `T${tbl.index}.R${row.rowIndex}.C${row.cells[cIdx + 1].cellIndex}`;
+          } else if (rIdx + 1 < tbl.rows.length) {
+            // Se for coluna única, o alvo costuma ser a linha imediatamente abaixo
+            const nextRow = tbl.rows[rIdx + 1];
+            const targetCell =
+              nextRow.cells.find((c) => c.cellIndex === cell.cellIndex) ??
+              nextRow.cells[0];
+            if (targetCell) {
+              suggestedTarget = `T${tbl.index}.R${nextRow.rowIndex}.C${targetCell.cellIndex}`;
+            }
+          }
+
+          form_fields.push({
+            coord: `T${tbl.index}.R${row.rowIndex}.C${cell.cellIndex}`,
+            title: txt.length > 120 ? `${txt.slice(0, 117)}...` : txt,
+            ...(suggestedTarget ? { suggested_target_slot: suggestedTarget } : {}),
+          });
+        }
+      }
+    }
+
+    // 3. Resumo Estrutural das Tabelas
+    const rowsCount = tbl.rows.length;
+    let maxCols = 0;
+    for (const r of tbl.rows) {
+      if (r.cells.length > maxCols) maxCols = r.cells.length;
+    }
+
+    const firstRowCells = tbl.rows[0]?.cells ?? [];
+    const headers = firstRowCells
+      .map((c) => c.text.trim().replace(/\r?\n/g, " "))
+      .filter((t) => t.length > 0);
+
+    tocTables.push({
+      table_index: tbl.index,
+      rows: rowsCount,
+      cols: maxCols,
+      headers,
+      sample_row_coord: rowsCount > 1 ? `T${tbl.index}.R1` : undefined,
+    });
+  }
+
+  return {
+    sections,
+    form_fields,
+    tables: tocTables,
+  };
+}
+
 export function compactInspectionResult(
   full: DocxInspectionResult
 ): DocxInspectionResult {
   return {
+    ...(full.toc_map ? { toc_map: full.toc_map } : {}),
     headers: full.headers.filter((h) => h.text.trim() !== ""),
     footers: full.footers.filter((f) => f.text.trim() !== ""),
     paragraphs: full.paragraphs.filter((p) => p.text.trim() !== ""),
@@ -862,7 +1027,10 @@ export async function inspectDocx(
     };
   });
 
+  const toc_map = buildTocMap(paragraphs, tables);
+
   const result: DocxInspectionResult = {
+    toc_map,
     headers,
     footers,
     paragraphs,
@@ -1130,6 +1298,39 @@ export function formatInspectDocxSyntheticResult(
   for (const table of inspection.tables) {
     totalRows += table.rows.length;
   }
+
+  const toc_summary: Array<{ coord: string; title: string; target?: string }> =
+    [];
+  const tocMap = inspection.toc_map;
+  if (tocMap) {
+    // Adiciona as primeiras 4 seções
+    for (const s of tocMap.sections.slice(0, 4)) {
+      toc_summary.push({
+        coord: s.coord,
+        title: s.title.length > 36 ? `${s.title.slice(0, 33)}...` : s.title,
+        ...(s.suggested_target_slot ? { target: s.suggested_target_slot } : {}),
+      });
+    }
+    // Adiciona os primeiros 3 campos de formulário
+    for (const f of tocMap.form_fields.slice(0, 3)) {
+      toc_summary.push({
+        coord: f.coord,
+        title: f.title.length > 32 ? `${f.title.slice(0, 29)}...` : f.title,
+        ...(f.suggested_target_slot ? { target: f.suggested_target_slot } : {}),
+      });
+    }
+    // Adiciona as primeiras 2 tabelas
+    for (const t of tocMap.tables.slice(0, 2)) {
+      const headerSample = t.headers.slice(0, 3).join(", ");
+      toc_summary.push({
+        coord: `T${t.table_index}`,
+        title: `Tabela (${t.rows}x${t.cols})${
+          headerSample ? ` [${headerSample}]` : ""
+        }`,
+      });
+    }
+  }
+
   return {
     status: "success",
     docxPath,
@@ -1137,8 +1338,232 @@ export function formatInspectDocxSyntheticResult(
     tables: inspection.tables.length,
     rows: totalRows,
     paragraphs: inspection.paragraphs.length,
-    next_step_hint: `Inspeção concluída e gravada no outputPath com ${inspection.paragraphs.length} parágrafos e ${inspection.tables.length} tabelas (${totalRows} linhas). Próximo passo recomendado: use os índices reportados no JSON para criar o slots_manifest.json e chame 'build_docx_template' (ou, se este foi o documento final gerado em output/, prossiga para a auditoria externa).`,
+    ...(toc_summary.length > 0 ? { toc_summary } : {}),
+    next_step_hint: `Inspeção concluída com toc_map gravado em outputPath (${inspection.paragraphs.length} parágrafos, ${inspection.tables.length} tabelas). Próximo passo recomendado: consulte toc_summary/toc_map para criar o slots_manifest.json e chame 'build_docx_template' (ou prossiga para auditoria se for minuta final).`,
   };
+}
+
+// ============================================================================
+// Utilitários Resilientes de JSON (safeReadJsonFile, unflattenDotKeys)
+// ============================================================================
+
+export function sanitizeJsonString(raw: string): {
+  sanitized: string;
+  changed: boolean;
+} {
+  let text = raw;
+  let changed = false;
+
+  // 1. Remover BOM UTF-8 se presente
+  if (text.charCodeAt(0) === 0xfeff) {
+    text = text.slice(1);
+    changed = true;
+  }
+
+  // 2. Scanner de 1 passagem via state machine
+  const chars: string[] = [];
+  let inString = false;
+  let escape = false;
+
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+
+    if (inString) {
+      if (escape) {
+        chars.push(ch);
+        escape = false;
+      } else if (ch === "\\") {
+        chars.push(ch);
+        escape = true;
+      } else if (ch === '"') {
+        chars.push(ch);
+        inString = false;
+      } else if (ch === "\r") {
+        // Quebra literal não escapada em string JSON
+        if (i + 1 < text.length && text[i + 1] === "\n") {
+          i++; // consome \n
+        }
+        chars.push("\\n");
+        changed = true;
+      } else if (ch === "\n") {
+        chars.push("\\n");
+        changed = true;
+      } else {
+        chars.push(ch);
+      }
+    } else {
+      // Fora de string
+      if (ch === '"') {
+        inString = true;
+        chars.push(ch);
+      } else if (ch === ",") {
+        // Olhar à frente para o próximo token não-espaço
+        let j = i + 1;
+        while (j < text.length && /\s/.test(text[j])) {
+          j++;
+        }
+        if (j < text.length && (text[j] === "}" || text[j] === "]")) {
+          // Trailing comma detectada: descarta a vírgula
+          changed = true;
+        } else {
+          chars.push(ch);
+        }
+      } else {
+        chars.push(ch);
+      }
+    }
+  }
+
+  return {
+    sanitized: chars.join(""),
+    changed,
+  };
+}
+
+export function formatJsonErrorWithSnippet(
+  filePath: string,
+  raw: string,
+  err: Error
+): string {
+  const msg = err.message || "";
+  let targetLine = 1;
+  let targetCol = 1;
+
+  // Tentar encontrar "line X" e "column Y" na mensagem
+  const lineMatch = msg.match(/(?:at line|line)\s*(\d+)/i);
+  const colMatch = msg.match(/(?:column|col)\s*(\d+)/i);
+
+  if (lineMatch) {
+    targetLine = parseInt(lineMatch[1], 10);
+    if (colMatch) {
+      targetCol = parseInt(colMatch[1], 10);
+    }
+  } else {
+    // Tentar encontrar "position X"
+    const posMatch = msg.match(/(?:at position|position)\s*(\d+)/i);
+    if (posMatch) {
+      const pos = parseInt(posMatch[1], 10);
+      const textUpToPos = raw.slice(0, Math.min(pos, raw.length));
+      const lines = textUpToPos.split(/\r?\n/);
+      targetLine = lines.length;
+      targetCol = lines[lines.length - 1].length + 1;
+    } else {
+      const allLines = raw.split(/\r?\n/);
+      targetLine = allLines.length;
+      targetCol = allLines[allLines.length - 1].length;
+    }
+  }
+
+  const allLines = raw.split(/\r?\n/);
+  const startLine = Math.max(1, targetLine - 2);
+  const endLine = Math.min(allLines.length, targetLine + 2);
+
+  const snippetLines: string[] = [];
+  for (let l = startLine; l <= endLine; l++) {
+    const lineContent = allLines[l - 1] ?? "";
+    if (l === targetLine) {
+      snippetLines.push(`[Linha ${l}]: ${lineContent} <-- ERRO AQUI`);
+    } else {
+      snippetLines.push(`[Linha ${l}]: ${lineContent}`);
+    }
+  }
+
+  return (
+    `ERRO DE SINTAXE JSON em ${filePath} na Linha ${targetLine}, Coluna ${targetCol}. Trecho com erro:\n` +
+    snippetLines.join("\n") +
+    `\nCorrija diretamente esta linha usando replace_file_content.`
+  );
+}
+
+export function safeReadJsonFile<T = any>(filePath: string): T {
+  const resolved = resolve(filePath);
+  if (!existsSync(resolved)) {
+    throw new Error(`Arquivo JSON não encontrado: ${resolved}`);
+  }
+
+  const raw = readFileSync(resolved, "utf-8");
+
+  // 1. Tentar parse padrão
+  try {
+    return JSON.parse(raw) as T;
+  } catch (initialErr: any) {
+    // 2. Tentar auto-saneamento
+    const { sanitized, changed } = sanitizeJsonString(raw);
+    if (changed) {
+      try {
+        const parsed = JSON.parse(sanitized) as T;
+        // Se reparou com sucesso, regravar arquivo limpo no disco
+        try {
+          writeFileSync(resolved, sanitized, "utf-8");
+        } catch {
+          // Ignora se for read-only
+        }
+        return parsed;
+      } catch {
+        // Falha persistiu, segue para o diagnóstico cirúrgico
+      }
+    }
+
+    // 3. Falha irrecuperável: emitir diagnóstico cirúrgico
+    const formattedError = formatJsonErrorWithSnippet(
+      resolved,
+      raw,
+      initialErr
+    );
+    throw new Error(formattedError);
+  }
+}
+
+export function unflattenDotKeys(obj: any): any {
+  if (!obj || typeof obj !== "object") {
+    return obj;
+  }
+
+  if (Array.isArray(obj)) {
+    return obj.map((item) => unflattenDotKeys(item));
+  }
+
+  const result: Record<string, any> = { ...obj };
+
+  for (const [key, value] of Object.entries(obj)) {
+    const processedValue =
+      typeof value === "object" && value !== null
+        ? unflattenDotKeys(value)
+        : value;
+
+    if (key.includes(".")) {
+      const parts = key.split(".");
+      let current = result;
+      for (let i = 0; i < parts.length - 1; i++) {
+        const part = parts[i];
+        if (
+          !current[part] ||
+          typeof current[part] !== "object" ||
+          Array.isArray(current[part])
+        ) {
+          current[part] = {};
+        }
+        current = current[part];
+      }
+      const lastPart = parts[parts.length - 1];
+      if (
+        typeof processedValue === "object" &&
+        processedValue !== null &&
+        !Array.isArray(processedValue) &&
+        typeof current[lastPart] === "object" &&
+        current[lastPart] !== null &&
+        !Array.isArray(current[lastPart])
+      ) {
+        current[lastPart] = { ...current[lastPart], ...processedValue };
+      } else {
+        current[lastPart] = processedValue;
+      }
+    } else {
+      result[key] = processedValue;
+    }
+  }
+
+  return result;
 }
 
 // ============================================================================
@@ -1164,9 +1589,8 @@ export async function buildDocxTemplate(
   }
 
   const sourceBuffer = readFileSync(resolvedSource);
-  const manifest: SlotsManifest = JSON.parse(
-    readFileSync(resolvedManifest, "utf-8")
-  );
+  const manifest: SlotsManifest =
+    safeReadJsonFile<SlotsManifest>(resolvedManifest);
 
   const zip = await JSZip.loadAsync(sourceBuffer);
   const docFile = zip.file("word/document.xml");
@@ -1862,9 +2286,13 @@ export async function processDocument(
   }
 
   const templateBuffer = readFileSync(resolvedTemplate);
-  const rawStateData = JSON.parse(readFileSync(resolvedState, "utf-8"));
+  const rawStateData = safeReadJsonFile<Record<string, any>>(resolvedState);
+  const unflattenedState = unflattenDotKeys(rawStateData);
   const forLoopTargets = await extractTemplateForLoopTargets(templateBuffer);
-  const stateData = normalizeNestedListsInState(rawStateData, forLoopTargets);
+  const stateData = normalizeNestedListsInState(
+    unflattenedState,
+    forLoopTargets
+  );
 
   const outputBuffer = await createReport({
     template: templateBuffer,
@@ -2203,9 +2631,8 @@ export async function generateAuditDocx(
     );
   }
 
-  const raw: AuditReportData = JSON.parse(
-    readFileSync(resolvedAuditJson, "utf-8")
-  );
+  const raw: AuditReportData =
+    safeReadJsonFile<AuditReportData>(resolvedAuditJson);
 
   // Nota: metadados_agente nunca é lido nem impresso no relatório humano
   const processoId = cleanHumanText(
@@ -2856,9 +3283,9 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_docx",
       description:
-        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx), extraindo cabeçalhos, rodapés, parágrafos indexados (0..N) e tabelas indexadas (0..M com linhas e células 0-based), salvando o JSON detalhado em outputPath e retornando um sumário executivo sintético (< 1 KB).\n" +
+        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx), construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., perguntas/campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas) e gravando o JSON detalhado em outputPath com retorno de sumário sintético executivo 'toc_summary' (< 1 KB).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para descobrir os índices exatos de parágrafos e células que serão substituídos no modelo, OU após 'fill_docx_template' sobre o arquivo gerado em output/ para preparar o mapa estrutural para auditoria externa.\n" +
-        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural detalhado. Próximo passo recomendado: mapear as tags no 'slots_manifest.json' com base nos índices reportados e chamar 'build_docx_template' (ou, na fase pós-geração, prosseguir para 'generate_audit_docx').",
+        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural detalhado com toc_map. Próximo passo recomendado: consulte toc_summary ou toc_map para mapear as tags no 'slots_manifest.json' e chamar 'build_docx_template' (ou, na fase pós-geração, prosseguir para 'generate_audit_docx').",
       inputSchema: {
         type: "object",
         required: ["docxPath"],
@@ -2876,7 +3303,7 @@ export function getMcpToolsDefinition() {
           compact: {
             type: "boolean",
             description:
-              "Se true (padrão), omite parágrafos e células vazias no JSON de saída para economizar espaço em disco, preservando intactos os índices originais 0-based.",
+              "Se true (padrão), omite parágrafos e células vazias no JSON de saída para economizar espaço em disco, preservando intactos os índices originais 0-based e o toc_map.",
           },
         },
       },
@@ -2889,7 +3316,7 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline.\n" +
+        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline.\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração do arquivo 'slots_manifest.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath. Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
@@ -2922,7 +3349,7 @@ export function getMcpToolsDefinition() {
     {
       name: "fill_docx_template",
       description:
-        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível (1.1, 1.1.1, etc.).\n" +
+        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível (1.1, 1.1.1, etc.).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath. Próximo passo recomendado: para fins de auditoria externa, execute 'inspect_docx' sobre este arquivo gerado em output/ (gerando state/inspecao_output.json) antes de acionar a auditoria e 'generate_audit_docx'.",
       inputSchema: {
