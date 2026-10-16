@@ -4361,17 +4361,25 @@ export function replaceBinaryOnDisk(
     throw err;
   }
 
-  // Tenta remover o .old imediatamente; se for o próprio processo em execução, agenda limpeza em background
+  // Tenta remover o .old imediatamente; se for o próprio processo em execução, agenda limpeza silenciosa em background
   if (existsSync(oldBackupPath)) {
     try {
       unlinkSync(oldBackupPath);
     } catch {
       try {
+        const escapedPath = oldBackupPath.replace(/'/g, "''");
+        const psCommand = `Start-Sleep -Milliseconds 1500; Remove-Item -Force -LiteralPath '${escapedPath}' -ErrorAction SilentlyContinue`;
         const child = spawn(
-          "cmd.exe",
+          "powershell.exe",
           [
-            "/c",
-            `ping 127.0.0.1 -n 2 > nul & del /f /q "${oldBackupPath}"`,
+            "-NoProfile",
+            "-NonInteractive",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-WindowStyle",
+            "Hidden",
+            "-Command",
+            psCommand,
           ],
           {
             detached: true,
