@@ -8,6 +8,7 @@ import {
   chmodSync,
   readdirSync,
   copyFileSync,
+  statSync,
 } from "node:fs";
 import { resolve, dirname, basename, relative, extname } from "node:path";
 import { spawn } from "node:child_process";
@@ -23,7 +24,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.5.1";
+export const VERSION = "0.6.0";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -34,14 +35,17 @@ export const DOCX_ENGINE_INSTRUCTIONS = `
 Servidor MCP standalone para manipulação, engenharia reversa, construção de templates, injeção de dados e auditoria técnico-jurídica de documentos Microsoft Word (.docx) no ecossistema DocGov.
 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
-1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\x03\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
-2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas) e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
-3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas).
+1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\\x03\\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
+2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/'), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
+3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
 4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
-   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map) para fornecer o mapa estrutural atualizado ao agente auditor.
+   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map e state/visao_auditoria_output.md) para fornecer o espelho linear de leitura integral em 1 único turno ao auditor externo.
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
+- Cache Global Cross-Órgão & Matching 1-para-N (v0.6.0): Identificação automática de templates homologados (status EXACT, MODIFIED ou NEW) em core/registry/templates/.
+- Reancoragem Automática de Coordenadas (Auto-Offset v0.6.0): Detecção de drift (75% a 99%) por emparelhamento de rótulos/perguntas de formulário e cabeçalhos de tabelas, gerando adapted_slots_manifest.json automaticamente.
+- Visão Linear Compacta de Auditoria (v0.6.0): Geração de visao_auditoria_<doc>.md contendo ordenação sequencial estrita com marcadores técnicos [P...] e [T...R...C...], permitindo leitura cega integral em 1 único turno.
 - Variáveis Simples: {{variavel}} ou {{objeto.propriedade}}
 - Notação de Ponto Resiliente: Chaves na raiz como "etp.necessidade" são automaticamente desaninhadas (unflattened) para resolver {{etp.necessidade}}.
 - Loops em Tabelas e Listas: {{FOR item IN lista}} ... {{$item.prop}} ... {{END-FOR item}}
@@ -50,11 +54,11 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 - Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
 - Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
 - Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.
-- Nomenclatura Semântica & Magic Bytes: Preservação de nomes humanos, auto-batismo de uploads anônimos (media_*) com prefixo semântico e hash curto de 4 caracteres, e inferência de extensão por magic bytes (PK\x03\x04 para .docx e %PDF para .pdf).
+- Nomenclatura Semântica & Magic Bytes: Preservação de nomes humanos, auto-batismo de uploads anônimos (media_*) com prefixo semântico e hash curto de 4 caracteres, e inferência de extensão por magic bytes (PK\\x03\\x04 para .docx e %PDF para .pdf).
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.0)
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
 
@@ -67,23 +71,26 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 - **Efeito:**
   - Cria as pastas \`inputs/\`, \`state/\` e \`output/\`.
   - Resolve nomes legíveis: preserva nomes originais humanos, aceita \`fileRenameMap\` explícito ou realiza auto-batismo semântico de anexos opacos (\`media_*\` -> \`<TIPO>_<ORGAO>_<hash4>.<ext>\`) com inferência de extensão via magic bytes (\`PK\\x03\\x04\` para .docx e \`%PDF\` para .pdf).
-  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\` com \`toc_map\`.
+  - Copia minutas \`.docx\` para \`inputs/\` e as inspeciona instantaneamente, gravando \`state/estrutura_<stem>.json\` com \`toc_map\`, matching contra cache global e gerando \`state/visao_auditoria_<stem>.md\`.
   - Inicia a cópia em segundo plano de PDFs volumosos (acompanhamento via \`state/salvaguarda_status.json\`).
   - Retorna um JSON sintético (< 1 KB) com status, contadores, \`ingested_files\` e referências dos arquivos.
 
-### Passo 2: Mapeamento Estrutural (inspect_docx)
+### Passo 2: Mapeamento Estrutural e Cache Global (inspect_docx)
 - **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
 - **Efeito:**
   - Analisa o OpenXML bruto (\`document.xml\`, \`header1.xml\`, \`footer1.xml\`).
-  - Constrói o índice estrutural rápido \`toc_map\` no topo do JSON contendo:
-    - Seções/Títulos: \`{ "coord": "P12", "title": "1. OBJETO", "suggested_target_slot": "P13" }\`
-    - Campos/Perguntas de Formulários: \`{ "coord": "T0.R4.C0", "title": "Qual a necessidade?", "suggested_target_slot": "T0.R5.C0" }\`
-    - Tabelas: \`{ "table_index": 1, "rows": 15, "cols": 6, "headers": [...], "sample_row_coord": "T1.R1" }\`
-  - Retorna um sumário executivo conciso (\`toc_summary\`) de tamanho < 1 KB no corpo da chamada MCP.
+  - Constrói o índice estrutural rápido \`toc_map\` no topo do JSON.
+  - Extrai a impressão digital estrutural (\`structure_fingerprint\`) e compara contra todos os templates salvos em \`core/registry/templates/\`:
+    - **EXACT (100%):** Devolve \`template_match: { status: "EXACT", registry_path: "..." }\`.
+    - **MODIFIED (75% a 99%):** Calcula deslocamento de linhas (*Auto-Offset*), gera automaticamente \`state/adapted_slots_manifest.json\` e devolve \`status: "MODIFIED"\`.
+    - **NEW (< 75%):** Devolve \`status: "NEW"\`.
+  - Gera em \`state/\` o espelho linear \`visao_auditoria_<nome_base>.md\` para leitura em turno único pelo auditor externo.
+  - Retorna um sumário executivo conciso (\`toc_summary\`) de tamanho < 1 KB no corpo da chamada MCP com \`template_match\` e \`audit_view_path\`.
 
 ### Passo 3: Parametrização do Template (build_docx_template)
-- **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx" })\`
+- **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx", saveToRegistry: true })\`
 - **Tolerância a JSON:** Se o \`slots_manifest.json\` contiver trailing commas ou quebras em strings, o motor repara automaticamente o arquivo e o regrava limpo.
+- **Homologação Global:** Com \`saveToRegistry: true\`, persiste o manifesto e a impressão digital no registro global \`core/registry/templates/<template_id>.json\` para reuso futuro.
 - **Estrutura do slots_manifest.json:**
 \`\`\`json
 {
@@ -119,9 +126,9 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
   - Quebras \`\\n\` são convertidas em parágrafos reais <w:p>.
   - Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
 
-### Passo de Transição: Inspeção do Documento Gerado
-- Antes de iniciar a auditoria externa, execute \`inspect_docx\` sobre \`output/ETP_Final.docx\` gerando \`state/inspecao_output.json\`.
-- Isso garante coordenadas exatas e fidelidade textual para a análise de conformidade do auditor.
+### Passo de Transição: Inspeção e Visão Linear para Auditoria Externa
+- Execute \`inspect_docx\` sobre \`output/ETP_Final.docx\` gerando \`state/inspecao_output.json\` e \`state/visao_auditoria_output.md\`.
+- O auditor externo pode ler o arquivo \`state/visao_auditoria_output.md\` integralmente em **1 único turno** com as coordenadas técnicas \`[P...]\` e \`[T...R...C...]\` prontas para transcrição probatória.
 
 ### Passo 5: Parecer Executivo de Auditoria (generate_audit_docx)
 - **Chamada:** \`generate_audit_docx({ auditJsonPath: "cases/<nome_caso>/state/relatorio_auditoria.json", outputPath: "cases/<nome_caso>/output/Relatorio_Auditoria_ETP.docx" })\`
@@ -197,8 +204,52 @@ export interface DocxTocMap {
   tables: TocTableItem[];
 }
 
+export interface TableFingerprint {
+  index: number;
+  rows: number;
+  cols: number;
+  coord: string; // Ex: "T0"
+  headers: string[]; // Cabeçalhos normalizados da R0
+}
+
+export interface FormFieldFingerprint {
+  coord: string; // Ex: "T0.R4.C0"
+  label_normalized: string;
+  original_label: string;
+  suggested_target_slot?: string;
+}
+
+export interface StructureFingerprint {
+  tables: TableFingerprint[];
+  sections: string[]; // Títulos de seções normalizados (ex.: ["estudo tecnico preliminar", "1. descricao da necessidade"])
+  form_fields: FormFieldFingerprint[];
+}
+
+export interface TemplateRegistryEntry {
+  template_id: string;
+  name?: string;
+  description?: string;
+  created_at: string;
+  structure_fingerprint: StructureFingerprint;
+  manifest: SlotsManifest;
+  registry_path?: string;
+}
+
+export interface TemplateMatchResult {
+  status: "EXACT" | "MODIFIED" | "NEW";
+  similarity: number;
+  template_id?: string;
+  registry_path?: string;
+  adapted_manifest_path?: string;
+  shift_summary?: string;
+  message?: string;
+}
+
 export interface DocxInspectionResult {
   toc_map?: DocxTocMap;
+  structure_fingerprint?: StructureFingerprint;
+  template_match?: TemplateMatchResult;
+  audit_view_path?: string;
   headers: HeaderFooterParagraphInfo[];
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
@@ -316,6 +367,8 @@ export interface BootstrapCaseInspectedDocx {
   tablesCount: number;
   paragraphsCount: number;
   compactStructure: DocxInspectionResult;
+  template_match?: TemplateMatchResult;
+  audit_view_path?: string;
 }
 
 export interface BootstrapCaseResult {
@@ -333,6 +386,12 @@ export interface BootstrapCaseSyntheticDocx {
   structure_json: string;
   tables_count: number;
   paragraphs_count: number;
+  template_match?: {
+    status: "EXACT" | "MODIFIED" | "NEW";
+    template_id?: string;
+    similarity?: number;
+  };
+  audit_view_path?: string;
 }
 
 export interface BootstrapCaseSyntheticResult {
@@ -354,6 +413,8 @@ export interface InspectDocxSyntheticResult {
   tables: number;
   rows: number;
   paragraphs: number;
+  template_match?: TemplateMatchResult;
+  audit_view_path?: string;
   toc_summary?: Array<{
     coord: string;
     title: string;
@@ -951,6 +1012,11 @@ export function compactInspectionResult(
 ): DocxInspectionResult {
   return {
     ...(full.toc_map ? { toc_map: full.toc_map } : {}),
+    ...(full.structure_fingerprint
+      ? { structure_fingerprint: full.structure_fingerprint }
+      : {}),
+    ...(full.template_match ? { template_match: full.template_match } : {}),
+    ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
     headers: full.headers.filter((h) => h.text.trim() !== ""),
     footers: full.footers.filter((f) => f.text.trim() !== ""),
     paragraphs: full.paragraphs.filter((p) => p.text.trim() !== ""),
@@ -966,10 +1032,577 @@ export function compactInspectionResult(
   };
 }
 
+// ============================================================================
+// 1b. Cache Global de Templates, Fingerprint e Reancoragem Automática (v0.6.0)
+// ============================================================================
+
+export function normalizeStructuralText(text: string): string {
+  if (!text) return "";
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^\w\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function computeStructureFingerprint(
+  inspection: DocxInspectionResult
+): StructureFingerprint {
+  const tables: TableFingerprint[] = (inspection.tables || []).map((tbl) => {
+    let maxCols = 0;
+    for (const r of tbl.rows) {
+      if (r.cells.length > maxCols) maxCols = r.cells.length;
+    }
+    const firstRow = tbl.rows[0];
+    const headers = firstRow
+      ? firstRow.cells
+          .map((c) => normalizeStructuralText(c.text))
+          .filter((t) => t.length > 0)
+      : [];
+    return {
+      index: tbl.index,
+      rows: tbl.rows.length,
+      cols: maxCols,
+      coord: `T${tbl.index}`,
+      headers,
+    };
+  });
+
+  const sections: string[] = [];
+  if (inspection.toc_map?.sections) {
+    for (const s of inspection.toc_map.sections) {
+      const norm = normalizeStructuralText(s.title);
+      if (norm && !sections.includes(norm)) {
+        sections.push(norm);
+      }
+    }
+  }
+
+  const form_fields: FormFieldFingerprint[] = [];
+  if (inspection.toc_map?.form_fields) {
+    for (const f of inspection.toc_map.form_fields) {
+      const norm = normalizeStructuralText(f.title);
+      if (norm) {
+        form_fields.push({
+          coord: f.coord,
+          label_normalized: norm,
+          original_label: f.title,
+          suggested_target_slot: f.suggested_target_slot,
+        });
+      }
+    }
+  }
+
+  return {
+    tables,
+    sections,
+    form_fields,
+  };
+}
+
+export function computeStructuralSimilarity(
+  fpA: StructureFingerprint,
+  fpB: StructureFingerprint
+): number {
+  // Verificação de igualdade exata imediata
+  if (
+    fpA.tables.length === fpB.tables.length &&
+    fpA.tables.every(
+      (t, i) =>
+        t.rows === fpB.tables[i]?.rows && t.cols === fpB.tables[i]?.cols
+    ) &&
+    fpA.sections.length === fpB.sections.length &&
+    fpA.sections.every((s, i) => s === fpB.sections[i]) &&
+    fpA.form_fields.length === fpB.form_fields.length &&
+    fpA.form_fields.every(
+      (f, i) => f.label_normalized === fpB.form_fields[i]?.label_normalized
+    )
+  ) {
+    return 1.0;
+  }
+
+  // 1. Similaridade de campos de formulário (rótulos/perguntas)
+  let formFieldsSim: number | null = null;
+  const labelsA = fpA.form_fields.map((f) => f.label_normalized);
+  const labelsB = fpB.form_fields.map((f) => f.label_normalized);
+  if (labelsA.length === 0 && labelsB.length === 0) {
+    formFieldsSim = null;
+  } else if (labelsA.length === 0 || labelsB.length === 0) {
+    formFieldsSim = 0;
+  } else {
+    const setA = new Set(labelsA);
+    const setB = new Set(labelsB);
+    let intersectCount = 0;
+    for (const x of setA) {
+      if (setB.has(x)) intersectCount++;
+    }
+    formFieldsSim = (2 * intersectCount) / (setA.size + setB.size);
+  }
+
+  // 2. Similaridade de seções
+  let sectionsSim: number | null = null;
+  const secA = new Set(fpA.sections);
+  const secB = new Set(fpB.sections);
+  if (secA.size === 0 && secB.size === 0) {
+    sectionsSim = null;
+  } else if (secA.size === 0 || secB.size === 0) {
+    sectionsSim = 0;
+  } else {
+    let intersectCount = 0;
+    for (const x of secA) {
+      if (secB.has(x)) intersectCount++;
+    }
+    sectionsSim = (2 * intersectCount) / (secA.size + secB.size);
+  }
+
+  // 3. Similaridade de tabelas
+  let tablesSim = 1.0;
+  if (fpA.tables.length === 0 && fpB.tables.length === 0) {
+    tablesSim = 1.0;
+  } else if (fpA.tables.length === 0 || fpB.tables.length === 0) {
+    tablesSim = 0;
+  } else {
+    let matched = 0;
+    const maxLen = Math.max(fpA.tables.length, fpB.tables.length);
+    for (const tB of fpB.tables) {
+      const matchA = fpA.tables.find((tA) => {
+        if (tA.cols === tB.cols && tB.cols > 0) {
+          if (tB.headers.length > 0 && tA.headers.length > 0) {
+            const hOverlap = tB.headers.filter((h) =>
+              tA.headers.includes(h)
+            ).length;
+            return hOverlap > 0 || tA.index === tB.index;
+          }
+          return tA.index === tB.index;
+        }
+        return false;
+      });
+
+      if (matchA) {
+        const rowDiff = Math.abs(matchA.rows - tB.rows);
+        const rowScore = Math.max(
+          0,
+          1 - rowDiff / Math.max(matchA.rows, tB.rows, 1)
+        );
+        matched += 0.5 + 0.5 * rowScore;
+      }
+    }
+    tablesSim = Math.min(1, matched / maxLen);
+  }
+
+  let composite: number;
+  if (formFieldsSim !== null && sectionsSim !== null) {
+    composite = 0.5 * formFieldsSim + 0.3 * sectionsSim + 0.2 * tablesSim;
+  } else if (formFieldsSim !== null) {
+    composite = 0.7 * formFieldsSim + 0.3 * tablesSim;
+  } else if (sectionsSim !== null) {
+    composite = 0.7 * sectionsSim + 0.3 * tablesSim;
+  } else {
+    composite = tablesSim;
+  }
+
+  return Number(Math.min(1, Math.max(0, composite)).toFixed(4));
+}
+
+export function getTemplateRegistryDir(
+  hintPath?: string,
+  customDir?: string
+): string {
+  if (customDir) {
+    return resolve(customDir);
+  }
+  if (process.env.DOCGOV_REGISTRY_DIR) {
+    return resolve(process.env.DOCGOV_REGISTRY_DIR);
+  }
+  if (hintPath) {
+    try {
+      let current = resolve(hintPath);
+      if (existsSync(current)) {
+        const st = statSync(current);
+        if (st.isFile()) {
+          current = dirname(current);
+        }
+      } else if (extname(current)) {
+        current = dirname(current);
+      }
+
+      // Procura subindo até a raiz do workspace (onde houver core/registry, cases ou package.json)
+      let checkDir = current;
+      for (let i = 0; i < 6; i++) {
+        const regCandidate = resolve(checkDir, "core", "registry", "templates");
+        if (existsSync(regCandidate)) {
+          return regCandidate;
+        }
+        const casesCandidate = resolve(checkDir, "cases");
+        const pkgCandidate = resolve(checkDir, "package.json");
+        if (existsSync(casesCandidate) || existsSync(pkgCandidate)) {
+          return resolve(checkDir, "core", "registry", "templates");
+        }
+        const parent = dirname(checkDir);
+        if (parent === checkDir) break;
+        checkDir = parent;
+      }
+    } catch {
+      // fallback
+    }
+  }
+
+  try {
+    const metaDir = (import.meta as any).dir || process.cwd();
+    const candidate = resolve(metaDir, "../core/registry/templates");
+    if (existsSync(candidate)) {
+      return candidate;
+    }
+  } catch {
+    // fallback
+  }
+
+  return resolve(process.cwd(), "core", "registry", "templates");
+}
+
+export function saveTemplateToRegistry(
+  templateId: string,
+  manifest: SlotsManifest,
+  fingerprint: StructureFingerprint,
+  hintPath?: string,
+  registryDir?: string
+): string {
+  const cleanId = templateId.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
+  const dir = getTemplateRegistryDir(hintPath, registryDir);
+  if (!existsSync(dir)) {
+    mkdirSync(dir, { recursive: true });
+  }
+  const filePath = resolve(dir, `${cleanId}.json`);
+  const entry: TemplateRegistryEntry = {
+    template_id: cleanId,
+    created_at: new Date().toISOString(),
+    structure_fingerprint: fingerprint,
+    manifest,
+  };
+  writeFileSync(filePath, JSON.stringify(entry, null, 2), "utf-8");
+  return filePath;
+}
+
+export function loadAllRegistryTemplates(
+  hintPath?: string,
+  registryDir?: string
+): TemplateRegistryEntry[] {
+  const dir = getTemplateRegistryDir(hintPath, registryDir);
+  if (!existsSync(dir)) return [];
+  const entries: TemplateRegistryEntry[] = [];
+  try {
+    const files = readdirSync(dir, { withFileTypes: true });
+    for (const f of files) {
+      if (f.isFile() && f.name.toLowerCase().endsWith(".json")) {
+        const fullPath = resolve(dir, f.name);
+        try {
+          const item = safeReadJsonFile<TemplateRegistryEntry>(fullPath);
+          if (
+            item &&
+            item.template_id &&
+            item.structure_fingerprint &&
+            item.manifest
+          ) {
+            item.registry_path = fullPath;
+            entries.push(item);
+          }
+        } catch {
+          // ignora template com erro
+        }
+      }
+    }
+  } catch {
+    // ignora erro de leitura
+  }
+  return entries;
+}
+
+export function findBestTemplateMatch(
+  incomingFp: StructureFingerprint,
+  hintPath?: string,
+  registryDir?: string
+): { entry?: TemplateRegistryEntry; similarity: number } {
+  const templates = loadAllRegistryTemplates(hintPath, registryDir);
+  if (templates.length === 0) {
+    return { similarity: 0 };
+  }
+  let bestEntry: TemplateRegistryEntry | undefined;
+  let bestSim = 0;
+  for (const t of templates) {
+    const sim = computeStructuralSimilarity(incomingFp, t.structure_fingerprint);
+    if (sim > bestSim) {
+      bestSim = sim;
+      bestEntry = t;
+    }
+  }
+  return { entry: bestEntry, similarity: bestSim };
+}
+
+export function reanchorSlotsManifest(
+  cachedEntry: TemplateRegistryEntry,
+  incomingFp: StructureFingerprint,
+  incomingInspection: DocxInspectionResult
+): SlotsManifest & { _shift_summary?: string } {
+  const adapted: SlotsManifest & { _shift_summary?: string } = JSON.parse(
+    JSON.stringify(cachedEntry.manifest)
+  );
+  const shiftsDetected: string[] = [];
+
+  // 1. replace_table_cells (Reancoragem por correspondência de rótulo)
+  if (adapted.replace_table_cells && adapted.replace_table_cells.length > 0) {
+    for (const rule of adapted.replace_table_cells) {
+      const origTargetCoord = `T${rule.table_index}.R${rule.row_index}.C${rule.cell_index}`;
+
+      const cachedPrompt = cachedEntry.structure_fingerprint.form_fields.find(
+        (f) =>
+          f.suggested_target_slot === origTargetCoord ||
+          f.coord ===
+            `T${rule.table_index}.R${rule.row_index}.C${rule.cell_index - 1}` ||
+          f.coord ===
+            `T${rule.table_index}.R${rule.row_index - 1}.C${rule.cell_index}`
+      );
+
+      if (cachedPrompt) {
+        const incomingPrompt = incomingFp.form_fields.find(
+          (f) => f.label_normalized === cachedPrompt.label_normalized
+        );
+        if (incomingPrompt) {
+          let newTable = rule.table_index;
+          let newRow = rule.row_index;
+          let newCol = rule.cell_index;
+
+          if (incomingPrompt.suggested_target_slot) {
+            const m = incomingPrompt.suggested_target_slot.match(
+              /^T(\d+)\.R(\d+)\.C(\d+)$/
+            );
+            if (m) {
+              newTable = parseInt(m[1], 10);
+              newRow = parseInt(m[2], 10);
+              newCol = parseInt(m[3], 10);
+            }
+          } else {
+            const mOrig = cachedPrompt.coord.match(/^T(\d+)\.R(\d+)\.C(\d+)$/);
+            const mIn = incomingPrompt.coord.match(/^T(\d+)\.R(\d+)\.C(\d+)$/);
+            if (mOrig && mIn) {
+              const deltaR = parseInt(mIn[2], 10) - parseInt(mOrig[2], 10);
+              newRow = rule.row_index + deltaR;
+              newTable = parseInt(mIn[1], 10);
+            }
+          }
+
+          if (
+            newRow !== rule.row_index ||
+            newCol !== rule.cell_index ||
+            newTable !== rule.table_index
+          ) {
+            shiftsDetected.push(
+              `T${rule.table_index}.R${rule.row_index}.C${rule.cell_index} -> T${newTable}.R${newRow}.C${newCol} ('${cachedPrompt.original_label}')`
+            );
+            rule.table_index = newTable;
+            rule.row_index = newRow;
+            rule.cell_index = newCol;
+          }
+        }
+      }
+    }
+  }
+
+  // 2. loop_table_rows (Reancoragem por correspondência de cabeçalho)
+  if (adapted.loop_table_rows && adapted.loop_table_rows.length > 0) {
+    for (const rule of adapted.loop_table_rows) {
+      const cachedT = cachedEntry.structure_fingerprint.tables.find(
+        (t) => t.index === rule.table_index
+      );
+      const incomingT = incomingInspection.tables.find(
+        (t) => t.index === rule.table_index
+      );
+
+      if (cachedT && incomingT && cachedT.headers.length > 0) {
+        let newHeaderRow = -1;
+        for (let rIdx = 0; rIdx < incomingT.rows.length; rIdx++) {
+          const rowTexts = incomingT.rows[rIdx].cells.map((c) =>
+            normalizeStructuralText(c.text)
+          );
+          const matchCount = cachedT.headers.filter((h) =>
+            rowTexts.some((rt) => rt.includes(h) || h.includes(rt))
+          ).length;
+          if (matchCount >= Math.min(2, cachedT.headers.length)) {
+            newHeaderRow = rIdx;
+            break;
+          }
+        }
+
+        if (newHeaderRow !== -1 && newHeaderRow !== rule.header_row_index) {
+          const delta = newHeaderRow - rule.header_row_index;
+          shiftsDetected.push(
+            `T${rule.table_index} (loop): cabeçalho deslocado em ${
+              delta > 0 ? "+" + delta : delta
+            } linha(s) (R${rule.header_row_index} -> R${newHeaderRow})`
+          );
+          rule.header_row_index += delta;
+          rule.template_row_index += delta;
+          if (rule.remove_from_row !== undefined) rule.remove_from_row += delta;
+          if (rule.remove_to_row !== undefined) rule.remove_to_row += delta;
+        }
+      }
+    }
+  }
+
+  // 3. replace_paragraphs e loop_paragraphs
+  const adjustParagraphRule = (
+    rule: { start_p: number; end_p: number },
+    ruleType: string
+  ) => {
+    const origSection = cachedEntry.structure_fingerprint.sections[0];
+    if (origSection && incomingFp.sections.includes(origSection)) {
+      if (
+        incomingInspection.toc_map &&
+        incomingInspection.toc_map.sections.length > 0
+      ) {
+        const matchingSec = incomingInspection.toc_map.sections.find(
+          (s) => normalizeStructuralText(s.title) === origSection
+        );
+        if (matchingSec) {
+          const newP = parseInt(matchingSec.coord.replace(/^P/, ""), 10);
+          const origP = rule.start_p > 0 ? rule.start_p - 1 : 0;
+          const delta = newP - origP;
+          if (delta !== 0 && Math.abs(delta) < 20) {
+            shiftsDetected.push(
+              `${ruleType}: parágrafos P${rule.start_p}..P${
+                rule.end_p
+              } deslocados em ${delta > 0 ? "+" + delta : delta}`
+            );
+            rule.start_p += delta;
+            rule.end_p += delta;
+          }
+        }
+      }
+    }
+  };
+
+  if (adapted.replace_paragraphs) {
+    for (const r of adapted.replace_paragraphs) {
+      adjustParagraphRule(r, "replace_paragraphs");
+    }
+  }
+  if (adapted.loop_paragraphs) {
+    for (const r of adapted.loop_paragraphs) {
+      adjustParagraphRule(r, "loop_paragraphs");
+    }
+  }
+
+  adapted._shift_summary =
+    shiftsDetected.length > 0
+      ? shiftsDetected.join("; ")
+      : "Nenhum deslocamento necessário.";
+
+  return adapted;
+}
+
+export function generateLinearAuditViewMarkdown(
+  docName: string,
+  inspection: DocxInspectionResult
+): string {
+  const lines: string[] = [];
+  lines.push(`# Visão Linear de Auditoria: ${docName}`);
+  lines.push(
+    `> Espelho estrutural gerado por docgov-docx v0.6.0 para leitura integral em turno único.`
+  );
+  lines.push("");
+
+  // 1. Cabeçalhos e Rodapés
+  const hasHf =
+    (inspection.headers && inspection.headers.length > 0) ||
+    (inspection.footers && inspection.footers.length > 0);
+  if (hasHf) {
+    lines.push("## Cabeçalhos e Rodapés");
+    if (inspection.headers) {
+      for (const h of inspection.headers) {
+        if (h.text.trim()) {
+          lines.push(`- [H${h.paragraphIndex}] ${h.text.trim()}`);
+        }
+      }
+    }
+    if (inspection.footers) {
+      for (const f of inspection.footers) {
+        if (f.text.trim()) {
+          lines.push(`- [F${f.paragraphIndex}] ${f.text.trim()}`);
+        }
+      }
+    }
+    lines.push("");
+  }
+
+  // 2. Parágrafos e Seções
+  if (inspection.paragraphs && inspection.paragraphs.length > 0) {
+    lines.push("## Parágrafos e Seções");
+    for (const p of inspection.paragraphs) {
+      const txt = p.text.trim();
+      if (!txt) continue;
+      const isHeading = inspection.toc_map?.sections.some(
+        (s) => s.coord === `P${p.index}`
+      );
+      if (isHeading) {
+        lines.push(`- **[P${p.index}]** ${txt}`);
+      } else {
+        lines.push(`- [P${p.index}] ${txt}`);
+      }
+    }
+    lines.push("");
+  }
+
+  // 3. Tabelas
+  if (inspection.tables && inspection.tables.length > 0) {
+    lines.push("## Tabelas");
+    for (const tbl of inspection.tables) {
+      let maxCols = 0;
+      for (const r of tbl.rows) {
+        if (r.cells.length > maxCols) maxCols = r.cells.length;
+      }
+      lines.push(
+        `### Tabela [T${tbl.index}] (${tbl.rows.length} linhas x ${maxCols} colunas)`
+      );
+
+      for (const r of tbl.rows) {
+        const nonEmptyCells = r.cells.filter((c) => c.text.trim() !== "");
+        if (nonEmptyCells.length === 0) continue;
+
+        if (r.cells.length === 2) {
+          const c0 = r.cells[0];
+          const c1 = r.cells[1];
+          const t0 = c0.text.trim().replace(/\r?\n/g, " ");
+          const t1 = c1.text.trim().replace(/\r?\n/g, " ");
+          lines.push(
+            `- [T${tbl.index}.R${r.rowIndex}.C${c0.cellIndex}] ${t0} -> [T${tbl.index}.R${r.rowIndex}.C${c1.cellIndex}] ${t1 || "[vazio]"}`
+          );
+        } else {
+          const rowParts = r.cells.map(
+            (c) =>
+              `[T${tbl.index}.R${r.rowIndex}.C${
+                c.cellIndex
+              }] ${c.text.trim().replace(/\r?\n/g, " ") || "[vazio]"}`
+          );
+          lines.push(`- [T${tbl.index}.R${r.rowIndex}] ${rowParts.join(" | ")}`);
+        }
+      }
+      lines.push("");
+    }
+  }
+
+  return lines.join("\n").trim() + "\n";
+}
+
+// ============================================================================
+// 1. Função de Inspeção Estrutural (inspect_docx) & Bootstrap de Caso
+// ============================================================================
+
 export async function inspectDocx(
   docxPath: string,
   outputPath?: string,
-  compact: boolean = false
+  compact: boolean = false,
+  options: { registryDir?: string } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolve(docxPath);
   if (!existsSync(resolvedDocx)) {
@@ -1060,7 +1693,7 @@ export async function inspectDocx(
 
   const toc_map = buildTocMap(paragraphs, tables);
 
-  const result: DocxInspectionResult = {
+  const rawResult: DocxInspectionResult = {
     toc_map,
     headers,
     footers,
@@ -1068,7 +1701,103 @@ export async function inspectDocx(
     tables,
   };
 
-  const finalResult = compact ? compactInspectionResult(result) : result;
+  // Cálculo da Impressão Digital Estrutural (v0.6.0)
+  const structure_fingerprint = computeStructureFingerprint(rawResult);
+  rawResult.structure_fingerprint = structure_fingerprint;
+
+  // Geração da Visão Linear Compacta de Auditoria (v0.6.0)
+  let auditViewPath: string;
+  if (outputPath) {
+    const resolvedOut = resolve(outputPath);
+    const outDir = dirname(resolvedOut);
+    const outBase = basename(resolvedOut, ".json").replace(/^estrutura_/, "");
+    auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
+  } else {
+    const docDir = dirname(resolvedDocx);
+    const docBase = basename(resolvedDocx, ".docx");
+    auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+  }
+
+  const auditMd = generateLinearAuditViewMarkdown(
+    basename(resolvedDocx),
+    rawResult
+  );
+  const auditDir = dirname(auditViewPath);
+  if (!existsSync(auditDir)) {
+    mkdirSync(auditDir, { recursive: true });
+  }
+  writeFileSync(auditViewPath, auditMd, "utf-8");
+  rawResult.audit_view_path = auditViewPath;
+
+  // Matching 1-para-N contra o Cache Global de Templates (v0.6.0)
+  const match = findBestTemplateMatch(
+    structure_fingerprint,
+    resolvedDocx,
+    options.registryDir
+  );
+  let template_match: TemplateMatchResult;
+
+  if (match.entry) {
+    if (match.similarity >= 0.995) {
+      template_match = {
+        status: "EXACT",
+        similarity: 1.0,
+        template_id: match.entry.template_id,
+        registry_path: match.entry.registry_path,
+        message: `Template idêntico (100%) localizado no registro global: '${match.entry.template_id}'.`,
+      };
+    } else if (match.similarity >= 0.75) {
+      const adapted = reanchorSlotsManifest(
+        match.entry,
+        structure_fingerprint,
+        rawResult
+      );
+      const outStateDir = outputPath
+        ? dirname(resolve(outputPath))
+        : dirname(resolvedDocx);
+      const adaptedPath = resolve(outStateDir, "adapted_slots_manifest.json");
+      if (!existsSync(outStateDir)) {
+        mkdirSync(outStateDir, { recursive: true });
+      }
+      writeFileSync(adaptedPath, JSON.stringify(adapted, null, 2), "utf-8");
+
+      template_match = {
+        status: "MODIFIED",
+        similarity: match.similarity,
+        template_id: match.entry.template_id,
+        registry_path: match.entry.registry_path,
+        adapted_manifest_path: adaptedPath,
+        shift_summary:
+          adapted._shift_summary ||
+          "Coordenadas reancoradas automaticamente por rótulos de formulário.",
+        message: `Template base '${
+          match.entry.template_id
+        }' compatível com drift (${Math.round(
+          match.similarity * 100
+        )}%). Manifesto adaptado gerado em state/adapted_slots_manifest.json.`,
+      };
+    } else {
+      template_match = {
+        status: "NEW",
+        similarity: match.similarity,
+        message: `Minuta inédita (< 75% de similaridade com templates registrados). Maior similaridade: ${Math.round(
+          match.similarity * 100
+        )}% ('${
+          match.entry.template_id
+        }'). Elabore um novo slots_manifest.json.`,
+      };
+    }
+  } else {
+    template_match = {
+      status: "NEW",
+      similarity: 0,
+      message:
+        "Nenhum template salvo no registro global de templates. Elabore um novo slots_manifest.json.",
+    };
+  }
+  rawResult.template_match = template_match;
+
+  const finalResult = compact ? compactInspectionResult(rawResult) : rawResult;
 
   if (outputPath) {
     const resolvedOut = resolve(outputPath);
@@ -1218,12 +1947,41 @@ export function extractSemanticTypeAndOrgan(rawContent: string): {
     docType = "CONTRATO";
   }
 
-    let organ: string | undefined;
+  const hasPa =
+    text.includes("DO ESTADO DO PARA") ||
+    text.includes("ESTADO DO PARA") ||
+    matchesWord(text, "PARA") ||
+    matchesWord(text, "PA");
+
+  let organ: string | undefined;
   const organMatch = text.match(
     /\b(ORGAO_[A-Z0-9]+|SECRETARIA_[A-Z0-9]+|ENTIDADE_[A-Z0-9]+|DEPARTAMENTO_[A-Z0-9]+)\b/
   );
   if (organMatch) {
     organ = organMatch[1];
+  } else if (text.includes("DEFENSORIA PUBLICA") || matchesWord(text, "DPE")) {
+    organ = hasPa ? "DPE_PA" : "DPE";
+  } else if (
+    text.includes("SECRETARIA DE ESTADO DE EDUCACAO") ||
+    text.includes("SECRETARIA DE EDUCACAO") ||
+    matchesWord(text, "SEDUC")
+  ) {
+    organ = hasPa ? "SEDUC_PA" : "SEDUC";
+  } else if (
+    text.includes("PROCURADORIA GERAL DO ESTADO") ||
+    matchesWord(text, "PGE")
+  ) {
+    organ = hasPa ? "PGE_PA" : "PGE";
+  } else if (
+    text.includes("SECRETARIA DE ESTADO DA FAZENDA") ||
+    matchesWord(text, "SEFAZ")
+  ) {
+    organ = hasPa ? "SEFAZ_PA" : "SEFAZ";
+  } else if (
+    text.includes("ADVOCACIA GERAL DA UNIAO") ||
+    matchesWord(text, "AGU")
+  ) {
+    organ = "AGU";
   } else if (
     matchesWord(text, "ORGAO A") ||
     text.includes("ORGAO PUBLICO CONTRATANTE")
@@ -1590,6 +2348,8 @@ export async function bootstrapCase(
         tablesCount: compact.tables.length,
         paragraphsCount: compact.paragraphs.length,
         compactStructure: compact,
+        ...(compact.template_match ? { template_match: compact.template_match } : {}),
+        ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
       });
 
       const relStructure = relative(resolvedCaseDir, structurePath).replace(
@@ -1654,6 +2414,16 @@ export function formatBootstrapCaseSyntheticResult(
         structure_json: relPath,
         tables_count: item.tablesCount,
         paragraphs_count: item.paragraphsCount,
+        ...(item.template_match && item.template_match.status !== "NEW"
+          ? {
+              template_match: {
+                status: item.template_match.status,
+                ...(item.template_match.template_id
+                  ? { template_id: item.template_match.template_id }
+                  : {}),
+              },
+            }
+          : {}),
       };
     }),
     background_copy: {
@@ -1714,6 +2484,40 @@ export function formatInspectDocxSyntheticResult(
     }
   }
 
+  const relAuditPath = inspection.audit_view_path
+    ? relative(process.cwd(), inspection.audit_view_path).replace(/\\/g, "/")
+    : undefined;
+
+  const conciseMatch = inspection.template_match
+    ? {
+        status: inspection.template_match.status,
+        ...(inspection.template_match.similarity
+          ? { similarity: inspection.template_match.similarity }
+          : {}),
+        ...(inspection.template_match.template_id
+          ? { template_id: inspection.template_match.template_id }
+          : {}),
+        ...(inspection.template_match.adapted_manifest_path
+          ? {
+              adapted_manifest_path: relative(
+                process.cwd(),
+                inspection.template_match.adapted_manifest_path
+              ).replace(/\\/g, "/"),
+            }
+          : {}),
+      }
+    : undefined;
+
+  let nextHint =
+    "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
+  if (inspection.template_match?.status === "EXACT") {
+    nextHint = `Template homologado no cache (${inspection.template_match.template_id}). Reutilize slots_manifest.json para 'build_docx_template'.`;
+  } else if (inspection.template_match?.status === "MODIFIED") {
+    nextHint = `Drift detectado (${Math.round(
+      (inspection.template_match.similarity || 0) * 100
+    )}%). Use adapted_slots_manifest.json em 'build_docx_template'.`;
+  }
+
   return {
     status: "success",
     docxPath,
@@ -1721,9 +2525,10 @@ export function formatInspectDocxSyntheticResult(
     tables: inspection.tables.length,
     rows: totalRows,
     paragraphs: inspection.paragraphs.length,
+    ...(conciseMatch ? { template_match: conciseMatch } : {}),
+    ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
     ...(toc_summary.length > 0 ? { toc_summary } : {}),
-    next_step_hint:
-      "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.",
+    next_step_hint: nextHint,
   };
 }
 
@@ -1954,11 +2759,18 @@ export function unflattenDotKeys(obj: any): any {
 // 2. Função Construtora de Template (build_docx_template)
 // ============================================================================
 
+export interface BuildDocxTemplateOptions {
+  saveToRegistry?: boolean;
+  templateId?: string;
+  registryDir?: string;
+}
+
 export async function buildDocxTemplate(
   sourcePath: string,
   manifestPath: string,
-  outputPath: string
-): Promise<{ success: boolean; message: string }> {
+  outputPath: string,
+  options: BuildDocxTemplateOptions = {}
+): Promise<{ success: boolean; message: string; registryPath?: string }> {
   const resolvedSource = resolve(sourcePath);
   const resolvedManifest = resolve(manifestPath);
   const resolvedOutput = resolve(outputPath);
@@ -2243,9 +3055,28 @@ export async function buildDocxTemplate(
   });
   writeFileSync(resolvedOutput, outBuffer);
 
+  let registryMsg = "";
+  let registryPath: string | undefined;
+  if (options.saveToRegistry) {
+    const insp = await inspectDocx(resolvedSource, undefined, false, {
+      registryDir: options.registryDir,
+    });
+    const fp = insp.structure_fingerprint || computeStructureFingerprint(insp);
+    const templateId = options.templateId || basename(resolvedSource, ".docx");
+    registryPath = saveTemplateToRegistry(
+      templateId,
+      manifest,
+      fp,
+      resolvedSource,
+      options.registryDir
+    );
+    registryMsg = `\nTemplate homologado salvo no registro global: ${registryPath}`;
+  }
+
   return {
     success: true,
-    message: `Template parametrizado gerado com sucesso em: ${resolvedOutput}`,
+    message: `Template parametrizado gerado com sucesso em: ${resolvedOutput}${registryMsg}`,
+    ...(registryPath ? { registryPath } : {}),
   };
 }
 
@@ -3675,9 +4506,9 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_docx",
       description:
-        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx), construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., perguntas/campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas) e gravando o JSON detalhado em outputPath com retorno de sumário sintético executivo 'toc_summary' (< 1 KB).\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para descobrir os índices exatos de parágrafos e células que serão substituídos no modelo, OU após 'fill_docx_template' sobre o arquivo gerado em output/ para preparar o mapa estrutural para auditoria externa.\n" +
-        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural detalhado com toc_map. Próximo passo recomendado: consulte toc_summary ou toc_map para mapear as tags no 'slots_manifest.json' e chamar 'build_docx_template' (ou, na fase pós-geração, prosseguir para 'generate_audit_docx').",
+        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx), construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., perguntas/campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' para turno único) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB).\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para descobrir os índices exatos ou reaproveitar templates do cache global, OU após 'fill_docx_template' sobre o arquivo gerado em output/ para preparar o mapa estrutural e a visão linear para auditoria externa em turno único.\n" +
+        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural com toc_map e o markdown 'visao_auditoria_<nome>.md'. Se template_match for EXACT ou MODIFIED, utilize o manifesto homologado/adaptado gerado e chame 'build_docx_template'; se NEW, elabore o slots_manifest.json.",
       inputSchema: {
         type: "object",
         required: ["docxPath"],
@@ -3708,9 +4539,9 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline.\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração do arquivo 'slots_manifest.json'.\n" +
-        "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath. Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
+        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline, além de 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.0).\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
+        "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
         type: "object",
         required: ["sourcePath", "manifestPath", "outputPath"],
@@ -3723,12 +4554,22 @@ export function getMcpToolsDefinition() {
           manifestPath: {
             type: "string",
             description:
-              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json'). Estrutura esperada: { replace_paragraphs: [{ start_p, end_p, tag }], replace_table_cells: [{ table_index, row_index, cell_index, tag }], loop_table_rows: [{ table_index, header_row_index, template_row_index, for_open_tag, for_close_tag, cell_tags: [...] }], replace_inline: [{ find, replace }] }.",
+              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Estrutura esperada: { replace_paragraphs: [{ start_p, end_p, tag }], replace_table_cells: [{ table_index, row_index, cell_index, tag }], loop_table_rows: [{ table_index, header_row_index, template_row_index, for_open_tag, for_close_tag, cell_tags: [...] }], replace_inline: [{ find, replace }] }.",
           },
           outputPath: {
             type: "string",
             description:
               "Caminho onde o novo arquivo template .docx parametrizado será salvo (ex.: 'C:/workspace/cases/caso_exemplo/state/template_etp.docx').",
+          },
+          saveToRegistry: {
+            type: "boolean",
+            description:
+              "Se true, salva o manifesto homologado e a impressão digital estrutural no cache global de templates (core/registry/templates/) para reuso e matching em futuros órgãos.",
+          },
+          templateId: {
+            type: "string",
+            description:
+              "Identificador único opcional do template no registro global (ex.: 'etp_compras_v1'). Se omitido, deriva do nome base do arquivo.",
           },
         },
       },
@@ -3905,16 +4746,24 @@ async function runMcpServer() {
       }
 
       if (toolName === "build_docx_template") {
-        const { sourcePath, manifestPath, outputPath } = request.params
-          .arguments as {
+        const {
+          sourcePath,
+          manifestPath,
+          outputPath,
+          saveToRegistry,
+          templateId,
+        } = request.params.arguments as {
           sourcePath: string;
           manifestPath: string;
           outputPath: string;
+          saveToRegistry?: boolean;
+          templateId?: string;
         };
         const result = await buildDocxTemplate(
           sourcePath,
           manifestPath,
-          outputPath
+          outputPath,
+          { saveToRegistry, templateId }
         );
         const nextHint =
           "Próximo passo recomendado: elabore ou atualize o arquivo de estado (ex.: state/estado_caso.json) e chame 'fill_docx_template' para injetar os dados e gerar a minuta final.";
@@ -3992,7 +4841,7 @@ Uso:
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
   docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
   docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
-  docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx>
+  docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
   docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx>
   docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
@@ -4165,11 +5014,17 @@ Uso:
       process.exit(1);
     }
 
+    const saveToRegistry = args.includes("--save-to-registry");
+    const templateIdIdx = args.indexOf("--template-id");
+    const templateId =
+      templateIdIdx !== -1 ? args[templateIdIdx + 1] : undefined;
+
     try {
       const res = await buildDocxTemplate(
         args[sourceIdx + 1],
         args[manifestIdx + 1],
-        args[outIdx + 1]
+        args[outIdx + 1],
+        { saveToRegistry, templateId }
       );
       console.log(res.message);
     } catch (err: any) {

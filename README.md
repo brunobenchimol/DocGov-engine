@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.5.1`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.6.0`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,17 +36,20 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Autodescoberta & Resiliência Nativa no MCP (`v0.5.1`)
+## 2. Autodescoberta, Cache Global e Resiliência Nativa no MCP (`v0.6.0`)
 
-O servidor MCP é **100% autodescritivo, autoexplicativo e resiliente a falhas sintáticas**:
+O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)**, a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`), além das capacidades de auto-reparo de JSON e unflattening.
-2. **Preservação de Nomes Legíveis & Auto-Batismo Semântico de Anexos (`v0.5.1`):** Em plataformas baseadas em sessão que rebatizam uploads com hashes opacos (`media_*`, `tmp_*`), o motor inspeciona o conteúdo OpenXML/PDF para auto-batizar os arquivos (`<TIPO>_<ORGAO>_<hash4>.<ext>`, ex.: `ETP_ORGAO_A_3b9d.docx`), preserva nomes legíveis humanos e aceita mapeamento explícito via `fileRenameMap`.
-3. **Inferência de Extensão por Magic Bytes (`v0.5.1`):** Identifica arquivos enviados sem extensão inspecionando os primeiros bytes (`50 4B 03 04` para `.docx` e `25 50 44 46` para `.pdf`).
-4. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB) que poupa dezenas de chamadas paginadas de leitura.
-5. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8 (`\uFEFF`), *trailing commas* (vírgulas antes de `}` ou `]`) e escapa quebras de linha literais (`\r\n` crus) em strings JSON, regravando o arquivo corrigido no disco sem interromper a execução do agente.
-6. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta MCP informa a linha e coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI` e instruindo o uso de `replace_file_content`.
-7. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para a hierarquia `{ etp: { necessidade: "..." } }`, garantindo o preenchimento correto de slots `{{etp.necessidade}}`.
+1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)**, a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`), além do funcionamento do cache global e auto-offset.
+2. **Cache Global de Templates Cross-Órgão (`core/registry/templates/`):** Capacidade de comparar o documento de entrada contra *todos* os templates homologados salvos no cache (independentemente de qual órgão os gerou), calculando uma impressão digital estrutural (`structure_fingerprint`) com similaridade ponderada. Retorna `EXACT` (100%), `MODIFIED` (75% a 99%) ou `NEW` (< 75%).
+3. **Reancoragem Automática de Coordenadas (`Auto-Offset` / `adapted_manifest`):** Se a minuta sofrer alterações estruturais (como inclusão/remoção de linhas em tabelas de formulário ou parágrafos), o motor ajusta automaticamente as coordenadas dos slots por correspondência semântica de rótulos/perguntas, gerando o `adapted_slots_manifest.json` e poupando retrabalho do LLM.
+4. **Visão Linear Compacta de Auditoria (`visao_auditoria_<nome_base>.md`):** Um espelho textual ultracompacto gerado pelo `inspect_docx` e `bootstrap_case` contendo a lista sequencial exata de cabeçalhos/rodapés (`[H0]`/`[F0]`), parágrafos (`[P0]`) e células (`[T0.R0.C0]`), permitindo que a Auditoria Externa cega leia o documento inteiro em **1 único turno** (eliminando a necessidade de paginação fatiada).
+5. **Preservação de Nomes Legíveis & Auto-Batismo Semântico de Anexos:** Em plataformas baseadas em sessão que rebatizam uploads com hashes opacos (`media_*`, `tmp_*`), o motor inspeciona o conteúdo OpenXML/PDF para auto-batizar os arquivos (`<TIPO>_<ORGAO>_<hash4>.<ext>`, ex.: `ETP_ORGAO_A_3b9d.docx`), preserva nomes legíveis humanos e aceita mapeamento explícito via `fileRenameMap`.
+6. **Inferência de Extensão por Magic Bytes:** Identifica arquivos enviados sem extensão inspecionando os primeiros bytes (`50 4B 03 04` para `.docx` e `25 50 44 46` para `.pdf`).
+7. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB).
+8. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8 (`\uFEFF`), *trailing commas* (vírgulas antes de `}` ou `]`) e escapa quebras de linha literais (`\r\n` crus) em strings JSON, regravando o arquivo corrigido no disco sem interromper a execução do agente.
+9. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta MCP informa a linha e coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI` e instruindo o uso de `replace_file_content`.
+10. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para a hierarquia `{ etp: { necessidade: "..." } }`, garantindo o preenchimento correto de slots `{{etp.necessidade}}`.
 
 ---
 
@@ -59,7 +62,7 @@ O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponi
 Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servidor MCP sobre `stdio` expondo **5 ferramentas**:
 
 1. **`bootstrap_case`**
-   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita mapeamento opcional `fileRenameMap`, copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/` e extrai seus mapas estruturais (`state/estrutura_<nome>.json`).
+   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `output/`), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita mapeamento opcional `fileRenameMap`, copia de forma síncrona imediata os modelos `.docx` de `uploadsDir` para `inputs/`, extrai seus mapas estruturais (`state/estrutura_<nome>.json`), gera a **Visão Linear de Auditoria** (`state/visao_auditoria_<nome>.md`) e avalia match no Cache Global.
    - **Salvaguarda Assíncrona Não-Bloqueante:** Arquivos volumosos (`.pdf` e outros anexos pesados) têm a salvaguarda para `inputs/` iniciada em segundo plano sem congelar a chamada MCP ou CLI (evita timeouts e contenção de I/O em pastas sincronizadas na nuvem como Google Drive). O progresso da salvaguarda pode ser monitorado em `state/salvaguarda_status.json` (`in_progress`, `completed`, `partial_error`).
    - **Retorno Sintético com `ingested_files` (< 1 KB):** Devolve um JSON conciso com contadores, referências em disco, mapa de arquivos ingeridos (`ingested_files`) e a orientação do próximo passo recomendado.
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*), `fileRenameMap` (*opcional*).
@@ -67,13 +70,16 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 2. **`inspect_docx`**
    - Faz a engenharia reversa estrutural de qualquer `.docx` bruto (headers, footers, parágrafos indexados `0..N` e tabelas indexadas `0..M`).
    - **Índice Estrutural Rápido (`toc_map`):** Salva no topo do JSON em `outputPath` o mapa de seções, perguntas de formulários e tabelas.
+   - **Visão Linear Compacta de Auditoria (`audit_view_path`):** Salva automaticamente `state/visao_auditoria_<nome>.md` com espelho sequencial integral formatado com coordenadas canônicas para auditoria em **turno único**.
+   - **Busca 1-para-N no Cache Global & Auto-Offset:** Compara a impressão digital contra o registro global de templates (`core/registry/templates/`). Se houver match exato (`EXACT`) ou drift (`MODIFIED`), devolve os caminhos do template e do manifesto reancorado (`adapted_manifest_path`), poupando a recriação do manifesto de slots.
    - **Retorno Sintético (`toc_summary` < 1 KB):** A chamada MCP devolve as coordenadas e títulos chave (`toc_summary`), status, contadores e `next_step_hint`, evitando arquivos temporários de log.
    - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**
    - Transforma um `.docx` bruto (sem tags) em um template parametrizado com tags `{{...}}` a partir de um arquivo `slots_manifest.json`, preservando 100% da formatação visual (`<w:pPr>`, `<w:rPr>` de corpo sem herança indevida de negrito de subtítulos, `<w:tblPr>`, cabeçalhos, rodapés e imagens).
+   - **Homologação no Cache Global (`saveToRegistry`):** Quando habilitado (`true`), persiste o manifesto e a impressão digital estrutural no repositório compartilhado de templates (`core/registry/templates/<templateId>.json`), permitindo reaproveitamento e auto-offset em futuros órgãos.
    - Suportado pelo parser tolerante de JSON com auto-reparo e diagnóstico cirúrgico.
-   - Parâmetros: `sourcePath`, `manifestPath`, `outputPath` (*todos obrigatórios*).
+   - Parâmetros: `sourcePath`, `manifestPath`, `outputPath` (*obrigatórios*), `saveToRegistry` (*opcional*), `templateId` (*opcional*).
 
 4. **`fill_docx_template`**
    - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais, negrito seletivo via `**texto**` e suporte nativo a **listas hierárquicas aninhadas em múltiplos níveis** como `1.1`, `1.1.1`, `1.1.1.1`, `1.1.1.1.1` com recuo `<w:ind>` progressivo e achatamento recursivo de árvores JSON `subitens`).
@@ -101,8 +107,8 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 # 2. Inspecionar estrutura de um .docx bruto (opcionalmente com --compact)
 ./docgov-docx --inspect documento_bruto.docx --out estrutura.json --compact
 
-# 3. Construir template parametrizado a partir de um .docx bruto + manifesto de slots
-./docgov-docx --build-template --source documento_bruto.docx --manifest slots_manifest.json --out template.docx
+# 3. Construir template parametrizado a partir de um .docx bruto + manifesto de slots (e salvar no registro global)
+./docgov-docx --build-template --source documento_bruto.docx --manifest slots_manifest.json --out template.docx --save-to-registry --template-id etp_padrao_v1
 
 # 4. Preencher template com o JSON de estado do processo
 ./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.docx
@@ -123,11 +129,13 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 | Parâmetro | Descrição |
 | :--- | :--- |
 | *(sem argumentos)* ou `--mcp` | Inicia o servidor MCP via `stdio` (comportamento padrão). |
-| `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia e inspeciona `.docx` imediatamente e inicia salvaguarda de PDFs em background. |
+| `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia e inspeciona `.docx` imediatamente, gera `visao_auditoria_<nome>.md` e inicia salvaguarda de PDFs em background. |
 | `--wait` | Aguarda a conclusão da cópia dos arquivos em segundo plano no `--bootstrap-case` antes de encerrar o CLI. |
-| `--inspect <arq.docx>` | Extrai o mapa estrutural JSON (cabeçalhos, rodapés, parágrafos e tabelas) do `.docx`. |
+| `--inspect <arq.docx>` | Extrai o mapa estrutural JSON (`toc_map`), gera `visao_auditoria_<nome>.md` e busca correspondência no Cache Global. |
 | `--compact` | Filtra parágrafos e células vazias no `--inspect` preservando os índices originais 0-based. |
 | `--build-template` | Gera um template `.docx` parametrizado a partir de `--source`, `--manifest` e `--out`. |
+| `--save-to-registry` | Persiste o manifesto homologado no Cache Global de templates (`core/registry/templates/`) para reaproveitamento cross-órgão. |
+| `--template-id <id>` | Identificador semântico customizado do template ao salvar no registro (opcional). |
 | `--inject` | Preenche um template `.docx` a partir de `--template`, `--state` e `--out`. |
 | `--generate-audit-docx` | Gera um parecer de auditoria `.docx` executivo a partir de `--audit-json` e `--out`. |
 | `--case-dir <dir>` | Caminho da pasta do caso (usado com `--bootstrap-case`). |

@@ -38,6 +38,18 @@ import {
   extractSemanticTypeAndOrgan,
   resolveTargetFileName,
   type SlotsManifest,
+  normalizeStructuralText,
+  computeStructureFingerprint,
+  computeStructuralSimilarity,
+  getTemplateRegistryDir,
+  saveTemplateToRegistry,
+  loadAllRegistryTemplates,
+  findBestTemplateMatch,
+  reanchorSlotsManifest,
+  generateLinearAuditViewMarkdown,
+  VERSION,
+  type StructureFingerprint,
+  type TemplateRegistryEntry,
 } from "../src/index.ts";
 
 // Base64 de um .docx OpenXML válido contendo as tags {{processo_id}} e {{objeto.descricao}}
@@ -181,7 +193,89 @@ async function createSampleRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.5.1", () => {
+async function createDriftedRawDocx(targetPath: string): Promise<void> {
+  const zip = new JSZip();
+
+  zip.file(
+    "[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+  );
+
+  zip.file(
+    "_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+  );
+
+  zip.file(
+    "word/document.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>ESTUDO TÉCNICO PRELIMINAR</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Normal"/></w:pPr>
+      <w:r><w:t>Órgão: Defensoria Pública do Estado do Pará</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>1. DESCRIÇÃO DA NECESSIDADE</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="BodyText"/></w:pPr>
+      <w:r><w:t>Texto original parágrafo 1 a substituir.</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="BodyText"/></w:pPr>
+      <w:r><w:t>Texto original parágrafo 2 a remover.</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Unidade Requisitante</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Diretoria Antiga</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Setor Demandante Inserido</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Coordenação Nova</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Responsável</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Servidor Antigo</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:b/><w:t>Risco</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:b/><w:t>Mitigação</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Risco antigo 1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Mitigação antiga 1</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Risco antigo 2</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Mitigação antiga 2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+  );
+
+  const buf = await zip.generateAsync({ type: "nodebuffer" });
+  writeFileSync(targetPath, buf);
+}
+
+describe("DocGov Docx Engine v0.6.0", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1300,6 +1394,300 @@ describe("DocGov Docx Engine v0.5.1", () => {
     expect(bootstrapTool.description).toContain("fileRenameMap");
     expect(bootstrapTool.description).toContain("media_*");
     expect(bootstrapTool.inputSchema.properties.fileRenameMap).toBeDefined();
+  });
+
+  // ==========================================================================
+  // Testes de Recursos da v0.6.0
+  // ==========================================================================
+
+  test("deve calcular impressão digital estrutural (structure_fingerprint) e normalizar textos (v0.6.0)", async () => {
+    // 1. normalizeStructuralText
+    expect(normalizeStructuralText("  1. DESCRIÇÃO DA NECESSIDADE?!  ")).toBe(
+      "1 descricao da necessidade"
+    );
+    expect(normalizeStructuralText("Órgão: Responsável - (Coordenação)")).toBe(
+      "orgao responsavel coordenacao"
+    );
+
+    // 2. computeStructureFingerprint a partir de um docx inspecionado
+    const sampleDocx = resolve(tempDir, "fp_sample.docx");
+    await createSampleRawDocx(sampleDocx);
+    const inspection = await inspectDocx(sampleDocx);
+    const fp = computeStructureFingerprint(inspection);
+
+    expect(fp.tables.length).toBe(2);
+    expect(fp.tables[0].rows).toBe(2);
+    expect(fp.tables[0].cols).toBe(2);
+    expect(fp.tables[0].headers).toContain("unidade requisitante");
+    expect(fp.tables[1].rows).toBe(4);
+    expect(fp.tables[1].cols).toBe(2);
+    expect(fp.tables[1].headers).toContain("risco");
+    expect(fp.tables[1].headers).toContain("mitigacao");
+
+    expect(fp.sections.length).toBeGreaterThan(0);
+    expect(fp.sections).toContain("estudo tecnico preliminar");
+    expect(fp.sections).toContain("1 descricao da necessidade");
+
+    expect(fp.form_fields.length).toBeGreaterThan(0);
+    expect(
+      fp.form_fields.some((f) => f.label_normalized === "unidade requisitante")
+    ).toBe(true);
+    expect(
+      fp.form_fields.some((f) => f.label_normalized === "responsavel")
+    ).toBe(true);
+  });
+
+  test("deve calcular similaridade estrutural determinística (computeStructuralSimilarity v0.6.0)", async () => {
+    const docxA = resolve(tempDir, "sim_doc_a.docx");
+    const docxB = resolve(tempDir, "sim_doc_b.docx");
+    await createSampleRawDocx(docxA);
+    await createSampleRawDocx(docxB);
+
+    const inspA = await inspectDocx(docxA);
+    const inspB = await inspectDocx(docxB);
+    const fpA = computeStructureFingerprint(inspA);
+    const fpB = computeStructureFingerprint(inspB);
+
+    // 1. Comparação entre documentos idênticos -> 1.0 (100%)
+    const exactSim = computeStructuralSimilarity(fpA, fpB);
+    expect(exactSim).toBe(1.0);
+
+    // 2. Comparação com drift (inserção de linha extra na tabela) -> entre 0.75 e 0.995
+    const docxDrift = resolve(tempDir, "sim_doc_drift.docx");
+    await createDriftedRawDocx(docxDrift);
+    const inspDrift = await inspectDocx(docxDrift);
+    const fpDrift = computeStructureFingerprint(inspDrift);
+
+    const driftSim = computeStructuralSimilarity(fpDrift, fpA);
+    expect(driftSim).toBeGreaterThanOrEqual(0.75);
+    expect(driftSim).toBeLessThan(0.995);
+
+    // 3. Comparação com documento vazio/diferente -> < 0.75
+    const minimalDocx = resolve(tempDir, "sim_doc_minimal.docx");
+    writeFileSync(minimalDocx, Buffer.from(MINIMAL_DOCX_BASE64, "base64"));
+    const inspMinimal = await inspectDocx(minimalDocx);
+    const fpMinimal = computeStructureFingerprint(inspMinimal);
+
+    const diffSim = computeStructuralSimilarity(fpMinimal, fpA);
+    expect(diffSim).toBeLessThan(0.75);
+  });
+
+  test("deve resolver diretório do registro global e persistir templates (saveTemplateToRegistry & loadAllRegistryTemplates v0.6.0)", async () => {
+    const customRegDir = resolve(tempDir, "custom_registry");
+    const resolvedDir = getTemplateRegistryDir(undefined, customRegDir);
+    expect(resolvedDir).toBe(customRegDir);
+
+    const sampleDocx = resolve(tempDir, "reg_sample.docx");
+    await createSampleRawDocx(sampleDocx);
+    const insp = await inspectDocx(sampleDocx);
+    const fp = computeStructureFingerprint(insp);
+
+    const mockManifest: SlotsManifest = {
+      replace_table_cells: [
+        { table_index: 0, row_index: 0, cell_index: 1, tag: "{{unidade}}" },
+        { table_index: 0, row_index: 1, cell_index: 1, tag: "{{responsavel}}" },
+      ],
+    };
+
+    const savedPath = saveTemplateToRegistry(
+      "etp_padrao_teste",
+      mockManifest,
+      fp,
+      undefined,
+      customRegDir
+    );
+    expect(existsSync(savedPath)).toBe(true);
+    expect(savedPath).toContain("etp_padrao_teste.json");
+
+    const all = loadAllRegistryTemplates(undefined, customRegDir);
+    expect(all.length).toBe(1);
+    expect(all[0].template_id).toBe("etp_padrao_teste");
+    expect(all[0].manifest.replace_table_cells?.length).toBe(2);
+    expect(all[0].structure_fingerprint.tables.length).toBe(2);
+  });
+
+  test("Busca 1-para-N no Cache Global e Auto-Offset: EXACT, MODIFIED (reancoragem automática) e NEW (v0.6.0)", async () => {
+    const testRegDir = resolve(tempDir, "cases_test", "core", "registry", "templates");
+    mkdirSync(testRegDir, { recursive: true });
+
+    // Salva template base no registro
+    const baseDocx = resolve(tempDir, "base_template_case.docx");
+    await createSampleRawDocx(baseDocx);
+    const baseInsp = await inspectDocx(baseDocx);
+    const baseFp = computeStructureFingerprint(baseInsp);
+
+    const baseManifest: SlotsManifest = {
+      replace_paragraphs: [
+        { start_p: 3, end_p: 4, tag: "{{necessidade.texto}}" },
+      ],
+      replace_table_cells: [
+        { table_index: 0, row_index: 0, cell_index: 1, tag: "{{unidade_requisitante}}" },
+        { table_index: 0, row_index: 1, cell_index: 1, tag: "{{responsavel}}" },
+      ],
+      loop_table_rows: [
+        {
+          table_index: 1,
+          header_row_index: 0,
+          template_row_index: 1,
+          remove_from_row: 2,
+          remove_to_row: 3,
+          for_open_tag: "{{FOR r IN riscos}}",
+          for_close_tag: "{{END-FOR r}}",
+          cell_tags: ["{{$r.risco}}", "{{$r.mitigacao}}"],
+        },
+      ],
+    };
+
+    saveTemplateToRegistry(
+      "etp_homologado_master",
+      baseManifest,
+      baseFp,
+      undefined,
+      testRegDir
+    );
+
+    // 1. Cenário EXACT (100%): novo documento idêntico ao registrado
+    const exactDocx = resolve(tempDir, "doc_exact.docx");
+    await createSampleRawDocx(exactDocx);
+    const exactOut = resolve(tempDir, "state", "estrutura_exact.json");
+    const exactInsp = await inspectDocx(exactDocx, exactOut, true, {
+      registryDir: testRegDir,
+    });
+
+    expect(exactInsp.template_match).toBeDefined();
+    expect(exactInsp.template_match?.status).toBe("EXACT");
+    expect(exactInsp.template_match?.template_id).toBe("etp_homologado_master");
+    expect(exactInsp.template_match?.similarity).toBe(1.0);
+
+    // 2. Cenário MODIFIED com Auto-Offset: novo documento com 1 linha inserida na Tabela 0
+    const driftDocx = resolve(tempDir, "doc_drift_case.docx");
+    await createDriftedRawDocx(driftDocx);
+    const driftOut = resolve(tempDir, "state", "estrutura_drift.json");
+    const driftInsp = await inspectDocx(driftDocx, driftOut, true, {
+      registryDir: testRegDir,
+    });
+
+    expect(driftInsp.template_match).toBeDefined();
+    expect(driftInsp.template_match?.status).toBe("MODIFIED");
+    expect(driftInsp.template_match?.similarity).toBeGreaterThanOrEqual(0.75);
+    expect(driftInsp.template_match?.similarity).toBeLessThan(0.995);
+    expect(driftInsp.template_match?.template_id).toBe("etp_homologado_master");
+    expect(driftInsp.template_match?.adapted_manifest_path).toBeDefined();
+
+    // Valida que o adapted_slots_manifest.json foi gravado em disco
+    const adaptedManifestPath = driftInsp.template_match!.adapted_manifest_path!;
+    expect(existsSync(adaptedManifestPath)).toBe(true);
+
+    const adaptedManifest: SlotsManifest & { _shift_summary?: string } =
+      safeReadJsonFile(adaptedManifestPath);
+
+    // A regra da Unidade Requisitante manteve row_index = 0
+    expect(adaptedManifest.replace_table_cells?.[0].row_index).toBe(0);
+    // A regra do Responsável foi automaticamente reancorada de row_index 1 para 2!
+    expect(adaptedManifest.replace_table_cells?.[1].row_index).toBe(2);
+    expect(adaptedManifest.replace_table_cells?.[1].cell_index).toBe(1);
+    expect(adaptedManifest._shift_summary).toContain("Responsável");
+
+    // 3. Cenário NEW (< 75%): minuta inédita
+    const minimalDocx = resolve(tempDir, "doc_new_unrelated.docx");
+    writeFileSync(minimalDocx, Buffer.from(MINIMAL_DOCX_BASE64, "base64"));
+    const newOut = resolve(tempDir, "state", "estrutura_new.json");
+    const newInsp = await inspectDocx(minimalDocx, newOut, true, {
+      registryDir: testRegDir,
+    });
+
+    expect(newInsp.template_match).toBeDefined();
+    expect(newInsp.template_match?.status).toBe("NEW");
+    expect(newInsp.template_match?.similarity).toBeLessThan(0.75);
+  });
+
+  test("deve gerar a Visão Linear Compacta de Auditoria (visao_auditoria_<doc>.md) para turno único (v0.6.0)", async () => {
+    const rawDocx = resolve(tempDir, "audit_view_sample.docx");
+    const outJson = resolve(tempDir, "state", "estrutura_audit_view.json");
+    await createSampleRawDocx(rawDocx);
+
+    const insp = await inspectDocx(rawDocx, outJson, true);
+
+    expect(insp.audit_view_path).toBeDefined();
+    expect(existsSync(insp.audit_view_path!)).toBe(true);
+    expect(insp.audit_view_path!).toContain("visao_auditoria_audit_view.md");
+
+    const mdContent = readFileSync(insp.audit_view_path!, "utf-8");
+
+    // Valida títulos e seções
+    expect(mdContent).toContain("# Visão Linear de Auditoria: audit_view_sample.docx");
+    expect(mdContent).toContain("## Cabeçalhos e Rodapés");
+    expect(mdContent).toContain("[H0] Órgão Público Contratante (ORGAO_A)");
+    expect(mdContent).toContain("[F0] Processo Administrativo nº 000/2026");
+
+    expect(mdContent).toContain("## Parágrafos e Seções");
+    expect(mdContent).toContain("**[P0]** ESTUDO TÉCNICO PRELIMINAR");
+    expect(mdContent).toContain("[P1] Órgão: Órgão Público Contratante (ORGAO_A)");
+    expect(mdContent).toContain("**[P2]** 1. DESCRIÇÃO DA NECESSIDADE");
+    expect(mdContent).toContain("[P3] Texto original parágrafo 1 a substituir.");
+
+    expect(mdContent).toContain("## Tabelas");
+    expect(mdContent).toContain("### Tabela [T0] (2 linhas x 2 colunas)");
+    expect(mdContent).toContain("[T0.R0.C0] Unidade Requisitante -> [T0.R0.C1] Diretoria Antiga");
+    expect(mdContent).toContain("[T0.R1.C0] Responsável -> [T0.R1.C1] Servidor Antigo");
+
+    expect(mdContent).toContain("### Tabela [T1] (4 linhas x 2 colunas)");
+    expect(mdContent).toContain("[T1.R0.C0] Risco -> [T1.R0.C1] Mitigação");
+    expect(mdContent).toContain("[T1.R1.C0] Risco antigo 1 -> [T1.R1.C1] Mitigação antiga 1");
+
+    // Valida que o tamanho do arquivo é muito compacto (< 10 KB para este caso)
+    expect(Buffer.byteLength(mdContent, "utf-8")).toBeLessThan(10240);
+  });
+
+  test("deve suportar saveToRegistry em build_docx_template (v0.6.0)", async () => {
+    const rawDocx = resolve(tempDir, "build_registry_sample.docx");
+    const manifestFile = resolve(tempDir, "build_registry_manifest.json");
+    const outDocx = resolve(tempDir, "build_registry_out.docx");
+    const customRegistry = resolve(tempDir, "test_build_reg");
+
+    await createSampleRawDocx(rawDocx);
+    const mockManifest: SlotsManifest = {
+      replace_table_cells: [
+        { table_index: 0, row_index: 0, cell_index: 1, tag: "{{unidade}}" },
+      ],
+    };
+    writeFileSync(manifestFile, JSON.stringify(mockManifest, null, 2), "utf-8");
+
+    const result = await buildDocxTemplate(rawDocx, manifestFile, outDocx, {
+      saveToRegistry: true,
+      templateId: "etp_homologado_build_test",
+      registryDir: customRegistry,
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.registryPath).toBeDefined();
+    expect(existsSync(result.registryPath!)).toBe(true);
+    expect(result.registryPath!).toContain("etp_homologado_build_test.json");
+
+    const savedEntry: TemplateRegistryEntry = safeReadJsonFile(result.registryPath!);
+    expect(savedEntry.template_id).toBe("etp_homologado_build_test");
+    expect(savedEntry.manifest.replace_table_cells?.length).toBe(1);
+    expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
+  });
+
+  test("deve expor versão 0.6.0 e novos recursos v0.6.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.6.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("structure_fingerprint");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Auto-Offset");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("saveToRegistry");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("visao_auditoria");
+
+    const tools = getMcpToolsDefinition();
+    const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
+    expect(inspectTool.description).toContain("structure_fingerprint");
+    expect(inspectTool.description).toContain("Auto-Offset");
+    expect(inspectTool.description).toContain("visao_auditoria");
+
+    const buildTool = tools.find((t) => t.name === "build_docx_template")!;
+    expect(buildTool.description).toContain("saveToRegistry");
+    expect(buildTool.inputSchema.properties.saveToRegistry).toBeDefined();
+    expect(buildTool.inputSchema.properties.templateId).toBeDefined();
   });
 });
 
