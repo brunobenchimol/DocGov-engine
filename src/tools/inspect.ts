@@ -14,6 +14,7 @@ import {
   extractParagraphText,
   extractParagraphNumbering,
   extractCellText,
+  createNumberingResolver,
 } from "../utils/xml.ts";
 import {
   computeStructureFingerprint,
@@ -349,13 +350,37 @@ export async function inspectDocx(
     throw new Error(`Elemento <w:body> não encontrado em word/document.xml`);
   }
 
+  const numberingFile = zip.file("word/numbering.xml");
+  const numberingXmlStr = numberingFile
+    ? await numberingFile.async("string")
+    : null;
+  const numberingResolver = createNumberingResolver(numberingXmlStr);
+
   const bodyParagraphs = getDirectChildElements(body, "w:p");
   const paragraphs: BodyParagraphInfo[] = bodyParagraphs.map((p, index) => {
     const numbering = extractParagraphNumbering(p);
+    let text = extractParagraphText(p);
+    if (numbering) {
+      const trimmed = text.trim();
+      const isTemplateTag = /^\{\{[\s\S]*\}\}$/.test(trimmed);
+      if (trimmed && !isTemplateTag) {
+        const computedPrefix = numberingResolver.formatParagraphPrefix(
+          numbering.numId,
+          numbering.level
+        );
+        if (
+          computedPrefix &&
+          !trimmed.startsWith(computedPrefix) &&
+          !trimmed.startsWith(`${computedPrefix}.`)
+        ) {
+          text = `${computedPrefix} ${text.trimStart()}`;
+        }
+      }
+    }
     return {
       index,
       style: extractParagraphStyle(p),
-      text: extractParagraphText(p),
+      text,
       ...(numbering ? { numbering } : {}),
     };
   });

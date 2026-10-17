@@ -19,63 +19,157 @@ import {
   stripBoldFromRPr,
   stripBoldFromPPr,
   addBoldToRPr,
+  isInsideTableCell,
+  NumberingManager,
+  ensureNumberingPart,
 } from "../utils/xml.ts";
 
 // ============================================================================
 // 3. Função Central de Injeção (fill_docx_template / processDocument)
 // ============================================================================
 
-export function detectHierarchicalListItem(line: string): {
+export interface HierarchicalListItemInfo {
   isListItem: boolean;
   hasExplicitMarker: boolean;
   level: number;
-} {
+  kind: "multi_decimal" | "single_decimal" | "alpha_or_roman" | "bullet" | "none";
+  markerText: string;
+  markerBold: boolean;
+  cleanRemainder: string;
+  segments: number[];
+  chapterNumber?: number;
+}
+
+function splitMarkerFromLine(
+  line: string,
+  fullMatch: string,
+  openBold: string | undefined,
+  rawMarker: string,
+  closeBold: string | undefined,
+  trailingSep?: string
+): { markerText: string; markerBold: boolean; cleanRemainder: string } {
+  const afterMatch = line.slice(fullMatch.length);
+  const hadOpenBold = Boolean(openBold);
+  const hadCloseBold = Boolean(closeBold);
+  const markerBold = hadOpenBold;
+  const effectiveMarker = trailingSep ? `${rawMarker}${trailingSep}` : rawMarker;
+
+  // Se abriu ** antes do marcador mas não fechou ** logo após o marcador,
+  // reabre ** no início do restante para preservar o negrito do título (ex.: "**4.1.1 Título:** Texto")
+  const cleanRemainder =
+    hadOpenBold && !hadCloseBold ? `**${afterMatch}` : afterMatch;
+
+  return {
+    markerText: effectiveMarker,
+    markerBold,
+    cleanRemainder,
+  };
+}
+
+export function detectHierarchicalListItem(
+  line: string
+): HierarchicalListItemInfo {
   // 1) Numeração decimal multinível: 1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1 ...
   const multiDecimalMatch = line.match(
-    /^\s*(?:\*\*)?(\d+(?:\.\d+)+)\.?(?:\*\*)?(?:\s+|\s*[-–—:]\s*)/
+    /^\s*(\*\*)?(\d+(?:\.\d+)+)(\.)?(\*\*)?(?:\s+|\s*([-–—:])\s*)/
   );
   if (multiDecimalMatch) {
-    const segments = multiDecimalMatch[1].split(".");
+    const rawNum = multiDecimalMatch[2];
+    const trailingDot = multiDecimalMatch[3] ?? "";
+    const sep = multiDecimalMatch[5] ?? "";
+    const segments = rawNum.split(".").map((n) => parseInt(n, 10));
+    const split = splitMarkerFromLine(
+      line,
+      multiDecimalMatch[0],
+      multiDecimalMatch[1],
+      `${rawNum}${trailingDot}`,
+      multiDecimalMatch[4],
+      sep
+    );
     return {
       isListItem: true,
       hasExplicitMarker: true,
       level: Math.max(1, segments.length - 1),
+      kind: "multi_decimal",
+      markerText: split.markerText,
+      markerBold: split.markerBold,
+      cleanRemainder: split.cleanRemainder,
+      segments,
+      chapterNumber: segments[0],
     };
   }
 
   // 2) Alíneas (a), b)) ou numerais romanos em minúsculo (i), ii), iii))
   const alphaOrRomanMatch = line.match(
-    /^(\s*)(?:\*\*)?(?:[a-z]|[ivxlcdm]+)\)(?:\*\*)?\s+/i
+    /^(\s*)(\*\*)?((?:[a-z]|[ivxlcdm]+)\))(\*\*)?\s+/i
   );
   if (alphaOrRomanMatch) {
     const leadingSpaces = alphaOrRomanMatch[1].length;
+    const split = splitMarkerFromLine(
+      line,
+      alphaOrRomanMatch[0],
+      alphaOrRomanMatch[2],
+      alphaOrRomanMatch[3],
+      alphaOrRomanMatch[4]
+    );
     return {
       isListItem: true,
       hasExplicitMarker: true,
       level: Math.max(2, Math.floor(leadingSpaces / 2) + 2),
+      kind: "alpha_or_roman",
+      markerText: split.markerText,
+      markerBold: split.markerBold,
+      cleanRemainder: split.cleanRemainder,
+      segments: [],
     };
   }
 
   // 3) Marcadores / Bullets (-, •, *)
-  const bulletMatch = line.match(/^(\s*)(?:\*\*)?[-•*](?:\*\*)?\s+/);
+  const bulletMatch = line.match(/^(\s*)(\*\*)?([-•*])(\*\*)?\s+/);
   if (bulletMatch) {
     const leadingSpaces = bulletMatch[1].length;
+    const split = splitMarkerFromLine(
+      line,
+      bulletMatch[0],
+      bulletMatch[2],
+      bulletMatch[3],
+      bulletMatch[4]
+    );
     return {
       isListItem: true,
       hasExplicitMarker: true,
       level: Math.max(1, Math.floor(leadingSpaces / 2) + 1),
+      kind: "bullet",
+      markerText: split.markerText,
+      markerBold: split.markerBold,
+      cleanRemainder: split.cleanRemainder,
+      segments: [],
     };
   }
 
   // 4) Item decimal simples (1. Texto, 2) Texto)
   const singleDecimalMatch = line.match(
-    /^\s*(?:\*\*)?(\d+)[\.\)](?:\*\*)?\s+/
+    /^\s*(\*\*)?((\d+)[\.\)])(\*\*)?\s+/
   );
   if (singleDecimalMatch) {
+    const numVal = parseInt(singleDecimalMatch[3], 10);
+    const split = splitMarkerFromLine(
+      line,
+      singleDecimalMatch[0],
+      singleDecimalMatch[1],
+      singleDecimalMatch[2],
+      singleDecimalMatch[4]
+    );
     return {
       isListItem: true,
       hasExplicitMarker: true,
       level: 0,
+      kind: "single_decimal",
+      markerText: split.markerText,
+      markerBold: split.markerBold,
+      cleanRemainder: split.cleanRemainder,
+      segments: [numVal],
+      chapterNumber: numVal,
     };
   }
 
@@ -83,13 +177,48 @@ export function detectHierarchicalListItem(line: string): {
     isListItem: false,
     hasExplicitMarker: false,
     level: 0,
+    kind: "none",
+    markerText: "",
+    markerBold: false,
+    cleanRemainder: line,
+    segments: [],
   };
 }
 
-function buildLineParagraphProperties(
+function buildNativeNumberingParagraphProperties(
   xmlDoc: Document,
   basePPr: Element | null,
-  listInfo: { isListItem: boolean; hasExplicitMarker: boolean; level: number }
+  ilvl: number,
+  numId: string
+): Element {
+  const pPr = basePPr
+    ? (basePPr.cloneNode(true) as Element)
+    : xmlDoc.createElement("w:pPr");
+
+  // Remove <w:numPr> e <w:ind> antigos para que o <w:numPr> nativo governe o recuo via numbering.xml
+  for (const oldNumPr of getDirectChildElements(pPr, "w:numPr")) {
+    pPr.removeChild(oldNumPr);
+  }
+  for (const oldInd of getDirectChildElements(pPr, "w:ind")) {
+    pPr.removeChild(oldInd);
+  }
+
+  const numPr = xmlDoc.createElement("w:numPr");
+  const ilvlEl = xmlDoc.createElement("w:ilvl");
+  ilvlEl.setAttribute("w:val", String(Math.max(0, Math.min(8, ilvl))));
+  const numIdEl = xmlDoc.createElement("w:numId");
+  numIdEl.setAttribute("w:val", numId);
+  numPr.appendChild(ilvlEl);
+  numPr.appendChild(numIdEl);
+
+  pPr.appendChild(numPr);
+  return pPr;
+}
+
+function buildHangingIndentParagraphProperties(
+  xmlDoc: Document,
+  basePPr: Element | null,
+  listInfo: HierarchicalListItemInfo
 ): Element | null {
   if (!listInfo.isListItem) {
     return basePPr ? (basePPr.cloneNode(true) as Element) : null;
@@ -99,8 +228,7 @@ function buildLineParagraphProperties(
     ? (basePPr.cloneNode(true) as Element)
     : xmlDoc.createElement("w:pPr");
 
-  // Se a linha já possui marcador explícito (ex.: 1.1.1, a), •), remove <w:numPr>
-  // herdado do template para evitar dupla numeração pelo Word
+  // Remove <w:numPr> herdado do template para evitar conflito em tabelas
   if (listInfo.hasExplicitMarker) {
     const numPrList = getDirectChildElements(pPr, "w:numPr");
     for (const numPr of numPrList) {
@@ -108,24 +236,36 @@ function buildLineParagraphProperties(
     }
   }
 
-  // Aplica recuo progressivo (<w:ind>) proporcional ao subnível (level >= 1)
-  if (listInfo.level >= 1) {
-    const leftTwips = listInfo.level * 360;
-    const hangingTwips = 360;
-    const existingIndList = getDirectChildElements(pPr, "w:ind");
-    const ind =
-      existingIndList.length > 0
-        ? existingIndList[0]
-        : xmlDoc.createElement("w:ind");
+  const effectiveLevel = Math.max(1, listInfo.level);
+  const leftTwips = effectiveLevel * 360;
+  const hangingTwips = Math.min(360 + (effectiveLevel - 1) * 120, leftTwips);
 
-    ind.removeAttribute("w:firstLine");
-    ind.removeAttribute("firstLine");
-    ind.setAttribute("w:left", String(leftTwips));
-    ind.setAttribute("w:hanging", String(hangingTwips));
+  // Aplica <w:tabs><w:tab w:val="left" w:pos="..."/></w:tabs> para alinhamento vertical da 2ª linha
+  const existingTabsList = getDirectChildElements(pPr, "w:tabs");
+  for (const oldTabs of existingTabsList) {
+    pPr.removeChild(oldTabs);
+  }
+  const tabsEl = xmlDoc.createElement("w:tabs");
+  const tabEl = xmlDoc.createElement("w:tab");
+  tabEl.setAttribute("w:val", "left");
+  tabEl.setAttribute("w:pos", String(leftTwips));
+  tabsEl.appendChild(tabEl);
+  pPr.appendChild(tabsEl);
 
-    if (existingIndList.length === 0) {
-      pPr.appendChild(ind);
-    }
+  // Aplica <w:ind w:left="..." w:hanging="..."/>
+  const existingIndList = getDirectChildElements(pPr, "w:ind");
+  const ind =
+    existingIndList.length > 0
+      ? existingIndList[0]
+      : xmlDoc.createElement("w:ind");
+
+  ind.removeAttribute("w:firstLine");
+  ind.removeAttribute("firstLine");
+  ind.setAttribute("w:left", String(leftTwips));
+  ind.setAttribute("w:hanging", String(hangingTwips));
+
+  if (existingIndList.length === 0) {
+    pPr.appendChild(ind);
   }
 
   return pPr;
@@ -295,9 +435,48 @@ export function normalizeNestedListsInState(
   return data;
 }
 
-function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
+function appendRichTextRunsToParagraph(
+  xmlDoc: Document,
+  targetP: Element,
+  textWithMarkdownBold: string,
+  normalRPr: Element | null
+): void {
+  const segments = textWithMarkdownBold.split(/(\*\*[^*]+\*\*)/g);
+  for (const seg of segments) {
+    if (!seg) continue;
+    const isBoldSeg =
+      seg.startsWith("**") && seg.endsWith("**") && seg.length > 4;
+    const cleanText = isBoldSeg ? seg.slice(2, -2) : seg;
+
+    const r = xmlDoc.createElement("w:r");
+    const rPrToUse = isBoldSeg
+      ? addBoldToRPr(xmlDoc, normalRPr)
+      : normalRPr
+        ? (normalRPr.cloneNode(true) as Element)
+        : null;
+    if (rPrToUse) {
+      r.appendChild(rPrToUse);
+    }
+
+    const t = xmlDoc.createElement("w:t");
+    t.setAttribute("xml:space", "preserve");
+    t.textContent = cleanText;
+    r.appendChild(t);
+    targetP.appendChild(r);
+  }
+}
+
+function postProcessRichTextAndLineBreaksInXmlDoc(
+  xmlDoc: Document,
+  numberingManager?: NumberingManager
+): boolean {
   let modified = false;
   const paragraphs = getAllElements(xmlDoc, "w:p");
+
+  // Controla a instância <w:num> ativa para listas decimais no <w:body>
+  let activeBodyChapter: number | null = null;
+  let activeBodyNumId: string | null = null;
+  const usedSubLevel1InCurrentNum = new Set<number>();
 
   for (const p of paragraphs) {
     const parent = p.parentNode;
@@ -310,8 +489,7 @@ function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
     const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
     const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
     const singleLineListInfo = detectHierarchicalListItem(fullText);
-    const hasMultiLevelItem =
-      singleLineListInfo.isListItem && singleLineListInfo.level >= 1;
+    const hasListItem = singleLineListInfo.isListItem;
     const hasNumberingConflict =
       singleLineListInfo.hasExplicitMarker &&
       extractParagraphNumbering(p) !== undefined;
@@ -319,12 +497,13 @@ function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
     if (
       !hasLineBreaks &&
       !hasMarkdownBold &&
-      !hasMultiLevelItem &&
+      !hasListItem &&
       !hasNumberingConflict
     ) {
       continue;
     }
 
+    const insideTable = isInsideTableCell(p);
     const pPrList = getDirectChildElements(p, "w:pPr");
     let basePPr =
       pPrList.length > 0 ? (pPrList[0].cloneNode(true) as Element) : null;
@@ -345,37 +524,103 @@ function postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc: Document): boolean {
     for (const line of lines) {
       const newP = xmlDoc.createElement("w:p");
       const lineListInfo = detectHierarchicalListItem(line);
-      const linePPr = buildLineParagraphProperties(
-        xmlDoc,
-        basePPr,
-        lineListInfo
-      );
-      if (linePPr) {
-        newP.appendChild(linePPr);
-      }
 
-      const segments = line.split(/(\*\*[^*]+\*\*)/g);
-      for (const seg of segments) {
-        if (!seg) continue;
-        const isBoldSeg =
-          seg.startsWith("**") && seg.endsWith("**") && seg.length > 4;
-        const cleanText = isBoldSeg ? seg.slice(2, -2) : seg;
+      const isDecimalListOutsideTable =
+        !insideTable &&
+        numberingManager !== undefined &&
+        lineListInfo.isListItem &&
+        (lineListInfo.kind === "multi_decimal" ||
+          lineListInfo.kind === "single_decimal");
 
-        const r = xmlDoc.createElement("w:r");
-        const rPrToUse = isBoldSeg
+      if (isDecimalListOutsideTable && numberingManager) {
+        // Modo 1: Fora de Tabela (<w:body>) — Lista Multinível Nativa com word/numbering.xml + <w:numPr>
+        const chapter = lineListInfo.chapterNumber ?? 1;
+        const subLvl1 =
+          lineListInfo.segments.length > 1 ? lineListInfo.segments[1] : null;
+
+        const shouldAllocateNewNum =
+          activeBodyNumId === null ||
+          activeBodyChapter !== chapter ||
+          (lineListInfo.level === 1 &&
+            subLvl1 !== null &&
+            usedSubLevel1InCurrentNum.has(subLvl1));
+
+        if (shouldAllocateNewNum) {
+          activeBodyNumId = numberingManager.createMultilevelDecimalNum(
+            chapter,
+            lineListInfo.segments
+          );
+          activeBodyChapter = chapter;
+          usedSubLevel1InCurrentNum.clear();
+        }
+
+        if (subLvl1 !== null) {
+          usedSubLevel1InCurrentNum.add(subLvl1);
+        }
+
+        const nativePPr = buildNativeNumberingParagraphProperties(
+          xmlDoc,
+          basePPr,
+          lineListInfo.level,
+          activeBodyNumId!
+        );
+        newP.appendChild(nativePPr);
+
+        // Limpa o prefixo numérico literal do <w:t> (usa cleanRemainder)
+        appendRichTextRunsToParagraph(
+          xmlDoc,
+          newP,
+          lineListInfo.cleanRemainder,
+          normalRPr
+        );
+      } else if (lineListInfo.isListItem) {
+        // Modo 2: Dentro de Tabela (<w:tc>) ou Alíneas/Bullets — Hanging Indent Estático com <w:tab/>
+        const hangingPPr = buildHangingIndentParagraphProperties(
+          xmlDoc,
+          basePPr,
+          lineListInfo
+        );
+        if (hangingPPr) {
+          newP.appendChild(hangingPPr);
+        }
+
+        // Run 1: Marcador literal
+        const markerRun = xmlDoc.createElement("w:r");
+        const markerRPr = lineListInfo.markerBold
           ? addBoldToRPr(xmlDoc, normalRPr)
           : normalRPr
             ? (normalRPr.cloneNode(true) as Element)
             : null;
-        if (rPrToUse) {
-          r.appendChild(rPrToUse);
+        if (markerRPr) {
+          markerRun.appendChild(markerRPr);
         }
+        const markerT = xmlDoc.createElement("w:t");
+        markerT.setAttribute("xml:space", "preserve");
+        markerT.textContent = lineListInfo.markerText;
+        markerRun.appendChild(markerT);
+        newP.appendChild(markerRun);
 
-        const t = xmlDoc.createElement("w:t");
-        t.setAttribute("xml:space", "preserve");
-        t.textContent = cleanText;
-        r.appendChild(t);
-        newP.appendChild(r);
+        // Run 2: Tabulação <w:r><w:tab/></w:r>
+        const tabRun = xmlDoc.createElement("w:r");
+        if (normalRPr) {
+          tabRun.appendChild(normalRPr.cloneNode(true));
+        }
+        tabRun.appendChild(xmlDoc.createElement("w:tab"));
+        newP.appendChild(tabRun);
+
+        // Runs seguintes: Corpo do parágrafo sem o prefixo literal
+        appendRichTextRunsToParagraph(
+          xmlDoc,
+          newP,
+          lineListInfo.cleanRemainder,
+          normalRPr
+        );
+      } else {
+        // Parágrafo comum sem marcador de lista
+        if (basePPr) {
+          newP.appendChild(basePPr.cloneNode(true));
+        }
+        appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
       }
 
       parent.insertBefore(newP, p);
@@ -396,6 +641,12 @@ async function postProcessInjectedDocxBuffer(
   const serializer = new XMLSerializer();
   let anyModified = false;
 
+  const existingNumberingFile = zip.file("word/numbering.xml");
+  const existingNumberingXml = existingNumberingFile
+    ? await existingNumberingFile.async("string")
+    : null;
+  const numberingManager = new NumberingManager(existingNumberingXml);
+
   const fileNames = Object.keys(zip.files).sort();
   for (const name of fileNames) {
     if (
@@ -406,11 +657,18 @@ async function postProcessInjectedDocxBuffer(
       if (!partFile) continue;
       const xmlStr = await partFile.async("string");
       const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
-      if (postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc)) {
+      const managerForPart =
+        name === "word/document.xml" ? numberingManager : undefined;
+      if (postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc, managerForPart)) {
         zip.file(name, serializer.serializeToString(xmlDoc));
         anyModified = true;
       }
     }
+  }
+
+  if (numberingManager.isModified()) {
+    await ensureNumberingPart(zip, numberingManager);
+    anyModified = true;
   }
 
   if (!anyModified) {

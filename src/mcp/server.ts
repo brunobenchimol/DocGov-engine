@@ -162,7 +162,7 @@ export function getMcpToolsDefinition() {
     {
       name: "fill_docx_template",
       description:
-        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível (1.1, 1.1.1, etc.).\n" +
+        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível via Motor Híbrido v0.7.0 (word/numbering.xml + <w:numPr> com startOverride fora de tabelas e Hanging Indent com <w:tab/> dentro de tabelas).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).",
       inputSchema: {

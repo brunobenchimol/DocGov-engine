@@ -287,7 +287,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.6.4", () => {
+describe("DocGov Docx Engine v0.7.0", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -308,7 +308,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     writeFileSync(templatePath, Buffer.from(MINIMAL_DOCX_BASE64, "base64"));
 
     const mockState = {
-      processo_id: "POC-2026-PA-001",
+      processo_id: "POC-2026-001",
       objeto: {
         descricao: "Contratação de plataforma em nuvem para o Órgão Y",
       },
@@ -743,14 +743,16 @@ describe("DocGov Docx Engine v0.6.4", () => {
       "1.1.1.1.1 Arquitetura: Compatível com x86_64 de última geração."
     );
 
-    // Verifica no XML que <w:numPr> conflitante foi removido e que os recuos <w:ind> são progressivos (360, 720, 1080, 1440)
+    // Verifica que no <w:body> (v0.7.0) <w:numPr> nativo foi aplicado em document.xml e os recuos progressivos estão em word/numbering.xml
     const outZip = await JSZip.loadAsync(readFileSync(nestedOutPath));
     const outXml = await outZip.file("word/document.xml")!.async("string");
-    expect(outXml).not.toContain("<w:numPr>");
-    expect(outXml).toContain('w:left="360"');
-    expect(outXml).toContain('w:left="720"');
-    expect(outXml).toContain('w:left="1080"');
-    expect(outXml).toContain('w:left="1440"');
+    const numXml = await outZip.file("word/numbering.xml")!.async("string");
+    expect(outXml).toContain("<w:numPr>");
+    expect(outXml).not.toContain('w:val="5"'); // numId antigo 5 foi substituído pelo novo numId sincronizado
+    expect(numXml).toContain('w:left="360"');
+    expect(numXml).toContain('w:left="720"');
+    expect(numXml).toContain('w:left="1080"');
+    expect(numXml).toContain('w:left="1440"');
   });
 
   test("deve filtrar parágrafos e células vazias no modo compacto preservando os índices originais (compactInspectionResult)", () => {
@@ -1683,9 +1685,11 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
   });
 
-  test("deve expor versão 0.6.4 e novos recursos v0.6.4 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.6.4");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.4");
+  test("deve expor versão 0.7.0 e novos recursos v0.7.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.7.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.7.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Motor Híbrido de Lista Multinível Nativa");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("word/numbering.xml");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade Temporal do Cache");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Exact Copy-Paste Error");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("--dump-spec");
@@ -1720,6 +1724,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
 
     const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
     expect(fillTool.description).toContain("visao_auditoria");
+    expect(fillTool.description).toContain("word/numbering.xml");
     expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
@@ -2101,14 +2106,15 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(errAudit3.message).toContain("apontamentos");
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.4)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.7.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.4)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.7.0)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
     expect(spec).toContain("Neutralidade Institucional Absoluta");
     expect(spec).toContain("Resiliência e Cache Global (core/registry/templates/)");
+    expect(spec).toContain("Motor Híbrido de Lista Multinível Nativa (v0.7.0)");
     expect(spec).toContain("created_at");
     expect(spec).toContain("updated_at");
     expect(spec).toContain("age_days");
@@ -2130,7 +2136,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(spec).toContain("loop_table_rows");
   });
 
-  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.6.4)", async () => {
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.7.0)", async () => {
     const barrel = await import("../src/index.ts");
 
     // Ferramentas do Pipeline
@@ -2171,13 +2177,17 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(typeof barrel.unflattenDotKeys).toBe("function");
     expect(typeof barrel.resolveTargetFileName).toBe("function");
     expect(typeof barrel.detectFileExtensionFromBuffer).toBe("function");
+    expect(typeof barrel.isInsideTableCell).toBe("function");
+    expect(typeof barrel.ensureNumberingPart).toBe("function");
+    expect(typeof barrel.createNumberingResolver).toBe("function");
+    expect(typeof barrel.NumberingManager).toBe("function");
 
     // Contratos de Erro
     expect(typeof barrel.createSlotsManifestContractError).toBe("function");
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.6.4");
+    expect(barrel.VERSION).toBe("0.7.0");
   });
 
   test("deve gravar e ler rastreabilidade temporal no cache (created_at, updated_at, age_days, engine_version, slots_count), preservando created_at ao atualizar e orientando Gate 1 (v0.6.4)", async () => {
@@ -2207,7 +2217,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     const diskEntryV1 = safeReadJsonFile<TemplateRegistryEntry>(savedPath);
     expect(isValidIsoDate(diskEntryV1.created_at)).toBe(true);
     expect(isValidIsoDate(diskEntryV1.updated_at)).toBe(true);
-    expect(diskEntryV1.engine_version).toBe("0.6.4");
+    expect(diskEntryV1.engine_version).toBe("0.7.0");
     expect(diskEntryV1.slots_count).toBe(2);
 
     // Simula que o template foi criado há 5 dias atrás no disco e agora recebe uma atualização com 3 slots
@@ -2236,7 +2246,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(diskEntryV2.created_at).toBe(fiveDaysAgoIso);
     expect(diskEntryV2.updated_at).not.toBe(fiveDaysAgoIso);
     expect(isValidIsoDate(diskEntryV2.updated_at)).toBe(true);
-    expect(diskEntryV2.engine_version).toBe("0.6.4");
+    expect(diskEntryV2.engine_version).toBe("0.7.0");
     expect(diskEntryV2.slots_count).toBe(3);
 
     // Inspeciona documento contra esse cache atualizado
@@ -2251,7 +2261,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(matchedInsp.template_match?.updated_at).toBe(diskEntryV2.updated_at);
     expect(matchedInsp.template_match?.age_days).toBe(0);
     expect(matchedInsp.template_match?.cache_date_status).toBe("KNOWN");
-    expect(matchedInsp.template_match?.engine_version).toBe("0.6.4");
+    expect(matchedInsp.template_match?.engine_version).toBe("0.7.0");
     expect(matchedInsp.template_match?.slots_count).toBe(3);
 
     const synthetic = formatInspectDocxSyntheticResult(
@@ -2264,7 +2274,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(synthetic.template_match?.updated_at).toBe(diskEntryV2.updated_at);
     expect(synthetic.template_match?.age_days).toBe(0);
     expect(synthetic.template_match?.cache_date_status).toBe("KNOWN");
-    expect(synthetic.template_match?.engine_version).toBe("0.6.4");
+    expect(synthetic.template_match?.engine_version).toBe("0.7.0");
     expect(synthetic.template_match?.slots_count).toBe(3);
     expect(synthetic.next_step_hint).toContain(
       `Cache reconhecido (EXACT, criado/atualizado em ${expectedDateYmd}, 3 slots). Informe a data ao usuário no Gate 1.`
@@ -2448,6 +2458,215 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(syntheticNoInspect.visao_auditoria_path).toBeUndefined();
     expect(Buffer.byteLength(JSON.stringify(syntheticNoInspect), "utf-8")).toBeLessThan(1024);
   });
+
+  // ==========================================================================
+  // Testes da Evolução Major v0.7.0 — Motor Híbrido de Lista Multinível Nativa
+  // ==========================================================================
+
+  test("Motor Híbrido v0.7.0: Fora de tabela (<w:body>) deve criar word/numbering.xml (9 níveis + startOverride do capítulo pai + limpeza do prefixo literal) e dentro de tabela (<w:tc>) deve aplicar Hanging Indent com <w:r><w:tab/></w:r>, sincronizando inspect_docx e visao_auditoria", async () => {
+    const hybridFolder = resolve(tempDir, "hybrid_list_v070_case");
+    const inputsDir = resolve(hybridFolder, "inputs");
+    const stateDir = resolve(hybridFolder, "state");
+    const outputDir = resolve(hybridFolder, "output");
+    mkdirSync(inputsDir, { recursive: true });
+    mkdirSync(stateDir, { recursive: true });
+    mkdirSync(outputDir, { recursive: true });
+
+    const rawDocx = resolve(inputsDir, "modelo_tr_orgao_contratante.docx");
+    const templateDocx = resolve(stateDir, "template_tr.docx");
+    const manifestFile = resolve(stateDir, "slots_manifest.json");
+    const stateFile = resolve(stateDir, "estado_caso.json");
+    const finalDocx = resolve(outputDir, "TR_ORGAO_CONTRATANTE.docx");
+
+    // Cria documento bruto com numbering.xml pré-existente (abstractNumId="1", numId="1") para testar preservação
+    const zip = new JSZip();
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    zip.file(
+      "word/numbering.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="bullet"/><w:lvlText w:val="•"/></w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num>
+</w:numbering>`
+    );
+    zip.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p>
+      <w:pPr><w:pStyle w:val="Heading1"/></w:pPr>
+      <w:r><w:rPr><w:b/></w:rPr><w:t>4. REQUISITOS DA CONTRATAÇÃO (ORGAO_CONTRATANTE)</w:t></w:r>
+    </w:p>
+    <w:p>
+      <w:pPr><w:pStyle w:val="BodyText"/></w:pPr>
+      <w:r><w:t>Placeholder de subitens do capítulo 4 no texto corrido.</w:t></w:r>
+    </w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Obrigações Específicas (MUNICIPIO_GENERICO)</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Placeholder de subitens dentro de célula de tabela.</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+    );
+    writeFileSync(rawDocx, await zip.generateAsync({ type: "nodebuffer" }));
+
+    // Constrói o template parametrizando P1 (fora de tabela) e T0.R0.C1 (dentro de tabela)
+    writeFileSync(
+      manifestFile,
+      JSON.stringify(
+        {
+          slots: [
+            { coord: "P1", tag: "{{tr.requisitos_cap4}}" },
+            { coord: "T0.R0.C1", tag: "{{tr.obrigacoes_tabela}}" },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+    await buildDocxTemplate(rawDocx, manifestFile, templateDocx);
+
+    // Injeta subitens do capítulo 4 fora de tabela e subitens 1.1/1.1.1/a)/- dentro de tabela
+    const stateData = {
+      tr: {
+        requisitos_cap4: [
+          "**4.1. Sustentabilidade Ambiental:** A contratada deverá observar diretrizes federais.",
+          "**4.1.1. Logística Reversa:** Descarte ambientalmente adequado de insumos.",
+          "**4.1.2. Eficiência Energética:** Equipamentos com selo de baixo consumo.",
+          "**4.2. Subcontratação:** Não será admitida a subcontratação do objeto principal.",
+        ].join("\n"),
+        obrigacoes_tabela: [
+          "**1.1. Prazo de Entrega:** Até 15 dias úteis na sede do ORGAO_A.",
+          "**1.1.1. Local de Recebimento:** Almoxarifado Central do ORGAO_B.",
+          "  a) Conferência provisória no ato da entrega;",
+          "  - Termo de recebimento definitivo em 5 dias.",
+        ].join("\n"),
+      },
+    };
+    writeFileSync(stateFile, JSON.stringify(stateData, null, 2), "utf-8");
+
+    const fillRes = await processDocument(templateDocx, stateFile, finalDocx);
+    expect(fillRes.success).toBe(true);
+    expect(existsSync(finalDocx)).toBe(true);
+
+    // 1. Verifica pacote OpenXML gerado (numbering.xml, _rels/document.xml.rels, [Content_Types].xml)
+    const outZip = await JSZip.loadAsync(readFileSync(finalDocx));
+    const ctXml = await outZip.file("[Content_Types].xml")!.async("string");
+    const relsXml = await outZip
+      .file("word/_rels/document.xml.rels")!
+      .async("string");
+    const numXml = await outZip.file("word/numbering.xml")!.async("string");
+    const docXml = await outZip.file("word/document.xml")!.async("string");
+
+    // [Content_Types].xml e _rels
+    expect(ctXml).toContain('PartName="/word/numbering.xml"');
+    expect(ctXml).toContain(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"
+    );
+    expect(relsXml).toContain(
+      "http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering"
+    );
+    expect(relsXml).toContain('Target="numbering.xml"');
+
+    // Preservação da instância original (abstractNumId="1" e numId="1") em word/numbering.xml
+    expect(numXml).toContain('w:abstractNumId="1"');
+    expect(numXml).toContain('w:numId="1"');
+
+    // Nova definição multinível de 9 níveis (ilvl 0 a 8) com <w:suff w:val="tab"/> e <w:startOverride w:val="4"/>
+    expect(numXml).toContain('w:lvlText w:val="%1."');
+    expect(numXml).toContain('w:lvlText w:val="%1.%2."');
+    expect(numXml).toContain('w:lvlText w:val="%1.%2.%3."');
+    expect(numXml).toContain('w:lvlText w:val="%1.%2.%3.%4.%5.%6.%7.%8.%9."');
+    expect(numXml).toContain('<w:suff w:val="tab"/>');
+    expect(numXml).toContain('<w:startOverride w:val="4"/>');
+
+    // 2. Verifica que no <w:body> o prefixo literal ("4.1.1.") foi removido do <w:t> e <w:numPr> foi injetado
+    expect(docXml).not.toContain("4.1.1.");
+    expect(docXml).not.toContain("4.1.2.");
+    expect(docXml).toContain("Sustentabilidade Ambiental:");
+    expect(docXml).toContain("Logística Reversa:");
+    expect(docXml).toContain('<w:ilvl w:val="1"/>');
+    expect(docXml).toContain('<w:ilvl w:val="2"/>');
+
+    // 3. Verifica que dentro de <w:tc> o número literal ("1.1.1.") foi mantido e separado por <w:tab/> com Hanging Indent
+    expect(docXml).toContain("1.1.1.");
+    expect(docXml).toContain("<w:tab/>");
+    expect(docXml).toContain('<w:tab w:val="left" w:pos="720"/>');
+    expect(docXml).toContain('w:hanging="480"');
+
+    // 4. Verifica sincronia com inspect_docx e visao_auditoria_*.md
+    const finalInsp = await inspectDocx(finalDocx);
+    expect(finalInsp.paragraphs[0].text).toBe(
+      "4. REQUISITOS DA CONTRATAÇÃO (ORGAO_CONTRATANTE)"
+    );
+    expect(finalInsp.paragraphs[1].text).toBe(
+      "4.1 Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
+    );
+    expect(finalInsp.paragraphs[2].text).toBe(
+      "4.1.1 Logística Reversa: Descarte ambientalmente adequado de insumos."
+    );
+    expect(finalInsp.paragraphs[3].text).toBe(
+      "4.1.2 Eficiência Energética: Equipamentos com selo de baixo consumo."
+    );
+    expect(finalInsp.paragraphs[4].text).toBe(
+      "4.2 Subcontratação: Não será admitida a subcontratação do objeto principal."
+    );
+
+    // Dentro da célula da tabela, os itens mantêm a numeração literal separada por espaço limpo
+    const tableCellText = finalInsp.tables[0].rows[0].cells[1].text;
+    expect(tableCellText).toContain(
+      "1.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
+    );
+    expect(tableCellText).toContain(
+      "1.1.1. Local de Recebimento: Almoxarifado Central do ORGAO_B."
+    );
+    expect(tableCellText).toContain(
+      "a) Conferência provisória no ato da entrega;"
+    );
+    expect(tableCellText).toContain(
+      "- Termo de recebimento definitivo em 5 dias."
+    );
+
+    // Verifica que a visão linear de auditoria gerada contém os números reconstruídos
+    const auditMd = readFileSync(fillRes.visao_auditoria_path!, "utf-8");
+    expect(auditMd).toContain(
+      "4.1 Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
+    );
+    expect(auditMd).toContain(
+      "4.1.1 Logística Reversa: Descarte ambientalmente adequado de insumos."
+    );
+    expect(auditMd).toContain(
+      "4.1.2 Eficiência Energética: Equipamentos com selo de baixo consumo."
+    );
+    expect(auditMd).toContain(
+      "4.2 Subcontratação: Não será admitida a subcontratação do objeto principal."
+    );
+    expect(auditMd).toContain(
+      "1.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
+    );
+  });
 });
+
 
 

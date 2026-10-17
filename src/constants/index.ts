@@ -1,4 +1,4 @@
-export const VERSION = "0.6.4";
+export const VERSION = "0.7.0";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -10,15 +10,16 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
 1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\\x03\\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
-2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/') com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
+2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/') com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), reconstruindo visualmente a numeração de listas nativas ('word/numbering.xml' + '<w:numPr>'), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
 3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta coordenadas compactas (ex.: 'coord': 'T0.R1.C1' ou 'P2', com ou sem colchetes), array unificado 'slots', aliases, validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op com contagem de applied_slots_count) e a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
-4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível. Executa automaticamente a inspeção estrutural pós-compilação gravando 'state/inspecao_<stem>.json' e 'state/visao_auditoria_<stem>.md' na pasta state/ do caso para dispensar rodar inspect_docx novamente antes da auditoria externa.
+4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível via Motor Híbrido (v0.7.0: lista nativa 'word/numbering.xml' + '<w:numPr>' com '<w:startOverride>' fora de tabelas e Hanging Indent estático com '<w:tab/>' dentro de tabelas). Executa automaticamente a inspeção estrutural pós-compilação gravando 'state/inspecao_<stem>.json' e 'state/visao_auditoria_<stem>.md' na pasta state/ do caso para dispensar rodar inspect_docx novamente antes da auditoria externa.
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast com padrão Exact Copy-Paste Error, fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
+- Motor Híbrido de Lista Multinível Nativa (v0.7.0): Fora de tabelas (<w:body>), desmembra subitens decimais (ex.: 4.1, 4.1.1) em lista multinível nativa do Word ('word/numbering.xml' de 9 níveis com '<w:suff w:val="tab"/>', '<w:numPr>' e '<w:startOverride>' sincronizado com o capítulo pai, limpando o prefixo literal do '<w:t>'). Dentro de tabelas (<w:tc>) ou em alíneas/bullets, aplica Hanging Indent estático ('<w:ind w:left w:hanging>' + '<w:tabs>') separando o número literal com '<w:r><w:tab/></w:r>'.
 - Rastreabilidade Temporal do Cache & Retrocompatibilidade Estrita (v0.6.4): Gravação e leitura de 'created_at', 'updated_at', 'age_days', 'cache_date_status', 'engine_version' e 'slots_count' no cache global, preservando 'created_at' original em atualizações e suportando caches legados sem datas (reportando 'NÃO DISPONÍVEL' / 'age_days: null' sem usar mtime do disco) para decisão informada no Gate 1.
 - Arquitetura Modular & Re-export Barrel (v0.6.3): Decomposição limpa do motor em submódulos especializados (types, core, tools, mcp, cli) mantendo 100% de compatibilidade retroativa e integridade de exportações.
-- Especificação Técnica de Consumo (--dump-spec v0.6.4): Flag CLI para exportação da especificação normativa de consumo do motor em Markdown (UTF-8).
+- Especificação Técnica de Consumo (--dump-spec v0.7.0): Flag CLI para exportação da especificação normativa de consumo do motor em Markdown (UTF-8).
 - Padrão Exact Copy-Paste Error (v0.6.2): Validação fail-fast estrita em slots_manifest.json e relatorio_auditoria.json. Caso ocorra erro de contrato ou 0 slots sejam aplicados, o motor interrompe com instrução imperativa e snippet JSON canônico completo pronto para copiar e colar.
 - Coordenadas Compactas & Normalização Universal (v0.6.1): Suporte nativo a 'coord': 'T0.R1.C1' e 'coord': 'P2' (com ou sem colchetes), array unificado 'slots: [...]' ou array puro na raiz, aliases ('col_index', 'paragraph_index') e parsing automático para arrays canônicos.
 - Validação Fail-Fast Zero Silent No-Op (v0.6.1): Rejeição imediata com erro descritivo caso o manifesto tenha 0 regras reconhecidas ou resulte em 0 slots aplicados no OpenXML, impedindo salvar templates vazios ou persistir lixo no cache.
@@ -32,13 +33,13 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 - Condicionais: {{IF condicao}} ... {{END-IF}}
 - Negrito Seletivo: **texto em negrito** dentro de strings é convertido automaticamente em runs <w:b/> sem herança indevida do estilo do subtítulo.
 - Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
-- Listas Hierárquicas Multinível: Suporte nativo a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com recuo progressivo <w:ind> e achatamento recursivo de árvores de subitens.
+- Listas Hierárquicas Multinível: Suporte nativo híbrido a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com 'word/numbering.xml' fora de tabelas, Hanging Indent com '<w:tab/>' dentro de tabelas e achatamento recursivo de árvores de subitens.
 - Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.
 - Nomenclatura Semântica & Magic Bytes: Preservação de nomes humanos, auto-batismo de uploads anônimos (media_*) com prefixo semântico e hash curto de 4 caracteres, e inferência de extensão por magic bytes (PK\\x03\\x04 para .docx e %PDF para .pdf).
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.4)
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.7.0)
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
 
@@ -58,13 +59,13 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 ### Passo 2: Mapeamento Estrutural e Cache Global (inspect_docx)
 - **Chamada:** \`inspect_docx({ docxPath: "cases/<nome_caso>/inputs/modelo_etp.docx", outputPath: "cases/<nome_caso>/state/estrutura_etp.json", compact: true })\`
 - **Efeito:**
-  - Analisa o OpenXML bruto (\`document.xml\`, \`header1.xml\`, \`footer1.xml\`).
+  - Analisa o OpenXML bruto (\`document.xml\`, \`header1.xml\`, \`footer1.xml\`, \`numbering.xml\`).
   - Constrói o índice estrutural rápido \`toc_map\` no topo do JSON.
   - Extrai a impressão digital estrutural (\`structure_fingerprint\`) e compara contra todos os templates salvos em \`core/registry/templates/\`, expondo rastreabilidade temporal (\`created_at\`, \`updated_at\`, \`age_days\`, \`cache_date_status\`, \`engine_version\`, \`slots_count\`) com retrocompatibilidade para caches legados:
     - **EXACT (100%):** Devolve \`template_match: { status: "EXACT", registry_path: "...", created_at, updated_at, age_days, slots_count }\`.
     - **MODIFIED (75% a 99%):** Calcula deslocamento de linhas (*Auto-Offset*), gera automaticamente \`state/adapted_slots_manifest.json\` e devolve \`status: "MODIFIED"\`.
     - **NEW (< 75%):** Devolve \`status: "NEW"\`.
-  - Gera em \`state/\` o espelho linear \`visao_auditoria_<nome_base>.md\` para leitura em turno único pelo auditor externo.
+  - Gera em \`state/\` o espelho linear \`visao_auditoria_<nome_base>.md\` para leitura em turno único pelo auditor externo, reconstruindo visualmente os números de listas nativas (\`<w:numPr>\`).
   - Retorna um sumário executivo conciso (\`toc_summary\`) de tamanho < 1 KB no corpo da chamada MCP com \`template_match\` e \`audit_view_path\`.
 
 ### Passo 3: Parametrização do Template (build_docx_template)
@@ -120,7 +121,9 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
   - Auto-saneamento de JSON e desaninhamento (*unflatten*) automático de chaves com notação de ponto (ex.: \`"etp.objeto": "..."\`).
   - Textos com \`**negrito**\` são renderizados em negrito seletivo (<w:b/>) sem contaminação do parágrafo.
   - Quebras \`\\n\` são convertidas em parágrafos reais <w:p>.
-  - Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
+  - **Motor Híbrido de Lista Multinível Nativa (v0.7.0):**
+    - Fora de tabelas (\`<w:body>\`): gera lista multinível nativa em \`word/numbering.xml\` (9 níveis) com \`<w:numPr>\` e \`<w:startOverride>\` sincronizado com o capítulo pai, limpando o prefixo numérico literal do \`<w:t>\`.
+    - Dentro de tabelas (\`<w:tc>\`): mantém o marcador literal separado por \`<w:r><w:tab/></w:r>\` com *Hanging Indent* (\`<w:ind w:left w:hanging>\` + \`<w:tabs>\`).
   - **Auto-Inspeção Integrada:** Grava automaticamente \`state/inspecao_<stem>.json\` e o espelho linear de auditoria \`state/visao_auditoria_<stem>.md\` na pasta \`state/\` do caso, dispensando rodar \`inspect_docx\` novamente.
   - Retorna payload sintético (< 1 KB) contendo \`status\`, \`outputPath\`, \`inspection_path\`, \`visao_auditoria_path\` e \`next_step_hint\` orientando acionar diretamente o Auditor Externo lendo a visão linear gerada.
 
@@ -136,4 +139,5 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
   - Sanitização de crases markdown, coordenadas técnicas e códigos de enum.
   - Fichas verticais individualizadas com múltiplos trechos probatórios transcritos em blocos de citação recuados.
 `.trim();
+
 
