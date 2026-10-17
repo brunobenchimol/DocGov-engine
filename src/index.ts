@@ -24,7 +24,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.6.0";
+export const VERSION = "0.6.1";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -37,12 +37,15 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
 1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\\x03\\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
 2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/'), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
-3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
+3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta coordenadas compactas (ex.: 'coord': 'T0.R1.C1' ou 'P2', com ou sem colchetes), array unificado 'slots', aliases, validação fail-fast estrita (Zero Silent No-Op com contagem de applied_slots_count) e a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
 4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
    - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map e state/visao_auditoria_output.md) para fornecer o espelho linear de leitura integral em 1 único turno ao auditor externo.
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
+- Coordenadas Compactas & Normalização Universal (v0.6.1): Suporte nativo a 'coord': 'T0.R1.C1' e 'coord': 'P2' (com ou sem colchetes), array unificado 'slots: [...]' ou array puro na raiz, aliases ('col_index', 'paragraph_index') e parsing automático para arrays canônicos.
+- Validação Fail-Fast Zero Silent No-Op (v0.6.1): Rejeição imediata com erro descritivo caso o manifesto tenha 0 regras reconhecidas ou resulte em 0 slots aplicados no OpenXML, impedindo salvar templates vazios ou persistir lixo no cache.
+- Sanity Check de Cache Global (v0.6.1): O carregamento em loadAllRegistryTemplates normaliza os manifestos e descarta silenciosamente entradas corrompidas com 0 regras.
 - Cache Global Cross-Órgão & Matching 1-para-N (v0.6.0): Identificação automática de templates homologados (status EXACT, MODIFIED ou NEW) em core/registry/templates/.
 - Reancoragem Automática de Coordenadas (Auto-Offset v0.6.0): Detecção de drift (75% a 99%) por emparelhamento de rótulos/perguntas de formulário e cabeçalhos de tabelas, gerando adapted_slots_manifest.json automaticamente.
 - Visão Linear Compacta de Auditoria (v0.6.0): Geração de visao_auditoria_<doc>.md contendo ordenação sequencial estrita com marcadores técnicos [P...] e [T...R...C...], permitindo leitura cega integral em 1 único turno.
@@ -58,7 +61,7 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.0)
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.1)
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
 
@@ -89,9 +92,22 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 
 ### Passo 3: Parametrização do Template (build_docx_template)
 - **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx", saveToRegistry: true })\`
+- **Normalização Universal & Coordenadas Compactas (v0.6.1):** Aceita coordenadas compactas diretamente do \`toc_map\` (ex.: \`"coord": "T0.R1.C1"\` ou \`"coord": "P3"\`, com ou sem colchetes \`[T0.R1.C1]\`), array raiz unificado \`slots: [...] \` ou array puro na raiz.
+- **Validação Fail-Fast (Zero Silent No-Op v0.6.1):** Se o manifesto tiver 0 regras reconhecidas ou se 0 slots forem aplicados no OpenXML, a execução falha imediatamente com erro detalhado. O arquivo de saída não é gravado e o cache não é corrompido.
 - **Tolerância a JSON:** Se o \`slots_manifest.json\` contiver trailing commas ou quebras em strings, o motor repara automaticamente o arquivo e o regrava limpo.
 - **Homologação Global:** Com \`saveToRegistry: true\`, persiste o manifesto e a impressão digital no registro global \`core/registry/templates/<template_id>.json\` para reuso futuro.
-- **Estrutura do slots_manifest.json:**
+- **Estruturas Suportadas de slots_manifest.json:**
+  - *Estilo Compacto (Recomendado):*
+\`\`\`json
+{
+  "slots": [
+    { "coord": "P3", "tag": "{{estudo.descricao_necessidade}}" },
+    { "coord": "T0.R0.C1", "tag": "{{metadados.unidade_requisitante}}" },
+    { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }
+  ]
+}
+\`\`\`
+  - *Estilo Canônico Detalhado:*
 \`\`\`json
 {
   "replace_paragraphs": [
@@ -293,12 +309,58 @@ export interface ReplaceInlineRule {
   replace: string;
 }
 
+export interface CompactSlotRule {
+  coord?: string;
+  tag?: string;
+  table_index?: number;
+  row_index?: number;
+  cell_index?: number;
+  col_index?: number;
+  column_index?: number;
+  table?: number;
+  row?: number;
+  col?: number;
+  start_p?: number;
+  end_p?: number;
+  paragraph_index?: number;
+  p_index?: number;
+  for_open_tag?: string;
+  for_close_tag?: string;
+  item_tag?: string;
+  cell_tags?: string[];
+  remove_from_row?: number;
+  remove_to_row?: number;
+  header_row_index?: number;
+  template_row_index?: number;
+  find?: string;
+  replace?: string;
+  [key: string]: any;
+}
+
 export interface SlotsManifest {
+  slots?: CompactSlotRule[];
   replace_paragraphs?: ReplaceParagraphRule[];
   loop_paragraphs?: LoopParagraphsRule[];
   replace_table_cells?: ReplaceTableCellRule[];
   loop_table_rows?: LoopTableRowsRule[];
   replace_inline?: ReplaceInlineRule[];
+  [key: string]: any;
+}
+
+export interface BuildDocxTemplateBreakdown {
+  replace_paragraphs: number;
+  loop_paragraphs: number;
+  replace_table_cells: number;
+  loop_table_rows: number;
+  replace_inline: number;
+}
+
+export interface BuildDocxTemplateResult {
+  success: boolean;
+  message: string;
+  registryPath?: string;
+  applied_slots_count: number;
+  breakdown: BuildDocxTemplateBreakdown;
 }
 
 export interface SelfUpdateOptions {
@@ -420,6 +482,16 @@ export interface InspectDocxSyntheticResult {
     title: string;
     target?: string;
   }>;
+  next_step_hint: string;
+}
+
+export interface BuildDocxTemplateSyntheticResult {
+  status: "success";
+  outputPath: string;
+  applied_slots_count: number;
+  breakdown: BuildDocxTemplateBreakdown;
+  registryPath?: string;
+  message: string;
   next_step_hint: string;
 }
 
@@ -792,9 +864,9 @@ function appendTextRunToTableCell(
 function applyInlineReplacementsToXmlDoc(
   xmlDoc: Document,
   rules: ReplaceInlineRule[]
-): boolean {
-  if (!rules || rules.length === 0) return false;
-  let modified = false;
+): number {
+  if (!rules || rules.length === 0) return 0;
+  let count = 0;
   const paragraphs = getAllElements(xmlDoc, "w:p");
 
   for (const p of paragraphs) {
@@ -806,6 +878,7 @@ function applyInlineReplacementsToXmlDoc(
       const fullText = tNodes.map((t) => t.textContent ?? "").join("");
       if (!fullText.includes(rule.find)) continue;
 
+      const occurrences = fullText.split(rule.find).length - 1;
       const updatedText = fullText.split(rule.find).join(rule.replace);
       tNodes[0].setAttribute("xml:space", "preserve");
       tNodes[0].textContent = updatedText;
@@ -826,11 +899,11 @@ function applyInlineReplacementsToXmlDoc(
           extraT.parentNode.removeChild(extraT);
         }
       }
-      modified = true;
+      count += occurrences;
     }
   }
 
-  return modified;
+  return count;
 }
 
 async function ensureContentTypesOverride(zip: JSZip): Promise<void> {
@@ -1262,6 +1335,227 @@ export function getTemplateRegistryDir(
   return resolve(process.cwd(), "core", "registry", "templates");
 }
 
+// ============================================================================
+// Normalizador Universal de Manifesto e Contagem de Regras (v0.6.1)
+// ============================================================================
+
+export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
+  if (!rawManifest || typeof rawManifest !== "object") {
+    return {};
+  }
+
+  const result: SlotsManifest = {
+    replace_paragraphs: [],
+    loop_paragraphs: [],
+    replace_table_cells: [],
+    loop_table_rows: [],
+    replace_inline: [],
+  };
+
+  const tableCoordRegex =
+    /^\s*\[?\s*T(\d+)\s*[\.:]\s*R(\d+)\s*[\.:]\s*C(\d+)\s*\]?\s*$/i;
+  const paraCoordRegex =
+    /^\s*\[?\s*P(\d+)(?:\s*(?:\.\.|[-.:])\s*P?(\d+))?\s*\]?\s*$/i;
+
+  const processRule = (rule: any) => {
+    if (!rule || typeof rule !== "object") return;
+
+    // 1. Regra com coord explícita (ex.: "T0.R1.C1", "[T0.R1.C1]", "P2", "[P2]", "P2-P4")
+    if (typeof rule.coord === "string" && rule.coord.trim()) {
+      const coordStr = rule.coord.trim();
+      const tMatch = coordStr.match(tableCoordRegex);
+      if (tMatch) {
+        result.replace_table_cells!.push({
+          table_index: parseInt(tMatch[1], 10),
+          row_index: parseInt(tMatch[2], 10),
+          cell_index: parseInt(tMatch[3], 10),
+          tag: rule.tag !== undefined ? String(rule.tag) : "",
+        });
+        return;
+      }
+
+      const pMatch = coordStr.match(paraCoordRegex);
+      if (pMatch) {
+        const start_p = parseInt(pMatch[1], 10);
+        const end_p =
+          pMatch[2] !== undefined ? parseInt(pMatch[2], 10) : start_p;
+        if (rule.for_open_tag && rule.for_close_tag) {
+          result.loop_paragraphs!.push({
+            start_p,
+            end_p,
+            for_open_tag: String(rule.for_open_tag),
+            for_close_tag: String(rule.for_close_tag),
+            item_tag:
+              rule.item_tag !== undefined
+                ? String(rule.item_tag)
+                : rule.tag !== undefined
+                ? String(rule.tag)
+                : "",
+          });
+        } else {
+          result.replace_paragraphs!.push({
+            start_p,
+            end_p,
+            tag: rule.tag !== undefined ? String(rule.tag) : "",
+          });
+        }
+        return;
+      }
+    }
+
+    // 2. Regra inline ({ find, replace })
+    if (typeof rule.find === "string" && rule.replace !== undefined) {
+      result.replace_inline!.push({
+        find: rule.find,
+        replace: String(rule.replace),
+      });
+      return;
+    }
+
+    // 3. Regra de tabela canônica ou com aliases
+    const rawT = rule.table_index ?? rule.table;
+    const rawR = rule.row_index ?? rule.row;
+    const rawC =
+      rule.cell_index ?? rule.col_index ?? rule.column_index ?? rule.col;
+
+    // Se for loop de tabela
+    if (
+      rawT !== undefined &&
+      (rule.header_row_index !== undefined ||
+        (rule.for_open_tag && Array.isArray(rule.cell_tags)))
+    ) {
+      result.loop_table_rows!.push({
+        table_index: Number(rawT),
+        header_row_index: Number(rule.header_row_index ?? 0),
+        template_row_index: Number(
+          rule.template_row_index ?? Number(rule.header_row_index ?? 0) + 1
+        ),
+        remove_from_row:
+          rule.remove_from_row !== undefined
+            ? Number(rule.remove_from_row)
+            : undefined,
+        remove_to_row:
+          rule.remove_to_row !== undefined
+            ? Number(rule.remove_to_row)
+            : undefined,
+        for_open_tag: String(rule.for_open_tag ?? ""),
+        for_close_tag: String(rule.for_close_tag ?? ""),
+        cell_tags: Array.isArray(rule.cell_tags)
+          ? rule.cell_tags.map(String)
+          : [],
+      });
+      return;
+    }
+
+    // Se for replace_table_cells
+    if (rawT !== undefined && rawR !== undefined && rawC !== undefined) {
+      result.replace_table_cells!.push({
+        table_index: Number(rawT),
+        row_index: Number(rawR),
+        cell_index: Number(rawC),
+        tag: rule.tag !== undefined ? String(rule.tag) : "",
+      });
+      return;
+    }
+
+    // 4. Regra de parágrafo canônica ou com aliases
+    const rawStartP =
+      rule.start_p ?? rule.paragraph_index ?? rule.p_index ?? rule.paragraph;
+    if (rawStartP !== undefined) {
+      const start_p = Number(rawStartP);
+      const end_p = rule.end_p !== undefined ? Number(rule.end_p) : start_p;
+      if (rule.for_open_tag && rule.for_close_tag) {
+        result.loop_paragraphs!.push({
+          start_p,
+          end_p,
+          for_open_tag: String(rule.for_open_tag),
+          for_close_tag: String(rule.for_close_tag),
+          item_tag:
+            rule.item_tag !== undefined
+              ? String(rule.item_tag)
+              : rule.tag !== undefined
+              ? String(rule.tag)
+              : "",
+        });
+      } else {
+        result.replace_paragraphs!.push({
+          start_p,
+          end_p,
+          tag: rule.tag !== undefined ? String(rule.tag) : "",
+        });
+      }
+      return;
+    }
+  };
+
+  // Se a raiz for um array puro
+  if (Array.isArray(rawManifest)) {
+    for (const item of rawManifest) {
+      processRule(item);
+    }
+  } else {
+    // Se contiver a propriedade 'slots'
+    if (Array.isArray(rawManifest.slots)) {
+      for (const item of rawManifest.slots) {
+        processRule(item);
+      }
+    }
+
+    // Se contiver arrays canônicos (ou variantes)
+    if (Array.isArray(rawManifest.replace_paragraphs)) {
+      for (const item of rawManifest.replace_paragraphs) {
+        processRule(item);
+      }
+    }
+    if (Array.isArray(rawManifest.loop_paragraphs)) {
+      for (const item of rawManifest.loop_paragraphs) {
+        processRule(item);
+      }
+    }
+    if (Array.isArray(rawManifest.replace_table_cells)) {
+      for (const item of rawManifest.replace_table_cells) {
+        processRule(item);
+      }
+    }
+    if (Array.isArray(rawManifest.loop_table_rows)) {
+      for (const item of rawManifest.loop_table_rows) {
+        processRule(item);
+      }
+    }
+    if (Array.isArray(rawManifest.replace_inline)) {
+      for (const item of rawManifest.replace_inline) {
+        processRule(item);
+      }
+    }
+  }
+
+  // Limpa arrays vazios para manter o manifesto enxuto e canônico
+  const cleaned: SlotsManifest = {};
+  if (result.replace_paragraphs!.length > 0)
+    cleaned.replace_paragraphs = result.replace_paragraphs;
+  if (result.loop_paragraphs!.length > 0)
+    cleaned.loop_paragraphs = result.loop_paragraphs;
+  if (result.replace_table_cells!.length > 0)
+    cleaned.replace_table_cells = result.replace_table_cells;
+  if (result.loop_table_rows!.length > 0)
+    cleaned.loop_table_rows = result.loop_table_rows;
+  if (result.replace_inline!.length > 0)
+    cleaned.replace_inline = result.replace_inline;
+
+  return cleaned;
+}
+
+export function countManifestRules(manifest: SlotsManifest): number {
+  if (!manifest || typeof manifest !== "object") return 0;
+  let count = 0;
+  if (manifest.replace_paragraphs) count += manifest.replace_paragraphs.length;
+  if (manifest.loop_paragraphs) count += manifest.loop_paragraphs.length;
+  if (manifest.replace_table_cells) count += manifest.replace_table_cells.length;
+  if (manifest.loop_table_rows) count += manifest.loop_table_rows.length;
+  if (manifest.replace_inline) count += manifest.replace_inline.length;
+  return count;
+}
+
 export function saveTemplateToRegistry(
   templateId: string,
   manifest: SlotsManifest,
@@ -1275,11 +1569,12 @@ export function saveTemplateToRegistry(
     mkdirSync(dir, { recursive: true });
   }
   const filePath = resolve(dir, `${cleanId}.json`);
+  const normalizedManifest = normalizeSlotsManifest(manifest);
   const entry: TemplateRegistryEntry = {
     template_id: cleanId,
     created_at: new Date().toISOString(),
     structure_fingerprint: fingerprint,
-    manifest,
+    manifest: normalizedManifest,
   };
   writeFileSync(filePath, JSON.stringify(entry, null, 2), "utf-8");
   return filePath;
@@ -1305,8 +1600,12 @@ export function loadAllRegistryTemplates(
             item.structure_fingerprint &&
             item.manifest
           ) {
-            item.registry_path = fullPath;
-            entries.push(item);
+            item.manifest = normalizeSlotsManifest(item.manifest);
+            const ruleCount = countManifestRules(item.manifest);
+            if (ruleCount > 0) {
+              item.registry_path = fullPath;
+              entries.push(item);
+            }
           }
         } catch {
           // ignora template com erro
@@ -1345,8 +1644,9 @@ export function reanchorSlotsManifest(
   incomingFp: StructureFingerprint,
   incomingInspection: DocxInspectionResult
 ): SlotsManifest & { _shift_summary?: string } {
+  const normalizedManifest = normalizeSlotsManifest(cachedEntry.manifest);
   const adapted: SlotsManifest & { _shift_summary?: string } = JSON.parse(
-    JSON.stringify(cachedEntry.manifest)
+    JSON.stringify(normalizedManifest)
   );
   const shiftsDetected: string[] = [];
 
@@ -2532,6 +2832,22 @@ export function formatInspectDocxSyntheticResult(
   };
 }
 
+export function formatBuildDocxTemplateSyntheticResult(
+  outputPath: string,
+  result: BuildDocxTemplateResult
+): BuildDocxTemplateSyntheticResult {
+  return {
+    status: "success",
+    outputPath: resolve(outputPath),
+    applied_slots_count: result.applied_slots_count,
+    breakdown: result.breakdown,
+    ...(result.registryPath ? { registryPath: result.registryPath } : {}),
+    message: result.message,
+    next_step_hint:
+      "Próximo passo recomendado: elabore ou atualize o arquivo de estado (ex.: state/estado_caso.json) e chame 'fill_docx_template' para injetar os dados e gerar a minuta final.",
+  };
+}
+
 // ============================================================================
 // Utilitários Resilientes de JSON (safeReadJsonFile, unflattenDotKeys)
 // ============================================================================
@@ -2770,7 +3086,7 @@ export async function buildDocxTemplate(
   manifestPath: string,
   outputPath: string,
   options: BuildDocxTemplateOptions = {}
-): Promise<{ success: boolean; message: string; registryPath?: string }> {
+): Promise<BuildDocxTemplateResult> {
   const resolvedSource = resolve(sourcePath);
   const resolvedManifest = resolve(manifestPath);
   const resolvedOutput = resolve(outputPath);
@@ -2785,8 +3101,25 @@ export async function buildDocxTemplate(
   }
 
   const sourceBuffer = readFileSync(resolvedSource);
-  const manifest: SlotsManifest =
-    safeReadJsonFile<SlotsManifest>(resolvedManifest);
+  const rawManifest = safeReadJsonFile<any>(resolvedManifest);
+  const manifest: SlotsManifest = normalizeSlotsManifest(rawManifest);
+  const configuredRulesCount = countManifestRules(manifest);
+
+  if (configuredRulesCount === 0) {
+    throw new Error(
+      `Manifesto de slots inválido ou vazio (${resolvedManifest}): nenhuma regra reconhecida encontrada.\n` +
+        `Estrutura esperada: { slots: [{ coord: "T0.R1.C1", tag: "{{tag}}" }] } ou arrays canônicos como { replace_table_cells: [...], replace_paragraphs: [...] }.\n` +
+        `Consulte 'inspect_docx' ou a documentação de 'build_docx_template' para verificar as coordenadas disponíveis.`
+    );
+  }
+
+  const breakdown: BuildDocxTemplateBreakdown = {
+    replace_paragraphs: 0,
+    loop_paragraphs: 0,
+    replace_table_cells: 0,
+    loop_table_rows: 0,
+    replace_inline: 0,
+  };
 
   const zip = await JSZip.loadAsync(sourceBuffer);
   const docFile = zip.file("word/document.xml");
@@ -2850,6 +3183,7 @@ export async function buildDocxTemplate(
           body.removeChild(pToRemove);
         }
       }
+      breakdown.replace_paragraphs++;
     }
   }
 
@@ -2909,6 +3243,7 @@ export async function buildDocxTemplate(
           body.removeChild(pToRemove);
         }
       }
+      breakdown.loop_paragraphs++;
     }
   }
 
@@ -2934,6 +3269,7 @@ export async function buildDocxTemplate(
       }
 
       setTableCellSingleParagraphText(docXml, tc, normalizeTag(tag));
+      breakdown.replace_table_cells++;
     }
   }
 
@@ -3018,12 +3354,17 @@ export async function buildDocxTemplate(
           }
         }
       }
+      breakdown.loop_table_rows++;
     }
   }
 
   // 2.4. replace_inline (em word/document.xml, word/header*.xml e word/footer*.xml)
   if (manifest.replace_inline && manifest.replace_inline.length > 0) {
-    applyInlineReplacementsToXmlDoc(docXml, manifest.replace_inline);
+    const docInlineCount = applyInlineReplacementsToXmlDoc(
+      docXml,
+      manifest.replace_inline
+    );
+    breakdown.replace_inline += docInlineCount;
 
     const fileNames = Object.keys(zip.files).sort();
     for (const name of fileNames) {
@@ -3034,13 +3375,32 @@ export async function buildDocxTemplate(
           partXmlStr,
           "application/xml"
         );
-        if (
-          applyInlineReplacementsToXmlDoc(partXmlDoc, manifest.replace_inline)
-        ) {
+        const partInlineCount = applyInlineReplacementsToXmlDoc(
+          partXmlDoc,
+          manifest.replace_inline
+        );
+        if (partInlineCount > 0) {
+          breakdown.replace_inline += partInlineCount;
           zip.file(name, serializer.serializeToString(partXmlDoc));
         }
       }
     }
+  }
+
+  // Validação Fail-Fast (Zero Silent No-Op v0.6.1)
+  const applied_slots_count =
+    breakdown.replace_paragraphs +
+    breakdown.loop_paragraphs +
+    breakdown.replace_table_cells +
+    breakdown.loop_table_rows +
+    breakdown.replace_inline;
+
+  if (applied_slots_count === 0) {
+    throw new Error(
+      `Falha na parametrização do template: 0 slots foram aplicados no documento '${basename(resolvedSource)}'.\n` +
+        `Nenhuma das ${configuredRulesCount} regra(s) do manifesto (${resolvedManifest}) produziu alterações efetivas no OpenXML.\n` +
+        `Verifique se as coordenadas (ex.: 'coord': 'T0.R1.C1', 'coord': 'P2') ou textos de busca ('find') coincidem com a estrutura inspecionada do documento.`
+    );
   }
 
   // Atualiza word/document.xml no pacote ZIP
@@ -3075,8 +3435,10 @@ export async function buildDocxTemplate(
 
   return {
     success: true,
-    message: `Template parametrizado gerado com sucesso em: ${resolvedOutput}${registryMsg}`,
+    message: `Template parametrizado gerado com sucesso em: ${resolvedOutput} (${applied_slots_count} slots aplicados)${registryMsg}`,
     ...(registryPath ? { registryPath } : {}),
+    applied_slots_count,
+    breakdown,
   };
 }
 
@@ -4547,7 +4909,7 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta replace_paragraphs, replace_table_cells, loop_table_rows, loop_paragraphs e replace_inline, além de 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.0).\n" +
+        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', aliases ('col_index', 'paragraph_index'), validação fail-fast obrigatória (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.1).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
@@ -4562,7 +4924,7 @@ export function getMcpToolsDefinition() {
           manifestPath: {
             type: "string",
             description:
-              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Estrutura esperada: { replace_paragraphs: [{ start_p, end_p, tag }], replace_table_cells: [{ table_index, row_index, cell_index, tag }], loop_table_rows: [{ table_index, header_row_index, template_row_index, for_open_tag, for_close_tag, cell_tags: [...] }], replace_inline: [{ find, replace }] }.",
+              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline.",
           },
           outputPath: {
             type: "string",
@@ -4773,10 +5135,17 @@ async function runMcpServer() {
           outputPath,
           { saveToRegistry, templateId }
         );
-        const nextHint =
-          "Próximo passo recomendado: elabore ou atualize o arquivo de estado (ex.: state/estado_caso.json) e chame 'fill_docx_template' para injetar os dados e gerar a minuta final.";
+        const synthetic = formatBuildDocxTemplateSyntheticResult(
+          outputPath,
+          result
+        );
         return {
-          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
         };
       }
 

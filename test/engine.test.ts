@@ -16,6 +16,7 @@ import {
   bootstrapCase,
   formatBootstrapCaseSyntheticResult,
   formatInspectDocxSyntheticResult,
+  formatBuildDocxTemplateSyntheticResult,
   waitForBackgroundCopy,
   generateAuditDocx,
   cleanHumanText,
@@ -39,6 +40,9 @@ import {
   resolveTargetFileName,
   type SlotsManifest,
   normalizeStructuralText,
+  normalizeSlotsManifest,
+  countManifestRules,
+  type BuildDocxTemplateResult,
   computeStructureFingerprint,
   computeStructuralSimilarity,
   getTemplateRegistryDir,
@@ -225,7 +229,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
     </w:p>
     <w:p>
       <w:pPr><w:pStyle w:val="Normal"/></w:pPr>
-      <w:r><w:t>Órgão: Defensoria Pública do Estado do Pará</w:t></w:r>
+      <w:r><w:t>Órgão: Órgão Público Contratante (ORGAO_A)</w:t></w:r>
     </w:p>
     <w:p>
       <w:pPr><w:pStyle w:val="Heading2"/></w:pPr>
@@ -275,7 +279,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.6.0", () => {
+describe("DocGov Docx Engine v0.6.1", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1670,9 +1674,12 @@ describe("DocGov Docx Engine v0.6.0", () => {
     expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
   });
 
-  test("deve expor versão 0.6.0 e novos recursos v0.6.0 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.6.0");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.0");
+  test("deve expor versão 0.6.1 e novos recursos v0.6.1 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.6.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Coordenadas Compactas");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Zero Silent No-Op");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanity Check");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("structure_fingerprint");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Auto-Offset");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("saveToRegistry");
@@ -1685,9 +1692,285 @@ describe("DocGov Docx Engine v0.6.0", () => {
     expect(inspectTool.description).toContain("visao_auditoria");
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
+    expect(buildTool.description).toContain("v0.6.1");
+    expect(buildTool.description).toContain("Zero Silent No-Op");
     expect(buildTool.description).toContain("saveToRegistry");
+    expect(buildTool.inputSchema.properties.manifestPath.description).toContain(
+      "coord"
+    );
     expect(buildTool.inputSchema.properties.saveToRegistry).toBeDefined();
     expect(buildTool.inputSchema.properties.templateId).toBeDefined();
+  });
+
+  test("deve normalizar manifesto com coordenadas compactas, aliases e array na raiz (normalizeSlotsManifest & countManifestRules v0.6.1)", () => {
+    // 1. Array puro na raiz com coordenadas compactas
+    const rawArray = [
+      { coord: "T0.R1.C1", tag: "{{campo_tabela}}" },
+      { coord: "[T1.R2.C0]", tag: "{{campo_com_colchetes}}" },
+      { coord: "P3", tag: "{{paragrafo_simples}}" },
+      { coord: "[P4-P6]", tag: "{{paragrafo_faixa}}" },
+      { coord: "P7..P8", tag: "{{paragrafo_pontos}}" },
+      { find: "Texto Antigo", replace: "{{texto_novo}}" },
+    ];
+    const norm1 = normalizeSlotsManifest(rawArray);
+    expect(norm1.replace_table_cells?.length).toBe(2);
+    expect(norm1.replace_table_cells?.[0]).toEqual({
+      table_index: 0,
+      row_index: 1,
+      cell_index: 1,
+      tag: "{{campo_tabela}}",
+    });
+    expect(norm1.replace_table_cells?.[1]).toEqual({
+      table_index: 1,
+      row_index: 2,
+      cell_index: 0,
+      tag: "{{campo_com_colchetes}}",
+    });
+    expect(norm1.replace_paragraphs?.length).toBe(3);
+    expect(norm1.replace_paragraphs?.[0]).toEqual({
+      start_p: 3,
+      end_p: 3,
+      tag: "{{paragrafo_simples}}",
+    });
+    expect(norm1.replace_paragraphs?.[1]).toEqual({
+      start_p: 4,
+      end_p: 6,
+      tag: "{{paragrafo_faixa}}",
+    });
+    expect(norm1.replace_paragraphs?.[2]).toEqual({
+      start_p: 7,
+      end_p: 8,
+      tag: "{{paragrafo_pontos}}",
+    });
+    expect(norm1.replace_inline?.length).toBe(1);
+    expect(norm1.replace_inline?.[0]).toEqual({
+      find: "Texto Antigo",
+      replace: "{{texto_novo}}",
+    });
+    expect(countManifestRules(norm1)).toBe(6);
+
+    // 2. Objeto com chave unificada 'slots' e aliases
+    const rawSlotsObj = {
+      slots: [
+        { table_index: 0, row_index: 0, col_index: 1, tag: "{{alias_col}}" },
+        { paragraph_index: 5, tag: "{{alias_p}}" },
+      ],
+    };
+    const norm2 = normalizeSlotsManifest(rawSlotsObj);
+    expect(norm2.replace_table_cells?.length).toBe(1);
+    expect(norm2.replace_table_cells?.[0].cell_index).toBe(1);
+    expect(norm2.replace_paragraphs?.length).toBe(1);
+    expect(norm2.replace_paragraphs?.[0].start_p).toBe(5);
+    expect(norm2.replace_paragraphs?.[0].end_p).toBe(5);
+    expect(countManifestRules(norm2)).toBe(2);
+
+    // 3. Manifesto canônico preservado
+    const rawCanonical: SlotsManifest = {
+      replace_paragraphs: [{ start_p: 1, end_p: 2, tag: "{{can}}" }],
+      replace_inline: [{ find: "A", replace: "B" }],
+    };
+    const norm3 = normalizeSlotsManifest(rawCanonical);
+    expect(norm3.replace_paragraphs?.length).toBe(1);
+    expect(norm3.replace_inline?.length).toBe(1);
+    expect(countManifestRules(norm3)).toBe(2);
+
+    // 4. Manifesto vazio ou nulo
+    expect(countManifestRules(normalizeSlotsManifest({}))).toBe(0);
+    expect(countManifestRules(normalizeSlotsManifest(null))).toBe(0);
+  });
+
+  test("deve construir template com coordenadas compactas e retornar contagem e breakdown (buildDocxTemplate v0.6.1)", async () => {
+    const rawDocx = resolve(tempDir, "compact_coords_sample.docx");
+    const manifestFile = resolve(tempDir, "compact_coords_manifest.json");
+    const outDocx = resolve(tempDir, "compact_coords_out.docx");
+    await createSampleRawDocx(rawDocx);
+
+    // Manifesto usando a notação compacta moderna que o LLM vê no toc_map
+    const compactManifest = {
+      slots: [
+        { coord: "P3", tag: "{{necessidade_injetada}}" },
+        { coord: "[T0.R0.C1]", tag: "{{unidade_injetada}}" },
+        { find: "Órgão Público Contratante", replace: "{{orgao_injetado}}" },
+      ],
+    };
+    writeFileSync(
+      manifestFile,
+      JSON.stringify(compactManifest, null, 2),
+      "utf-8"
+    );
+
+    const result = await buildDocxTemplate(rawDocx, manifestFile, outDocx);
+
+    expect(result.success).toBe(true);
+    expect(result.applied_slots_count).toBe(4);
+    expect(result.breakdown).toEqual({
+      replace_paragraphs: 1,
+      loop_paragraphs: 0,
+      replace_table_cells: 1,
+      loop_table_rows: 0,
+      replace_inline: 2,
+    });
+    expect(existsSync(outDocx)).toBe(true);
+
+    const synthetic = formatBuildDocxTemplateSyntheticResult(outDocx, result);
+    expect(synthetic.status).toBe("success");
+    expect(synthetic.applied_slots_count).toBe(4);
+    expect(synthetic.breakdown.replace_paragraphs).toBe(1);
+    expect(synthetic.breakdown.replace_table_cells).toBe(1);
+    expect(synthetic.breakdown.replace_inline).toBe(2);
+    expect(synthetic.next_step_hint).toContain("fill_docx_template");
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(1024);
+
+    // Injeta dados no template construído com coordenadas compactas e valida output
+    const stateFile = resolve(tempDir, "compact_coords_state.json");
+    const finalDocx = resolve(tempDir, "compact_coords_final.docx");
+    writeFileSync(
+      stateFile,
+      JSON.stringify(
+        {
+          necessidade_injetada: "Necessidade aprovada com sucesso.",
+          unidade_injetada: "Diretoria de Compras e Logística",
+          orgao_injetado: "Secretaria de Gestão e Planejamento",
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    await processDocument(outDocx, stateFile, finalDocx);
+    expect(existsSync(finalDocx)).toBe(true);
+
+    const insp = await inspectDocx(finalDocx);
+    const p3 = insp.paragraphs.find((p) => p.index === 3);
+    expect(p3?.text).toContain("Necessidade aprovada com sucesso.");
+
+    const t0 = insp.tables.find((t) => t.index === 0);
+    expect(t0?.rows[0].cells[1].text).toContain("Diretoria de Compras e Logística");
+  });
+
+  test("deve aplicar Fail-Fast estrito (Zero Silent No-Op) rejeitando manifestos vazios ou com 0 slots aplicados sem corromper disco ou cache (v0.6.1)", async () => {
+    const rawDocx = resolve(tempDir, "fail_fast_sample.docx");
+    const emptyManifestFile = resolve(tempDir, "empty_manifest.json");
+    const noOpManifestFile = resolve(tempDir, "noop_manifest.json");
+    const outDocxEmpty = resolve(tempDir, "fail_fast_empty_out.docx");
+    const outDocxNoOp = resolve(tempDir, "fail_fast_noop_out.docx");
+    const customRegistry = resolve(tempDir, "test_fail_fast_reg");
+
+    await createSampleRawDocx(rawDocx);
+
+    // Caso A: Manifesto vazio ou com chaves desconhecidas (0 regras configuradas)
+    writeFileSync(
+      emptyManifestFile,
+      JSON.stringify({ chave_invalida: [1, 2, 3] }, null, 2),
+      "utf-8"
+    );
+
+    let errorA: any;
+    try {
+      await buildDocxTemplate(rawDocx, emptyManifestFile, outDocxEmpty, {
+        saveToRegistry: true,
+        templateId: "template_corrompido_a",
+        registryDir: customRegistry,
+      });
+    } catch (e: any) {
+      errorA = e;
+    }
+
+    expect(errorA).toBeDefined();
+    expect(errorA.message).toContain("Manifesto de slots inválido ou vazio");
+    expect(errorA.message).toContain("nenhuma regra reconhecida encontrada");
+    expect(errorA.message).toContain("slots: [{ coord");
+    expect(existsSync(outDocxEmpty)).toBe(false);
+    expect(
+      existsSync(resolve(customRegistry, "template_corrompido_a.json"))
+    ).toBe(false);
+
+    // Caso B: Manifesto com regra configurada mas que produz 0 substituições (ex.: find não bate)
+    writeFileSync(
+      noOpManifestFile,
+      JSON.stringify(
+        {
+          replace_inline: [
+            { find: "TEXTO_QUE_NAO_EXISTE_XYZ_123", replace: "tag" },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    let errorB: any;
+    try {
+      await buildDocxTemplate(rawDocx, noOpManifestFile, outDocxNoOp, {
+        saveToRegistry: true,
+        templateId: "template_corrompido_b",
+        registryDir: customRegistry,
+      });
+    } catch (e: any) {
+      errorB = e;
+    }
+
+    expect(errorB).toBeDefined();
+    expect(errorB.message).toContain(
+      "Falha na parametrização do template: 0 slots foram aplicados"
+    );
+    expect(existsSync(outDocxNoOp)).toBe(false);
+    expect(
+      existsSync(resolve(customRegistry, "template_corrompido_b.json"))
+    ).toBe(false);
+  });
+
+  test("deve realizar sanity check no Cache Global descartando templates corrompidos com 0 regras (loadAllRegistryTemplates v0.6.1)", () => {
+    const regDir = resolve(tempDir, "test_sanity_registry");
+    mkdirSync(regDir, { recursive: true });
+
+    // Template válido
+    const validEntry = {
+      template_id: "template_valido_v1",
+      created_at: new Date().toISOString(),
+      structure_fingerprint: {
+        sections: ["1. OBJETO"],
+        form_fields: [],
+        tables: [],
+        total_paragraphs: 10,
+        total_tables: 1,
+      },
+      manifest: {
+        slots: [{ coord: "P1", tag: "{{objeto}}" }],
+      },
+    };
+    writeFileSync(
+      resolve(regDir, "template_valido_v1.json"),
+      JSON.stringify(validEntry, null, 2),
+      "utf-8"
+    );
+
+    // Template corrompido/defeituoso (0 regras)
+    const corruptedEntry = {
+      template_id: "template_defeituoso_v1",
+      created_at: new Date().toISOString(),
+      structure_fingerprint: {
+        sections: ["2. JUSTIFICATIVA"],
+        form_fields: [],
+        tables: [],
+        total_paragraphs: 10,
+        total_tables: 1,
+      },
+      manifest: {
+        slots: [],
+      },
+    };
+    writeFileSync(
+      resolve(regDir, "template_defeituoso_v1.json"),
+      JSON.stringify(corruptedEntry, null, 2),
+      "utf-8"
+    );
+
+    const loaded = loadAllRegistryTemplates(undefined, regDir);
+    expect(loaded.length).toBe(1);
+    expect(loaded[0].template_id).toBe("template_valido_v1");
   });
 });
 
