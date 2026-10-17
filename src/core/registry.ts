@@ -8,6 +8,7 @@ import {
 import { resolve, dirname, extname } from "node:path";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { normalizeSlotsManifest, countManifestRules } from "./manifest.ts";
+import { VERSION } from "../constants/index.ts";
 import type {
   DocxInspectionResult,
   StructureFingerprint,
@@ -255,6 +256,65 @@ export function getTemplateRegistryDir(
   return resolve(process.cwd(), "core", "registry", "templates");
 }
 
+export function isValidIsoDate(val: unknown): val is string {
+  if (typeof val !== "string") return false;
+  const trimmed = val.trim();
+  if (!trimmed || trimmed === "NÃO DISPONÍVEL") return false;
+  if (!/^\d{4}-\d{2}-\d{2}/.test(trimmed)) return false;
+  const parsed = Date.parse(trimmed);
+  return !Number.isNaN(parsed);
+}
+
+export function extractCacheTemporalMetadata(entry: TemplateRegistryEntry): {
+  created_at: string;
+  updated_at: string;
+  age_days: number | null;
+  cache_date_status: "KNOWN" | "UNKNOWN";
+  engine_version: string;
+  slots_count: number;
+} {
+  const validCreated = isValidIsoDate(entry.created_at) ? entry.created_at : null;
+  const validUpdated = isValidIsoDate(entry.updated_at)
+    ? entry.updated_at
+    : validCreated;
+  const effectiveCreated = validCreated ?? validUpdated;
+
+  const slotsCount =
+    typeof entry.slots_count === "number" && entry.slots_count > 0
+      ? entry.slots_count
+      : countManifestRules(entry.manifest);
+
+  const engineVersion =
+    entry.engine_version &&
+    typeof entry.engine_version === "string" &&
+    entry.engine_version.trim() !== ""
+      ? entry.engine_version.trim()
+      : "NÃO DISPONÍVEL";
+
+  if (effectiveCreated && validUpdated) {
+    const updatedMs = Date.parse(validUpdated);
+    const diffMs = Date.now() - updatedMs;
+    const ageDays = Math.max(0, Math.floor(diffMs / 86_400_000));
+    return {
+      created_at: effectiveCreated,
+      updated_at: validUpdated,
+      age_days: ageDays,
+      cache_date_status: "KNOWN",
+      engine_version: engineVersion,
+      slots_count: slotsCount,
+    };
+  }
+
+  return {
+    created_at: "NÃO DISPONÍVEL",
+    updated_at: "NÃO DISPONÍVEL",
+    age_days: null,
+    cache_date_status: "UNKNOWN",
+    engine_version: engineVersion,
+    slots_count: slotsCount,
+  };
+}
+
 export function saveTemplateToRegistry(
   templateId: string,
   manifest: SlotsManifest,
@@ -269,9 +329,27 @@ export function saveTemplateToRegistry(
   }
   const filePath = resolve(dir, `${cleanId}.json`);
   const normalizedManifest = normalizeSlotsManifest(manifest);
+  const slotsCount = countManifestRules(normalizedManifest);
+  const nowIso = new Date().toISOString();
+
+  let createdAt = nowIso;
+  if (existsSync(filePath)) {
+    try {
+      const existing = safeReadJsonFile<TemplateRegistryEntry>(filePath);
+      if (isValidIsoDate(existing?.created_at)) {
+        createdAt = existing.created_at;
+      }
+    } catch {
+      // Se o arquivo existente não puder ser lido, usa nowIso
+    }
+  }
+
   const entry: TemplateRegistryEntry = {
     template_id: cleanId,
-    created_at: new Date().toISOString(),
+    created_at: createdAt,
+    updated_at: nowIso,
+    engine_version: VERSION,
+    slots_count: slotsCount,
     structure_fingerprint: fingerprint,
     manifest: normalizedManifest,
   };
@@ -302,6 +380,11 @@ export function loadAllRegistryTemplates(
             item.manifest = normalizeSlotsManifest(item.manifest);
             const ruleCount = countManifestRules(item.manifest);
             if (ruleCount > 0) {
+              const meta = extractCacheTemporalMetadata(item);
+              item.created_at = meta.created_at;
+              item.updated_at = meta.updated_at;
+              item.engine_version = meta.engine_version;
+              item.slots_count = meta.slots_count;
               item.registry_path = fullPath;
               entries.push(item);
             }

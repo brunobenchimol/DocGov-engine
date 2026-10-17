@@ -50,6 +50,8 @@ import {
   loadAllRegistryTemplates,
   findBestTemplateMatch,
   reanchorSlotsManifest,
+  isValidIsoDate,
+  extractCacheTemporalMetadata,
   generateLinearAuditViewMarkdown,
   VERSION,
   generateEngineSpecMarkdown,
@@ -284,7 +286,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.6.3", () => {
+describe("DocGov Docx Engine v0.6.4", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1679,9 +1681,10 @@ describe("DocGov Docx Engine v0.6.3", () => {
     expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
   });
 
-  test("deve expor versão 0.6.3 e novos recursos v0.6.3 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.6.3");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.3");
+  test("deve expor versão 0.6.4 e novos recursos v0.6.4 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.6.4");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.4");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade Temporal do Cache");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Exact Copy-Paste Error");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("--dump-spec");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Arquitetura Modular");
@@ -1696,11 +1699,11 @@ describe("DocGov Docx Engine v0.6.3", () => {
     const tools = getMcpToolsDefinition();
     const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
     expect(inspectTool.description).toContain("structure_fingerprint");
+    expect(inspectTool.description).toContain("created_at");
     expect(inspectTool.description).toContain("Auto-Offset");
     expect(inspectTool.description).toContain("visao_auditoria");
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
-    expect(buildTool.description).toContain("Exact Copy-Paste Error");
     expect(buildTool.description).toContain("Exact Copy-Paste Error");
     expect(buildTool.description).toContain("Zero Silent No-Op");
     expect(buildTool.description).toContain("saveToRegistry");
@@ -2092,14 +2095,17 @@ describe("DocGov Docx Engine v0.6.3", () => {
     expect(errAudit3.message).toContain("apontamentos");
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.3)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.4)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.3)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.4)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
     expect(spec).toContain("Neutralidade Institucional Absoluta");
     expect(spec).toContain("Resiliência e Cache Global (core/registry/templates/)");
+    expect(spec).toContain("created_at");
+    expect(spec).toContain("updated_at");
+    expect(spec).toContain("age_days");
 
     // Governança interna do repositório NÃO deve vazar para a especificação do consumidor
     expect(spec).not.toContain("Runtime e Testes Padronizados via Bun");
@@ -2118,7 +2124,7 @@ describe("DocGov Docx Engine v0.6.3", () => {
     expect(spec).toContain("loop_table_rows");
   });
 
-  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.6.3)", async () => {
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.6.4)", async () => {
     const barrel = await import("../src/index.ts");
 
     // Ferramentas do Pipeline
@@ -2146,6 +2152,8 @@ describe("DocGov Docx Engine v0.6.3", () => {
     expect(typeof barrel.loadAllRegistryTemplates).toBe("function");
     expect(typeof barrel.findBestTemplateMatch).toBe("function");
     expect(typeof barrel.reanchorSlotsManifest).toBe("function");
+    expect(typeof barrel.isValidIsoDate).toBe("function");
+    expect(typeof barrel.extractCacheTemporalMetadata).toBe("function");
     expect(typeof barrel.compareSemver).toBe("function");
 
     // Utilitários
@@ -2161,7 +2169,168 @@ describe("DocGov Docx Engine v0.6.3", () => {
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.6.3");
+    expect(barrel.VERSION).toBe("0.6.4");
+  });
+
+  test("deve gravar e ler rastreabilidade temporal no cache (created_at, updated_at, age_days, engine_version, slots_count), preservando created_at ao atualizar e orientando Gate 1 (v0.6.4)", async () => {
+    const regDir = resolve(tempDir, "test_temporal_trace_registry");
+    mkdirSync(regDir, { recursive: true });
+
+    const sampleDocx = resolve(tempDir, "temporal_sample.docx");
+    await createSampleRawDocx(sampleDocx);
+    const inspInitial = await inspectDocx(sampleDocx);
+    const fp = inspInitial.structure_fingerprint!;
+
+    // 1. Grava primeiro cache com 2 slots
+    const manifestV1: SlotsManifest = {
+      slots: [
+        { coord: "P3", tag: "{{necessidade}}" },
+        { coord: "T0.R0.C1", tag: "{{unidade}}" },
+      ],
+    };
+    const savedPath = saveTemplateToRegistry(
+      "etp_temporal_v1",
+      manifestV1,
+      fp,
+      undefined,
+      regDir
+    );
+
+    const diskEntryV1 = safeReadJsonFile<TemplateRegistryEntry>(savedPath);
+    expect(isValidIsoDate(diskEntryV1.created_at)).toBe(true);
+    expect(isValidIsoDate(diskEntryV1.updated_at)).toBe(true);
+    expect(diskEntryV1.engine_version).toBe("0.6.4");
+    expect(diskEntryV1.slots_count).toBe(2);
+
+    // Simula que o template foi criado há 5 dias atrás no disco e agora recebe uma atualização com 3 slots
+    const fiveDaysAgoIso = new Date(Date.now() - 5 * 86_400_000).toISOString();
+    diskEntryV1.created_at = fiveDaysAgoIso;
+    diskEntryV1.updated_at = fiveDaysAgoIso;
+    writeFileSync(savedPath, JSON.stringify(diskEntryV1, null, 2), "utf-8");
+
+    const manifestV2: SlotsManifest = {
+      slots: [
+        { coord: "P3", tag: "{{necessidade}}" },
+        { coord: "T0.R0.C1", tag: "{{unidade}}" },
+        { coord: "T0.R1.C1", tag: "{{responsavel}}" },
+      ],
+    };
+    saveTemplateToRegistry(
+      "etp_temporal_v1",
+      manifestV2,
+      fp,
+      undefined,
+      regDir
+    );
+
+    const diskEntryV2 = safeReadJsonFile<TemplateRegistryEntry>(savedPath);
+    // Preserva o created_at original (5 dias atrás) e atualiza updated_at e slots_count (3)
+    expect(diskEntryV2.created_at).toBe(fiveDaysAgoIso);
+    expect(diskEntryV2.updated_at).not.toBe(fiveDaysAgoIso);
+    expect(isValidIsoDate(diskEntryV2.updated_at)).toBe(true);
+    expect(diskEntryV2.engine_version).toBe("0.6.4");
+    expect(diskEntryV2.slots_count).toBe(3);
+
+    // Inspeciona documento contra esse cache atualizado
+    const outInspectJson = resolve(tempDir, "state", "estrutura_temporal.json");
+    const matchedInsp = await inspectDocx(sampleDocx, outInspectJson, true, {
+      registryDir: regDir,
+    });
+
+    expect(matchedInsp.template_match).toBeDefined();
+    expect(matchedInsp.template_match?.status).toBe("EXACT");
+    expect(matchedInsp.template_match?.created_at).toBe(fiveDaysAgoIso);
+    expect(matchedInsp.template_match?.updated_at).toBe(diskEntryV2.updated_at);
+    expect(matchedInsp.template_match?.age_days).toBe(0);
+    expect(matchedInsp.template_match?.cache_date_status).toBe("KNOWN");
+    expect(matchedInsp.template_match?.engine_version).toBe("0.6.4");
+    expect(matchedInsp.template_match?.slots_count).toBe(3);
+
+    const synthetic = formatInspectDocxSyntheticResult(
+      sampleDocx,
+      outInspectJson,
+      matchedInsp
+    );
+    const expectedDateYmd = diskEntryV2.updated_at!.slice(0, 10);
+    expect(synthetic.template_match?.created_at).toBe(fiveDaysAgoIso);
+    expect(synthetic.template_match?.updated_at).toBe(diskEntryV2.updated_at);
+    expect(synthetic.template_match?.age_days).toBe(0);
+    expect(synthetic.template_match?.cache_date_status).toBe("KNOWN");
+    expect(synthetic.template_match?.engine_version).toBe("0.6.4");
+    expect(synthetic.template_match?.slots_count).toBe(3);
+    expect(synthetic.next_step_hint).toContain(
+      `Cache reconhecido (EXACT, criado/atualizado em ${expectedDateYmd}, 3 slots). Informe a data ao usuário no Gate 1.`
+    );
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(
+      1024
+    );
+  });
+
+  test("deve garantir 100% de retrocompatibilidade com cache legado sem created_at/updated_at/engine_version sem usar mtime do disco (v0.6.4)", async () => {
+    const regDir = resolve(tempDir, "test_legacy_cache_registry");
+    mkdirSync(regDir, { recursive: true });
+
+    const sampleDocx = resolve(tempDir, "legacy_cache_sample.docx");
+    await createSampleRawDocx(sampleDocx);
+    const inspInitial = await inspectDocx(sampleDocx);
+    const fp = inspInitial.structure_fingerprint!;
+
+    // Grava manualmente um JSON de cache legado SEM created_at, updated_at, engine_version ou slots_count
+    const legacyCacheJson = {
+      template_id: "etp_legado_sem_data",
+      structure_fingerprint: fp,
+      manifest: {
+        replace_paragraphs: [{ start_p: 3, end_p: 3, tag: "{{necessidade}}" }],
+        replace_table_cells: [
+          { table_index: 0, row_index: 0, cell_index: 1, tag: "{{unidade}}" },
+        ],
+      },
+    };
+    writeFileSync(
+      resolve(regDir, "etp_legado_sem_data.json"),
+      JSON.stringify(legacyCacheJson, null, 2),
+      "utf-8"
+    );
+
+    const loaded = loadAllRegistryTemplates(undefined, regDir);
+    expect(loaded.length).toBe(1);
+    expect(loaded[0].template_id).toBe("etp_legado_sem_data");
+    expect(loaded[0].created_at).toBe("NÃO DISPONÍVEL");
+    expect(loaded[0].updated_at).toBe("NÃO DISPONÍVEL");
+    expect(loaded[0].engine_version).toBe("NÃO DISPONÍVEL");
+    expect(loaded[0].slots_count).toBe(2);
+
+    const outInspectJson = resolve(tempDir, "state", "estrutura_legacy.json");
+    const matchedInsp = await inspectDocx(sampleDocx, outInspectJson, true, {
+      registryDir: regDir,
+    });
+
+    expect(matchedInsp.template_match).toBeDefined();
+    expect(matchedInsp.template_match?.status).toBe("EXACT");
+    expect(matchedInsp.template_match?.created_at).toBe("NÃO DISPONÍVEL");
+    expect(matchedInsp.template_match?.updated_at).toBe("NÃO DISPONÍVEL");
+    expect(matchedInsp.template_match?.age_days).toBeNull();
+    expect(matchedInsp.template_match?.cache_date_status).toBe("UNKNOWN");
+    expect(matchedInsp.template_match?.engine_version).toBe("NÃO DISPONÍVEL");
+    expect(matchedInsp.template_match?.slots_count).toBe(2);
+
+    const synthetic = formatInspectDocxSyntheticResult(
+      sampleDocx,
+      outInspectJson,
+      matchedInsp
+    );
+    expect(synthetic.template_match?.created_at).toBe("NÃO DISPONÍVEL");
+    expect(synthetic.template_match?.updated_at).toBe("NÃO DISPONÍVEL");
+    expect(synthetic.template_match?.age_days).toBeNull();
+    expect(synthetic.template_match?.cache_date_status).toBe("UNKNOWN");
+    expect(synthetic.template_match?.engine_version).toBe("NÃO DISPONÍVEL");
+    expect(synthetic.template_match?.slots_count).toBe(2);
+    expect(synthetic.next_step_hint).toContain(
+      "Cache reconhecido (EXACT, data de criação não disponível no cache legado). Informe ao usuário no Gate 1 que a data do cache é desconhecida para que ele decida entre usar ou atualizar."
+    );
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(
+      1024
+    );
   });
 });
 

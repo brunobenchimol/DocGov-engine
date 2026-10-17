@@ -19,6 +19,7 @@ import {
   computeStructureFingerprint,
   findBestTemplateMatch,
   reanchorSlotsManifest,
+  extractCacheTemporalMetadata,
 } from "../core/registry.ts";
 import type {
   BodyParagraphInfo,
@@ -424,13 +425,23 @@ export async function inspectDocx(
   let template_match: TemplateMatchResult;
 
   if (match.entry) {
+    const meta = extractCacheTemporalMetadata(match.entry);
     if (match.similarity >= 0.995) {
       template_match = {
         status: "EXACT",
         similarity: 1.0,
         template_id: match.entry.template_id,
         registry_path: match.entry.registry_path,
-        message: `Template idêntico (100%) localizado no registro global: '${match.entry.template_id}'.`,
+        created_at: meta.created_at,
+        updated_at: meta.updated_at,
+        age_days: meta.age_days,
+        cache_date_status: meta.cache_date_status,
+        engine_version: meta.engine_version,
+        slots_count: meta.slots_count,
+        message:
+          meta.cache_date_status === "KNOWN"
+            ? `Template idêntico (100%) localizado no registro global: '${match.entry.template_id}' (atualizado em ${meta.updated_at.slice(0, 10)}, ${meta.slots_count} slots).`
+            : `Template idêntico (100%) localizado no registro global: '${match.entry.template_id}' (data de criação não disponível no cache legado, ${meta.slots_count} slots).`,
       };
     } else if (match.similarity >= 0.75) {
       const adapted = reanchorSlotsManifest(
@@ -456,6 +467,12 @@ export async function inspectDocx(
         shift_summary:
           adapted._shift_summary ||
           "Coordenadas reancoradas automaticamente por rótulos de formulário.",
+        created_at: meta.created_at,
+        updated_at: meta.updated_at,
+        age_days: meta.age_days,
+        cache_date_status: meta.cache_date_status,
+        engine_version: meta.engine_version,
+        slots_count: meta.slots_count,
         message: `Template base '${
           match.entry.template_id
         }' compatível com drift (${Math.round(
@@ -544,12 +561,10 @@ export function formatInspectDocxSyntheticResult(
     ? relative(process.cwd(), inspection.audit_view_path).replace(/\\/g, "/")
     : undefined;
 
-  const conciseMatch = inspection.template_match
+  const conciseMatch: TemplateMatchResult | undefined = inspection.template_match
     ? {
         status: inspection.template_match.status,
-        ...(inspection.template_match.similarity
-          ? { similarity: inspection.template_match.similarity }
-          : {}),
+        similarity: inspection.template_match.similarity,
         ...(inspection.template_match.template_id
           ? { template_id: inspection.template_match.template_id }
           : {}),
@@ -561,20 +576,50 @@ export function formatInspectDocxSyntheticResult(
               ).replace(/\\/g, "/"),
             }
           : {}),
+        ...(inspection.template_match.created_at !== undefined
+          ? { created_at: inspection.template_match.created_at }
+          : {}),
+        ...(inspection.template_match.updated_at !== undefined
+          ? { updated_at: inspection.template_match.updated_at }
+          : {}),
+        ...(inspection.template_match.age_days !== undefined
+          ? { age_days: inspection.template_match.age_days }
+          : {}),
+        ...(inspection.template_match.cache_date_status !== undefined
+          ? { cache_date_status: inspection.template_match.cache_date_status }
+          : {}),
+        ...(inspection.template_match.engine_version !== undefined
+          ? { engine_version: inspection.template_match.engine_version }
+          : {}),
+        ...(inspection.template_match.slots_count !== undefined
+          ? { slots_count: inspection.template_match.slots_count }
+          : {}),
       }
     : undefined;
 
   let nextHint =
     "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
-  if (inspection.template_match?.status === "EXACT") {
-    nextHint = `Template homologado no cache (${inspection.template_match.template_id}). Reutilize slots_manifest.json para 'build_docx_template'.`;
-  } else if (inspection.template_match?.status === "MODIFIED") {
-    nextHint = `Drift detectado (${Math.round(
-      (inspection.template_match.similarity || 0) * 100
-    )}%). Use adapted_slots_manifest.json em 'build_docx_template'.`;
+  if (
+    inspection.template_match?.status === "EXACT" ||
+    inspection.template_match?.status === "MODIFIED"
+  ) {
+    const st = inspection.template_match.status;
+    const slots = inspection.template_match.slots_count ?? 0;
+    if (
+      inspection.template_match.cache_date_status === "KNOWN" &&
+      inspection.template_match.updated_at &&
+      inspection.template_match.updated_at !== "NÃO DISPONÍVEL"
+    ) {
+      const dateStr = inspection.template_match.updated_at.slice(0, 10);
+      nextHint = `Cache reconhecido (${st}, criado/atualizado em ${dateStr}, ${slots} slots). Informe a data ao usuário no Gate 1. Próximo: 'build_docx_template'.`;
+    } else {
+      nextHint = `Cache reconhecido (${st}, data de criação não disponível no cache legado). Informe ao usuário no Gate 1 que a data do cache é desconhecida para que ele decida entre usar ou atualizar. Próximo: 'build_docx_template'.`;
+    }
   }
 
-  return {
+  const buildPayload = (
+    summaryItems: Array<{ coord: string; title: string; target?: string }>
+  ): InspectDocxSyntheticResult => ({
     status: "success",
     docxPath,
     outputPath,
@@ -583,8 +628,21 @@ export function formatInspectDocxSyntheticResult(
     paragraphs: inspection.paragraphs.length,
     ...(conciseMatch ? { template_match: conciseMatch } : {}),
     ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
-    ...(toc_summary.length > 0 ? { toc_summary } : {}),
+    ...(summaryItems.length > 0 ? { toc_summary: summaryItems } : {}),
     next_step_hint: nextHint,
-  };
+  });
+
+  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8)
+  const currentSummary = [...toc_summary];
+  let result = buildPayload(currentSummary);
+  while (
+    currentSummary.length > 0 &&
+    Buffer.byteLength(JSON.stringify(result), "utf-8") >= 1000
+  ) {
+    currentSummary.pop();
+    result = buildPayload(currentSummary);
+  }
+
+  return result;
 }
 

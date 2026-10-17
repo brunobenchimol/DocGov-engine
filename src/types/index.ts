@@ -89,7 +89,10 @@ export interface TemplateRegistryEntry {
   template_id: string;
   name?: string;
   description?: string;
-  created_at: string;
+  created_at?: string;
+  updated_at?: string;
+  engine_version?: string;
+  slots_count?: number;
   structure_fingerprint: StructureFingerprint;
   manifest: SlotsManifest;
   registry_path?: string;
@@ -102,6 +105,12 @@ export interface TemplateMatchResult {
   registry_path?: string;
   adapted_manifest_path?: string;
   shift_summary?: string;
+  created_at?: string;
+  updated_at?: string;
+  age_days?: number | null;
+  cache_date_status?: "KNOWN" | "UNKNOWN";
+  engine_version?: string;
+  slots_count?: number;
   message?: string;
 }
 
