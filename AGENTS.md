@@ -6,7 +6,8 @@ Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalo
 
 ## Lei 1: Runtime e Testes Padronizados via Bun
 - O runtime padrão do motor é o Bun (`bun test`, `bun run build:linux`, `bun run build:windows`).
-- Todos os scripts, ferramentas e suítes de testes devem permanecer compatíveis com o ecossistema Bun e Node.js sem acoplamento a caminhos de ambiente locais.
+- Nenhum arquivo ou teste do repositório deve conter caminhos absolutos hardcoded de máquinas locais.
+- Na interação com o desenvolvedor, adapte a execução dos comandos com flexibilidade ao ambiente informado no diálogo (ex.: WSL, terminal nativo ou container).
 
 ## Lei 2: Teto Estrito de Payload MCP (< 1024 bytes)
 - Todo retorno sintético de ferramentas via stdio MCP DEVE ter menos de 1024 bytes (UTF-8) para evitar truncamento em `output.txt` pelas IDEs consumidoras.
@@ -39,3 +40,4 @@ Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalo
   1. Atualização do número de versão SemVer em `package.json` e `src/index.ts`;
   2. Aprovação de 100% dos testes via `bun test`;
   3. Git commit convencional, criação de tag `vX.Y.Z` anotada e push para origin.
+
