@@ -284,7 +284,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.6.2", () => {
+describe("DocGov Docx Engine v0.6.3", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1679,12 +1679,12 @@ describe("DocGov Docx Engine v0.6.2", () => {
     expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
   });
 
-  test("deve expor versão 0.6.2 e novos recursos v0.6.2 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.6.2");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.2");
+  test("deve expor versão 0.6.3 e novos recursos v0.6.3 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.6.3");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.3");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Exact Copy-Paste Error");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("--dump-spec");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("AGENTS.md");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Arquitetura Modular");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Coordenadas Compactas");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Zero Silent No-Op");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanity Check");
@@ -1700,7 +1700,7 @@ describe("DocGov Docx Engine v0.6.2", () => {
     expect(inspectTool.description).toContain("visao_auditoria");
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
-    expect(buildTool.description).toContain("v0.6.2");
+    expect(buildTool.description).toContain("Exact Copy-Paste Error");
     expect(buildTool.description).toContain("Exact Copy-Paste Error");
     expect(buildTool.description).toContain("Zero Silent No-Op");
     expect(buildTool.description).toContain("saveToRegistry");
@@ -2092,17 +2092,18 @@ describe("DocGov Docx Engine v0.6.2", () => {
     expect(errAudit3.message).toContain("apontamentos");
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.2)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.3)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.2)");
-    expect(spec).toContain("As 7 Leis Invioláveis de Governança (AGENTS.md)");
-    expect(spec).toContain("Runtime e Testes Padronizados via Bun");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.3)");
+    expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
-    expect(spec).toContain("Sincronia Obrigatória de Self-Discovery");
     expect(spec).toContain("Neutralidade Institucional Absoluta");
-    expect(spec).toContain("Resiliência de Caminhos e Cache Global");
-    expect(spec).toContain("Ritual de Qualidade e Release");
+    expect(spec).toContain("Resiliência e Cache Global (core/registry/templates/)");
+
+    // Governança interna do repositório NÃO deve vazar para a especificação do consumidor
+    expect(spec).not.toContain("Runtime e Testes Padronizados via Bun");
+    expect(spec).not.toContain("Ritual de Qualidade e Release");
 
     // 5 ferramentas
     expect(spec).toContain("2.1. bootstrap_case");
@@ -2115,6 +2116,52 @@ describe("DocGov Docx Engine v0.6.2", () => {
     expect(spec).toContain("ORGAO_CONTRATANTE");
     expect(spec).toContain("slots");
     expect(spec).toContain("loop_table_rows");
+  });
+
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.6.3)", async () => {
+    const barrel = await import("../src/index.ts");
+
+    // Ferramentas do Pipeline
+    expect(typeof barrel.bootstrapCase).toBe("function");
+    expect(typeof barrel.inspectDocx).toBe("function");
+    expect(typeof barrel.buildDocxTemplate).toBe("function");
+    expect(typeof barrel.processDocument).toBe("function");
+    expect(typeof barrel.generateAuditDocx).toBe("function");
+
+    // Servidor MCP e Especificação
+    expect(typeof barrel.runMcpServer).toBe("function");
+    expect(typeof barrel.getMcpToolsDefinition).toBe("function");
+    expect(typeof barrel.getMcpPromptsDefinition).toBe("function");
+    expect(typeof barrel.generateEngineSpecMarkdown).toBe("function");
+
+    // CLI
+    expect(typeof barrel.runCli).toBe("function");
+
+    // Core e Normalizadores
+    expect(typeof barrel.normalizeSlotsManifest).toBe("function");
+    expect(typeof barrel.countManifestRules).toBe("function");
+    expect(typeof barrel.computeStructureFingerprint).toBe("function");
+    expect(typeof barrel.computeStructuralSimilarity).toBe("function");
+    expect(typeof barrel.saveTemplateToRegistry).toBe("function");
+    expect(typeof barrel.loadAllRegistryTemplates).toBe("function");
+    expect(typeof barrel.findBestTemplateMatch).toBe("function");
+    expect(typeof barrel.reanchorSlotsManifest).toBe("function");
+    expect(typeof barrel.compareSemver).toBe("function");
+
+    // Utilitários
+    expect(typeof barrel.safeReadJsonFile).toBe("function");
+    expect(typeof barrel.sanitizeJsonString).toBe("function");
+    expect(typeof barrel.formatJsonErrorWithSnippet).toBe("function");
+    expect(typeof barrel.unflattenDotKeys).toBe("function");
+    expect(typeof barrel.resolveTargetFileName).toBe("function");
+    expect(typeof barrel.detectFileExtensionFromBuffer).toBe("function");
+
+    // Contratos de Erro
+    expect(typeof barrel.createSlotsManifestContractError).toBe("function");
+    expect(typeof barrel.createAuditReportContractError).toBe("function");
+
+    // Constantes
+    expect(barrel.VERSION).toBe("0.6.3");
   });
 });
 
