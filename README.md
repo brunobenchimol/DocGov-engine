@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.6.1`)
+# docgov-docx-engine — Motor Standalone `.docx` & Servidor MCP (`v0.6.2`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`)** e servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,23 +36,28 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Autodescoberta, Cache Global e Resiliência Nativa no MCP (`v0.6.1`)
+## 2. Autodescoberta, Cache Global e Resiliência Nativa no MCP (`v0.6.2`)
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
 1. **`instructions` no Handshake Inicial:** No momento da conexão, o servidor entrega ao LLM o propósito do motor, a **ordem canônica do pipeline (1..5)**, a sintaxe de tags suportada (`{{variavel}}`, loops `FOR`, condicionais `IF`, negrito seletivo `**...**` e listas multinível `1.1`), além do funcionamento do cache global e auto-offset.
-2. **Coordenadas Compactas & Normalização Universal (v0.6.1):** Suporte nativo a coordenadas extraídas do `toc_map` (`"coord": "T0.R1.C1"`, `"coord": "P2"` ou `"P2-P4"`, com ou sem colchetes `[T0.R1.C1]`), lista unificada `slots: [...]` ou array puro na raiz do manifesto, além de aliases (`col_index`, `paragraph_index`).
-3. **Validação Fail-Fast Zero Silent No-Op (v0.6.1):** Se o manifesto tiver 0 regras reconhecidas ou se 0 tags forem aplicadas no OpenXML (`applied_slots_count === 0`), o motor falha imediatamente com erro descritivo mostrando o schema esperado, impedindo a gravação de arquivos vazios e rejeitando salvar no cache global.
-4. **Sanity Check do Cache Global (v0.6.1):** Ao carregar templates em `core/registry/templates/`, o motor normaliza os manifestos e descarta silenciosamente entradas corrompidas ou com 0 regras.
-5. **Cache Global de Templates Cross-Órgão (`core/registry/templates/`):** Compara o documento de entrada contra todos os templates homologados salvos no cache (independentemente do órgão de origem), calculando a impressão digital estrutural (`structure_fingerprint`) com similaridade ponderada. Retorna `EXACT` (100%), `MODIFIED` (75% a 99%) ou `NEW` (< 75%).
-6. **Reancoragem Automática de Coordenadas (`Auto-Offset` / `adapted_manifest`):** Se a minuta sofrer alterações estruturais (como inclusão/remoção de linhas em tabelas de formulário ou parágrafos), o motor ajusta automaticamente as coordenadas dos slots por correspondência semântica de rótulos/perguntas, gerando o `adapted_slots_manifest.json`.
-7. **Visão Linear Compacta de Auditoria (`visao_auditoria_<nome_base>.md`):** Um espelho textual ultracompacto gerado pelo `inspect_docx` e `bootstrap_case` contendo a lista sequencial exata de cabeçalhos/rodapés (`[H0]`/`[F0]`), parágrafos (`[P0]`) e células (`[T0.R0.C0]`), permitindo leitura em **1 único turno** pelo auditor.
-8. **Preservação de Nomes Legíveis & Auto-Batismo Semântico de Anexos:** Em uploads com hashes opacos (`media_*`), o motor inspeciona o conteúdo para auto-batizar os arquivos (`<TIPO>_<ORGAO>_<hash4>.<ext>`), preserva nomes legíveis e aceita `fileRenameMap`.
-9. **Inferência de Extensão por Magic Bytes:** Identifica arquivos enviados sem extensão inspecionando os primeiros bytes (`PK\x03\x04` para `.docx` e `%PDF` para `.pdf`).
-10. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB).
-11. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8, *trailing commas* e quebras de linha literais em strings JSON.
-12. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta informa a linha/coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI`.
-13. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para `{ etp: { necessidade: "..." } }`.
+2. **Padrão Exact Copy-Paste Error (v0.6.2):** Validação fail-fast estrita em `slots_manifest.json` e `relatorio_auditoria.json`. Em caso de erro de contrato (propriedades inventadas como `loop_var`, `cell_slots`, chaves desconhecidas na raiz ou `applied_slots_count === 0`), o motor interrompe a execução com a instrução mandatória:
+   > *"NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:"*
+   acompanhada do snippet JSON canônico completo e pronto para copiar e colar.
+3. **Exportação de Especificação Integral (`--dump-spec` v0.6.2):** Exporta a especificação normativa integral do motor em Markdown (UTF-8), servindo como fonte única da verdade para sincronização de agentes de IA consumidores sem doc drift.
+4. **Estatuto de Governança do Motor (`AGENTS.md` v0.6.2):** Define as 7 Leis Invioláveis de Engenharia deste motor MCP (Bun runtime, payload < 1024b, Exact Copy-Paste Error, self-discovery sync, neutralidade institucional, resiliência de cache e ritual de release).
+5. **Coordenadas Compactas & Normalização Universal (v0.6.1):** Suporte nativo a coordenadas extraídas do `toc_map` (`"coord": "T0.R1.C1"`, `"coord": "P2"` ou `"P2-P4"`, com ou sem colchetes `[T0.R1.C1]`), lista unificada `slots: [...]` ou array puro na raiz do manifesto, além de aliases (`col_index`, `paragraph_index`).
+6. **Validação Fail-Fast Zero Silent No-Op (v0.6.1):** Se o manifesto tiver 0 regras reconhecidas ou se 0 tags forem aplicadas no OpenXML (`applied_slots_count === 0`), o motor falha imediatamente com erro descritivo mostrando o schema esperado, impedindo a gravação de arquivos vazios e rejeitando salvar no cache global.
+7. **Sanity Check do Cache Global (v0.6.1):** Ao carregar templates em `core/registry/templates/`, o motor normaliza os manifestos e descarta silenciosamente entradas corrompidas ou com 0 regras.
+8. **Cache Global de Templates Cross-Órgão (`core/registry/templates/`):** Compara o documento de entrada contra todos os templates homologados salvos no cache (independentemente do órgão de origem), calculando a impressão digital estrutural (`structure_fingerprint`) com similaridade ponderada. Retorna `EXACT` (100%), `MODIFIED` (75% a 99%) ou `NEW` (< 75%).
+9. **Reancoragem Automática de Coordenadas (`Auto-Offset` / `adapted_manifest`):** Se a minuta sofrer alterações estruturais (como inclusão/remoção de linhas em tabelas de formulário ou parágrafos), o motor ajusta automaticamente as coordenadas dos slots por correspondência semântica de rótulos/perguntas, gerando o `adapted_slots_manifest.json`.
+10. **Visão Linear Compacta de Auditoria (`visao_auditoria_<nome_base>.md`):** Um espelho textual ultracompacto gerado pelo `inspect_docx` e `bootstrap_case` contendo a lista sequencial exata de cabeçalhos/rodapés (`[H0]`/`[F0]`), parágrafos (`[P0]`) e células (`[T0.R0.C0]`), permitindo leitura em **1 único turno** pelo auditor.
+11. **Preservação de Nomes Legíveis & Auto-Batismo Semântico de Anexos:** Em uploads com hashes opacos (`media_*`), o motor inspeciona o conteúdo para auto-batizar os arquivos (`<TIPO>_<ORGAO>_<hash4>.<ext>`), preserva nomes legíveis e aceita `fileRenameMap`.
+12. **Inferência de Extensão por Magic Bytes:** Identifica arquivos enviados sem extensão inspecionando os primeiros bytes (`PK\x03\x04` para `.docx` e `%PDF` para `.pdf`).
+13. **Índice Estrutural Rápido (`toc_map` & `toc_summary`):** `inspect_docx` constrói no topo do JSON de inspeção o mapa de seções (`P...`), campos/perguntas de formulários (`T...R...C...` com `suggested_target_slot`) e tabelas dimensionadas, devolvendo no payload MCP um sumário executivo conciso (`toc_summary` < 1 KB).
+14. **Parser Tolerante com Auto-Saneamento de JSON (`safeReadJsonFile`):** Remove silenciosamente BOM UTF-8, *trailing commas* e quebras de linha literais em strings JSON.
+15. **Diagnóstico Cirúrgico com Snippet de 5 Linhas:** Se o JSON possuir erro estrutural irrecuperável, a ferramenta informa a linha/coluna exatas com um trecho de 5 linhas numeradas marcando `<-- ERRO AQUI`.
+16. **Desaninhamento Automático de Chaves (*Unflattening*):** Chaves na raiz como `"etp.necessidade": "..."` são automaticamente desaninhadas para `{ etp: { necessidade: "..." } }`.
 
 ---
 
@@ -121,7 +126,10 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 # 5. Gerar Relatório de Auditoria em Word (.docx) a partir do JSON de auditoria
 ./docgov-docx --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.docx
 
-# 6. Verificar / Atualizar o próprio binário
+# 6. Exportar especificação técnica normativa em Markdown
+./docgov-docx --dump-spec especificação_motor.md
+
+# 7. Verificar / Atualizar o próprio binário
 ./docgov-docx --check-update
 ./docgov-docx --update
 ./docgov-docx --force-update
@@ -134,6 +142,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 | Parâmetro | Descrição |
 | :--- | :--- |
 | *(sem argumentos)* ou `--mcp` | Inicia o servidor MCP via `stdio` (comportamento padrão). |
+| `--dump-spec [caminho.md]` | Exporta a especificação técnica integral do motor em Markdown (UTF-8). |
 | `--bootstrap-case` | Cria `inputs/`, `state/`, `output/` em `--case-dir`, copia e inspeciona `.docx` imediatamente, gera `visao_auditoria_<nome>.md` e inicia salvaguarda de PDFs em background. |
 | `--wait` | Aguarda a conclusão da cópia dos arquivos em segundo plano no `--bootstrap-case` antes de encerrar o CLI. |
 | `--inspect <arq.docx>` | Extrai o mapa estrutural JSON (`toc_map`), gera `visao_auditoria_<nome>.md` e busca correspondência no Cache Global. |

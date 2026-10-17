@@ -24,7 +24,7 @@ import {
   GetPromptRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 
-export const VERSION = "0.6.1";
+export const VERSION = "0.6.2";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -37,12 +37,15 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 ### Ordem Canônica do Pipeline de Documentos (.docx):
 1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\\x03\\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
 2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/'), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
-3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta coordenadas compactas (ex.: 'coord': 'T0.R1.C1' ou 'P2', com ou sem colchetes), array unificado 'slots', aliases, validação fail-fast estrita (Zero Silent No-Op com contagem de applied_slots_count) e a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
+3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta coordenadas compactas (ex.: 'coord': 'T0.R1.C1' ou 'P2', com ou sem colchetes), array unificado 'slots', aliases, validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op com contagem de applied_slots_count) e a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
 4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
    - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map e state/visao_auditoria_output.md) para fornecer o espelho linear de leitura integral em 1 único turno ao auditor externo.
-5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com fichas individualizadas e transcrições probatórias integrais.
+5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast com padrão Exact Copy-Paste Error, fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
+- Padrão Exact Copy-Paste Error (v0.6.2): Validação fail-fast estrita em slots_manifest.json e relatorio_auditoria.json. Caso ocorra erro de contrato ou 0 slots sejam aplicados, o motor interrompe com instrução imperativa e snippet JSON canônico completo pronto para copiar e colar.
+- Especificação Técnica Integral (--dump-spec v0.6.2): Flag CLI para exportação da especificação normativa do motor em Markdown (UTF-8).
+- Estatuto de Governança (AGENTS.md v0.6.2): As 7 Leis Invioláveis de Engenharia do motor.
 - Coordenadas Compactas & Normalização Universal (v0.6.1): Suporte nativo a 'coord': 'T0.R1.C1' e 'coord': 'P2' (com ou sem colchetes), array unificado 'slots: [...]' ou array puro na raiz, aliases ('col_index', 'paragraph_index') e parsing automático para arrays canônicos.
 - Validação Fail-Fast Zero Silent No-Op (v0.6.1): Rejeição imediata com erro descritivo caso o manifesto tenha 0 regras reconhecidas ou resulte em 0 slots aplicados no OpenXML, impedindo salvar templates vazios ou persistir lixo no cache.
 - Sanity Check de Cache Global (v0.6.1): O carregamento em loadAllRegistryTemplates normaliza os manifestos e descarta silenciosamente entradas corrompidas com 0 regras.
@@ -61,7 +64,7 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.1)
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.6.2)
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
 
@@ -92,6 +95,9 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 
 ### Passo 3: Parametrização do Template (build_docx_template)
 - **Chamada:** \`build_docx_template({ sourcePath: "cases/<nome_caso>/inputs/modelo_etp.docx", manifestPath: "cases/<nome_caso>/state/slots_manifest.json", outputPath: "cases/<nome_caso>/state/template_etp.docx", saveToRegistry: true })\`
+- **Padrão Exact Copy-Paste Error (v0.6.2):** Se o manifesto contiver chaves inválidas (como \`loop_var\`, \`items_expr\`, \`cell_slots\` em \`loop_table_rows\` ou chaves desconhecidas na raiz) ou se 0 slots forem aplicados, o motor interrompe imediatamente com o padrão imperativo:
+  *"NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:"*
+  acompanhado do snippet canônico pronto para copiar e colar.
 - **Normalização Universal & Coordenadas Compactas (v0.6.1):** Aceita coordenadas compactas diretamente do \`toc_map\` (ex.: \`"coord": "T0.R1.C1"\` ou \`"coord": "P3"\`, com ou sem colchetes \`[T0.R1.C1]\`), array raiz unificado \`slots: [...] \` ou array puro na raiz.
 - **Validação Fail-Fast (Zero Silent No-Op v0.6.1):** Se o manifesto tiver 0 regras reconhecidas ou se 0 slots forem aplicados no OpenXML, a execução falha imediatamente com erro detalhado. O arquivo de saída não é gravado e o cache não é corrompido.
 - **Tolerância a JSON:** Se o \`slots_manifest.json\` contiver trailing commas ou quebras em strings, o motor repara automaticamente o arquivo e o regrava limpo.
@@ -150,6 +156,7 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 - **Chamada:** \`generate_audit_docx({ auditJsonPath: "cases/<nome_caso>/state/relatorio_auditoria.json", outputPath: "cases/<nome_caso>/output/Relatorio_Auditoria_ETP.docx" })\`
 - **Características:**
   - Layout editorial vertical A4 corrido (ZERO tabelas <w:tbl>, 100% largura útil).
+  - Padrão Exact Copy-Paste Error: rejeição fail-fast estrita caso campos obrigatórios (\`processo_id\`, \`resumo_executivo\`) estejam ausentes.
   - Sanitização de crases markdown, coordenadas técnicas e códigos de enum.
   - Fichas verticais individualizadas com múltiplos trechos probatórios transcritos em blocos de citação recuados.
 `.trim();
@@ -1336,7 +1343,109 @@ export function getTemplateRegistryDir(
 }
 
 // ============================================================================
-// Normalizador Universal de Manifesto e Contagem de Regras (v0.6.1)
+// Padrão Exact Copy-Paste Error (Fail-Safe Estrito v0.6.2)
+// ============================================================================
+
+export const EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET = `{
+  "slots": [
+    { "coord": "P3", "tag": "{{estudo.necessidade}}" },
+    { "coord": "T0.R0.C1", "tag": "{{metadados.unidade}}" },
+    { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }
+  ],
+  "loop_table_rows": [
+    {
+      "table_index": 1,
+      "header_row_index": 0,
+      "template_row_index": 1,
+      "remove_from_row": 2,
+      "remove_to_row": 6,
+      "for_open_tag": "{{FOR item IN lista_itens}}",
+      "for_close_tag": "{{END-FOR item}}",
+      "cell_tags": [
+        "{{$item.numero}}",
+        "{{$item.descricao}}",
+        "{{$item.valor}}"
+      ]
+    }
+  ]
+}`;
+
+export const EXACT_COPY_PASTE_CANONICAL_SLOTS_MANIFEST_SNIPPET = `{
+  "replace_paragraphs": [
+    { "start_p": 3, "end_p": 5, "tag": "{{estudo.necessidade}}" }
+  ],
+  "replace_table_cells": [
+    { "table_index": 0, "row_index": 0, "cell_index": 1, "tag": "{{metadados.unidade}}" }
+  ],
+  "loop_table_rows": [
+    {
+      "table_index": 1,
+      "header_row_index": 0,
+      "template_row_index": 1,
+      "remove_from_row": 2,
+      "remove_to_row": 6,
+      "for_open_tag": "{{FOR item IN lista_itens}}",
+      "for_close_tag": "{{END-FOR item}}",
+      "cell_tags": ["{{$item.numero}}", "{{$item.descricao}}", "{{$item.valor}}"]
+    }
+  ],
+  "replace_inline": [
+    { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }
+  ]
+}`;
+
+export function createSlotsManifestContractError(reason: string): string {
+  return [
+    `Erro de validação no manifesto de slots: ${reason}`,
+    `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
+    EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET,
+    "",
+    "Também é aceito o formato canônico com os arrays na raiz:",
+    EXACT_COPY_PASTE_CANONICAL_SLOTS_MANIFEST_SNIPPET,
+  ].join("\n");
+}
+
+export const EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET = `{
+  "processo_id": "08000.001234/2026-00",
+  "orgao_entidade": "ORGAO_CONTRATANTE",
+  "artefato_auditado": "Estudo Técnico Preliminar (ETP)",
+  "regime_juridico": "Lei Federal nº 14.133/2021",
+  "status_global": "APROVADO_COM_RESSALVAS",
+  "contagem": {
+    "bloqueantes": 0,
+    "alertas": 2,
+    "conformes": 8
+  },
+  "resumo_executivo": "A auditoria técnica identificou 2 alertas preventivos e 0 apontamentos bloqueantes...",
+  "apontamentos": [
+    {
+      "id": "AUD-01",
+      "severidade": "ALERTA",
+      "titulo_apontamento": "Necessidade de refinamento da estimativa de quantidades",
+      "base_legal": "Art. 18, § 1º, IV da Lei nº 14.133/2021",
+      "trechos_documento": [
+        {
+          "rotulo": "Item 4.1 da Minuta",
+          "texto": "Texto literal transcrito entre aspas...",
+          "origem": "minuta_etp.docx"
+        }
+      ],
+      "risco_controle_externo": "Risco de sobrepreço ou dimensionamento inadequado da contratação.",
+      "redacao_saneadora_sugerida": "Incluir memória de cálculo detalhada com base no histórico de consumo."
+    }
+  ]
+}`;
+
+export function createAuditReportContractError(reason: string): string {
+  return [
+    `Erro de validação no relatório de auditoria JSON: ${reason}`,
+    `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
+    EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET,
+  ].join("\n");
+}
+
+// ============================================================================
+// Normalizador Universal de Manifesto e Contagem de Regras (v0.6.2)
 // ============================================================================
 
 export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
@@ -1357,7 +1466,144 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
   const paraCoordRegex =
     /^\s*\[?\s*P(\d+)(?:\s*(?:\.\.|[-.:])\s*P?(\d+))?\s*\]?\s*$/i;
 
-  const processRule = (rule: any) => {
+  const ALLOWED_ROOT_KEYS = new Set([
+    "slots",
+    "replace_paragraphs",
+    "loop_paragraphs",
+    "replace_table_cells",
+    "loop_table_rows",
+    "replace_inline",
+    "_shift_summary",
+    "comment",
+    "target_docx",
+    "source_docx",
+  ]);
+
+  if (!Array.isArray(rawManifest)) {
+    for (const k of Object.keys(rawManifest)) {
+      if (!ALLOWED_ROOT_KEYS.has(k)) {
+        throw new Error(
+          createSlotsManifestContractError(
+            `Chave raiz desconhecida ou não suportada: "${k}".`
+          )
+        );
+      }
+    }
+  }
+
+  const ALLOWED_LOOP_TABLE_KEYS = new Set([
+    "table_index",
+    "table",
+    "header_row_index",
+    "template_row_index",
+    "remove_from_row",
+    "remove_to_row",
+    "for_open_tag",
+    "for_close_tag",
+    "cell_tags",
+  ]);
+
+  const ALLOWED_REPLACE_PARA_KEYS = new Set([
+    "start_p",
+    "end_p",
+    "tag",
+    "coord",
+    "paragraph_index",
+    "p_index",
+    "paragraph",
+  ]);
+
+  const ALLOWED_REPLACE_CELL_KEYS = new Set([
+    "table_index",
+    "table",
+    "row_index",
+    "row",
+    "cell_index",
+    "col_index",
+    "column_index",
+    "cell",
+    "col",
+    "tag",
+    "coord",
+  ]);
+
+  const ALLOWED_REPLACE_INLINE_KEYS = new Set(["find", "replace"]);
+
+  const ALLOWED_LOOP_PARA_KEYS = new Set([
+    "start_p",
+    "end_p",
+    "for_open_tag",
+    "for_close_tag",
+    "item_tag",
+    "tag",
+    "coord",
+    "paragraph_index",
+    "p_index",
+    "paragraph",
+  ]);
+
+  const ALLOWED_SLOTS_ITEM_KEYS = new Set([
+    "coord",
+    "tag",
+    "item_tag",
+    "for_open_tag",
+    "for_close_tag",
+    "find",
+    "replace",
+    "table_index",
+    "table",
+    "row_index",
+    "row",
+    "cell_index",
+    "col_index",
+    "column_index",
+    "cell",
+    "col",
+    "start_p",
+    "end_p",
+    "paragraph_index",
+    "p_index",
+    "paragraph",
+    "header_row_index",
+    "template_row_index",
+    "remove_from_row",
+    "remove_to_row",
+    "cell_tags",
+  ]);
+
+  const validateRuleKeys = (
+    rule: any,
+    allowedSet: Set<string>,
+    context: string
+  ) => {
+    if (!rule || typeof rule !== "object" || Array.isArray(rule)) {
+      throw new Error(
+        createSlotsManifestContractError(
+          `Item inválido em '${context}': esperado objeto de regra, recebido ${typeof rule}.`
+        )
+      );
+    }
+    for (const k of Object.keys(rule)) {
+      if (!allowedSet.has(k)) {
+        let hint = "";
+        if (
+          k === "loop_var" ||
+          k === "items_expr" ||
+          k === "cell_slots" ||
+          k === "row_index"
+        ) {
+          hint = ` Não invente propriedades como 'loop_var', 'items_expr', 'cell_slots' ou 'row_index' em '${context}'.`;
+        }
+        throw new Error(
+          createSlotsManifestContractError(
+            `Propriedade desconhecida ou proibida "${k}" encontrada em '${context}'.${hint}`
+          )
+        );
+      }
+    }
+  };
+
+  const processRule = (rule: any, context: string = "slots") => {
     if (!rule || typeof rule !== "object") return;
 
     // 1. Regra com coord explícita (ex.: "T0.R1.C1", "[T0.R1.C1]", "P2", "[P2]", "P2-P4")
@@ -1401,6 +1647,12 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
         }
         return;
       }
+
+      throw new Error(
+        createSlotsManifestContractError(
+          `Coordenada inválida "${rule.coord}" em '${context}'. Formatos suportados: "T0.R1.C1" (tabela) ou "P2", "P2-P4" (parágrafo).`
+        )
+      );
     }
 
     // 2. Regra inline ({ find, replace })
@@ -1486,45 +1738,68 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
       }
       return;
     }
+
+    throw new Error(
+      createSlotsManifestContractError(
+        `Regra não reconhecida em '${context}': ${JSON.stringify(rule)}. Verifique as propriedades obrigatórias.`
+      )
+    );
   };
 
   // Se a raiz for um array puro
   if (Array.isArray(rawManifest)) {
     for (const item of rawManifest) {
-      processRule(item);
+      validateRuleKeys(item, ALLOWED_SLOTS_ITEM_KEYS, "slots");
+      processRule(item, "slots");
     }
   } else {
     // Se contiver a propriedade 'slots'
     if (Array.isArray(rawManifest.slots)) {
       for (const item of rawManifest.slots) {
-        processRule(item);
+        validateRuleKeys(item, ALLOWED_SLOTS_ITEM_KEYS, "slots");
+        processRule(item, "slots");
       }
+    } else if (rawManifest.slots !== undefined) {
+      throw new Error(
+        createSlotsManifestContractError(
+          `Propriedade 'slots' deve ser uma lista (array) de regras.`
+        )
+      );
     }
 
     // Se contiver arrays canônicos (ou variantes)
     if (Array.isArray(rawManifest.replace_paragraphs)) {
       for (const item of rawManifest.replace_paragraphs) {
-        processRule(item);
+        validateRuleKeys(item, ALLOWED_REPLACE_PARA_KEYS, "replace_paragraphs");
+        processRule(item, "replace_paragraphs");
       }
     }
     if (Array.isArray(rawManifest.loop_paragraphs)) {
       for (const item of rawManifest.loop_paragraphs) {
-        processRule(item);
+        validateRuleKeys(item, ALLOWED_LOOP_PARA_KEYS, "loop_paragraphs");
+        processRule(item, "loop_paragraphs");
       }
     }
     if (Array.isArray(rawManifest.replace_table_cells)) {
       for (const item of rawManifest.replace_table_cells) {
-        processRule(item);
+        validateRuleKeys(
+          item,
+          ALLOWED_REPLACE_CELL_KEYS,
+          "replace_table_cells"
+        );
+        processRule(item, "replace_table_cells");
       }
     }
     if (Array.isArray(rawManifest.loop_table_rows)) {
       for (const item of rawManifest.loop_table_rows) {
-        processRule(item);
+        validateRuleKeys(item, ALLOWED_LOOP_TABLE_KEYS, "loop_table_rows");
+        processRule(item, "loop_table_rows");
       }
     }
     if (Array.isArray(rawManifest.replace_inline)) {
       for (const item of rawManifest.replace_inline) {
-        processRule(item);
+        validateRuleKeys(item, ALLOWED_REPLACE_INLINE_KEYS, "replace_inline");
+        processRule(item, "replace_inline");
       }
     }
   }
@@ -2247,41 +2522,27 @@ export function extractSemanticTypeAndOrgan(rawContent: string): {
     docType = "CONTRATO";
   }
 
-  const hasPa =
-    text.includes("DO ESTADO DO PARA") ||
-    text.includes("ESTADO DO PARA") ||
-    matchesWord(text, "PARA") ||
-    matchesWord(text, "PA");
-
   let organ: string | undefined;
   const organMatch = text.match(
     /\b(ORGAO_[A-Z0-9]+|SECRETARIA_[A-Z0-9]+|ENTIDADE_[A-Z0-9]+|DEPARTAMENTO_[A-Z0-9]+)\b/
   );
   if (organMatch) {
     organ = organMatch[1];
-  } else if (text.includes("DEFENSORIA PUBLICA") || matchesWord(text, "DPE")) {
-    organ = hasPa ? "DPE_PA" : "DPE";
-  } else if (
-    text.includes("SECRETARIA DE ESTADO DE EDUCACAO") ||
-    text.includes("SECRETARIA DE EDUCACAO") ||
-    matchesWord(text, "SEDUC")
-  ) {
-    organ = hasPa ? "SEDUC_PA" : "SEDUC";
-  } else if (
-    text.includes("PROCURADORIA GERAL DO ESTADO") ||
-    matchesWord(text, "PGE")
-  ) {
-    organ = hasPa ? "PGE_PA" : "PGE";
-  } else if (
-    text.includes("SECRETARIA DE ESTADO DA FAZENDA") ||
-    matchesWord(text, "SEFAZ")
-  ) {
-    organ = hasPa ? "SEFAZ_PA" : "SEFAZ";
   } else if (
     text.includes("ADVOCACIA GERAL DA UNIAO") ||
     matchesWord(text, "AGU")
   ) {
     organ = "AGU";
+  } else if (
+    text.includes("MINISTERIO DA GESTAO") ||
+    matchesWord(text, "MGI")
+  ) {
+    organ = "MGI";
+  } else if (
+    text.includes("TRIBUNAL DE CONTAS DA UNIAO") ||
+    matchesWord(text, "TCU")
+  ) {
+    organ = "TCU";
   } else if (
     matchesWord(text, "ORGAO A") ||
     text.includes("ORGAO PUBLICO CONTRATANTE")
@@ -3107,9 +3368,9 @@ export async function buildDocxTemplate(
 
   if (configuredRulesCount === 0) {
     throw new Error(
-      `Manifesto de slots inválido ou vazio (${resolvedManifest}): nenhuma regra reconhecida encontrada.\n` +
-        `Estrutura esperada: { slots: [{ coord: "T0.R1.C1", tag: "{{tag}}" }] } ou arrays canônicos como { replace_table_cells: [...], replace_paragraphs: [...] }.\n` +
-        `Consulte 'inspect_docx' ou a documentação de 'build_docx_template' para verificar as coordenadas disponíveis.`
+      createSlotsManifestContractError(
+        `Nenhuma regra válida reconhecida no arquivo ${resolvedManifest}. O manifesto está vazio ou estruturado incorretamente.`
+      )
     );
   }
 
@@ -3397,9 +3658,9 @@ export async function buildDocxTemplate(
 
   if (applied_slots_count === 0) {
     throw new Error(
-      `Falha na parametrização do template: 0 slots foram aplicados no documento '${basename(resolvedSource)}'.\n` +
-        `Nenhuma das ${configuredRulesCount} regra(s) do manifesto (${resolvedManifest}) produziu alterações efetivas no OpenXML.\n` +
-        `Verifique se as coordenadas (ex.: 'coord': 'T0.R1.C1', 'coord': 'P2') ou textos de busca ('find') coincidem com a estrutura inspecionada do documento.`
+      createSlotsManifestContractError(
+        `0 slots foram aplicados no documento '${basename(resolvedSource)}'. Nenhuma das ${configuredRulesCount} regra(s) do manifesto (${resolvedManifest}) produziu alterações no OpenXML. Verifique se as coordenadas ou textos de busca existem no documento.`
+      )
     );
   }
 
@@ -4211,14 +4472,59 @@ export async function generateAuditDocx(
   const raw: AuditReportData =
     safeReadJsonFile<AuditReportData>(resolvedAuditJson);
 
-  // Nota: metadados_agente nunca é lido nem impresso no relatório humano
-  const processoId = cleanHumanText(
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      createAuditReportContractError(
+        "O arquivo de auditoria deve conter um objeto JSON válido."
+      )
+    );
+  }
+
+  const rawProcesso =
     raw.processo_id ??
-      raw.processo ??
-      raw.metadados?.processo_id ??
-      raw.metadados?.numero_processo ??
-      "N/A"
-  );
+    raw.processo ??
+    raw.metadados?.processo_id ??
+    raw.metadados?.numero_processo;
+
+  if (!rawProcesso || typeof rawProcesso !== "string" || !rawProcesso.trim()) {
+    throw new Error(
+      createAuditReportContractError(
+        "Campo obrigatório 'processo_id' ausente ou vazio."
+      )
+    );
+  }
+
+  const rawResumo =
+    raw.resumo_executivo ??
+    raw.parecer_executivo ??
+    raw.resumo;
+
+  if (!rawResumo || typeof rawResumo !== "string" || !rawResumo.trim()) {
+    throw new Error(
+      createAuditReportContractError(
+        "Campo obrigatório 'resumo_executivo' ausente ou vazio."
+      )
+    );
+  }
+
+  if (raw.apontamentos !== undefined && !Array.isArray(raw.apontamentos)) {
+    throw new Error(
+      createAuditReportContractError(
+        "O campo 'apontamentos' deve ser uma lista (array) de achados de auditoria."
+      )
+    );
+  }
+
+  if (raw.achados !== undefined && !Array.isArray(raw.achados)) {
+    throw new Error(
+      createAuditReportContractError(
+        "O campo 'achados' deve ser uma lista (array) de achados de auditoria."
+      )
+    );
+  }
+
+  // Nota: metadados_agente nunca é lido nem impresso no relatório humano
+  const processoId = cleanHumanText(rawProcesso);
   const orgaoEntidade = cleanHumanText(
     raw.orgao_entidade ??
       raw.orgao ??
@@ -4835,6 +5141,72 @@ export function getMcpPromptsDefinition() {
   ];
 }
 
+// ============================================================================
+// Especificação Técnica Integral em Markdown (--dump-spec v0.6.2)
+// ============================================================================
+
+export function generateEngineSpecMarkdown(): string {
+  return `# Especificação Técnica do Motor docgov-docx-engine (v${VERSION})
+
+Documento normativo e especificação canônica do motor standalone \`docgov-docx-engine\` e servidor MCP para o ecossistema DocGov.
+
+---
+
+## 1. As 7 Leis Invioláveis de Governança (AGENTS.md)
+
+1. **Runtime e Testes Padronizados via Bun:** O runtime padrão do motor é o Bun (\`bun test\`, \`bun run build:linux\`, \`bun run build:windows\`). Todos os scripts e testes devem permanecer agnósticos de caminhos locais de máquina.
+2. **Teto Estrito de Payload MCP (< 1024 bytes):** Todo retorno sintético de ferramentas via stdio MCP DEVE ter menos de 1024 bytes (UTF-8) para evitar truncamento em \`output.txt\` pelas IDEs. Mapas estruturais completos (\`toc_map\`) e espelhos de leitura linear (\`visao_auditoria_*.md\`) são persistidos em disco.
+3. **Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito):** É expressamente proibido retornar \`status: "success"\` se \`applied_slots_count === 0\`. É proibido mascarar erros com conversões mágicas de chaves inválidas. Erros de contrato em \`slots_manifest.json\` ou \`relatorio_auditoria.json\` retornam a instrução mandatória acompanhada do snippet JSON canônico pronto para copiar e colar.
+4. **Sincronia Obrigatória de Self-Discovery (Fonte Única da Verdade):** Qualquer alteração em parâmetro, ferramenta ou comportamento deve atualizar no mesmo commit a saída da flag \`--dump-spec\`, as instruções \`DOCX_ENGINE_INSTRUCTIONS\`, o guia \`DOCX_WORKFLOW_GUIDE_TEXT\` e as descrições em \`getMcpToolsDefinition()\`.
+5. **Neutralidade Institucional Absoluta:** É expressamente proibido usar nomes de órgãos, entidades, estados ou localidades específicos em código, testes, fixtures ou documentação. Use exclusivamente identificadores genéricos ou siglas federais universais: \`ORGAO_CONTRATANTE\`, \`MUNICIPIO_GENERICO\`, \`ORGAO_A\`, \`ORGAO_B\`, \`AGU\`, \`MGI\`, \`TCU\`.
+6. **Resiliência de Caminhos e Cache Global (core/registry/templates/):** Resolução de caminhos independente do diretório de trabalho atual (\`process.cwd()\`), priorizando \`DOCGOV_REGISTRY_DIR\` e busca ascendente a partir de \`caseDir\` ou \`docxPath\`. Sanity check obrigatório no carregamento de templates descartando manifestos com 0 regras.
+7. **Ritual de Qualidade e Release:** 100% dos testes aprovados via \`bun test\` antes de commit/tag de release SemVer.
+
+---
+
+## 2. Ferramentas MCP Nativas (5 Tools)
+
+### 2.1. bootstrap_case
+Inicializa a governança de pastas do caso (\`inputs/\`, \`state/\`, \`output/\`), preserva nomes legíveis, infere extensões por magic bytes (\`PK\\x03\\x04\` para .docx e \`%PDF\` para .pdf), aceita \`fileRenameMap\` opcional, realiza auto-batismo de uploads anônimos (\`media_*\` -> \`<TIPO>_<ORGAO>_<hash4>.<ext>\`), inspeciona minutas \`.docx\` imediatamente gerando \`state/estrutura_<stem>.json\` com \`toc_map\`, e inicia salvaguarda assíncrona de PDFs. Retorna sumário executivo sintético (< 1 KB).
+
+### 2.2. inspect_docx
+Engenharia reversa estrutural completa de arquivos Word (.docx). Constrói no topo do JSON o índice estrutural rápido (\`toc_map\`), calcula a impressão digital (\`structure_fingerprint\`), realiza busca 1-para-N no cache global (\`core/registry/templates/\`) com status \`EXACT\`, \`MODIFIED\` (reancoragem automática Auto-Offset gerando \`state/adapted_slots_manifest.json\` em drift 75%-99%) ou \`NEW\`. Gera o espelho linear de auditoria \`state/visao_auditoria_<nome>.md\` para leitura cega em turno único e devolve no MCP sumário sintético \`toc_summary\` (< 1 KB).
+
+### 2.3. build_docx_template
+Transforma documento Word (.docx) bruto em template parametrizado com tags \`{{...}}\` preservando 100% da formatação OpenXML (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas).
+- **Validação Fail-Fast e Exact Copy-Paste Error (v0.6.2):** Proíbe chaves inventadas (ex.: \`loop_var\`, \`items_expr\`, \`cell_slots\`, \`row_index\` em \`loop_table_rows\`) e rejeita manifestos com 0 regras ou que resultem em 0 slots aplicados.
+- **Contrato Canônico de \`slots_manifest.json\`:**
+\`\`\`json
+${EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET}
+\`\`\`
+- **Formato Canônico Detalhado com Arrays na Raiz:**
+\`\`\`json
+${EXACT_COPY_PASTE_CANONICAL_SLOTS_MANIFEST_SNIPPET}
+\`\`\`
+
+### 2.4. fill_docx_template
+Injeta os dados de \`estado_caso.json\` no template .docx gerado.
+- Desaninhamento (*unflatten*) automático de chaves com notação de ponto (ex.: \`"etp.necessidade"\`).
+- Negrito seletivo: strings com \`**texto**\` são convertidas em runs <w:b/> sem contaminação de estilo.
+- Quebras de linha: \`\\n\` em variáveis geram múltiplos parágrafos <w:p> preservando estilos de corpo.
+- Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
+
+### 2.5. generate_audit_docx
+Compila o parecer executivo de auditoria de controle externo em layout vertical A4 (ZERO tabelas <w:tbl>, 100% largura útil), com sanitização de crases e enums, fichas verticais e transcrições integrais em blocos de citação recuados.
+- **Validação Fail-Fast e Exact Copy-Paste Error (v0.6.2):** Campos obrigatórios \`processo_id\` e \`resumo_executivo\` devem ser strings não-vazias; \`apontamentos\` deve ser array.
+- **Contrato Canônico de \`relatorio_auditoria.json\`:**
+\`\`\`json
+${EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET}
+\`\`\`
+
+---
+
+## 3. Cache Global e Sanity Check (core/registry/templates/)
+- Os templates homologados são armazenados em \`core/registry/templates/<template_id>.json\`.
+- O método \`loadAllRegistryTemplates\` executa normalização automática em cada entrada e descarta silenciosamente manifestos corrompidos com 0 regras.
+`.trim();
+}
+
 export function getMcpToolsDefinition() {
   return [
     {
@@ -4909,7 +5281,7 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', aliases ('col_index', 'paragraph_index'), validação fail-fast obrigatória (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.1).\n" +
+        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', aliases ('col_index', 'paragraph_index'), validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.2).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
@@ -4924,7 +5296,7 @@ export function getMcpToolsDefinition() {
           manifestPath: {
             type: "string",
             description:
-              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline.",
+              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'C:/workspace/cases/caso_exemplo/state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline. Validação estrita: proíbe propriedades inventadas.",
           },
           outputPath: {
             type: "string",
@@ -4985,7 +5357,7 @@ export function getMcpToolsDefinition() {
     {
       name: "generate_audit_docx",
       description:
-        "Gera um Relatório de Auditoria Técnico-Jurídica em formato Word (.docx) em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com sanitização automática de crases Markdown, coordenadas e códigos de enum, e transcrição integral de trechos probatórios (trechos_documento) em blocos de citação recuados.\n" +
+        "Gera um Relatório de Auditoria Técnico-Jurídica em formato Word (.docx) em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast estrita (padrão Exact Copy-Paste Error v0.6.2), sanitização automática de crases Markdown, coordenadas e códigos de enum, e transcrição integral de trechos probatórios (trechos_documento) em blocos de citação recuados.\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após a auditoria do documento gerado e consolidação do arquivo 'relatorio_auditoria.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera o documento .docx executivo do parecer de auditoria em outputPath. Conclui formalmente o ciclo de auditoria do processo.",
       inputSchema: {
@@ -5216,6 +5588,7 @@ DocGov Docx Engine v${VERSION} — CLI & MCP Server
 Uso:
   docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
+  docgov-docx --dump-spec [caminho.md]            Exporta a especificação técnica integral do motor em Markdown
   docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
   docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
@@ -5227,6 +5600,32 @@ Uso:
   docgov-docx -v, --version                       Exibe a versão do software
   docgov-docx -h, --help                          Exibe esta mensagem de ajuda
 `);
+    return;
+  }
+
+  // 0c) Modo --dump-spec
+  if (args.includes("--dump-spec")) {
+    const specIdx = args.indexOf("--dump-spec");
+    const outIdx = args.indexOf("--out");
+    let outputPath: string | undefined;
+    if (outIdx !== -1 && args[outIdx + 1] && !args[outIdx + 1].startsWith("--")) {
+      outputPath = args[outIdx + 1];
+    } else if (
+      args[specIdx + 1] &&
+      !args[specIdx + 1].startsWith("--")
+    ) {
+      outputPath = args[specIdx + 1];
+    }
+
+    const specMarkdown = generateEngineSpecMarkdown();
+    if (outputPath) {
+      const resolved = resolve(outputPath);
+      mkdirSync(dirname(resolved), { recursive: true });
+      writeFileSync(resolved, specMarkdown, "utf8");
+      console.log(`Especificação técnica do motor gravada com sucesso em: ${resolved}`);
+    } else {
+      process.stdout.write(specMarkdown + "\n");
+    }
     return;
   }
 
@@ -5491,6 +5890,7 @@ if (import.meta.main) {
   // Se tiver flag explícita de CLI, roda CLI.
   // Caso contrário (sem args ou com --mcp), sobe como MCP server imediatamente.
   if (
+    args.includes("--dump-spec") ||
     args.includes("--internal-bg-copy") ||
     args.includes("--bootstrap-case") ||
     args.includes("--inspect") ||

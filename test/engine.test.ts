@@ -52,6 +52,11 @@ import {
   reanchorSlotsManifest,
   generateLinearAuditViewMarkdown,
   VERSION,
+  generateEngineSpecMarkdown,
+  createSlotsManifestContractError,
+  createAuditReportContractError,
+  EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET,
+  EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET,
   type StructureFingerprint,
   type TemplateRegistryEntry,
 } from "../src/index.ts";
@@ -279,7 +284,7 @@ async function createDriftedRawDocx(targetPath: string): Promise<void> {
   writeFileSync(targetPath, buf);
 }
 
-describe("DocGov Docx Engine v0.6.1", () => {
+describe("DocGov Docx Engine v0.6.2", () => {
   const tempDir = resolve("./temp_test_run");
   const templatePath = resolve(tempDir, "template_input.docx");
   const statePath = resolve(tempDir, "state_input.json");
@@ -1674,9 +1679,12 @@ describe("DocGov Docx Engine v0.6.1", () => {
     expect(savedEntry.structure_fingerprint.tables.length).toBe(2);
   });
 
-  test("deve expor versão 0.6.1 e novos recursos v0.6.1 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.6.1");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.1");
+  test("deve expor versão 0.6.2 e novos recursos v0.6.2 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.6.2");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.6.2");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Exact Copy-Paste Error");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("--dump-spec");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("AGENTS.md");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Coordenadas Compactas");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Zero Silent No-Op");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanity Check");
@@ -1692,7 +1700,8 @@ describe("DocGov Docx Engine v0.6.1", () => {
     expect(inspectTool.description).toContain("visao_auditoria");
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
-    expect(buildTool.description).toContain("v0.6.1");
+    expect(buildTool.description).toContain("v0.6.2");
+    expect(buildTool.description).toContain("Exact Copy-Paste Error");
     expect(buildTool.description).toContain("Zero Silent No-Op");
     expect(buildTool.description).toContain("saveToRegistry");
     expect(buildTool.inputSchema.properties.manifestPath.description).toContain(
@@ -1700,6 +1709,9 @@ describe("DocGov Docx Engine v0.6.1", () => {
     );
     expect(buildTool.inputSchema.properties.saveToRegistry).toBeDefined();
     expect(buildTool.inputSchema.properties.templateId).toBeDefined();
+
+    const auditTool = tools.find((t) => t.name === "generate_audit_docx")!;
+    expect(auditTool.description).toContain("Exact Copy-Paste Error");
   });
 
   test("deve normalizar manifesto com coordenadas compactas, aliases e array na raiz (normalizeSlotsManifest & countManifestRules v0.6.1)", () => {
@@ -1878,9 +1890,9 @@ describe("DocGov Docx Engine v0.6.1", () => {
     }
 
     expect(errorA).toBeDefined();
-    expect(errorA.message).toContain("Manifesto de slots inválido ou vazio");
-    expect(errorA.message).toContain("nenhuma regra reconhecida encontrada");
-    expect(errorA.message).toContain("slots: [{ coord");
+    expect(errorA.message).toContain("NÃO faça leituras exploratórias no repositório");
+    expect(errorA.message).toContain("Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errorA.message).toContain("chave_invalida");
     expect(existsSync(outDocxEmpty)).toBe(false);
     expect(
       existsSync(resolve(customRegistry, "template_corrompido_a.json"))
@@ -1913,9 +1925,9 @@ describe("DocGov Docx Engine v0.6.1", () => {
     }
 
     expect(errorB).toBeDefined();
-    expect(errorB.message).toContain(
-      "Falha na parametrização do template: 0 slots foram aplicados"
-    );
+    expect(errorB.message).toContain("0 slots foram aplicados no documento");
+    expect(errorB.message).toContain("NÃO faça leituras exploratórias no repositório");
+    expect(errorB.message).toContain("Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
     expect(existsSync(outDocxNoOp)).toBe(false);
     expect(
       existsSync(resolve(customRegistry, "template_corrompido_b.json"))
@@ -1971,6 +1983,138 @@ describe("DocGov Docx Engine v0.6.1", () => {
     const loaded = loadAllRegistryTemplates(undefined, regDir);
     expect(loaded.length).toBe(1);
     expect(loaded[0].template_id).toBe("template_valido_v1");
+  });
+
+  test("deve aplicar Exact Copy-Paste Error estrito em slots_manifest.json com propriedades inventadas ou chaves raiz desconhecidas (v0.6.2)", () => {
+    // 1. Chave raiz desconhecida
+    let errRoot: any;
+    try {
+      normalizeSlotsManifest({ minhas_regras: [{ coord: "P1", tag: "{{tag}}" }] });
+    } catch (e: any) {
+      errRoot = e;
+    }
+    expect(errRoot).toBeDefined();
+    expect(errRoot.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errRoot.message).toContain("minhas_regras");
+    expect(errRoot.message).toContain(EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET);
+
+    // 2. Chaves proibidas em loop_table_rows (loop_var, items_expr, cell_slots, row_index)
+    let errLoop: any;
+    try {
+      normalizeSlotsManifest({
+        loop_table_rows: [
+          {
+            table_index: 1,
+            loop_var: "r",
+            items_expr: "gestao_riscos",
+            cell_slots: ["{{$r.risco}}"],
+          },
+        ],
+      });
+    } catch (e: any) {
+      errLoop = e;
+    }
+    expect(errLoop).toBeDefined();
+    expect(errLoop.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errLoop.message).toContain("loop_var");
+    expect(errLoop.message).toContain("Não invente propriedades como 'loop_var', 'items_expr', 'cell_slots' ou 'row_index'");
+
+    // 3. Propriedade desconhecida no array slots
+    let errSlotsItem: any;
+    try {
+      normalizeSlotsManifest({
+        slots: [{ coord: "P1", tag: "{{tag}}", invalid_custom_field: true }],
+      });
+    } catch (e: any) {
+      errSlotsItem = e;
+    }
+    expect(errSlotsItem).toBeDefined();
+    expect(errSlotsItem.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errSlotsItem.message).toContain("invalid_custom_field");
+  });
+
+  test("deve aplicar Exact Copy-Paste Error estrito em relatorio_auditoria.json caso processo_id ou resumo_executivo estejam ausentes ou inválidos (v0.6.2)", async () => {
+    const invalidAuditPath = resolve(tempDir, "invalid_audit.json");
+    const outAuditDocx = resolve(tempDir, "out_invalid_audit.docx");
+
+    // 1. Arquivo sem processo_id
+    writeFileSync(
+      invalidAuditPath,
+      JSON.stringify({ resumo_executivo: "Resumo sem ID" }),
+      "utf-8"
+    );
+    let errAudit1: any;
+    try {
+      await generateAuditDocx(invalidAuditPath, outAuditDocx);
+    } catch (e: any) {
+      errAudit1 = e;
+    }
+    expect(errAudit1).toBeDefined();
+    expect(errAudit1.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errAudit1.message).toContain("processo_id");
+    expect(errAudit1.message).toContain(EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET);
+    expect(errAudit1.message).toContain("ORGAO_CONTRATANTE");
+
+    // 2. Arquivo sem resumo_executivo
+    writeFileSync(
+      invalidAuditPath,
+      JSON.stringify({ processo_id: "08000.001/2026" }),
+      "utf-8"
+    );
+    let errAudit2: any;
+    try {
+      await generateAuditDocx(invalidAuditPath, outAuditDocx);
+    } catch (e: any) {
+      errAudit2 = e;
+    }
+    expect(errAudit2).toBeDefined();
+    expect(errAudit2.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errAudit2.message).toContain("resumo_executivo");
+
+    // 3. Campo apontamentos não-array
+    writeFileSync(
+      invalidAuditPath,
+      JSON.stringify({
+        processo_id: "08000.001/2026",
+        resumo_executivo: "Resumo válido",
+        apontamentos: "não sou um array",
+      }),
+      "utf-8"
+    );
+    let errAudit3: any;
+    try {
+      await generateAuditDocx(invalidAuditPath, outAuditDocx);
+    } catch (e: any) {
+      errAudit3 = e;
+    }
+    expect(errAudit3).toBeDefined();
+    expect(errAudit3.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
+    expect(errAudit3.message).toContain("apontamentos");
+  });
+
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.6.2)", () => {
+    const spec = generateEngineSpecMarkdown();
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.6.2)");
+    expect(spec).toContain("As 7 Leis Invioláveis de Governança (AGENTS.md)");
+    expect(spec).toContain("Runtime e Testes Padronizados via Bun");
+    expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
+    expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
+    expect(spec).toContain("Sincronia Obrigatória de Self-Discovery");
+    expect(spec).toContain("Neutralidade Institucional Absoluta");
+    expect(spec).toContain("Resiliência de Caminhos e Cache Global");
+    expect(spec).toContain("Ritual de Qualidade e Release");
+
+    // 5 ferramentas
+    expect(spec).toContain("2.1. bootstrap_case");
+    expect(spec).toContain("2.2. inspect_docx");
+    expect(spec).toContain("2.3. build_docx_template");
+    expect(spec).toContain("2.4. fill_docx_template");
+    expect(spec).toContain("2.5. generate_audit_docx");
+
+    // Snippets canônicos
+    expect(spec).toContain("ORGAO_CONTRATANTE");
+    expect(spec).toContain("slots");
+    expect(spec).toContain("loop_table_rows");
   });
 });
 
