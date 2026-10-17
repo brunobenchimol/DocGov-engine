@@ -38,7 +38,7 @@ Uso:
   docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
   docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
-  docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx>
+  docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--no-auto-inspect]
   docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx>
   docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
   docgov-docx -u, --update                        Atualiza o binário para a versão mais recente (se houver)
@@ -304,6 +304,7 @@ Uso:
   const templateIdx = args.indexOf("--template");
   const stateIdx = args.indexOf("--state");
   const outIdx = args.indexOf("--out");
+  const noAutoInspect = args.includes("--no-auto-inspect");
 
   if (templateIdx === -1 || stateIdx === -1 || outIdx === -1) {
     console.error(
@@ -316,9 +317,13 @@ Uso:
     const res = await processDocument(
       args[templateIdx + 1],
       args[stateIdx + 1],
-      args[outIdx + 1]
+      args[outIdx + 1],
+      { autoInspect: !noAutoInspect }
     );
     console.log(res.message);
+    if (res.visao_auditoria_path) {
+      console.log(`Visão linear de auditoria: ${res.visao_auditoria_path}`);
+    }
   } catch (err: any) {
     console.error(`Erro: ${err.message}`);
     process.exit(1);

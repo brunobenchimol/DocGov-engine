@@ -397,7 +397,10 @@ export async function inspectDocx(
   if (outputPath) {
     const resolvedOut = resolve(outputPath);
     const outDir = dirname(resolvedOut);
-    const outBase = basename(resolvedOut, ".json").replace(/^estrutura_/, "");
+    const outBase = basename(resolvedOut, ".json").replace(
+      /^(?:estrutura_|inspecao_)/,
+      ""
+    );
     auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
   } else {
     const docDir = dirname(resolvedDocx);

@@ -24,7 +24,10 @@ import {
   buildDocxTemplate,
   formatBuildDocxTemplateSyntheticResult,
 } from "../tools/build_template.ts";
-import { processDocument } from "../tools/fill_template.ts";
+import {
+  processDocument,
+  formatFillDocxTemplateSyntheticResult,
+} from "../tools/fill_template.ts";
 import { generateAuditDocx } from "../tools/audit.ts";
 
 // ============================================================================
@@ -161,7 +164,7 @@ export function getMcpToolsDefinition() {
       description:
         "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível (1.1, 1.1.1, etc.).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
-        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath. Próximo passo recomendado: para fins de auditoria externa, execute 'inspect_docx' sobre este arquivo gerado em output/ (gerando state/inspecao_output.json) antes de acionar a auditoria e 'generate_audit_docx'.",
+        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).",
       inputSchema: {
         type: "object",
         required: ["templatePath", "statePath", "outputPath"],
@@ -180,6 +183,11 @@ export function getMcpToolsDefinition() {
             type: "string",
             description:
               "Caminho de saída onde o documento final compilado será gerado (ex.: 'C:/workspace/cases/caso_exemplo/output/ETP_Exemplo.docx').",
+          },
+          autoInspect: {
+            type: "boolean",
+            description:
+              "Executa automaticamente a inspeção estrutural pós-compilação gerando state/inspecao_<stem>.json e state/visao_auditoria_<stem>.md para auditoria imediata. Padrão: true.",
           },
         },
       },
@@ -357,21 +365,27 @@ export async function runMcpServer() {
       }
 
       if (toolName === "fill_docx_template") {
-        const { templatePath, statePath, outputPath } = request.params
-          .arguments as {
-          templatePath: string;
-          statePath: string;
-          outputPath: string;
-        };
+        const { templatePath, statePath, outputPath, autoInspect } =
+          request.params.arguments as {
+            templatePath: string;
+            statePath: string;
+            outputPath: string;
+            autoInspect?: boolean;
+          };
         const result = await processDocument(
           templatePath,
           statePath,
-          outputPath
+          outputPath,
+          { autoInspect }
         );
-        const nextHint =
-          "Próximo passo recomendado: para fins de auditoria externa, execute 'inspect_docx' sobre este arquivo gerado em output/ (gerando state/inspecao_output.json) antes de acionar a auditoria e 'generate_audit_docx'.";
+        const synthetic = formatFillDocxTemplateSyntheticResult(result);
         return {
-          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
         };
       }
 

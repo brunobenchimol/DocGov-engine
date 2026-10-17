@@ -354,6 +354,30 @@ export interface BuildDocxTemplateSyntheticResult {
   next_step_hint: string;
 }
 
+export interface ProcessDocumentOptions {
+  autoInspect?: boolean;
+  stateDir?: string;
+  inspectionOutputPath?: string;
+}
+
+export interface ProcessDocumentResult {
+  success: boolean;
+  message: string;
+  outputPath: string;
+  inspection_path?: string;
+  visao_auditoria_path?: string;
+  next_step_hint: string;
+}
+
+export interface FillDocxTemplateSyntheticResult {
+  status: "success";
+  outputPath: string;
+  inspection_path?: string;
+  visao_auditoria_path?: string;
+  message: string;
+  next_step_hint: string;
+}
+
 export interface AuditDocumentExcerpt {
   secao_legivel?: string;
   texto_transcrito?: string;

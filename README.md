@@ -96,7 +96,9 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário sobe um servido
 4. **`fill_docx_template`**
    - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR` em tabelas, conversão automática de `\n` em parágrafos `<w:p>` reais, negrito seletivo via `**texto**` e suporte nativo a **listas hierárquicas aninhadas em múltiplos níveis** como `1.1`, `1.1.1`, `1.1.1.1`, `1.1.1.1.1` com recuo `<w:ind>` progressivo e achatamento recursivo de árvores JSON `subitens`).
    - Suporta desaninhamento automático de chaves com notação de ponto (`"etp.necessidade"`).
-   - Parâmetros: `templatePath`, `statePath`, `outputPath` (*todos obrigatórios*).
+   - **Auto-Inspeção Integrada:** Após salvar a minuta compilada em `outputPath`, executa automaticamente a inspeção estrutural gerando `state/inspecao_<stem>.json` e o espelho linear de auditoria `state/visao_auditoria_<stem>.md` na pasta `state/` do caso, dispensando rodar `inspect_docx` manualmente.
+   - Retorna um payload sintético MCP (< 1 KB) contendo `status`, `outputPath`, `inspection_path`, `visao_auditoria_path` e `next_step_hint` que orienta acionar diretamente o Auditor Externo lendo a visão linear gerada.
+   - Parâmetros: `templatePath`, `statePath`, `outputPath` (*obrigatórios*), `autoInspect` (*opcional, padrão true*).
 
 5. **`generate_audit_docx`**
    - Gera nativamente um Parecer de Auditoria Técnico-Jurídica em Word (`.docx`) em layout editorial vertical corrido (folha A4 retrato, **zero tabelas** `<w:tbl>`, 100% da largura útil da página), sanitizando automaticamente crases Markdown, coordenadas de máquina (`[T0:...]`) e códigos de enum (`V1..V6`), e renderizando fichas verticais completas com múltiplos trechos transcritos (`trechos_documento`) em blocos de citação recuados.

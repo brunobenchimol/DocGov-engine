@@ -12,8 +12,7 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 1. **bootstrap_case**: Inicializa a estrutura de pastas do caso (inputs/, state/, output/), preserva nomes legíveis, infere extensões via magic bytes (PK\\x03\\x04 e %PDF), auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx) ou aplica 'fileRenameMap', copia e inspeciona imediatamente minutas .docx para inputs/ (gerando state/estrutura_<nome>.json com toc_map) e inicia salvaguarda assíncrona de PDFs.
 2. **inspect_docx**: Realiza a engenharia reversa estrutural de qualquer .docx bruto, construindo no topo do JSON o índice estrutural rápido 'toc_map' (seções P..., campos de formulário T...R...C... com suggested_target_slot e resumo de tabelas), calculando a impressão digital estrutural ('structure_fingerprint'), realizando matching 1-para-N contra o cache global ('core/registry/templates/') com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count), reancorando automaticamente coordenadas deslocadas (Auto-Offset gerando 'state/adapted_slots_manifest.json' em caso de drift 75%-99%), gerando a visão linear compacta de auditoria ('state/visao_auditoria_<nome>.md') e devolvendo no MCP um 'toc_summary' conciso (< 1 KB).
 3. **build_docx_template**: Transforma o .docx bruto em um template parametrizado com tags {{...}} a partir das regras do slots_manifest.json (com auto-reparo e diagnóstico cirúrgico de JSON), preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos e tabelas). Suporta coordenadas compactas (ex.: 'coord': 'T0.R1.C1' ou 'P2', com ou sem colchetes), array unificado 'slots', aliases, validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op com contagem de applied_slots_count) e a opção 'saveToRegistry: true' para homologar e persistir o manifesto no cache global cross-órgão.
-4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível.
-   - *Nota de Transição para Auditoria:* Após o preenchimento, execute 'inspect_docx' sobre a minuta gerada em output/ (gerando state/inspecao_output.json com toc_map e state/visao_auditoria_output.md) para fornecer o espelho linear de leitura integral em 1 único turno ao auditor externo.
+4. **fill_docx_template**: Injeta os dados do estado_caso.json no template .docx gerado (com unflatten automático de chaves com notação de ponto, ex.: "etp.necessidade"), resolvendo variáveis simples, loops FOR em tabelas, blocos IF, quebras de linha em múltiplos parágrafos, negrito seletivo e listas recursivas multinível. Executa automaticamente a inspeção estrutural pós-compilação gravando 'state/inspecao_<stem>.json' e 'state/visao_auditoria_<stem>.md' na pasta state/ do caso para dispensar rodar inspect_docx novamente antes da auditoria externa.
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast com padrão Exact Copy-Paste Error, fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
@@ -115,17 +114,19 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento d
 }
 \`\`\`
 
-### Passo 4: Injeção de Dados e Geração da Minuta (fill_docx_template)
+### Passo 4: Injeção de Dados e Auto-Inspeção Integrada (fill_docx_template)
 - **Chamada:** \`fill_docx_template({ templatePath: "cases/<nome_caso>/state/template_etp.docx", statePath: "cases/<nome_caso>/state/estado_caso.json", outputPath: "cases/<nome_caso>/output/ETP_Final.docx" })\`
 - **Recursos Nativos:**
   - Auto-saneamento de JSON e desaninhamento (*unflatten*) automático de chaves com notação de ponto (ex.: \`"etp.objeto": "..."\`).
   - Textos com \`**negrito**\` são renderizados em negrito seletivo (<w:b/>) sem contaminação do parágrafo.
   - Quebras \`\\n\` são convertidas em parágrafos reais <w:p>.
   - Listas multinível (\`1.1\`, \`1.1.1\`) são expandidas com indentação progressiva <w:ind>.
+  - **Auto-Inspeção Integrada:** Grava automaticamente \`state/inspecao_<stem>.json\` e o espelho linear de auditoria \`state/visao_auditoria_<stem>.md\` na pasta \`state/\` do caso, dispensando rodar \`inspect_docx\` novamente.
+  - Retorna payload sintético (< 1 KB) contendo \`status\`, \`outputPath\`, \`inspection_path\`, \`visao_auditoria_path\` e \`next_step_hint\` orientando acionar diretamente o Auditor Externo lendo a visão linear gerada.
 
-### Passo de Transição: Inspeção e Visão Linear para Auditoria Externa
-- Execute \`inspect_docx\` sobre \`output/ETP_Final.docx\` gerando \`state/inspecao_output.json\` e \`state/visao_auditoria_output.md\`.
-- O auditor externo pode ler o arquivo \`state/visao_auditoria_output.md\` integralmente em **1 único turno** com as coordenadas técnicas \`[P...]\` e \`[T...R...C...]\` prontas para transcrição probatória.
+### Passo de Transição: Leitura Integral para Auditoria Externa
+- Graças à auto-inspeção integrada do \`fill_docx_template\`, o espelho linear \`state/visao_auditoria_<stem>.md\` já é gerado automaticamente em \`state/\`.
+- O auditor externo pode ler o arquivo \`state/visao_auditoria_<stem>.md\` integralmente em **1 único turno** com as coordenadas técnicas \`[P...]\` e \`[T...R...C...]\` prontas para transcrição probatória, dispensando rodar \`inspect_docx\` novamente.
 
 ### Passo 5: Parecer Executivo de Auditoria (generate_audit_docx)
 - **Chamada:** \`generate_audit_docx({ auditJsonPath: "cases/<nome_caso>/state/relatorio_auditoria.json", outputPath: "cases/<nome_caso>/output/Relatorio_Auditoria_ETP.docx" })\`

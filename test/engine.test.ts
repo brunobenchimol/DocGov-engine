@@ -17,6 +17,7 @@ import {
   formatBootstrapCaseSyntheticResult,
   formatInspectDocxSyntheticResult,
   formatBuildDocxTemplateSyntheticResult,
+  formatFillDocxTemplateSyntheticResult,
   waitForBackgroundCopy,
   generateAuditDocx,
   cleanHumanText,
@@ -1040,7 +1041,8 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("5. **generate_audit_docx**");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("{{FOR item IN lista}}");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("1.1, 1.1.1");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("inspecao_output.json");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("inspecao_");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("visao_auditoria_");
 
     // 2. Camada 2: ListTools enriquecido com pré/pós-condições, descriptions em todas as propriedades e annotations
     const tools = getMcpToolsDefinition();
@@ -1079,7 +1081,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
 
     // Validação específica da recomendação de transição no fill_docx_template
     const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
-    expect(fillTool.description).toContain("inspecao_output.json");
+    expect(fillTool.description).toContain("visao_auditoria");
 
     // 3. Camada 3: Capacitador prompts nativo (ListPrompts e GetPrompt)
     const prompts = getMcpPromptsDefinition();
@@ -1088,7 +1090,7 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(prompts[0].description).toBeDefined();
     expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("Guia de Arquitetura");
     expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("slots_manifest.json");
-    expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("inspecao_output.json");
+    expect(DOCX_WORKFLOW_GUIDE_TEXT).toContain("visao_auditoria");
 
     // 4. Camada 4: Next Step Hints nas ferramentas
     const bootstrapSynthetic = formatBootstrapCaseSyntheticResult({
@@ -1715,6 +1717,10 @@ describe("DocGov Docx Engine v0.6.4", () => {
 
     const auditTool = tools.find((t) => t.name === "generate_audit_docx")!;
     expect(auditTool.description).toContain("Exact Copy-Paste Error");
+
+    const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
+    expect(fillTool.description).toContain("visao_auditoria");
+    expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
   test("deve normalizar manifesto com coordenadas compactas, aliases e array na raiz (normalizeSlotsManifest & countManifestRules v0.6.1)", () => {
@@ -2132,6 +2138,8 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(typeof barrel.inspectDocx).toBe("function");
     expect(typeof barrel.buildDocxTemplate).toBe("function");
     expect(typeof barrel.processDocument).toBe("function");
+    expect(typeof barrel.fillDocxTemplate).toBe("function");
+    expect(typeof barrel.formatFillDocxTemplateSyntheticResult).toBe("function");
     expect(typeof barrel.generateAuditDocx).toBe("function");
 
     // Servidor MCP e Especificação
@@ -2331,6 +2339,114 @@ describe("DocGov Docx Engine v0.6.4", () => {
     expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(
       1024
     );
+  });
+
+  test("deve executar auto-inspeção integrada em fill_docx_template gerando inspecao_<stem>.json e visao_auditoria_<stem>.md, retornando payload sintético < 1024b (v0.6.4)", async () => {
+    const caseFolder = resolve(tempDir, "auto_inspect_case");
+    const inputsDir = resolve(caseFolder, "inputs");
+    const stateDir = resolve(caseFolder, "state");
+    const outputDir = resolve(caseFolder, "output");
+    mkdirSync(inputsDir, { recursive: true });
+    mkdirSync(stateDir, { recursive: true });
+    mkdirSync(outputDir, { recursive: true });
+
+    // 1. Cria template de teste
+    const rawDocx = resolve(inputsDir, "modelo_etp.docx");
+    const templateDocx = resolve(stateDir, "template_etp.docx");
+    const manifestPath = resolve(stateDir, "slots_manifest.json");
+    await createSampleRawDocx(rawDocx);
+
+    writeFileSync(
+      manifestPath,
+      JSON.stringify(
+        {
+          slots: [
+            { coord: "P3", tag: "{{estudo.necessidade}}" },
+            { coord: "T0.R0.C1", tag: "{{metadados.unidade}}" },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    await buildDocxTemplate(rawDocx, manifestPath, templateDocx);
+
+    // 2. Prepara estado do caso
+    const stateJson = resolve(stateDir, "estado_caso.json");
+    writeFileSync(
+      stateJson,
+      JSON.stringify(
+        {
+          estudo: { necessidade: "Necessidade validada e aprovada pelo órgão." },
+          metadados: { unidade: "Coordenação de Tecnologia e Governança" },
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    // 3. Executa fill_docx_template (default: autoInspect = true)
+    const finalDocx = resolve(outputDir, "ETP_Final.docx");
+    const result = await processDocument(templateDocx, stateJson, finalDocx);
+
+    expect(result.success).toBe(true);
+    expect(existsSync(finalDocx)).toBe(true);
+
+    // Verifica que inspecao_<stem>.json e visao_auditoria_<stem>.md foram gerados automaticamente na pasta state/
+    const expectedInspectionPath = resolve(stateDir, "inspecao_ETP_Final.json");
+    const expectedAuditViewPath = resolve(stateDir, "visao_auditoria_ETP_Final.md");
+
+    expect(result.inspection_path).toBe(expectedInspectionPath);
+    expect(result.visao_auditoria_path).toBe(expectedAuditViewPath);
+    expect(existsSync(expectedInspectionPath)).toBe(true);
+    expect(existsSync(expectedAuditViewPath)).toBe(true);
+
+    // Conteúdo da visão linear
+    const auditViewContent = readFileSync(expectedAuditViewPath, "utf-8");
+    expect(auditViewContent).toContain("ETP_Final.docx");
+    expect(auditViewContent).toContain("Necessidade validada e aprovada pelo órgão.");
+    expect(auditViewContent).toContain("Coordenação de Tecnologia e Governança");
+
+    // Verifica next_step_hint
+    expect(result.next_step_hint).toContain("Documento compilado e visão linear de auditoria gerada automaticamente em");
+    expect(result.next_step_hint).toContain("visao_auditoria_ETP_Final.md");
+    expect(result.next_step_hint).toContain("Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).");
+
+    // Verifica retorno sintético e teto < 1024 bytes (Lei 2)
+    const synthetic = formatFillDocxTemplateSyntheticResult(result);
+    expect(synthetic.status).toBe("success");
+    expect(synthetic.outputPath).toContain("ETP_Final.docx");
+    expect(synthetic.inspection_path).toContain("inspecao_ETP_Final.json");
+    expect(synthetic.visao_auditoria_path).toContain("visao_auditoria_ETP_Final.md");
+    expect(synthetic.next_step_hint).toBe(result.next_step_hint);
+
+    const payloadBytes = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+    expect(payloadBytes).toBeLessThan(1024);
+
+    // 4. Cenário com autoInspect: false (deve dispensar a geração dos arquivos de inspeção)
+    const finalDocxNoInspect = resolve(outputDir, "ETP_NoInspect.docx");
+    const resultNoInspect = await processDocument(
+      templateDocx,
+      stateJson,
+      finalDocxNoInspect,
+      { autoInspect: false }
+    );
+
+    expect(resultNoInspect.success).toBe(true);
+    expect(existsSync(finalDocxNoInspect)).toBe(true);
+    expect(resultNoInspect.inspection_path).toBeUndefined();
+    expect(resultNoInspect.visao_auditoria_path).toBeUndefined();
+    expect(existsSync(resolve(stateDir, "inspecao_ETP_NoInspect.json"))).toBe(false);
+    expect(existsSync(resolve(stateDir, "visao_auditoria_ETP_NoInspect.md"))).toBe(false);
+    expect(resultNoInspect.next_step_hint).toContain("inspect_docx");
+
+    const syntheticNoInspect = formatFillDocxTemplateSyntheticResult(resultNoInspect);
+    expect(syntheticNoInspect.inspection_path).toBeUndefined();
+    expect(syntheticNoInspect.visao_auditoria_path).toBeUndefined();
+    expect(Buffer.byteLength(JSON.stringify(syntheticNoInspect), "utf-8")).toBeLessThan(1024);
   });
 });
 

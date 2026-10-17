@@ -1,9 +1,15 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, basename, relative } from "node:path";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { createReport } from "docx-templates";
 import { safeReadJsonFile, unflattenDotKeys } from "../utils/json.ts";
+import { inspectDocx } from "./inspect.ts";
+import type {
+  ProcessDocumentOptions,
+  ProcessDocumentResult,
+  FillDocxTemplateSyntheticResult,
+} from "../types/index.ts";
 import {
   getAllElements,
   getDirectChildElements,
@@ -420,8 +426,9 @@ async function postProcessInjectedDocxBuffer(
 export async function processDocument(
   templatePath: string,
   statePath: string,
-  outputPath: string
-): Promise<{ success: boolean; message: string }> {
+  outputPath: string,
+  options?: ProcessDocumentOptions
+): Promise<ProcessDocumentResult> {
   const resolvedTemplate = resolve(templatePath);
   const resolvedState = resolve(statePath);
   const resolvedOutput = resolve(outputPath);
@@ -458,9 +465,99 @@ export async function processDocument(
     mkdirSync(outDir, { recursive: true });
   }
   writeFileSync(resolvedOutput, finalBuffer);
+
+  const stem = basename(resolvedOutput, ".docx");
+  let inspectionPath: string | undefined;
+  let auditViewPath: string | undefined;
+  let nextHint: string;
+
+  if (options?.autoInspect !== false) {
+    let stateDir: string;
+    if (options?.stateDir) {
+      stateDir = resolve(options.stateDir);
+    } else {
+      const outputDir = dirname(resolvedOutput);
+      const parentDir = dirname(outputDir);
+      const siblingState = resolve(parentDir, "state");
+      const sameDirState = resolve(outputDir, "state");
+      const stateParent = dirname(resolvedState);
+
+      if (basename(outputDir).toLowerCase() === "output") {
+        stateDir = siblingState;
+      } else if (basename(stateParent).toLowerCase() === "state") {
+        stateDir = stateParent;
+      } else {
+        stateDir = sameDirState;
+      }
+    }
+
+    if (!existsSync(stateDir)) {
+      mkdirSync(stateDir, { recursive: true });
+    }
+
+    inspectionPath = options?.inspectionOutputPath
+      ? resolve(options.inspectionOutputPath)
+      : resolve(stateDir, `inspecao_${stem}.json`);
+
+    const inspResult = await inspectDocx(resolvedOutput, inspectionPath, true);
+    auditViewPath =
+      inspResult.audit_view_path ?? resolve(stateDir, `visao_auditoria_${stem}.md`);
+
+    const relVisao =
+      relative(process.cwd(), auditViewPath).replace(/\\/g, "/") ||
+      auditViewPath;
+    nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+  } else {
+    const relOutput =
+      relative(process.cwd(), resolvedOutput).replace(/\\/g, "/") ||
+      resolvedOutput;
+    nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+  }
+
   return {
     success: true,
     message: `Documento gerado com sucesso em: ${resolvedOutput}`,
+    outputPath: resolvedOutput,
+    ...(inspectionPath ? { inspection_path: inspectionPath } : {}),
+    ...(auditViewPath ? { visao_auditoria_path: auditViewPath } : {}),
+    next_step_hint: nextHint,
   };
+}
+
+export const fillDocxTemplate = processDocument;
+
+export function formatFillDocxTemplateSyntheticResult(
+  result: ProcessDocumentResult,
+  baseDir: string = process.cwd()
+): FillDocxTemplateSyntheticResult {
+  const relOutput =
+    relative(baseDir, result.outputPath).replace(/\\/g, "/") ||
+    result.outputPath;
+  const relInspection = result.inspection_path
+    ? relative(baseDir, result.inspection_path).replace(/\\/g, "/")
+    : undefined;
+  const relVisao = result.visao_auditoria_path
+    ? relative(baseDir, result.visao_auditoria_path).replace(/\\/g, "/")
+    : undefined;
+
+  const nextHint = relVisao
+    ? `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`
+    : `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+
+  const payload: FillDocxTemplateSyntheticResult = {
+    status: "success",
+    outputPath: relOutput,
+    ...(relInspection ? { inspection_path: relInspection } : {}),
+    ...(relVisao ? { visao_auditoria_path: relVisao } : {}),
+    message: result.message,
+    next_step_hint: nextHint,
+  };
+
+  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8)
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 1000) {
+    payload.message = "Documento compilado com sucesso.";
+  }
+
+  return payload;
 }
 
