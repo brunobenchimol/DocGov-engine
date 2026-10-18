@@ -1,6 +1,7 @@
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import type { ParagraphNumberingInfo, ReplaceInlineRule } from "../types/index.ts";
+import { createSlotsManifestContractError } from "../contracts/errors.ts";
 
 // ============================================================================
 // Utilitários Internos OpenXML / DOM
@@ -136,9 +137,178 @@ export function extractCellText(tc: Element): string {
   return paragraphs.map((p) => extractParagraphText(p)).join("\n");
 }
 
+export function sanitizeTemplateTagExpression(tag: string): string {
+  if (!tag) return "";
+  let current = tag;
+  let prev = "";
+  // Converte acessos numéricos por ponto (.N) após identificadores ou ']' em [N]
+  // Ex: itens.0.qtd -> itens[0].qtd, grupos.1.itens.2.nome -> grupos[1].itens[2].nome
+  while (current !== prev) {
+    prev = current;
+    current = current.replace(
+      /([a-zA-Z_$][\w$]*|\])\.(\d+)(?=\.|\[|\s|\}|$)/g,
+      "$1[$2]"
+    );
+  }
+  return current;
+}
+
+export function suggestSnakeCaseTag(expr: string): string {
+  if (!expr) return "";
+  // 1. Substituir hifens em identificadores por underscore (kebab-case -> snake_case)
+  let fixed = expr.replace(/([a-zA-Z_$][\w$]*)-([a-zA-Z0-9_$-]+)/g, (match) =>
+    match.replace(/-/g, "_")
+  );
+  // 2. Corrigir identificadores iniciando com dígito (ex.: 1_item -> item_1, 1item -> item_1)
+  fixed = fixed.replace(
+    /(^|[\s.{\[])(\d+)_?([a-zA-Z_$][\w$]*)/g,
+    (match, prefix, num, rest) => {
+      if (prefix === "[" || /^\d+$/.test(match.trim())) return match;
+      return `${prefix}${rest}_${num}`;
+    }
+  );
+  return fixed.includes("{{") ? fixed : `{{${fixed}}}`;
+}
+
+export function validateTemplateTagSyntax(
+  tag: string,
+  contextLabel: string = "tag"
+): void {
+  if (!tag) return;
+  const trimmed = tag.trim();
+
+  // 1. Verificar balanceamento de chaves {{ e }}
+  const openCount = (trimmed.match(/\{\{/g) || []).length;
+  const closeCount = (trimmed.match(/\}\}/g) || []).length;
+  if (
+    (trimmed.includes("{{") || trimmed.includes("}}")) &&
+    openCount !== closeCount
+  ) {
+    throw new Error(
+      createSlotsManifestContractError(
+        `Chaves desbalanceadas na tag "${trimmed}" em '${contextLabel}'. Toda tag deve abrir com '{{' e fechar com '}}'.`
+      )
+    );
+  }
+
+  // 2. Extrair blocos {{...}} ou avaliar a expressão inteira se não houver delimitadores
+  const tagBlocks: string[] = [];
+  const matches = [...trimmed.matchAll(/\{\{([\s\S]*?)\}\}/g)];
+  if (matches.length > 0) {
+    for (const m of matches) {
+      tagBlocks.push(m[1].trim());
+    }
+  } else if (!trimmed.includes("{{") && !trimmed.includes("}}")) {
+    tagBlocks.push(trimmed);
+  }
+
+  const validateTokens = (expr: string) => {
+    // Quebra a expressão por delimitadores de caminho (., [, ], parênteses e operadores)
+    const tokens = expr
+      .split(/[\s.\[\]()+\/*=!,&|?:<>]+/)
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0);
+
+    for (const token of tokens) {
+      // Ignora literais numéricos puros (ex.: 0, 10), literais string ou comandos permitidos
+      if (/^\d+$/.test(token)) continue;
+      if (/^["'].*["']$/.test(token)) continue;
+      if (/^(?:FOR|IN|END-FOR|IF|END-IF|INS|null|true|false|undefined)$/i.test(token)) {
+        continue;
+      }
+
+      // 1. Identificadores com hífen (kebab-case) são proibidos fora de comandos
+      if (token.includes("-")) {
+        const suggestion = suggestSnakeCaseTag(trimmed);
+        throw new Error(
+          createSlotsManifestContractError(
+            `Identificador com hífen inválido "${token}" na tag "${trimmed}" em '${contextLabel}'. O docx-templates requer identificadores JavaScript válidos (use snake_case em vez de kebab-case). Sugestão de correção: "${suggestion}".`
+          )
+        );
+      }
+
+      // 2. Identificadores que começam com dígito (ex.: 1_item)
+      if (/^\d+[a-zA-Z_$]/.test(token)) {
+        const suggestion = suggestSnakeCaseTag(trimmed);
+        throw new Error(
+          createSlotsManifestContractError(
+            `Identificador iniciando por dígito "${token}" na tag "${trimmed}" em '${contextLabel}'. Identificadores JavaScript não podem começar com números. Sugestão de correção: "${suggestion}".`
+          )
+        );
+      }
+
+      // 3. Formato geral de identificador JS ($ e _ permitidos)
+      if (!/^\$?[a-zA-Z_$][\w$]*$/.test(token)) {
+        const suggestion = suggestSnakeCaseTag(trimmed);
+        throw new Error(
+          createSlotsManifestContractError(
+            `Identificador inválido "${token}" na tag "${trimmed}" em '${contextLabel}'. Use nomes compatíveis com JavaScript. Sugestão de correção: "${suggestion}".`
+          )
+        );
+      }
+    }
+  };
+
+  for (const block of tagBlocks) {
+    if (!block) {
+      throw new Error(
+        createSlotsManifestContractError(
+          `Tag vazia "{{}}" detectada em '${contextLabel}'. Forneça uma expressão válida.`
+        )
+      );
+    }
+
+    // Comandos especiais
+    if (/^END-IF$/i.test(block)) continue;
+    if (/^IF\s+/i.test(block)) {
+      validateTokens(block.replace(/^IF\s+/i, "").trim());
+      continue;
+    }
+    if (/^FOR\s+/i.test(block)) {
+      const forMatch = block.match(
+        /^FOR\s+(\$?[a-zA-Z0-9_$-]+)\s+IN\s+([\s\S]+)$/i
+      );
+      if (!forMatch) {
+        throw new Error(
+          createSlotsManifestContractError(
+            `Sintaxe de comando FOR inválida: "{{${block}}}" em '${contextLabel}'. Formato canônico: "{{FOR item IN lista_itens}}".`
+          )
+        );
+      }
+      validateTokens(forMatch[1]);
+      validateTokens(forMatch[2].trim());
+      continue;
+    }
+    if (/^END-FOR/i.test(block)) {
+      const endForMatch = block.match(
+        /^END-FOR(?:\s+(\$?[a-zA-Z0-9_$-]+))?$/i
+      );
+      if (!endForMatch) {
+        throw new Error(
+          createSlotsManifestContractError(
+            `Sintaxe de comando END-FOR inválida: "{{${block}}}" em '${contextLabel}'. Formato canônico: "{{END-FOR item}}".`
+          )
+        );
+      }
+      if (endForMatch[1]) {
+        validateTokens(endForMatch[1]);
+      }
+      continue;
+    }
+
+    // Expressão regular de variável
+    let expr = block;
+    if (/^(?:INS|=)\s+/i.test(expr)) {
+      expr = expr.replace(/^(?:INS|=)\s+/i, "").trim();
+    }
+    validateTokens(expr);
+  }
+}
+
 export function normalizeTag(tag: string): string {
   if (!tag) return "";
-  return tag.includes("{{") ? tag : `{{${tag}}}`;
+  const sanitized = sanitizeTemplateTagExpression(tag.trim());
+  return sanitized.includes("{{") ? sanitized : `{{${sanitized}}}`;
 }
 
 export function hasBoldProperty(rPr: Element | null): boolean {

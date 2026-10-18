@@ -3,7 +3,8 @@ import { resolve, dirname, basename, relative } from "node:path";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { createReport } from "docx-templates";
-import { safeReadJsonFile, unflattenDotKeys } from "../utils/json.ts";
+import { safeReadJsonFile, unflattenDotKeys, unflattenDotNotation } from "../utils/json.ts";
+export { unflattenDotKeys, unflattenDotNotation };
 import { inspectDocx } from "./inspect.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
@@ -23,6 +24,7 @@ import {
   isInsideTableCell,
   NumberingManager,
   ensureNumberingPart,
+  sanitizeTemplateTagExpression,
 } from "../utils/xml.ts";
 
 // ============================================================================
@@ -378,12 +380,55 @@ async function extractTemplateForLoopTargets(
           const lastProp = fullExpr.split(".").pop();
           if (lastProp) targets.add(lastProp);
         }
+
+        // Reconhece também variáveis indexadas (ex.: itens[0] ou itens.0) para preservar arrays sem colapso
+        const tagMatches = xmlStr.matchAll(/\{\{([\s\S]*?)\}\}/g);
+        for (const tm of tagMatches) {
+          const content = tm[1];
+          const indexedProps = content.matchAll(
+            /([a-zA-Z_$][\w$]*)(?:\[\d+\]|\.\d+)/g
+          );
+          for (const ip of indexedProps) {
+            targets.add(ip[1]);
+          }
+        }
       }
     }
   } catch {
     // Ignora caso não seja possível extrair previamente
   }
   return targets;
+}
+
+export async function sanitizeTemplateDocxBuffer(
+  rawBuffer: Buffer
+): Promise<Buffer> {
+  const zip = await JSZip.loadAsync(rawBuffer);
+  let modified = false;
+  const fileNames = Object.keys(zip.files);
+  for (const name of fileNames) {
+    if (
+      name === "word/document.xml" ||
+      /^word\/(header|footer)\d*\.xml$/i.test(name)
+    ) {
+      const xmlStr = await zip.file(name)!.async("string");
+      if (xmlStr.includes("{{")) {
+        const sanitizedXml = xmlStr.replace(
+          /\{\{([\s\S]*?)\}\}/g,
+          (_match, expr) => `{{${sanitizeTemplateTagExpression(expr)}}}`
+        );
+        if (sanitizedXml !== xmlStr) {
+          zip.file(name, sanitizedXml);
+          modified = true;
+        }
+      }
+    }
+  }
+  if (!modified) return rawBuffer;
+  return await zip.generateAsync({
+    type: "nodebuffer",
+    compression: "DEFLATE",
+  });
 }
 
 export function normalizeNestedListsInState(
@@ -701,7 +746,8 @@ export async function processDocument(
     );
   }
 
-  const templateBuffer = readFileSync(resolvedTemplate);
+  const rawTemplateBuffer = readFileSync(resolvedTemplate);
+  const templateBuffer = await sanitizeTemplateDocxBuffer(rawTemplateBuffer);
   const rawStateData = safeReadJsonFile<Record<string, any>>(resolvedState);
   const unflattenedState = unflattenDotKeys(rawStateData);
   const forLoopTargets = await extractTemplateForLoopTargets(templateBuffer);

@@ -181,28 +181,46 @@ export function unflattenDotKeys(obj: any): any {
     return obj.map((item) => unflattenDotKeys(item));
   }
 
-  const result: Record<string, any> = { ...obj };
+  const result: Record<string, any> = {};
 
+  // 1. Processar primeiro as chaves canônicas normais (sem ponto nem colchetes)
   for (const [key, value] of Object.entries(obj)) {
-    const processedValue =
-      typeof value === "object" && value !== null
-        ? unflattenDotKeys(value)
-        : value;
+    if (!key.includes(".") && !/\[\d+\]/.test(key)) {
+      result[key] =
+        typeof value === "object" && value !== null
+          ? unflattenDotKeys(value)
+          : value;
+    }
+  }
 
-    if (key.includes(".")) {
-      const parts = key.split(".");
-      let current = result;
+  // 2. Processar chaves planas com notação de ponto ou colchetes (ex.: "itens.0.qtd" ou "itens[0].qtd")
+  for (const [key, value] of Object.entries(obj)) {
+    if (key.includes(".") || /\[\d+\]/.test(key)) {
+      const processedValue =
+        typeof value === "object" && value !== null
+          ? unflattenDotKeys(value)
+          : value;
+
+      // Normaliza "itens[0].qtd" para "itens.0.qtd"
+      const normalizedKey = key.replace(/\[(\d+)\]/g, ".$1");
+      const parts = normalizedKey.split(".").filter((p) => p.length > 0);
+
+      let current: any = result;
       for (let i = 0; i < parts.length - 1; i++) {
         const part = parts[i];
+        const nextPart = parts[i + 1];
+        const nextIsNumeric = /^\d+$/.test(nextPart);
+
         if (
-          !current[part] ||
-          typeof current[part] !== "object" ||
-          Array.isArray(current[part])
+          current[part] === undefined ||
+          current[part] === null ||
+          typeof current[part] !== "object"
         ) {
-          current[part] = {};
+          current[part] = nextIsNumeric ? [] : {};
         }
         current = current[part];
       }
+
       const lastPart = parts[parts.length - 1];
       if (
         typeof processedValue === "object" &&
@@ -216,11 +234,12 @@ export function unflattenDotKeys(obj: any): any {
       } else {
         current[lastPart] = processedValue;
       }
-    } else {
       result[key] = processedValue;
     }
   }
 
   return result;
 }
+
+export const unflattenDotNotation = unflattenDotKeys;
 

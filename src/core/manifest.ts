@@ -1,5 +1,9 @@
 import type { SlotsManifest } from "../types/index.ts";
 import { createSlotsManifestContractError } from "../contracts/errors.ts";
+import {
+  sanitizeTemplateTagExpression,
+  validateTemplateTagSyntax,
+} from "../utils/xml.ts";
 
 // ============================================================================
 // Normalizador Universal de Manifesto e Contagem de Regras (v0.6.2)
@@ -160,6 +164,14 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
     }
   };
 
+  const cleanAndValidateTag = (tag: any, ctx: string): string => {
+    if (tag === undefined || tag === null) return "";
+    const strTag = String(tag);
+    const sanitized = sanitizeTemplateTagExpression(strTag);
+    validateTemplateTagSyntax(sanitized, ctx);
+    return sanitized;
+  };
+
   const processRule = (rule: any, context: string = "slots") => {
     if (!rule || typeof rule !== "object") return;
 
@@ -172,7 +184,7 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
           table_index: parseInt(tMatch[1], 10),
           row_index: parseInt(tMatch[2], 10),
           cell_index: parseInt(tMatch[3], 10),
-          tag: rule.tag !== undefined ? String(rule.tag) : "",
+          tag: cleanAndValidateTag(rule.tag, context),
         });
         return;
       }
@@ -186,20 +198,22 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
           result.loop_paragraphs!.push({
             start_p,
             end_p,
-            for_open_tag: String(rule.for_open_tag),
-            for_close_tag: String(rule.for_close_tag),
-            item_tag:
+            for_open_tag: cleanAndValidateTag(rule.for_open_tag, context),
+            for_close_tag: cleanAndValidateTag(rule.for_close_tag, context),
+            item_tag: cleanAndValidateTag(
               rule.item_tag !== undefined
-                ? String(rule.item_tag)
+                ? rule.item_tag
                 : rule.tag !== undefined
-                ? String(rule.tag)
+                ? rule.tag
                 : "",
+              context
+            ),
           });
         } else {
           result.replace_paragraphs!.push({
             start_p,
             end_p,
-            tag: rule.tag !== undefined ? String(rule.tag) : "",
+            tag: cleanAndValidateTag(rule.tag, context),
           });
         }
         return;
@@ -214,9 +228,13 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
 
     // 2. Regra inline ({ find, replace })
     if (typeof rule.find === "string" && rule.replace !== undefined) {
+      let rep = String(rule.replace);
+      if (rep.includes("{{")) {
+        rep = cleanAndValidateTag(rep, context);
+      }
       result.replace_inline!.push({
         find: rule.find,
-        replace: String(rule.replace),
+        replace: rep,
       });
       return;
     }
@@ -247,10 +265,10 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
           rule.remove_to_row !== undefined
             ? Number(rule.remove_to_row)
             : undefined,
-        for_open_tag: String(rule.for_open_tag ?? ""),
-        for_close_tag: String(rule.for_close_tag ?? ""),
+        for_open_tag: cleanAndValidateTag(rule.for_open_tag ?? "", context),
+        for_close_tag: cleanAndValidateTag(rule.for_close_tag ?? "", context),
         cell_tags: Array.isArray(rule.cell_tags)
-          ? rule.cell_tags.map(String)
+          ? rule.cell_tags.map((ct: any) => cleanAndValidateTag(ct, context))
           : [],
       });
       return;
@@ -262,7 +280,7 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
         table_index: Number(rawT),
         row_index: Number(rawR),
         cell_index: Number(rawC),
-        tag: rule.tag !== undefined ? String(rule.tag) : "",
+        tag: cleanAndValidateTag(rule.tag, context),
       });
       return;
     }
@@ -277,20 +295,22 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
         result.loop_paragraphs!.push({
           start_p,
           end_p,
-          for_open_tag: String(rule.for_open_tag),
-          for_close_tag: String(rule.for_close_tag),
-          item_tag:
+          for_open_tag: cleanAndValidateTag(rule.for_open_tag, context),
+          for_close_tag: cleanAndValidateTag(rule.for_close_tag, context),
+          item_tag: cleanAndValidateTag(
             rule.item_tag !== undefined
-              ? String(rule.item_tag)
+              ? rule.item_tag
               : rule.tag !== undefined
-              ? String(rule.tag)
+              ? rule.tag
               : "",
+            context
+          ),
         });
       } else {
         result.replace_paragraphs!.push({
           start_p,
           end_p,
-          tag: rule.tag !== undefined ? String(rule.tag) : "",
+          tag: cleanAndValidateTag(rule.tag, context),
         });
       }
       return;
