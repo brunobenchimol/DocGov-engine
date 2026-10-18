@@ -34,6 +34,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
 
     expect(existsSync(resolve(mockCaseDir, "inputs"))).toBe(true);
     expect(existsSync(resolve(mockCaseDir, "state"))).toBe(true);
+    expect(existsSync(resolve(mockCaseDir, "templates"))).toBe(true);
     expect(existsSync(resolve(mockCaseDir, "output"))).toBe(true);
 
     // .docx foi copiado imediatamente e inspecionado
@@ -54,7 +55,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(Buffer.byteLength(syntheticJson, "utf-8")).toBeLessThan(1024);
     expect(syntheticMcp.status).toBe("success");
     expect(syntheticMcp.engine_version).toBe(VERSION);
-    expect(syntheticMcp.engine_version).toBe("0.7.2");
+    expect(syntheticMcp.engine_version).toBe("0.7.3");
     expect(syntheticMcp.caseDir).toBe("cases/caso_01");
     expect(syntheticMcp.docx_inspected[0]).toEqual({
       filename: "modelo_etp_base.docx",
@@ -119,6 +120,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     // Valida que os PDFs em background foram salvos com os nomes corretos
     expect(existsSync(resolve(caseDir, "inputs", "TR_ORGAO_B_fa12.pdf"))).toBe(true);
     expect(existsSync(resolve(caseDir, "inputs", "DFD_Planejamento.pdf"))).toBe(true);
+    expect(existsSync(resolve(caseDir, "templates"))).toBe(true);
 
     // Valida ingestedFiles
     expect(res.ingestedFiles).toBeDefined();
@@ -131,7 +133,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
 
     expect(byteLength).toBeLessThan(1024);
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic.ingested_files).toBeDefined();
     expect(synthetic.ingested_files!.length).toBe(4);
     expect(synthetic.ingested_files![0].saved_as).toBe("ETP_ORGAO_A_3b9d.docx");

@@ -17,10 +17,11 @@ import {
   buildDocxTemplate,
   fillDocxTemplate,
   inspectDocx,
+  bootstrapCase,
 } from "../src/index.ts";
 import { createSampleRawDocx } from "./helpers/fixtures.ts";
 
-describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
+describe("Testes Unitários v0.7.3: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
   test("1. bootstrap_case deve conter 'engine_version' na raiz e payload < 1024 bytes", () => {
     const synthetic = formatBootstrapCaseSyntheticResult(
       {
@@ -54,7 +55,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -111,7 +112,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -138,7 +139,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -158,7 +159,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -174,7 +175,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic).toHaveProperty("engine_version");
     expect(synthetic.next_step_hint).toContain("Ciclo de auditoria concluído");
 
@@ -183,7 +184,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
       outputPath: "output/Relatorio_Auditoria_DFD.docx",
       message: "Relatório de Auditoria (.docx) gerado com sucesso em: output/Relatorio_Auditoria_DFD.docx",
     });
-    expect(aliasSynthetic.engine_version).toBe("0.7.2");
+    expect(aliasSynthetic.engine_version).toBe("0.7.3");
 
     const json = JSON.stringify(synthetic, null, 2);
     const bytes = Buffer.byteLength(json, "utf-8");
@@ -232,7 +233,7 @@ describe("Testes Unitários v0.7.2: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(payloads.length).toBe(5);
     for (const p of payloads) {
-      expect(p.engine_version).toBe("0.7.2");
+      expect(p.engine_version).toBe("0.7.3");
       expect(p.engine_version).toBe(VERSION);
       expect(p.status).toBe("success");
       const bytes = Buffer.byteLength(JSON.stringify(p, null, 2), "utf-8");
@@ -470,5 +471,70 @@ describe("Testes Unitários e E2E v0.7.2: Sanitização de Tags JS, Validação 
     expect(errDigit).toBeDefined();
     expect(errDigit.message).toContain("Identificador iniciando por dígito \"1_item\"");
     expect(errDigit.message).toContain("Sugestão de correção: \"{{item_1}}\"");
+  });
+});
+
+describe("Testes Unitários e E2E v0.7.3: Resiliência de Diretórios e Zero ENOENT", () => {
+  const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v073");
+
+  beforeAll(() => {
+    if (!existsSync(suiteDir)) {
+      mkdirSync(suiteDir, { recursive: true });
+    }
+  });
+
+  afterAll(() => {
+    if (existsSync(suiteDir)) {
+      rmSync(suiteDir, { recursive: true, force: true });
+    }
+  });
+
+  test("1. bootstrap_case deve criar a pasta templates/ junto com inputs/, state/ e output/", async () => {
+    const testCaseDir = resolve(suiteDir, "caso_inicializacao");
+    const testUploadsDir = resolve(suiteDir, "uploads_inicializacao");
+    mkdirSync(testUploadsDir, { recursive: true });
+
+    const docxSource = resolve(testUploadsDir, "modelo_etp.docx");
+    await createSampleRawDocx(docxSource);
+
+    const res = await bootstrapCase(testCaseDir, testUploadsDir);
+    expect(res.status).toBe("success");
+    expect(existsSync(resolve(testCaseDir, "inputs"))).toBe(true);
+    expect(existsSync(resolve(testCaseDir, "state"))).toBe(true);
+    expect(existsSync(resolve(testCaseDir, "templates"))).toBe(true);
+    expect(existsSync(resolve(testCaseDir, "output"))).toBe(true);
+  });
+
+  test("2. build_docx_template deve criar recursivamente a pasta templates/ inexistente sem erro ENOENT", async () => {
+    const rawDocx = resolve(suiteDir, "fonte_bruta.docx");
+    await createSampleRawDocx(rawDocx);
+
+    const manifestFile = resolve(suiteDir, "manifesto_enoent.json");
+    writeFileSync(
+      manifestFile,
+      JSON.stringify(
+        {
+          slots: [
+            { coord: "P2", tag: "{{necessidade_processada}}" },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    // Caminho onde nem templates/ nem a pasta do caso existem previamente
+    const deepTemplatePath = resolve(
+      suiteDir,
+      "caso_sem_pastas",
+      "templates",
+      "template_ETP_SEDUC.docx"
+    );
+
+    const result = await buildDocxTemplate(rawDocx, manifestFile, deepTemplatePath);
+    expect(result.success).toBe(true);
+    expect(result.applied_slots_count).toBe(1);
+    expect(existsSync(deepTemplatePath)).toBe(true);
   });
 });

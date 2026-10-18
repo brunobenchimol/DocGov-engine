@@ -1,5 +1,5 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve, basename } from "node:path";
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { resolve, basename, dirname } from "node:path";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { safeReadJsonFile } from "../utils/json.ts";
@@ -367,6 +367,10 @@ export async function buildDocxTemplate(
     type: "nodebuffer",
     compression: "DEFLATE",
   });
+  const outDir = dirname(resolvedOutput);
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
   writeFileSync(resolvedOutput, outBuffer);
 
   let registryMsg = "";

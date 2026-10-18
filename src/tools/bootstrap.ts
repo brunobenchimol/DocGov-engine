@@ -103,10 +103,12 @@ export async function bootstrapCase(
   const resolvedCaseDir = resolve(caseDir);
   const inputsDir = resolve(resolvedCaseDir, "inputs");
   const stateDir = resolve(resolvedCaseDir, "state");
+  const templatesDir = resolve(resolvedCaseDir, "templates");
   const outputDir = resolve(resolvedCaseDir, "output");
 
   mkdirSync(inputsDir, { recursive: true });
   mkdirSync(stateDir, { recursive: true });
+  mkdirSync(templatesDir, { recursive: true });
   mkdirSync(outputDir, { recursive: true });
 
   const copiedFiles: string[] = [];

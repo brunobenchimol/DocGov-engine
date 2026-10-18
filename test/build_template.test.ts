@@ -139,7 +139,7 @@ describe("Testes Unitários: build_docx_template (Coordenadas Compactas, Fail-Fa
     const synthetic = formatBuildDocxTemplateSyntheticResult(outDocx, result);
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.7.2");
+    expect(synthetic.engine_version).toBe("0.7.3");
     expect(synthetic.applied_slots_count).toBe(4);
     expect(synthetic.breakdown.replace_paragraphs).toBe(1);
     expect(synthetic.breakdown.replace_table_cells).toBe(1);
@@ -325,5 +325,33 @@ describe("Testes Unitários: build_docx_template (Coordenadas Compactas, Fail-Fa
     expect(errSlotsItem).toBeDefined();
     expect(errSlotsItem.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
     expect(errSlotsItem.message).toContain("invalid_custom_field");
+  });
+
+  test("deve criar pastas pais recursivamente sem lançar ENOENT ao gravar template em caminho inexistente (Zero ENOENT v0.7.3)", async () => {
+    const rawDocx = resolve(tempDir, "enoent_source.docx");
+    const manifestFile = resolve(tempDir, "enoent_manifest.json");
+    // Caminho com subpastas inexistentes aninhadas
+    const nestedOutDocx = resolve(
+      tempDir,
+      "nested_cases",
+      "case_001",
+      "templates",
+      "template_ETP.docx"
+    );
+
+    await createSampleRawDocx(rawDocx);
+    const mockManifest: SlotsManifest = {
+      replace_table_cells: [
+        { table_index: 0, row_index: 0, cell_index: 1, tag: "{{unidade_requisitante}}" },
+      ],
+    };
+    writeFileSync(manifestFile, JSON.stringify(mockManifest, null, 2), "utf-8");
+
+    // Deve criar nested_cases/case_001/templates/ automaticamente e gravar sem erro
+    const result = await buildDocxTemplate(rawDocx, manifestFile, nestedOutDocx);
+
+    expect(result.success).toBe(true);
+    expect(result.applied_slots_count).toBe(1);
+    expect(existsSync(nestedOutDocx)).toBe(true);
   });
 });
