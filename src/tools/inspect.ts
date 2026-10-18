@@ -22,6 +22,12 @@ import {
   reanchorSlotsManifest,
   extractCacheTemporalMetadata,
 } from "../core/registry.ts";
+import { isPdfBuffer, extractPdfPages } from "../utils/pdf.ts";
+import {
+  buildPdfCartography,
+  buildDocxCartography,
+  renderCartographyMarkdownBlock,
+} from "../core/cartography.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   BodyParagraphInfo,
@@ -34,6 +40,8 @@ import type {
   HeaderFooterParagraphInfo,
   TemplateMatchResult,
   InspectDocxSyntheticResult,
+  PdfExtractionResult,
+  DocumentCartography,
 } from "../types/index.ts";
 
 // ============================================================================
@@ -169,6 +177,16 @@ export function compactInspectionResult(
   full: DocxInspectionResult
 ): DocxInspectionResult {
   return {
+    ...(full.doc_type ? { doc_type: full.doc_type } : {}),
+    ...(full.page_count !== undefined ? { page_count: full.page_count } : {}),
+    ...(full.line_count !== undefined ? { line_count: full.line_count } : {}),
+    ...(full.outline_headings
+      ? { outline_headings: full.outline_headings }
+      : {}),
+    ...(full.page_signals ? { page_signals: full.page_signals } : {}),
+    ...(full.impugnation_zones
+      ? { impugnation_zones: full.impugnation_zones }
+      : {}),
     ...(full.toc_map ? { toc_map: full.toc_map } : {}),
     ...(full.structure_fingerprint
       ? { structure_fingerprint: full.structure_fingerprint }
@@ -190,6 +208,50 @@ export function compactInspectionResult(
   };
 }
 
+export function generatePdfLinearAuditViewMarkdown(
+  docName: string,
+  extraction: PdfExtractionResult,
+  cartography: DocumentCartography
+): string {
+  const lines: string[] = [];
+  lines.push(`# Visão Linear de Auditoria: ${docName}`);
+  lines.push(
+    `> Espelho estrutural paginado gerado por docgov-engine v${VERSION} (${extraction.pageCount} página(s), ${extraction.lineCount} linha(s)).`
+  );
+  lines.push("");
+
+  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 12 Zonas de Impugnação
+  lines.push(...renderCartographyMarkdownBlock(cartography));
+
+  // Bloco 2: Conteúdo Integral Paginado [PAG_XXX | LYYYY]
+  lines.push("## Bloco 2: Conteúdo Integral Paginado");
+  lines.push("");
+
+  const headingCoords = new Set(
+    cartography.outline_headings.map((h) => h.coord)
+  );
+
+  for (const page of extraction.pages) {
+    lines.push(
+      `### Página ${String(page.pageNumber).padStart(3, "0")}`
+    );
+    if (page.lines.length === 0) {
+      lines.push("- *(Página sem texto extraível)*");
+    } else {
+      for (const l of page.lines) {
+        if (headingCoords.has(l.bracket_coord)) {
+          lines.push(`- **${l.bracket_coord}** ${l.text}`);
+        } else {
+          lines.push(`- ${l.bracket_coord} ${l.text}`);
+        }
+      }
+    }
+    lines.push("");
+  }
+
+  return lines.join("\n").trim() + "\n";
+}
+
 export function generateLinearAuditViewMarkdown(
   docName: string,
   inspection: DocxInspectionResult
@@ -197,8 +259,30 @@ export function generateLinearAuditViewMarkdown(
   const lines: string[] = [];
   lines.push(`# Visão Linear de Auditoria: ${docName}`);
   lines.push(
-    `> Espelho estrutural gerado por docgov-docx v0.6.0 para leitura integral em turno único.`
+    `> Espelho estrutural gerado por docgov-docx v${VERSION} para leitura integral em turno único.`
   );
+  lines.push("");
+
+  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 12 Zonas de Impugnação
+  const cartography: DocumentCartography =
+    inspection.outline_headings &&
+    inspection.page_signals &&
+    inspection.impugnation_zones
+      ? {
+          outline_headings: inspection.outline_headings,
+          page_signals: inspection.page_signals,
+          impugnation_zones: inspection.impugnation_zones,
+        }
+      : buildDocxCartography(
+          inspection.paragraphs || [],
+          inspection.tables || [],
+          inspection.toc_map
+        );
+
+  lines.push(...renderCartographyMarkdownBlock(cartography));
+
+  // Bloco 2: Conteúdo Integral do Documento (.docx)
+  lines.push("## Bloco 2: Conteúdo Integral Estruturado");
   lines.push("");
 
   // 1. Cabeçalhos e Rodapés
@@ -284,7 +368,7 @@ export function generateLinearAuditViewMarkdown(
 }
 
 // ============================================================================
-// 1. Função de Inspeção Estrutural (inspect_docx)
+// 1. Função de Inspeção Estrutural (inspect_docx — suporta .docx e .pdf)
 // ============================================================================
 
 export async function inspectDocx(
@@ -295,10 +379,91 @@ export async function inspectDocx(
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolve(docxPath);
   if (!existsSync(resolvedDocx)) {
-    throw new Error(`Arquivo .docx não encontrado: ${resolvedDocx}`);
+    throw new Error(`Arquivo não encontrado: ${resolvedDocx}`);
   }
 
   const buffer = readFileSync(resolvedDocx);
+  const isPdf =
+    isPdfBuffer(buffer) || resolvedDocx.toLowerCase().endsWith(".pdf");
+
+  if (isPdf) {
+    if (!isPdfBuffer(buffer)) {
+      throw new Error(
+        `Arquivo .pdf inválido (Magic Bytes '%PDF-' ausentes): ${resolvedDocx}`
+      );
+    }
+
+    const extraction = await extractPdfPages(buffer);
+    const cartography = buildPdfCartography(extraction);
+
+    let auditViewPath: string;
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      const outDir = dirname(resolvedOut);
+      const outBase = basename(resolvedOut, ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      );
+      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
+    } else {
+      const docDir = dirname(resolvedDocx);
+      const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
+      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+    }
+
+    const auditMd = generatePdfLinearAuditViewMarkdown(
+      basename(resolvedDocx),
+      extraction,
+      cartography
+    );
+    const auditDir = dirname(auditViewPath);
+    if (!existsSync(auditDir)) {
+      mkdirSync(auditDir, { recursive: true });
+    }
+    writeFileSync(auditViewPath, auditMd, "utf-8");
+
+    const toc_map: DocxTocMap = {
+      sections: cartography.outline_headings.map((h) => ({
+        coord: h.coord,
+        title: h.title,
+      })),
+      form_fields: [],
+      tables: [],
+    };
+
+    const paragraphs: BodyParagraphInfo[] = extraction.lines.map((l, idx) => ({
+      index: idx,
+      style: null,
+      text: `${l.bracket_coord} ${l.text}`,
+    }));
+
+    const pdfResult: DocxInspectionResult = {
+      doc_type: "pdf",
+      page_count: extraction.pageCount,
+      line_count: extraction.lineCount,
+      outline_headings: cartography.outline_headings,
+      page_signals: cartography.page_signals,
+      impugnation_zones: cartography.impugnation_zones,
+      toc_map,
+      audit_view_path: auditViewPath,
+      headers: [],
+      footers: [],
+      paragraphs,
+      tables: [],
+    };
+
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      const outDir = dirname(resolvedOut);
+      if (!existsSync(outDir)) {
+        mkdirSync(outDir, { recursive: true });
+      }
+      writeFileSync(resolvedOut, JSON.stringify(pdfResult, null, 2), "utf-8");
+    }
+
+    return pdfResult;
+  }
+
   const zip = await JSZip.loadAsync(buffer);
   const parser = new DOMParser();
 
@@ -405,8 +570,13 @@ export async function inspectDocx(
   });
 
   const toc_map = buildTocMap(paragraphs, tables);
+  const docxCartography = buildDocxCartography(paragraphs, tables, toc_map);
 
   const rawResult: DocxInspectionResult = {
+    doc_type: "docx",
+    outline_headings: docxCartography.outline_headings,
+    page_signals: docxCartography.page_signals,
+    impugnation_zones: docxCartography.impugnation_zones,
     toc_map,
     headers,
     footers,
@@ -418,7 +588,7 @@ export async function inspectDocx(
   const structure_fingerprint = computeStructureFingerprint(rawResult);
   rawResult.structure_fingerprint = structure_fingerprint;
 
-  // Geração da Visão Linear Compacta de Auditoria (v0.6.0)
+  // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 com Cartografia + Z1..Z12)
   let auditViewPath: string;
   if (outputPath) {
     const resolvedOut = resolve(outputPath);
@@ -627,7 +797,9 @@ export function formatInspectDocxSyntheticResult(
     : undefined;
 
   let nextHint =
-    "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
+    inspection.doc_type === "pdf"
+      ? "PDF inspecionado com Cartografia e Radar Z1..Z12. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
+      : "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
   if (
     inspection.template_match?.status === "EXACT" ||
     inspection.template_match?.status === "MODIFIED"
@@ -653,6 +825,13 @@ export function formatInspectDocxSyntheticResult(
     engine_version: VERSION,
     docxPath,
     outputPath,
+    ...(inspection.doc_type === "pdf"
+      ? {
+          doc_type: "pdf",
+          page_count: inspection.page_count,
+          line_count: inspection.line_count,
+        }
+      : {}),
     tables: inspection.tables.length,
     rows: totalRows,
     paragraphs: inspection.paragraphs.length,

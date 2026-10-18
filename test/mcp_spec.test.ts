@@ -114,9 +114,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.7.3 e novos recursos v0.7.3 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.7.3");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.7.3");
+  test("deve expor versão 0.8.0 e novos recursos v0.8.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.8.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.8.0");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade de Versão MCP");
@@ -160,9 +160,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.7.3)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.8.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.7.3)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.8.0)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -187,7 +187,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("loop_table_rows");
   });
 
-  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.7.3)", async () => {
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.8.0)", async () => {
     const barrel = await import("../src/index.ts");
 
     // Ferramentas do Pipeline
@@ -243,6 +243,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.7.3");
+    expect(barrel.VERSION).toBe("0.8.0");
   });
 });

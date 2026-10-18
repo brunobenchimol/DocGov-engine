@@ -12,6 +12,7 @@ import {
   detectFileExtensionFromBuffer,
   resolveTargetFileName,
 } from "../utils/naming.ts";
+import { isPdfBuffer } from "../utils/pdf.ts";
 import { inspectDocx, compactInspectionResult } from "./inspect.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
 import { VERSION } from "../constants/index.ts";
@@ -23,6 +24,7 @@ import type {
   IngestedFileSummary,
   BootstrapCaseOptions,
   BootstrapCaseResult,
+  BootstrapCaseInspectedPdf,
   BootstrapCaseSyntheticResult,
 } from "../types/index.ts";
 
@@ -172,8 +174,24 @@ export async function bootstrapCase(
       }
     }
 
-    // 2. Inicia cópia assíncrona não-bloqueante de PDFs e anexos pesados
+    // 2. Inicia cópia de PDFs e anexos (garantindo disponibilidade para inspeção de %PDF-)
     if (bgItems.length > 0) {
+      // Garante que qualquer PDF válido (%PDF-) esteja disponível em inputs/ para inspeção imediata
+      for (const item of bgItems) {
+        const src = resolve(resolvedUploadsDir, item.source);
+        const dest = resolve(inputsDir, item.target);
+        try {
+          if (existsSync(src) && !existsSync(dest)) {
+            const buf = readFileSync(src);
+            if (isPdfBuffer(buf)) {
+              copyFileSync(src, dest);
+            }
+          }
+        } catch {
+          // Segue fluxo normal da salvaguarda
+        }
+      }
+
       if (options.detachedCli) {
         try {
           const binPath = resolveSelfBinaryPath();
@@ -225,15 +243,15 @@ export async function bootstrapCase(
     }
   }
 
-  // 3. Inspeciona todos os arquivos .docx encontrados em inputs/
+  // 3. Inspeciona todos os arquivos .docx e .pdf encontrados em inputs/
   const inputEntries = readdirSync(inputsDir, { withFileTypes: true });
   const inspectedDocx: BootstrapCaseResult["inspectedDocx"] = [];
+  const inspectedPdf: BootstrapCaseInspectedPdf[] = [];
+
   for (const entry of inputEntries) {
-    if (
-      entry.isFile() &&
-      entry.name.toLowerCase().endsWith(".docx") &&
-      !entry.name.startsWith("~$")
-    ) {
+    if (!entry.isFile() || entry.name.startsWith("~$")) continue;
+
+    if (entry.name.toLowerCase().endsWith(".docx")) {
       const docxPath = resolve(inputsDir, entry.name);
       const base = entry.name.replace(/\.docx$/i, "");
       const structurePath = resolve(stateDir, `estrutura_${base}.json`);
@@ -258,6 +276,37 @@ export async function bootstrapCase(
       if (match) {
         match.structure_json = relStructure;
       }
+    } else if (entry.name.toLowerCase().endsWith(".pdf")) {
+      const pdfPath = resolve(inputsDir, entry.name);
+      const buf = readFileSync(pdfPath);
+      if (isPdfBuffer(buf)) {
+        const base = entry.name.replace(/\.pdf$/i, "");
+        const structurePath = resolve(stateDir, `estrutura_${base}.json`);
+        const full = await inspectDocx(pdfPath, structurePath, true);
+        const activeZonesCount = Object.values(
+          full.impugnation_zones || {}
+        ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
+
+        inspectedPdf.push({
+          fileName: entry.name,
+          pdfPath,
+          structurePath,
+          ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
+          pageCount: full.page_count ?? 0,
+          lineCount: full.line_count ?? 0,
+          outlineHeadingsCount: full.outline_headings?.length ?? 0,
+          activeZonesCount,
+        });
+
+        const relStructure = relative(resolvedCaseDir, structurePath).replace(
+          /\\/g,
+          "/"
+        );
+        const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+        if (match) {
+          match.structure_json = relStructure;
+        }
+      }
     }
   }
 
@@ -278,6 +327,7 @@ export async function bootstrapCase(
     backgroundFiles,
     backgroundCopy: bgCopyInfo,
     inspectedDocx,
+    inspectedPdf,
     ingestedFiles,
   };
 }
@@ -288,22 +338,34 @@ export function formatBootstrapCaseSyntheticResult(
 ): BootstrapCaseSyntheticResult {
   const hasIngested = !!(res.ingestedFiles && res.ingestedFiles.length > 0);
   const docxLimit = res.ingestedFiles && res.ingestedFiles.length > 2 ? 0 : 1;
+  const hasPdfInspected = !!(res.inspectedPdf && res.inspectedPdf.length > 0);
+  const pdfLimit = hasIngested ? 0 : 1;
 
-  return {
+  const buildResult = (
+    ingestedCount: number,
+    includeStructureOnAllIngested: boolean,
+    docxSlice: number,
+    pdfSlice: number
+  ): BootstrapCaseSyntheticResult => ({
     status: "success",
     engine_version: VERSION,
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
-    ...(hasIngested
+    ...(hasIngested && ingestedCount > 0
       ? {
-          ingested_files: res.ingestedFiles!.slice(0, 4).map((item) => ({
-            original: item.original_name,
-            saved_as: item.saved_as,
-            type: item.detected_type,
-            ...(item.structure_json ? { structure: item.structure_json } : {}),
-          })),
+          ingested_files: res.ingestedFiles!
+            .slice(0, ingestedCount)
+            .map((item, idx) => ({
+              original: item.original_name,
+              saved_as: item.saved_as,
+              type: item.detected_type,
+              ...(item.structure_json &&
+              (includeStructureOnAllIngested || idx < 2)
+                ? { structure: item.structure_json }
+                : {}),
+            })),
         }
       : {}),
-    docx_inspected: res.inspectedDocx.slice(0, docxLimit).map((item) => {
+    docx_inspected: res.inspectedDocx.slice(0, docxSlice).map((item) => {
       const relPath = relative(res.caseDir, item.structurePath).replace(
         /\\/g,
         "/"
@@ -325,6 +387,19 @@ export function formatBootstrapCaseSyntheticResult(
           : {}),
       };
     }),
+    ...(hasPdfInspected && pdfSlice > 0
+      ? {
+          pdf_inspected: res.inspectedPdf!.slice(0, pdfSlice).map((item) => ({
+            filename: item.fileName,
+            structure_json: relative(res.caseDir, item.structurePath).replace(
+              /\\/g,
+              "/"
+            ),
+            page_count: item.pageCount,
+            line_count: item.lineCount,
+          })),
+        }
+      : {}),
     background_copy: {
       status:
         res.backgroundCopy.status === "started"
@@ -337,6 +412,16 @@ export function formatBootstrapCaseSyntheticResult(
     },
     next_step_hint:
       "Estrutura criada. Elabore o slots_manifest.json para 'build_docx_template'.",
-  };
+  });
+
+  let result = buildResult(4, true, docxLimit, pdfLimit);
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+    result = buildResult(4, false, 0, 0);
+  }
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+    result = buildResult(2, false, 0, 0);
+  }
+
+  return result;
 }
 

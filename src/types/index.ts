@@ -114,7 +114,78 @@ export interface TemplateMatchResult {
   message?: string;
 }
 
+export interface PdfLineItem {
+  page: number;
+  line: number;
+  coord: string; // Ex: "PAG_001 | L0001"
+  bracket_coord: string; // Ex: "[PAG_001 | L0001]"
+  text: string;
+}
+
+export interface PdfPageInfo {
+  pageNumber: number;
+  lines: PdfLineItem[];
+}
+
+export interface PdfExtractionResult {
+  pageCount: number;
+  lineCount: number;
+  pages: PdfPageInfo[];
+  lines: PdfLineItem[];
+}
+
+export interface OutlineHeadingItem {
+  coord: string; // Ex: "[PAG_001 | L0001]" ou "[P0]"
+  title: string;
+  page?: number;
+  line?: number;
+}
+
+export interface PageSignalItem {
+  page?: number;
+  coord_range: string; // Ex: "[PAG_002 | L0010]..[PAG_002 | L0025]" ou "[T0]..[T1]"
+  signal_type: "ORCAMENTO_ITENS" | "ESPECIFICACAO_TECNICA" | "MISTO";
+  budget_score: number;
+  tech_spec_score: number;
+  matched_terms: string[];
+}
+
+export type ImpugnationZoneId =
+  | "Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO"
+  | "Z2_QUALIFICACAO_TECNICA_ATESTADOS"
+  | "Z3_QUALIFICACAO_ECONOMICA_GARANTIAS"
+  | "Z4_VISTORIA_VISITA_TECNICA"
+  | "Z5_AMOSTRA_POC_HOMOLOGACAO"
+  | "Z6_VINCULO_FABRICANTE_SOLIDARIEDADE"
+  | "Z7_DIRECIONAMENTO_MARCA_EQUIVALENCIA"
+  | "Z8_PRAZOS_ENTREGA_SLA_GARANTIA"
+  | "Z9_EQUIPE_CERTIFICACOES_SEDE"
+  | "Z10_PRECOS_EXEQUIBILIDADE_PLANILHA"
+  | "Z11_PAGAMENTO_REAJUSTE_IMR_SANCOES"
+  | "Z12_MAPA_CRUZADO_MULTIPECA";
+
+export interface ImpugnationZoneHit {
+  coord: string; // Ex: "[PAG_001 | L0005]" ou "[P3]"
+  keyword: string;
+  snippet: string; // Até 90 chars
+  section?: string;
+}
+
+export type ImpugnationZonesMap = Record<ImpugnationZoneId, ImpugnationZoneHit[]>;
+
+export interface DocumentCartography {
+  outline_headings: OutlineHeadingItem[];
+  page_signals: PageSignalItem[];
+  impugnation_zones: ImpugnationZonesMap;
+}
+
 export interface DocxInspectionResult {
+  doc_type?: "docx" | "pdf";
+  page_count?: number;
+  line_count?: number;
+  outline_headings?: OutlineHeadingItem[];
+  page_signals?: PageSignalItem[];
+  impugnation_zones?: ImpugnationZonesMap;
   toc_map?: DocxTocMap;
   structure_fingerprint?: StructureFingerprint;
   template_match?: TemplateMatchResult;
@@ -292,6 +363,17 @@ export interface BootstrapCaseInspectedDocx {
   audit_view_path?: string;
 }
 
+export interface BootstrapCaseInspectedPdf {
+  fileName: string;
+  pdfPath: string;
+  structurePath: string;
+  audit_view_path?: string;
+  pageCount: number;
+  lineCount: number;
+  outlineHeadingsCount: number;
+  activeZonesCount: number;
+}
+
 export interface BootstrapCaseResult {
   status: "success";
   caseDir: string;
@@ -299,6 +381,7 @@ export interface BootstrapCaseResult {
   backgroundFiles: string[];
   backgroundCopy: BackgroundCopyInfo;
   inspectedDocx: BootstrapCaseInspectedDocx[];
+  inspectedPdf?: BootstrapCaseInspectedPdf[];
   ingestedFiles?: IngestedFileSummary[];
 }
 
@@ -321,6 +404,13 @@ export interface BootstrapCaseSyntheticResult {
   caseDir: string;
   ingested_files?: IngestedFileSyntheticItem[];
   docx_inspected: BootstrapCaseSyntheticDocx[];
+  pdf_inspected?: Array<{
+    filename: string;
+    structure_json: string;
+    audit_view_path?: string;
+    page_count: number;
+    line_count: number;
+  }>;
   background_copy: {
     status: "active" | "started" | "idle" | "completed" | "partial_error";
     message: string;
@@ -333,6 +423,9 @@ export interface InspectDocxSyntheticResult {
   engine_version: string;
   docxPath: string;
   outputPath: string;
+  doc_type?: "docx" | "pdf";
+  page_count?: number;
+  line_count?: number;
   tables: number;
   rows: number;
   paragraphs: number;

@@ -36,7 +36,7 @@ Uso:
   docgov-docx --mcp                               Inicia como servidor MCP via stdio
   docgov-docx --dump-spec [caminho.md]            Exporta a especificação técnica integral do motor em Markdown
   docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
-  docgov-docx --inspect <arq.docx> [--out <mapa.json>] [--compact]
+  docgov-docx --inspect <arq.docx|.pdf> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
   docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--no-auto-inspect]
   docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx>

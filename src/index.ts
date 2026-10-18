@@ -11,12 +11,14 @@ export * from "./types/index.ts";
 // 3. Contratos e Padrão Exact Copy-Paste Error
 export * from "./contracts/errors.ts";
 
-// 4. Utilitários (XML/DOM, JSON Resiliente e Nomenclatura Semântica)
+// 4. Utilitários (XML/DOM, JSON Resiliente, Nomenclatura Semântica e PDF Nativo)
 export * from "./utils/xml.ts";
 export * from "./utils/json.ts";
 export * from "./utils/naming.ts";
+export * from "./utils/pdf.ts";
 
-// 5. Motor Central (Manifesto, Registro Global e Auto-Atualizador)
+// 5. Motor Central (Cartografia Sem IA, Manifesto, Registro Global e Auto-Atualizador)
+export * from "./core/cartography.ts";
 export * from "./core/manifest.ts";
 export * from "./core/registry.ts";
 export * from "./core/updater.ts";
