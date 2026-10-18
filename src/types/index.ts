@@ -317,6 +317,7 @@ export interface BootstrapCaseSyntheticDocx {
 
 export interface BootstrapCaseSyntheticResult {
   status: "success";
+  engine_version: string;
   caseDir: string;
   ingested_files?: IngestedFileSyntheticItem[];
   docx_inspected: BootstrapCaseSyntheticDocx[];
@@ -329,6 +330,7 @@ export interface BootstrapCaseSyntheticResult {
 
 export interface InspectDocxSyntheticResult {
   status: "success";
+  engine_version: string;
   docxPath: string;
   outputPath: string;
   tables: number;
@@ -346,6 +348,7 @@ export interface InspectDocxSyntheticResult {
 
 export interface BuildDocxTemplateSyntheticResult {
   status: "success";
+  engine_version: string;
   outputPath: string;
   applied_slots_count: number;
   breakdown: BuildDocxTemplateBreakdown;
@@ -371,12 +374,23 @@ export interface ProcessDocumentResult {
 
 export interface FillDocxTemplateSyntheticResult {
   status: "success";
+  engine_version: string;
   outputPath: string;
   inspection_path?: string;
   visao_auditoria_path?: string;
   message: string;
   next_step_hint: string;
 }
+
+export interface GenerateAuditDocxSyntheticResult {
+  status: "success";
+  engine_version: string;
+  outputPath: string;
+  message: string;
+  next_step_hint: string;
+}
+
+export type AuditDocxSyntheticResult = GenerateAuditDocxSyntheticResult;
 
 export interface AuditDocumentExcerpt {
   secao_legivel?: string;

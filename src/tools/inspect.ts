@@ -22,6 +22,7 @@ import {
   reanchorSlotsManifest,
   extractCacheTemporalMetadata,
 } from "../core/registry.ts";
+import { VERSION } from "../constants/index.ts";
 import type {
   BodyParagraphInfo,
   TableInfo,
@@ -649,6 +650,7 @@ export function formatInspectDocxSyntheticResult(
     summaryItems: Array<{ coord: string; title: string; target?: string }>
   ): InspectDocxSyntheticResult => ({
     status: "success",
+    engine_version: VERSION,
     docxPath,
     outputPath,
     tables: inspection.tables.length,
@@ -665,10 +667,14 @@ export function formatInspectDocxSyntheticResult(
   let result = buildPayload(currentSummary);
   while (
     currentSummary.length > 0 &&
-    Buffer.byteLength(JSON.stringify(result), "utf-8") >= 1000
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000
   ) {
     currentSummary.pop();
     result = buildPayload(currentSummary);
+  }
+
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+    result.next_step_hint = "Inspeção gravada. Chame 'build_docx_template'.";
   }
 
   return result;

@@ -14,6 +14,7 @@ import {
   formatInspectDocxSyntheticResult,
   type SlotsManifest,
   type TemplateRegistryEntry,
+  VERSION,
 } from "../src/index.ts";
 import {
   MINIMAL_DOCX_BASE64,
@@ -308,7 +309,7 @@ describe("Testes Unitários: Cache Global & Registry (Fingerprint, Matching 1-pa
     const diskEntryV1 = safeReadJsonFile<TemplateRegistryEntry>(savedPath);
     expect(isValidIsoDate(diskEntryV1.created_at)).toBe(true);
     expect(isValidIsoDate(diskEntryV1.updated_at)).toBe(true);
-    expect(diskEntryV1.engine_version).toBe("0.7.0");
+    expect(diskEntryV1.engine_version).toBe(VERSION);
     expect(diskEntryV1.slots_count).toBe(2);
 
     // Simula que o template foi criado há 5 dias atrás no disco e agora recebe uma atualização com 3 slots
@@ -337,7 +338,7 @@ describe("Testes Unitários: Cache Global & Registry (Fingerprint, Matching 1-pa
     expect(diskEntryV2.created_at).toBe(fiveDaysAgoIso);
     expect(diskEntryV2.updated_at).not.toBe(fiveDaysAgoIso);
     expect(isValidIsoDate(diskEntryV2.updated_at)).toBe(true);
-    expect(diskEntryV2.engine_version).toBe("0.7.0");
+    expect(diskEntryV2.engine_version).toBe(VERSION);
     expect(diskEntryV2.slots_count).toBe(3);
 
     // Inspeciona documento contra esse cache atualizado
@@ -352,7 +353,7 @@ describe("Testes Unitários: Cache Global & Registry (Fingerprint, Matching 1-pa
     expect(matchedInsp.template_match?.updated_at).toBe(diskEntryV2.updated_at);
     expect(matchedInsp.template_match?.age_days).toBe(0);
     expect(matchedInsp.template_match?.cache_date_status).toBe("KNOWN");
-    expect(matchedInsp.template_match?.engine_version).toBe("0.7.0");
+    expect(matchedInsp.template_match?.engine_version).toBe(VERSION);
     expect(matchedInsp.template_match?.slots_count).toBe(3);
 
     const synthetic = formatInspectDocxSyntheticResult(
@@ -361,11 +362,12 @@ describe("Testes Unitários: Cache Global & Registry (Fingerprint, Matching 1-pa
       matchedInsp
     );
     const expectedDateYmd = diskEntryV2.updated_at!.slice(0, 10);
+    expect(synthetic.engine_version).toBe(VERSION);
     expect(synthetic.template_match?.created_at).toBe(fiveDaysAgoIso);
     expect(synthetic.template_match?.updated_at).toBe(diskEntryV2.updated_at);
     expect(synthetic.template_match?.age_days).toBe(0);
     expect(synthetic.template_match?.cache_date_status).toBe("KNOWN");
-    expect(synthetic.template_match?.engine_version).toBe("0.7.0");
+    expect(synthetic.template_match?.engine_version).toBe(VERSION);
     expect(synthetic.template_match?.slots_count).toBe(3);
     expect(synthetic.next_step_hint).toContain(
       `Cache reconhecido (EXACT, criado/atualizado em ${expectedDateYmd}, 3 slots). Informe a data ao usuário no Gate 1.`

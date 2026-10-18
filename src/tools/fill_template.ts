@@ -5,6 +5,7 @@ import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { createReport } from "docx-templates";
 import { safeReadJsonFile, unflattenDotKeys } from "../utils/json.ts";
 import { inspectDocx } from "./inspect.ts";
+import { VERSION } from "../constants/index.ts";
 import type {
   ProcessDocumentOptions,
   ProcessDocumentResult,
@@ -804,6 +805,7 @@ export function formatFillDocxTemplateSyntheticResult(
 
   const payload: FillDocxTemplateSyntheticResult = {
     status: "success",
+    engine_version: VERSION,
     outputPath: relOutput,
     ...(relInspection ? { inspection_path: relInspection } : {}),
     ...(relVisao ? { visao_auditoria_path: relVisao } : {}),

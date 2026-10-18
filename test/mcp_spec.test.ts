@@ -114,9 +114,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.7.0 e novos recursos v0.7.0 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.7.0");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.7.0");
+  test("deve expor versão 0.7.1 e novos recursos v0.7.1 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.7.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.7.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade de Versão MCP");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Motor Híbrido de Lista Multinível Nativa");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("word/numbering.xml");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade Temporal do Cache");
@@ -157,9 +158,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.7.0)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.7.1)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.7.0)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.7.1)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -184,7 +185,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("loop_table_rows");
   });
 
-  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.7.0)", async () => {
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.7.1)", async () => {
     const barrel = await import("../src/index.ts");
 
     // Ferramentas do Pipeline
@@ -195,6 +196,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.fillDocxTemplate).toBe("function");
     expect(typeof barrel.formatFillDocxTemplateSyntheticResult).toBe("function");
     expect(typeof barrel.generateAuditDocx).toBe("function");
+    expect(typeof barrel.formatGenerateAuditDocxSyntheticResult).toBe("function");
+    expect(typeof barrel.formatAuditDocxSyntheticResult).toBe("function");
 
     // Servidor MCP e Especificação
     expect(typeof barrel.runMcpServer).toBe("function");
@@ -235,6 +238,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.7.0");
+    expect(barrel.VERSION).toBe("0.7.1");
   });
 });

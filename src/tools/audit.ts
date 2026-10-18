@@ -1,10 +1,15 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, relative } from "node:path";
 import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { createAuditReportContractError } from "../contracts/errors.ts";
-import type { AuditReportData, AuditFinding } from "../types/index.ts";
+import { VERSION } from "../constants/index.ts";
+import type {
+  AuditReportData,
+  AuditFinding,
+  GenerateAuditDocxSyntheticResult,
+} from "../types/index.ts";
 
 // ============================================================================
 // 3b. Geração Nativa de Relatório de Auditoria em Word (generate_audit_docx)
@@ -696,4 +701,31 @@ export async function generateAuditDocx(
     message: `Relatório de Auditoria (.docx) gerado com sucesso em: ${resolvedOutput}`,
   };
 }
+
+export function formatGenerateAuditDocxSyntheticResult(
+  result: { outputPath: string; message: string },
+  baseDir: string = process.cwd()
+): GenerateAuditDocxSyntheticResult {
+  const relOutput =
+    relative(baseDir, result.outputPath).replace(/\\/g, "/") ||
+    result.outputPath;
+
+  const payload: GenerateAuditDocxSyntheticResult = {
+    status: "success",
+    engine_version: VERSION,
+    outputPath: relOutput,
+    message: result.message,
+    next_step_hint:
+      "Ciclo de auditoria concluído: o parecer em layout vertical A4 (zero tabelas) está pronto em output/ para revisão e assinatura.",
+  };
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 1000) {
+    payload.message = "Relatório de Auditoria (.docx) gerado com sucesso.";
+  }
+
+  return payload;
+}
+
+export const formatAuditDocxSyntheticResult =
+  formatGenerateAuditDocxSyntheticResult;
 

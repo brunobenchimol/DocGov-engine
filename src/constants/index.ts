@@ -1,4 +1,4 @@
-export const VERSION = "0.7.0";
+export const VERSION = "0.7.1";
 export const GITHUB_REPO = "brunobenchimol/docgov-docx-engine";
 
 // ============================================================================
@@ -16,6 +16,7 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 5. **generate_audit_docx**: Compila o relatório executivo de auditoria de controle externo a partir de relatorio_auditoria.json em layout vertical A4 (zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast com padrão Exact Copy-Paste Error, fichas individualizadas e transcrições probatórias integrais.
 
 ### Sintaxe Suportada de Tags e Recursos de Resiliência:
+- Rastreabilidade de Versão MCP (v0.7.1): Inclusão do campo 'engine_version' na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP (bootstrap_case, inspect_docx, build_docx_template, fill_docx_template e generate_audit_docx) para consumo imediato pelo agente.
 - Motor Híbrido de Lista Multinível Nativa (v0.7.0): Fora de tabelas (<w:body>), desmembra subitens decimais (ex.: 4.1, 4.1.1) em lista multinível nativa do Word ('word/numbering.xml' de 9 níveis com '<w:suff w:val="tab"/>', '<w:numPr>' e '<w:startOverride>' sincronizado com o capítulo pai, limpando o prefixo literal do '<w:t>'). Dentro de tabelas (<w:tc>) ou em alíneas/bullets, aplica Hanging Indent estático ('<w:ind w:left w:hanging>' + '<w:tabs>') separando o número literal com '<w:r><w:tab/></w:r>'.
 - Rastreabilidade Temporal do Cache & Retrocompatibilidade Estrita (v0.6.4): Gravação e leitura de 'created_at', 'updated_at', 'age_days', 'cache_date_status', 'engine_version' e 'slots_count' no cache global, preservando 'created_at' original em atualizações e suportando caches legados sem datas (reportando 'NÃO DISPONÍVEL' / 'age_days: null' sem usar mtime do disco) para decisão informada no Gate 1.
 - Arquitetura Modular & Re-export Barrel (v0.6.3): Decomposição limpa do motor em submódulos especializados (types, core, tools, mcp, cli) mantendo 100% de compatibilidade retroativa e integridade de exportações.
@@ -39,7 +40,7 @@ Servidor MCP standalone para manipulação, engenharia reversa, construção de 
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.7.0)
+# Guia de Arquitetura e Engenharia de Templates Word (.docx) — docgov-docx (v0.7.1)
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento de documentos do ecossistema DocGov.
 

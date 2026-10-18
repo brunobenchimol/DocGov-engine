@@ -22,6 +22,7 @@ import {
   computeStructureFingerprint,
   saveTemplateToRegistry,
 } from "../core/registry.ts";
+import { VERSION } from "../constants/index.ts";
 import type {
   SlotsManifest,
   BuildDocxTemplateBreakdown,
@@ -401,6 +402,7 @@ export function formatBuildDocxTemplateSyntheticResult(
 ): BuildDocxTemplateSyntheticResult {
   return {
     status: "success",
+    engine_version: VERSION,
     outputPath: resolve(outputPath),
     applied_slots_count: result.applied_slots_count,
     breakdown: result.breakdown,

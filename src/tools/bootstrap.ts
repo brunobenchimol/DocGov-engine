@@ -14,6 +14,7 @@ import {
 } from "../utils/naming.ts";
 import { inspectDocx, compactInspectionResult } from "./inspect.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
+import { VERSION } from "../constants/index.ts";
 import type {
   BackgroundCopyFileItem,
   BackgroundCopyInput,
@@ -288,6 +289,7 @@ export function formatBootstrapCaseSyntheticResult(
 
   return {
     status: "success",
+    engine_version: VERSION,
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
     ...(hasIngested
       ? {

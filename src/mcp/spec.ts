@@ -6,7 +6,7 @@ import {
 } from "../contracts/errors.ts";
 
 // ============================================================================
-// Especificação Técnica Integral em Markdown (--dump-spec v0.7.0)
+// Especificação Técnica Integral em Markdown (--dump-spec v0.7.1)
 // ============================================================================
 
 export function generateEngineSpecMarkdown(): string {
@@ -18,7 +18,7 @@ Documento normativo e especificação canônica do motor standalone \`docgov-doc
 
 ## 1. Diretrizes de Comunicação e Resiliência MCP
 
-1. **Teto Estrito de Payload MCP (< 1024 bytes):** Todo retorno de ferramenta via stdio MCP DEVE ser um JSON sintético conciso (< 1 KB) para evitar truncamento em logs e buffers das IDEs consumidoras. Mapas estruturais densos (\`toc_map\`) e espelhos lineares de leitura integral (\`visao_auditoria_*.md\`) são persistidos no diretório \`state/\` do caso e apenas referenciados no payload sintético.
+1. **Teto Estrito de Payload MCP (< 1024 bytes) e Identificação de Versão (v0.7.1):** Todo retorno de ferramenta via stdio MCP DEVE ser um JSON sintético conciso (< 1 KB) contendo o campo \`engine_version\` na raiz para dispensar consultas externas. Mapas estruturais densos (\`toc_map\`) e espelhos lineares de leitura integral (\`visao_auditoria_*.md\`) são persistidos no diretório \`state/\` do caso e apenas referenciados no payload sintético.
 2. **Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito):** É expressamente proibido retornar \`status: "success"\` se \`applied_slots_count === 0\` ou se o manifesto contiver chaves desconhecidas ou inválidas. Ao detectar erro de validação em \`slots_manifest.json\` ou \`relatorio_auditoria.json\`, o motor interrompe a execução com mensagem imperativa acompanhada do snippet JSON canônico pronto para copiar e colar, eliminando leituras exploratórias cegas.
 3. **Neutralidade Institucional Absoluta:** O motor e seus contratos utilizam exclusivamente identificadores canônicos universais e genéricos: \`ORGAO_CONTRATANTE\`, \`MUNICIPIO_GENERICO\`, \`ORGAO_A\`, \`ORGAO_B\`, \`AGU\`, \`MGI\`, \`TCU\`.
 4. **Resiliência e Cache Global (core/registry/templates/):** O motor realiza matching 1-para-N contra o cache global, com suporte a rastreabilidade temporal (\`created_at\`, \`updated_at\`, \`age_days\`, \`cache_date_status\`, \`engine_version\`, \`slots_count\`), retrocompatibilidade estrita com caches legados sem datas, reancoragem automática de coordenadas (Auto-Offset) em caso de drift (75%-99%) e sanity check descartando entradas corrompidos.
@@ -59,6 +59,7 @@ Injeta os dados de \`estado_caso.json\` no template .docx gerado.
 ### 2.5. generate_audit_docx
 Compila o parecer executivo de auditoria de controle externo em layout vertical A4 (ZERO tabelas <w:tbl>, 100% largura útil), com sanitização de crases e enums, fichas verticais e transcrições integrais em blocos de citação recuados.
 - **Validação Fail-Fast e Exact Copy-Paste Error (v0.6.2):** Campos obrigatórios \`processo_id\` e \`resumo_executivo\` devem ser strings não-vazias; \`apontamentos\` deve ser array.
+- **Retorno Sintético MCP (< 1 KB):** Devolve JSON sintético com \`status\`, \`engine_version\`, \`outputPath\`, \`message\` e \`next_step_hint\`.
 - **Contrato Canônico de \`relatorio_auditoria.json\`:**
 \`\`\`json
 ${EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET}

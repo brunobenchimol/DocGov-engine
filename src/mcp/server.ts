@@ -28,7 +28,10 @@ import {
   processDocument,
   formatFillDocxTemplateSyntheticResult,
 } from "../tools/fill_template.ts";
-import { generateAuditDocx } from "../tools/audit.ts";
+import {
+  generateAuditDocx,
+  formatGenerateAuditDocxSyntheticResult,
+} from "../tools/audit.ts";
 
 // ============================================================================
 // Modo Servidor MCP (stdio)
@@ -395,10 +398,14 @@ export async function runMcpServer() {
           outputPath: string;
         };
         const result = await generateAuditDocx(auditJsonPath, outputPath);
-        const nextHint =
-          "Ciclo de auditoria concluído: o parecer em layout vertical A4 (zero tabelas) está pronto em output/ para revisão e assinatura.";
+        const synthetic = formatGenerateAuditDocxSyntheticResult(result);
         return {
-          content: [{ type: "text", text: `${result.message}\n${nextHint}` }],
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
         };
       }
     } catch (err: any) {

@@ -4,9 +4,11 @@ import { resolve } from "node:path";
 import JSZip from "jszip";
 import {
   generateAuditDocx,
+  formatGenerateAuditDocxSyntheticResult,
   cleanHumanText,
   inspectDocx,
   EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET,
+  VERSION,
 } from "../src/index.ts";
 import { createSuiteTempDir } from "./helpers/fixtures.ts";
 
@@ -90,6 +92,16 @@ describe("Testes Unitários: generate_audit_docx (Layout A4, Zero Tabelas, Copy-
     const res = await generateAuditDocx(auditJsonPath, auditDocxPath);
     expect(res.success).toBe(true);
     expect(existsSync(auditDocxPath)).toBe(true);
+
+    const syntheticAudit = formatGenerateAuditDocxSyntheticResult(res);
+    expect(syntheticAudit.status).toBe("success");
+    expect(syntheticAudit.engine_version).toBe(VERSION);
+    expect(syntheticAudit.engine_version).toBe("0.7.1");
+    expect(syntheticAudit.outputPath).toContain("Relatorio_Auditoria_ETP.docx");
+    expect(syntheticAudit.next_step_hint).toContain("Ciclo de auditoria concluído");
+    expect(
+      Buffer.byteLength(JSON.stringify(syntheticAudit, null, 2), "utf-8")
+    ).toBeLessThan(1024);
 
     const auditZip = await JSZip.loadAsync(readFileSync(auditDocxPath));
     const auditXml = await auditZip.file("word/document.xml")!.async("string");
