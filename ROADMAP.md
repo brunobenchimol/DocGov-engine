@@ -19,7 +19,7 @@
 - [x] **1.1. Reconstrução Espacial de Tabelas e Colunas em PDF (`Y-Axis Line Grouping`):**
   - Agrupar itens de texto do PDF pela coordenada vertical `(y)` com tolerância fina e ordenar horizontalmente por `(x)`, separando colunas distintas com ` | ` (estilo tabela Markdown).
   - Evitar que planilhas de itens/preços (`Item | Descrição | Unid | Qtd | Valor`) e tabelas de *datasheets* saiam fragmentadas em linhas soltas.
-- [ ] **1.2. Geração Automática do Dossiê Executivo de Hotspots (`state/dossie_hotspots_<stem>.md`):**
+- [x] **1.2. Geração Automática do Dossiê Executivo de Hotspots (`state/dossie_hotspots_<stem>.md`):**
   - Para documentos extensos (ex.: PDFs de 150 a 300 páginas), gerar automaticamente em `state/` um dossiê condensado contendo:
     1. O Mapa Cartográfico Completo (`outline_headings` + `page_signals`);
     2. Os blocos de texto expandidos (`±12 linhas` de contexto antes e depois) de todas as ocorrências das **14 Zonas (`Z1` a `Z14`)** e das páginas de especificações técnicas/tabelas de itens.

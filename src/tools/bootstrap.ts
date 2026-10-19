@@ -292,6 +292,9 @@ export async function bootstrapCase(
           pdfPath,
           structurePath,
           ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
+          ...(full.dossie_hotspots_path
+            ? { dossie_hotspots_path: full.dossie_hotspots_path }
+            : {}),
           pageCount: full.page_count ?? 0,
           lineCount: full.line_count ?? 0,
           outlineHeadingsCount: full.outline_headings?.length ?? 0,

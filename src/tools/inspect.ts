@@ -27,6 +27,7 @@ import {
   buildPdfCartography,
   buildDocxCartography,
   renderCartographyMarkdownBlock,
+  generateHotspotsDossierMarkdown,
 } from "../core/cartography.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
@@ -422,6 +423,29 @@ export async function inspectDocx(
     }
     writeFileSync(auditViewPath, auditMd, "utf-8");
 
+    // Geração do Dossiê Executivo de Hotspots (v0.9.0)
+    let dossieHotspotsPath: string;
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      const outDir = dirname(resolvedOut);
+      const outBase = basename(resolvedOut, ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      );
+      dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${outBase}.md`);
+    } else {
+      const docDir = dirname(resolvedDocx);
+      const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
+      dossieHotspotsPath = resolve(docDir, `dossie_hotspots_${docBase}.md`);
+    }
+
+    const dossieMd = generateHotspotsDossierMarkdown(
+      basename(resolvedDocx),
+      extraction,
+      cartography
+    );
+    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
+
     const toc_map: DocxTocMap = {
       sections: cartography.outline_headings.map((h) => ({
         coord: h.coord,
@@ -446,6 +470,7 @@ export async function inspectDocx(
       impugnation_zones: cartography.impugnation_zones,
       toc_map,
       audit_view_path: auditViewPath,
+      dossie_hotspots_path: dossieHotspotsPath,
       headers: [],
       footers: [],
       paragraphs,
@@ -760,6 +785,10 @@ export function formatInspectDocxSyntheticResult(
     ? relative(process.cwd(), inspection.audit_view_path).replace(/\\/g, "/")
     : undefined;
 
+  const relDossiePath = inspection.dossie_hotspots_path
+    ? relative(process.cwd(), inspection.dossie_hotspots_path).replace(/\\/g, "/")
+    : undefined;
+
   const conciseMatch: TemplateMatchResult | undefined = inspection.template_match
     ? {
         status: inspection.template_match.status,
@@ -837,6 +866,7 @@ export function formatInspectDocxSyntheticResult(
     paragraphs: inspection.paragraphs.length,
     ...(conciseMatch ? { template_match: conciseMatch } : {}),
     ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
+    ...(relDossiePath ? { dossie_path: relDossiePath } : {}),
     ...(summaryItems.length > 0 ? { toc_summary: summaryItems } : {}),
     next_step_hint: nextHint,
   });

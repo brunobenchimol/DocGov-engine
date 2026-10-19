@@ -192,6 +192,7 @@ export interface DocxInspectionResult {
   structure_fingerprint?: StructureFingerprint;
   template_match?: TemplateMatchResult;
   audit_view_path?: string;
+  dossie_hotspots_path?: string;
   headers: HeaderFooterParagraphInfo[];
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
@@ -370,6 +371,7 @@ export interface BootstrapCaseInspectedPdf {
   pdfPath: string;
   structurePath: string;
   audit_view_path?: string;
+  dossie_hotspots_path?: string;
   pageCount: number;
   lineCount: number;
   outlineHeadingsCount: number;
@@ -433,6 +435,7 @@ export interface InspectDocxSyntheticResult {
   paragraphs: number;
   template_match?: TemplateMatchResult;
   audit_view_path?: string;
+  dossie_path?: string;
   toc_summary?: Array<{
     coord: string;
     title: string;

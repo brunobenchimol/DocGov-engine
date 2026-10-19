@@ -836,6 +836,123 @@ describe("Testes Unitários v0.9.0: Reconstrução Espacial de Tabelas e Colunas
     expect(lines.length).toBe(1);
     expect(lines[0]).toBe("TERMO DE REFERÊNCIA");
   });
+
+  test("4. inspectDocx em arquivo .pdf deve gerar automaticamente state/dossie_hotspots_<stem>.md com Bloco 1 e Bloco 2 (±12 linhas)", async () => {
+    const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v090_dossie");
+    mkdirSync(resolve(suiteDir, "state"), { recursive: true });
+
+    const pdfPath = resolve(suiteDir, "edital_dossie_teste.pdf");
+    const outJsonPath = resolve(suiteDir, "state", "estrutura_edital_dossie_teste.json");
+    const samplePages = [
+      [
+        "EDITAL DE PREGÃO ELETRÔNICO Nº 01/2026 - ORGAO_CONTRATANTE",
+        "PREÂMBULO",
+        "1. DO OBJETO DA LICITAÇÃO",
+        "O presente pregão tem por objeto a contratação em lote único de soluções corporativas.",
+        "CLÁUSULA 2 - DA HABILITAÇÃO E QUALIFICAÇÃO TÉCNICA",
+        "Apresentação de atestado de capacidade técnica emitido por pessoa jurídica.",
+        "MINUTA DE CONTRATO",
+      ],
+      [
+        "ANEXO I - TERMO DE REFERÊNCIA",
+        "Especificação de fornecimento em lote único e subcontratação vedada.",
+        "Prazo de entrega em 30 dias corridos com SLA de atendimento em 4 horas.",
+        "Exigência de patrimônio líquido mínimo e garantia contratual de 5%.",
+        "Vistoria técnica presencial in loco facultativa com declaração de conhecimento.",
+        "Apresentação de amostra e prova de conceito PoC em 5 dias úteis.",
+        "Exigência de carta de credenciamento do fabricante oficial.",
+      ],
+      [
+        "ANEXO II - ESPECIFICAÇÕES TÉCNICAS E DATASHEET",
+        "Processador com frequência mínima de 3.2 GHz, 128 GB de memória RAM.",
+        "Armazenamento de 2 TB NVMe com taxa de transferência de 10 Gbps e 100.000 IOPS.",
+        "Equipamento deve possuir certificação ABNT NBR ISO 9001 e garantia on-site de 36 meses.",
+        "Padronização com o parque instalado de marca Dell ou equivalente.",
+        "Métrica de faturamento por unidade de medida UST conforme catálogo de serviços.",
+        "Pagamento mediante medição de resultado com IMR e índice de reajuste IPCA.",
+      ],
+    ];
+
+    writeFileSync(pdfPath, createSyntheticPdfBuffer(samplePages));
+
+    const result = await inspectDocx(pdfPath, outJsonPath, true);
+    expect(result.dossie_hotspots_path).toBeDefined();
+    expect(existsSync(result.dossie_hotspots_path!)).toBe(true);
+
+    const dossieContent = readFileSync(result.dossie_hotspots_path!, "utf-8");
+    expect(dossieContent).toContain("# Dossiê Executivo de Hotspots: edital_dossie_teste.pdf");
+    expect(dossieContent).toContain("## Bloco 1: Mapa Cartográfico Estrutural e Radar das 14 Zonas de Impugnação");
+    expect(dossieContent).toContain("## Bloco 2: Janelas Expandidas dos Hotspots (±12 Linhas de Contexto)");
+    expect(dossieContent).toContain("### Hotspot 1:");
+    expect(dossieContent).toContain("*(ALVO:");
+    expect(dossieContent).toContain("Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO");
+
+    // Verifica que o payload sintético inclui dossie_path e respeita o teto de 1024 bytes (Lei 2)
+    const synthetic = formatInspectDocxSyntheticResult(pdfPath, outJsonPath, result);
+    expect(synthetic.dossie_path).toBeDefined();
+    expect(synthetic.dossie_path).toContain("dossie_hotspots_edital_dossie_teste.md");
+    const byteLen = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
+    expect(byteLen).toBeLessThan(1024);
+
+    rmSync(suiteDir, { recursive: true, force: true });
+  });
+
+  test("5. generateHotspotsDossierMarkdown deve fundir intervalos contíguos de hotspots em bloco unificado", () => {
+    const { generateHotspotsDossierMarkdown } = require("../src/index.ts");
+    const dummyExtraction = {
+      pageCount: 1,
+      lineCount: 20,
+      pages: [
+        {
+          pageNumber: 1,
+          lines: Array.from({ length: 20 }, (_, i) => ({
+            page: 1,
+            line: i + 1,
+            coord: `PAG_001 | L${String(i + 1).padStart(4, "0")}`,
+            bracket_coord: `[PAG_001 | L${String(i + 1).padStart(4, "0")}]`,
+            text: `Linha de teste ${i + 1} com conteúdo licitatório genérico.`,
+          })),
+        },
+      ],
+      lines: Array.from({ length: 20 }, (_, i) => ({
+        page: 1,
+        line: i + 1,
+        coord: `PAG_001 | L${String(i + 1).padStart(4, "0")}`,
+        bracket_coord: `[PAG_001 | L${String(i + 1).padStart(4, "0")}]`,
+        text: `Linha de teste ${i + 1} com conteúdo licitatório genérico.`,
+      })),
+    };
+
+    const dummyCartography = {
+      outline_headings: [],
+      page_signals: [],
+      impugnation_zones: {
+        Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO: [
+          { coord: "[PAG_001 | L0005]", keyword: "lote único", snippet: "lote único", section: "SECAO_A" },
+        ],
+        Z2_QUALIFICACAO_TECNICA_ATESTADOS: [
+          { coord: "[PAG_001 | L0008]", keyword: "atestado", snippet: "atestado", section: "SECAO_A" },
+        ],
+        Z3_QUALIFICACAO_ECONOMICA_GARANTIAS: [],
+        Z4_VISTORIA_VISITA_TECNICA: [],
+        Z5_AMOSTRA_POC_HOMOLOGACAO: [],
+        Z6_VINCULO_FABRICANTE_SOLIDARIEDADE: [],
+        Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP: [],
+        Z8_PRAZOS_ENTREGA_SLA_GARANTIA: [],
+        Z9_EQUIPE_CERTIFICACOES_SEDE: [],
+        Z10_PRECOS_EXEQUIBILIDADE_PLANILHA: [],
+        Z11_PAGAMENTO_REAJUSTE_IMR_SANCOES: [],
+        Z12_MAPA_CRUZADO_MULTIPECA: [],
+        Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO: [],
+        Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO: [],
+      },
+    };
+
+    const md = generateHotspotsDossierMarkdown("teste.pdf", dummyExtraction, dummyCartography);
+    // Linha 5 e Linha 8 estão dentro do intervalo de ±12 linhas (distância 3), logo devem ser fundidas em 1 único Hotspot
+    expect(md).toContain("### Hotspot 1: [PAG_001 | L0001] .. [PAG_001 | L0020]");
+    expect(md).not.toContain("### Hotspot 2:");
+  });
 });
 
 
