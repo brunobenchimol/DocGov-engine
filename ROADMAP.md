@@ -16,7 +16,7 @@
 ## 🚧 MARCO 1 — `v0.9.0`: Inteligência Avançada de Leitura PDF e Multi-Documento [PRÓXIMO PASSO]
 *(Importante: Manter nomes atuais de binários e tools MCP nesta versão para isolamento de testes).*
 
-- [ ] **1.1. Reconstrução Espacial de Tabelas e Colunas em PDF (`Y-Axis Line Grouping`):**
+- [x] **1.1. Reconstrução Espacial de Tabelas e Colunas em PDF (`Y-Axis Line Grouping`):**
   - Agrupar itens de texto do PDF pela coordenada vertical `(y)` com tolerância fina e ordenar horizontalmente por `(x)`, separando colunas distintas com ` | ` (estilo tabela Markdown).
   - Evitar que planilhas de itens/preços (`Item | Descrição | Unid | Qtd | Valor`) e tabelas de *datasheets* saiam fragmentadas em linhas soltas.
 - [ ] **1.2. Geração Automática do Dossiê Executivo de Hotspots (`state/dossie_hotspots_<stem>.md`):**

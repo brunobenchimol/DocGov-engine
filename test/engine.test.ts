@@ -788,3 +788,54 @@ describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem 
   });
 });
 
+describe("Testes Unitários v0.9.0: Reconstrução Espacial de Tabelas e Colunas em PDF (Y-Axis Line Grouping)", () => {
+  test("1. reconstructLinesFromTextItems deve ordenar linhas por Y decrescente mesmo quando os itens chegam fora de ordem e separar colunas com ' | '", () => {
+    const items = [
+      // Linha 2 (Y=700) emitida em ordem aleatória de colunas
+      { str: "R$ 5.000,00", transform: [1, 0, 0, 1, 450, 700], width: 60, height: 10 },
+      { str: "Item 01", transform: [1, 0, 0, 1, 50, 700], width: 40, height: 10 },
+      { str: "Notebook Corporativo", transform: [1, 0, 0, 1, 150, 700], width: 120, height: 10 },
+      { str: "50 UN", transform: [1, 0, 0, 1, 350, 700], width: 35, height: 10 },
+      // Linha 1 (Y=750) no topo
+      { str: "EDITAL DE PREGÃO ELETRÔNICO", transform: [1, 0, 0, 1, 50, 750], width: 200, height: 12 },
+    ];
+
+    const { reconstructLinesFromTextItems } = require("../src/index.ts");
+    const lines = reconstructLinesFromTextItems(items);
+
+    expect(lines.length).toBe(2);
+    expect(lines[0]).toBe("EDITAL DE PREGÃO ELETRÔNICO");
+    expect(lines[1]).toBe("Item 01 | Notebook Corporativo | 50 UN | R$ 5.000,00");
+  });
+
+  test("2. reconstructLinesFromTextItems deve manter texto corrido contínuo com espaço normal quando gap < 18pt", () => {
+    const itemsContinuous = [
+      { str: "A", transform: [1, 0, 0, 1, 50, 700], width: 10, height: 10 },
+      { str: "contratação", transform: [1, 0, 0, 1, 65, 700], width: 60, height: 10 },
+      { str: "em", transform: [1, 0, 0, 1, 130, 700], width: 15, height: 10 },
+      { str: "lote", transform: [1, 0, 0, 1, 150, 700], width: 25, height: 10 },
+      { str: "único", transform: [1, 0, 0, 1, 180, 700], width: 30, height: 10 },
+    ];
+
+    const { reconstructLinesFromTextItems } = require("../src/index.ts");
+    const lines = reconstructLinesFromTextItems(itemsContinuous);
+
+    expect(lines.length).toBe(1);
+    expect(lines[0]).toBe("A contratação em lote único");
+  });
+
+  test("3. reconstructLinesFromTextItems deve eliminar duplicatas exatas de sobreposição (bold/shadowing)", () => {
+    const itemsShadow = [
+      { str: "TERMO DE REFERÊNCIA", transform: [1, 0, 0, 1, 50, 700], width: 140, height: 10 },
+      { str: "TERMO DE REFERÊNCIA", transform: [1, 0, 0, 1, 50.5, 700.2], width: 140, height: 10 },
+    ];
+
+    const { reconstructLinesFromTextItems } = require("../src/index.ts");
+    const lines = reconstructLinesFromTextItems(itemsShadow);
+
+    expect(lines.length).toBe(1);
+    expect(lines[0]).toBe("TERMO DE REFERÊNCIA");
+  });
+});
+
+

@@ -198,6 +198,165 @@ function fallbackExtractPagesFromBuffer(buffer: Buffer): string[][] {
   return [fallbackLines];
 }
 
+export interface RawPdfTextItem {
+  str: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+/**
+ * Reconstrução Espacial de Linhas e Colunas em PDF (Y-Axis Line Grouping v0.9.0):
+ * Agrupa itens pela coordenada vertical (y) com tolerância fina, ordena horizontalmente
+ * por (x) e detecta colunas distintas de tabelas/planilhas separando-as por ' | '.
+ */
+export function reconstructLinesFromTextItems(
+  items: Array<any>,
+  yTolerance: number = 2.5,
+  colGapThreshold: number = 18
+): string[] {
+  const validItems: RawPdfTextItem[] = [];
+
+  for (const raw of items) {
+    if (typeof raw?.str !== "string") continue;
+    if (raw.str.length === 0) continue;
+
+    const x =
+      Array.isArray(raw.transform) && typeof raw.transform[4] === "number"
+        ? raw.transform[4]
+        : 0;
+    const y =
+      Array.isArray(raw.transform) && typeof raw.transform[5] === "number"
+        ? raw.transform[5]
+        : 0;
+    const width =
+      typeof raw.width === "number" && raw.width > 0
+        ? raw.width
+        : raw.str.length * 6;
+    const height =
+      typeof raw.height === "number" && raw.height > 0 ? raw.height : 10;
+
+    validItems.push({
+      str: raw.str,
+      x,
+      y,
+      width,
+      height,
+    });
+  }
+
+  if (validItems.length === 0) return [];
+
+  // Ordenação preliminar por Y decrescente (topo para rodapé) e X crescente (esquerda para direita)
+  validItems.sort((a, b) => {
+    if (Math.abs(b.y - a.y) > yTolerance) {
+      return b.y - a.y;
+    }
+    return a.x - b.x;
+  });
+
+  interface LineCluster {
+    avgY: number;
+    items: RawPdfTextItem[];
+  }
+
+  const clusters: LineCluster[] = [];
+
+  for (const it of validItems) {
+    let matchedCluster: LineCluster | null = null;
+    for (const c of clusters) {
+      if (Math.abs(c.avgY - it.y) <= yTolerance) {
+        matchedCluster = c;
+        break;
+      }
+    }
+
+    if (matchedCluster) {
+      matchedCluster.items.push(it);
+      const n = matchedCluster.items.length;
+      matchedCluster.avgY = (matchedCluster.avgY * (n - 1) + it.y) / n;
+    } else {
+      clusters.push({
+        avgY: it.y,
+        items: [it],
+      });
+    }
+  }
+
+  // Ordena clusters por Y decrescente (do topo para o rodapé da página)
+  clusters.sort((a, b) => b.avgY - a.avgY);
+
+  const lines: string[] = [];
+
+  for (const cluster of clusters) {
+    // Ordena os itens da linha da esquerda para a direita (X crescente)
+    cluster.items.sort((a, b) => a.x - b.x);
+
+    let lineText = "";
+    let prevItem: RawPdfTextItem | null = null;
+
+    for (const item of cluster.items) {
+      const itemStr = item.str;
+      if (!itemStr && itemStr !== "") continue;
+
+      // Filtra sobreposição duplicada exata no mesmo ponto
+      if (
+        prevItem &&
+        Math.abs(item.x - prevItem.x) <= 1.0 &&
+        Math.abs(item.y - prevItem.y) <= 1.0 &&
+        itemStr.trim() === prevItem.str.trim()
+      ) {
+        continue;
+      }
+
+      if (!prevItem) {
+        lineText = itemStr;
+      } else {
+        const prevEnd = prevItem.x + prevItem.width;
+        const gap = item.x - prevEnd;
+
+        const prevTrimmed = lineText.trim();
+        const currTrimmed = itemStr.trim();
+
+        const isColumnGutter =
+          gap >= colGapThreshold &&
+          prevTrimmed.length > 0 &&
+          currTrimmed.length > 0;
+
+        if (isColumnGutter) {
+          if (prevTrimmed.endsWith("|") || currTrimmed.startsWith("|")) {
+            lineText += (lineText.endsWith(" ") ? "" : " ") + currTrimmed;
+          } else {
+            lineText += " | " + currTrimmed;
+          }
+        } else {
+          if (
+            lineText &&
+            !lineText.endsWith(" ") &&
+            !itemStr.startsWith(" ") &&
+            !/^[,\.;:\?!\)\]]/.test(currTrimmed) &&
+            gap > 1.0
+          ) {
+            lineText += " " + itemStr;
+          } else {
+            lineText += itemStr;
+          }
+        }
+      }
+
+      prevItem = item;
+    }
+
+    const cleaned = lineText.replace(/\s+/g, " ").trim();
+    if (cleaned) {
+      lines.push(cleaned);
+    }
+  }
+
+  return lines;
+}
+
 export async function extractPdfPages(
   buffer: Buffer
 ): Promise<PdfExtractionResult> {
@@ -221,49 +380,9 @@ export async function extractPdfPages(
     for (let p = 1; p <= numPages; p++) {
       const page = await pdf.getPage(p);
       const textContent = await page.getTextContent();
-      const pageLines: string[] = [];
-      let currentLine = "";
-      let lastY: number | null = null;
-
-      for (const item of textContent.items as Array<any>) {
-        if (typeof item.str !== "string") continue;
-        const y =
-          Array.isArray(item.transform) && typeof item.transform[5] === "number"
-            ? item.transform[5]
-            : null;
-
-        if (lastY !== null && y !== null && Math.abs(y - lastY) > 2.5) {
-          const trimmed = currentLine.replace(/\s+/g, " ").trim();
-          if (trimmed) pageLines.push(trimmed);
-          currentLine = item.str;
-        } else {
-          if (
-            currentLine &&
-            !currentLine.endsWith(" ") &&
-            !item.str.startsWith(" ") &&
-            item.str.length > 0
-          ) {
-            currentLine += " " + item.str;
-          } else {
-            currentLine += item.str;
-          }
-        }
-
-        lastY = y;
-
-        if (item.hasEOL) {
-          const trimmed = currentLine.replace(/\s+/g, " ").trim();
-          if (trimmed) pageLines.push(trimmed);
-          currentLine = "";
-          lastY = null;
-        }
-      }
-
-      const remaining = currentLine.replace(/\s+/g, " ").trim();
-      if (remaining) {
-        pageLines.push(remaining);
-      }
-
+      const pageLines = reconstructLinesFromTextItems(
+        textContent.items as Array<any>
+      );
       rawPages.push(pageLines);
     }
   } catch {
