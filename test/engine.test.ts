@@ -953,6 +953,53 @@ describe("Testes Unitários v0.9.0: Reconstrução Espacial de Tabelas e Colunas
     expect(md).toContain("### Hotspot 1: [PAG_001 | L0001] .. [PAG_001 | L0020]");
     expect(md).not.toContain("### Hotspot 2:");
   });
+
+  test("6. Detector de Páginas Escaneadas (Scanned PDF Trap): deve detectar densidade < 25 chars, retornar scanned_pages_detected e inserir marcador de alerta crítico", async () => {
+    const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v090_scanned");
+    mkdirSync(resolve(suiteDir, "state"), { recursive: true });
+
+    const pdfPath = resolve(suiteDir, "edital_com_pagina_escaneada.pdf");
+    const outJsonPath = resolve(suiteDir, "state", "estrutura_edital_com_pagina_escaneada.json");
+
+    // Página 1: Normal (> 25 chars)
+    // Página 2: Escaneada (vazia ou quase vazia: "1" ou "")
+    // Página 3: Normal (> 25 chars)
+    const pagesContent = [
+      [
+        "EDITAL DE PREGÃO ELETRÔNICO Nº 01/2026 - ORGAO_CONTRATANTE",
+        "PREÂMBULO E REGRAS GERAIS DE CONTRATAÇÃO PÚBLICA",
+      ],
+      [
+        "2", // Apenas número de página isolado (1 char, < 25 chars)
+      ],
+      [
+        "ANEXO I - TERMO DE REFERÊNCIA E DETALHAMENTO DO OBJETO",
+        "ESPECIFICAÇÕES TÉCNICAS E CONDIÇÕES DE FORNECIMENTO",
+      ],
+    ];
+
+    writeFileSync(pdfPath, createSyntheticPdfBuffer(pagesContent));
+
+    const result = await inspectDocx(pdfPath, outJsonPath, true);
+
+    expect(result.scanned_pages_detected).toBeDefined();
+    expect(result.scanned_pages_detected).toEqual([2]);
+
+    // Verifica que o marcador de alerta crítico foi injetado na visao_auditoria_*.md
+    expect(result.audit_view_path).toBeDefined();
+    const auditMd = readFileSync(result.audit_view_path!, "utf-8");
+    expect(auditMd).toContain("[ALERTA CRÍTICO: PÁGINA ESCANEADA COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL]");
+    expect(auditMd).toContain("### Página 002");
+
+    // Verifica que o retorno sintético MCP expõe scanned_pages e o hint de alerta
+    const synthetic = formatInspectDocxSyntheticResult(pdfPath, outJsonPath, result);
+    expect(synthetic.scanned_pages).toEqual([2]);
+    expect(synthetic.next_step_hint).toContain("ALERTA: páginas escaneadas detectadas (2)");
+    const byteLen = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
+    expect(byteLen).toBeLessThan(1024);
+
+    rmSync(suiteDir, { recursive: true, force: true });
+  });
 });
 
 

@@ -132,6 +132,7 @@ export interface PdfExtractionResult {
   lineCount: number;
   pages: PdfPageInfo[];
   lines: PdfLineItem[];
+  scanned_pages_detected?: number[];
 }
 
 export interface OutlineHeadingItem {
@@ -193,6 +194,7 @@ export interface DocxInspectionResult {
   template_match?: TemplateMatchResult;
   audit_view_path?: string;
   dossie_hotspots_path?: string;
+  scanned_pages_detected?: number[];
   headers: HeaderFooterParagraphInfo[];
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
@@ -372,6 +374,7 @@ export interface BootstrapCaseInspectedPdf {
   structurePath: string;
   audit_view_path?: string;
   dossie_hotspots_path?: string;
+  scanned_pages_detected?: number[];
   pageCount: number;
   lineCount: number;
   outlineHeadingsCount: number;
@@ -436,6 +439,7 @@ export interface InspectDocxSyntheticResult {
   template_match?: TemplateMatchResult;
   audit_view_path?: string;
   dossie_path?: string;
+  scanned_pages?: number[];
   toc_summary?: Array<{
     coord: string;
     title: string;

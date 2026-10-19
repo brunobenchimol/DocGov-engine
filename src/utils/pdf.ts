@@ -397,6 +397,7 @@ export async function extractPdfPages(
 
   const pages: PdfPageInfo[] = [];
   const allLines: PdfLineItem[] = [];
+  const scanned_pages_detected: number[] = [];
   let globalLineCounter = 0;
 
   for (let pIdx = 0; pIdx < rawPages.length; pIdx++) {
@@ -423,6 +424,11 @@ export async function extractPdfPages(
       }
     }
 
+    const pageTotalChars = pageItems.reduce((acc, l) => acc + l.text.length, 0);
+    if (pageTotalChars < 25) {
+      scanned_pages_detected.push(pageNumber);
+    }
+
     pages.push({
       pageNumber,
       lines: pageItems,
@@ -434,6 +440,7 @@ export async function extractPdfPages(
     lineCount: allLines.length,
     pages,
     lines: allLines,
+    scanned_pages_detected,
   };
 }
 

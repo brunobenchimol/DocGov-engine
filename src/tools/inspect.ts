@@ -219,6 +219,16 @@ export function generatePdfLinearAuditViewMarkdown(
   lines.push(
     `> Espelho estrutural paginado gerado por docgov-engine v${VERSION} (${extraction.pageCount} página(s), ${extraction.lineCount} linha(s)).`
   );
+  if (
+    extraction.scanned_pages_detected &&
+    extraction.scanned_pages_detected.length > 0
+  ) {
+    lines.push(
+      `> ⚠️ **ALERTA CRÍTICO: DETECTADA(S) PÁGINA(S) ESCANEADA(S) COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL:** Página(s) ${extraction.scanned_pages_detected.join(
+        ", "
+      )}.`
+    );
+  }
   lines.push("");
 
   // Bloco 1: Mapa Cartográfico Estrutural + Radar das 14 Zonas de Impugnação
@@ -231,13 +241,21 @@ export function generatePdfLinearAuditViewMarkdown(
   const headingCoords = new Set(
     cartography.outline_headings.map((h) => h.coord)
   );
+  const scannedSet = new Set(extraction.scanned_pages_detected || []);
 
   for (const page of extraction.pages) {
     lines.push(
       `### Página ${String(page.pageNumber).padStart(3, "0")}`
     );
+    if (scannedSet.has(page.pageNumber)) {
+      lines.push(
+        "- **[ALERTA CRÍTICO: PÁGINA ESCANEADA COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL]**"
+      );
+    }
     if (page.lines.length === 0) {
-      lines.push("- *(Página sem texto extraível)*");
+      if (!scannedSet.has(page.pageNumber)) {
+        lines.push("- *(Página sem texto extraível)*");
+      }
     } else {
       for (const l of page.lines) {
         if (headingCoords.has(l.bracket_coord)) {
@@ -471,6 +489,9 @@ export async function inspectDocx(
       toc_map,
       audit_view_path: auditViewPath,
       dossie_hotspots_path: dossieHotspotsPath,
+      ...(extraction.scanned_pages_detected
+        ? { scanned_pages_detected: extraction.scanned_pages_detected }
+        : {}),
       headers: [],
       footers: [],
       paragraphs,
@@ -827,7 +848,12 @@ export function formatInspectDocxSyntheticResult(
 
   let nextHint =
     inspection.doc_type === "pdf"
-      ? "PDF inspecionado com Cartografia e Radar Z1..Z14. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
+      ? inspection.scanned_pages_detected &&
+        inspection.scanned_pages_detected.length > 0
+        ? `ALERTA: páginas escaneadas detectadas (${inspection.scanned_pages_detected.join(
+            ", "
+          )}). Leia visao_auditoria_*.md ou siga para 'generate_audit_docx'.`
+        : "PDF inspecionado com Cartografia e Radar Z1..Z14. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
       : "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
   if (
     inspection.template_match?.status === "EXACT" ||
@@ -867,6 +893,10 @@ export function formatInspectDocxSyntheticResult(
     ...(conciseMatch ? { template_match: conciseMatch } : {}),
     ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
     ...(relDossiePath ? { dossie_path: relDossiePath } : {}),
+    ...(inspection.scanned_pages_detected &&
+    inspection.scanned_pages_detected.length > 0
+      ? { scanned_pages: inspection.scanned_pages_detected }
+      : {}),
     ...(summaryItems.length > 0 ? { toc_summary: summaryItems } : {}),
     next_step_hint: nextHint,
   });

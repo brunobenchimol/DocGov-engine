@@ -24,7 +24,7 @@
     1. O Mapa Cartográfico Completo (`outline_headings` + `page_signals`);
     2. Os blocos de texto expandidos (`±12 linhas` de contexto antes e depois) de todas as ocorrências das **14 Zonas (`Z1` a `Z14`)** e das páginas de especificações técnicas/tabelas de itens.
   - Permite que o Subagente Auditor faça a triagem de um edital de 300 páginas em **1 único turno de leitura**!
-- [ ] **1.3. Detector de Páginas Escaneadas / Sem Camada de Texto (`Scanned PDF Trap`):**
+- [x] **1.3. Detector de Páginas Escaneadas / Sem Camada de Texto (`Scanned PDF Trap`):**
   - Calcular a densidade de caracteres extraídos por página.
   - Se houver páginas com zero (ou quase zero) caracteres extraíveis, retornar `"scanned_pages_detected": [p1, p2, ...]` no JSON da estrutura e inserir o marcador `[ALERTA CRÍTICO: PÁGINA ESCANEADA COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL]` na `visao_auditoria_<stem>.md`.
 - [ ] **1.4. Índice Cartográfico Unificado do Caso (`state/indice_mestre_caso.md` no `bootstrap_case`):**
