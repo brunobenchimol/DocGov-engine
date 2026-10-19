@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` / `.pdf` & Servidor MCP (`v0.8.0`)
+# docgov-docx-engine — Motor Standalone `.docx` / `.pdf` & Servidor MCP (`v0.8.1`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e extração/auditoria determinística de Editais e Termos de Referência em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,9 +36,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v0.8.0`
+## 2. Destaques da Versão `v0.8.0` / `v0.8.1`
 
-A versão `v0.8.0` traz a evolução para auditoria direta e inteligência competitiva de licitações, onde a imensa maioria dos Editais, TRs e Minutas são disponibilizados em `.pdf` extensos (150 a 300+ páginas):
+A versão `v0.8.0` / `v0.8.1` traz a evolução para auditoria direta e inteligência competitiva de licitações, onde a imensa maioria dos Editais, TRs e Minutas são disponibilizados em `.pdf` extensos (150 a 300+ páginas):
 
 1. **Extração Nativa Paginada de PDF (`src/utils/pdf.ts`):**
    - Extração determinística por página (`1..N`) via `unpdf`, sem workers externos ou dependências de canvas nativo, 100% compatível com binários standalone compilados via `bun build --compile`.
@@ -57,23 +57,25 @@ A versão `v0.8.0` traz a evolução para auditoria direta e inteligência compe
    - **Camada 2 — Detector de Densidade Técnica e Tabelas de Itens (`page_signals`):**
      * **Sinais de Orçamento e Itens:** `R$`, `Valor Unitário`, `Valor Total`, `CATMAT`, `CATSER`, `Unidade de Fornecimento`, `Quantidade`, `Lote`, `Item`.
      * **Sinais de Datasheet Técnico:** unidades de medida e termos normativos (`GHz`, `MHz`, `GB`, `TB`, `Mbps`, `Gbps`, `IOPS`, `kVA`, `BTU`, `mm`, `cm`, `kg`, `ABNT`, `NBR`, `ISO`, `IEC`, `IEEE`, `SLA`, `24x7`, `part number`, `garantia de`).
-   - **Camada 3 — Radar Léxico das 12 Zonas de Impugnação (`impugnation_zones`):**
-     Varre as linhas do documento e agrupa coordenadas e snippets curtos nas 12 zonas críticas:
+   - **Camada 3 — Radar Léxico das 14 Zonas de Impugnação (`impugnation_zones`):**
+     Varre as linhas do documento e agrupa coordenadas e snippets curtos nas 14 zonas críticas (`Z1` a `Z14`):
      * `Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO`: lote único, preço global, agrupamento, consórcio, subcontratação.
      * `Z2_QUALIFICACAO_TECNICA_ATESTADOS`: atestados, capacidade técnica, parcela de maior relevância, 50%, CAT, CREA, CAU.
      * `Z3_QUALIFICACAO_ECONOMICA_GARANTIAS`: patrimônio líquido, capital social, liquidez, garantia de proposta/contratual.
      * `Z4_VISTORIA_VISITA_TECNICA`: vistoria prévia, visita técnica, in loco, declaração de conhecimento.
      * `Z5_AMOSTRA_POC_HOMOLOGACAO`: amostra, prova de conceito (PoC), demonstração, protótipo, laudo.
      * `Z6_VINCULO_FABRICANTE_SOLIDARIEDADE`: fabricante, carta/declaração de solidariedade, credenciamento, parceria oficial.
-     * `Z7_DIRECIONAMENTO_MARCA_EQUIVALENCIA`: marca exclusiva, padrão, similar, equivalente, modelo proprietário.
+     * `Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP`: armadilhas técnicas em catálogos/datasheets, números de peça (`part number`, `P/N`, `SKU`), dimensões exatas, parâmetros de catálogo, especificações densas de hardware (`GHz`, `Gbps`, `IOPS`, `NVMe`, `throughput`, `latência máxima`, `MTBF`, `rack 1U`, `rack 2U`, `SFP+`, `SFP28`, `Nutanix`, `VMware`).
      * `Z8_PRAZOS_ENTREGA_SLA_GARANTIA`: prazo de entrega, implantação, dias corridos/úteis, on-site, SLA, tempo de atendimento.
      * `Z9_EQUIPE_CERTIFICACOES_SEDE`: vínculo empregatício em CTPS, quadro permanente, certificações, sede ou escritório local.
      * `Z10_PRECOS_EXEQUIBILIDADE_PLANILHA`: inexequibilidade, 75%, planilha analítica de custos, BDI, CCT.
      * `Z11_PAGAMENTO_REAJUSTE_IMR_SANCOES`: Instrumento de Medição de Resultado (IMR), glosa, reajuste, IPCA, ICT, multas, sanções.
      * `Z12_MAPA_CRUZADO_MULTIPECA`: identifica termos que se repetem em peças/seções distintas (ex.: regras de habilitação ou prazos citados tanto no Edital quanto no Termo de Referência e na Minuta de Contrato), permitindo checar inconsistências textuais entre peças.
+     * `Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO`: indicação direta de marca, modelo ou fabricante exclusivo, processo formal de padronização, parque instalado/atual, compatibilidade, interoperabilidade, equivalente, similar, melhor qualidade, referências ao Art. 41 e Art. 43 da Lei 14.133/2021.
+     * `Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO`: métricas de esforço e unidades de medição de serviços e software (UST, USM, HST, ponto de função, PF, IFPUG, SNAP, hora técnica, homem-hora, catálogo de serviços, complexidade, licenciamento por core/núcleo/vCore/socket/vCPU, usuário nomeado/concorrente, subscrição, EPS, Súmula 269 TCU).
 
 3. **Espelho de Auditoria Estruturado em 2 Blocos (`state/visao_auditoria_<stem>.md`):**
-   - **Bloco 1 (Topo):** Mapa Cartográfico Estrutural (`outline_headings` e `page_signals`) e o Radar das 12 Zonas de Impugnação (`Z1` a `Z12`) com coordenadas e snippets.
+   - **Bloco 1 (Topo):** Mapa Cartográfico Estrutural (`outline_headings` e `page_signals`) e o Radar das 14 Zonas de Impugnação (`Z1` a `Z14`) com coordenadas e snippets.
    - **Bloco 2 (Corpo):** Conteúdo integral paginado `[PAG_XXX | LYYYY]` (para PDF) ou indexado por parágrafos/células `[P...]`/`[T...]` (para DOCX), permitindo leitura cega e cirúrgica pelo auditor em **turno único**.
 
 4. **Integração Transparente em `bootstrap_case` e `inspect_docx`:**
@@ -86,7 +88,7 @@ A versão `v0.8.0` traz a evolução para auditoria direta e inteligência compe
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v0.8.0`):** Inclusão mandatória do campo `"engine_version": "0.8.0"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v0.8.0` / `v0.8.1`):** Inclusão mandatória do campo `"engine_version": "0.8.1"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
 2. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_docx`, `bootstrap_case`), prevenindo falhas caso pastas como `templates/` ou `output/` ainda não existam.
 3. **Motor Híbrido de Lista Multinível Nativa (`v0.7.0`):**
    - **Fora de tabelas (`<w:body>`):** Cria ou atualiza `word/numbering.xml` com definição multinível de 9 níveis decimais escalonados (`%1.`, `%1.%2.`, `%1.%2.%3.`), insere `<w:pPr><w:numPr>` com `<w:startOverride>` sincronizado com o capítulo pai e limpa o prefixo numérico literal do `<w:t>` para permitir edição contínua com `ENTER` automático no Microsoft Word.
@@ -100,7 +102,7 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
 6. **Padrão Exact Copy-Paste Error:** Validação fail-fast estrita em `slots_manifest.json` e `relatorio_auditoria.json`. Em caso de erro de contrato ou `applied_slots_count === 0`, o motor interrompe a execução com a instrução mandatória:
    > *"NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:"*
    acompanhada do snippet JSON canônico completo e pronto para copiar e colar.
-7. **Exportação de Especificação de Consumo (`--dump-spec` `v0.8.0`):** Exporta a especificação técnica integral do motor em Markdown (UTF-8), servindo como fonte única da verdade para sincronização de agentes de IA consumidores sem doc drift.
+7. **Exportação de Especificação de Consumo (`--dump-spec` `v0.8.1`):** Exporta a especificação técnica integral do motor em Markdown (UTF-8), servindo como fonte única da verdade para sincronização de agentes de IA consumidores sem doc drift.
 8. **Estatuto de Governança do Motor (`AGENTS.md`):** Define as 7 Leis Invioláveis de Engenharia deste motor MCP (Bun runtime, payload < 1024b, Exact Copy-Paste Error, self-discovery sync, neutralidade institucional, resiliência de cache e ritual de release).
 9. **Coordenadas Compactas & Normalização Universal:** Suporte nativo a coordenadas extraídas do `toc_map` (`"coord": "T0.R1.C1"`, `"coord": "P2"` ou `"P2-P4"`, com ou sem colchetes `[T0.R1.C1]`), lista unificada `slots: [...]` ou array puro na raiz do manifesto, além de aliases (`col_index`, `paragraph_index`).
 10. **Cache Global de Templates Cross-Órgão (`core/registry/templates/`):** Compara o documento de entrada contra todos os templates homologados salvos no cache, calculando a impressão digital estrutural (`structure_fingerprint`) com similaridade ponderada. Retorna `EXACT` (100%), `MODIFIED` (75% a 99%) ou `NEW` (< 75%).
@@ -332,7 +334,7 @@ bun install
 bun test
 
 # Executar suítes específicas por domínio
-bun test test/engine.test.ts        # Testes E2E v0.8.0 (PDF, Cartografia, Radar Z1..Z12 e binário compilado)
+bun test test/engine.test.ts        # Testes E2E v0.8.0 / v0.8.1 (PDF, Cartografia, Radar Z1..Z14 e binário compilado)
 bun test test/bootstrap.test.ts     # Ingestão de pastas, salvaguarda e magic bytes
 bun test test/inspect.test.ts       # Engenharia reversa estrutural, toc_map e visão linear
 bun test test/build_template.test.ts# Parametrização OpenXML e validação fail-fast

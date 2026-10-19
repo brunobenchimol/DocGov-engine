@@ -24,7 +24,7 @@ import {
 } from "../src/index.ts";
 import { createSampleRawDocx } from "./helpers/fixtures.ts";
 
-describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
+describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
   test("1. bootstrap_case deve conter 'engine_version' na raiz e payload < 1024 bytes", () => {
     const synthetic = formatBootstrapCaseSyntheticResult(
       {
@@ -58,7 +58,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -115,7 +115,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -142,7 +142,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -162,7 +162,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -178,7 +178,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic).toHaveProperty("engine_version");
     expect(synthetic.next_step_hint).toContain("Ciclo de auditoria concluído");
 
@@ -187,7 +187,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
       outputPath: "output/Relatorio_Auditoria_DFD.docx",
       message: "Relatório de Auditoria (.docx) gerado com sucesso em: output/Relatorio_Auditoria_DFD.docx",
     });
-    expect(aliasSynthetic.engine_version).toBe("0.8.0");
+    expect(aliasSynthetic.engine_version).toBe("0.8.1");
 
     const json = JSON.stringify(synthetic, null, 2);
     const bytes = Buffer.byteLength(json, "utf-8");
@@ -236,7 +236,7 @@ describe("Testes Unitários v0.8.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(payloads.length).toBe(5);
     for (const p of payloads) {
-      expect(p.engine_version).toBe("0.8.0");
+      expect(p.engine_version).toBe("0.8.1");
       expect(p.engine_version).toBe(VERSION);
       expect(p.status).toBe("success");
       const bytes = Buffer.byteLength(JSON.stringify(p, null, 2), "utf-8");
@@ -542,7 +542,7 @@ describe("Testes Unitários e E2E v0.7.3: Resiliência de Diretórios e Zero ENO
   });
 });
 
-describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem IA (3 Camadas) e Radar das 12 Zonas de Impugnação", () => {
+describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem IA (3 Camadas) e Radar das 14 Zonas de Impugnação", () => {
   const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v080");
 
   const samplePagesLines: string[][] = [
@@ -561,12 +561,13 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
       "2.1. HOMOLOGAÇÃO E AMOSTRA",
       "O licitante provisoriamente vencedor deverá apresentar amostra para prova de conceito (PoC) e laudo técnico.",
       "Exige-se carta do fabricante, declaração do fabricante de canal autorizado partner e solidariedade.",
-      "Equipamento da marca Alfa, modelo X100 exclusivo e proprietário para padronização, sem similar ou equivalente.",
+      "Equipamento da marca Alfa, modelo X100 exclusivo e proprietário para padronização, sem similar ou equivalente, processo de padronização conforme Art. 41 e Art. 43.",
       "O prazo de entrega será de 10 dias corridos com implantação on-site e SLA de tempo de atendimento.",
     ],
     [
       "ANEXO II - ESPECIFICAÇÕES TÉCNICAS",
-      "Processador 3.8 GHz, 64 GB RAM, 4 TB NVMe, rede 10 Gbps, 50000 IOPS, nobreak 3 kVA, 12000 BTU, gabinete 450 mm x 60 cm, 12 kg, normas ABNT NBR ISO IEC IEEE, suporte 24x7, part number e garantia de 36 meses.",
+      "Processador 3.8 GHz, 64 GB RAM, 4 TB NVMe, rede 10 Gbps, 50000 IOPS, nobreak 3 kVA, 12000 BTU, gabinete 450 mm x 60 cm, 12 kg, normas ABNT NBR ISO IEC IEEE, suporte 24x7, part number P/N SKU-900 e parâmetros de catálogo com dimensões exatas e garantia de 36 meses.",
+      "A remuneração do desenvolvimento adotará métrica de unidade de medida em ponto de função (PF) e UST conforme catálogo de serviços, admitido licenciamento por subscrição de usuário nomeado e vCPU com observância da Súmula 269 do TCU.",
       "MINUTA DE CONTRATO",
       "Exige-se comprovação de vínculo empregatício via CTPS no quadro permanente, certificação técnica e escritório local ou filial no MUNICIPIO_GENERICO.",
       "Será desclassificada proposta inexequível inferior a 75% sem planilha de custos com BDI e convenção coletiva CCT.",
@@ -592,7 +593,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     const extraction = await extractPdfPages(pdfBuffer);
 
     expect(extraction.pageCount).toBe(3);
-    expect(extraction.lineCount).toBe(21);
+    expect(extraction.lineCount).toBe(22);
     expect(extraction.lines[0].coord).toBe("PAG_001 | L0001");
     expect(extraction.lines[0].bracket_coord).toBe("[PAG_001 | L0001]");
     expect(extraction.lines[0].text).toContain(
@@ -612,7 +613,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     expect(firstPage3.text).toBe("ANEXO II - ESPECIFICAÇÕES TÉCNICAS");
   });
 
-  test("2. inspect_docx deve processar arquivo .pdf gerando state/estrutura_<stem>.json e state/visao_auditoria_<stem>.md com Cartografia e Radar Z1..Z12", async () => {
+  test("2. inspect_docx deve processar arquivo .pdf gerando state/estrutura_<stem>.json e state/visao_auditoria_<stem>.md com Cartografia e Radar Z1..Z14", async () => {
     const pdfPath = resolve(suiteDir, "edital_consolidado_orgao_a.pdf");
     const outJsonPath = resolve(
       suiteDir,
@@ -625,7 +626,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
 
     expect(result.doc_type).toBe("pdf");
     expect(result.page_count).toBe(3);
-    expect(result.line_count).toBe(21);
+    expect(result.line_count).toBe(22);
     expect(existsSync(outJsonPath)).toBe(true);
     expect(result.audit_view_path).toBeDefined();
     expect(existsSync(result.audit_view_path!)).toBe(true);
@@ -658,7 +659,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     expect(page3Signal!.matched_terms).toContain("GHz");
     expect(page3Signal!.matched_terms).toContain("ABNT");
 
-    // Camada 3: Radar das 12 Zonas de Impugnação (Z1..Z12)
+    // Camada 3: Radar das 14 Zonas de Impugnação (Z1..Z14)
     expect(result.impugnation_zones).toBeDefined();
     for (const zoneId of ALL_IMPUGNATION_ZONE_IDS) {
       const hits = result.impugnation_zones![zoneId];
@@ -673,10 +674,13 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     // Verifica conteúdo da visao_auditoria_<stem>.md (Bloco 1 + Bloco 2)
     const auditMd = readFileSync(result.audit_view_path!, "utf-8");
     expect(auditMd).toContain(
-      "## Bloco 1: Mapa Cartográfico Estrutural e Radar das 12 Zonas de Impugnação"
+      "## Bloco 1: Mapa Cartográfico Estrutural e Radar das 14 Zonas de Impugnação"
     );
     expect(auditMd).toContain("Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO");
+    expect(auditMd).toContain("Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP");
     expect(auditMd).toContain("Z12_MAPA_CRUZADO_MULTIPECA");
+    expect(auditMd).toContain("Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO");
+    expect(auditMd).toContain("Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO");
     expect(auditMd).toContain("## Bloco 2: Conteúdo Integral Paginado");
     expect(auditMd).toContain("[PAG_001 | L0001]");
     expect(auditMd).toContain("[PAG_002 | L0008]");
@@ -688,10 +692,10 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
       outJsonPath,
       result
     );
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     expect(synthetic.doc_type).toBe("pdf");
     expect(synthetic.page_count).toBe(3);
-    expect(synthetic.line_count).toBe(21);
+    expect(synthetic.line_count).toBe(22);
     const bytes = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
     expect(bytes).toBeLessThan(1024);
   });
@@ -714,8 +718,8 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     expect(res.inspectedPdf!.length).toBe(1);
     expect(res.inspectedPdf![0].fileName).toBe("edital_pregao_orgao_b.pdf");
     expect(res.inspectedPdf![0].pageCount).toBe(3);
-    expect(res.inspectedPdf![0].lineCount).toBe(21);
-    expect(res.inspectedPdf![0].activeZonesCount).toBe(12);
+    expect(res.inspectedPdf![0].lineCount).toBe(22);
+    expect(res.inspectedPdf![0].activeZonesCount).toBe(14);
 
     const pdfStructurePath = resolve(
       caseDir,
@@ -730,7 +734,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     expect(existsSync(pdfStructurePath)).toBe(true);
     expect(existsSync(pdfAuditViewPath)).toBe(true);
 
-    // Verifica que visao_auditoria_*.md do .docx também inclui o Bloco 1 Cartográfico + Radar Z1..Z12
+    // Verifica que visao_auditoria_*.md do .docx também inclui o Bloco 1 Cartográfico + Radar Z1..Z14
     const docxAuditViewPath = resolve(
       caseDir,
       "state",
@@ -739,7 +743,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
     expect(existsSync(docxAuditViewPath)).toBe(true);
     const docxAuditMd = readFileSync(docxAuditViewPath, "utf-8");
     expect(docxAuditMd).toContain(
-      "## Bloco 1: Mapa Cartográfico Estrutural e Radar das 12 Zonas de Impugnação"
+      "## Bloco 1: Mapa Cartográfico Estrutural e Radar das 14 Zonas de Impugnação"
     );
     expect(docxAuditMd).toContain("Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO");
 
@@ -747,7 +751,7 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
       res,
       "cases/caso_licitacao_pdf"
     );
-    expect(synthetic.engine_version).toBe("0.8.0");
+    expect(synthetic.engine_version).toBe("0.8.1");
     const bytes = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
     expect(bytes).toBeLessThan(1024);
   });
@@ -776,10 +780,10 @@ describe("Testes Unitários e E2E v0.8.0: Suporte Nativo a PDF, Cartografia Sem 
 
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe("success");
-    expect(parsed.engine_version).toBe("0.8.0");
+    expect(parsed.engine_version).toBe("0.8.1");
     expect(parsed.doc_type).toBe("pdf");
     expect(parsed.page_count).toBe(3);
-    expect(parsed.line_count).toBe(21);
+    expect(parsed.line_count).toBe(22);
     expect(existsSync(outJsonPath)).toBe(true);
   });
 });

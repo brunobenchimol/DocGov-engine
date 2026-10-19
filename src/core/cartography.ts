@@ -12,7 +12,7 @@ import type {
 } from "../types/index.ts";
 
 // ============================================================================
-// Cartografia Estrutural Determinística Sem IA & Radar das 12 Zonas (v0.8.0)
+// Cartografia Estrutural Determinística Sem IA & Radar das 14 Zonas (v0.8.1)
 // ============================================================================
 
 export interface IndexedLineEntry {
@@ -30,12 +30,14 @@ export const ALL_IMPUGNATION_ZONE_IDS: ImpugnationZoneId[] = [
   "Z4_VISTORIA_VISITA_TECNICA",
   "Z5_AMOSTRA_POC_HOMOLOGACAO",
   "Z6_VINCULO_FABRICANTE_SOLIDARIEDADE",
-  "Z7_DIRECIONAMENTO_MARCA_EQUIVALENCIA",
+  "Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP",
   "Z8_PRAZOS_ENTREGA_SLA_GARANTIA",
   "Z9_EQUIPE_CERTIFICACOES_SEDE",
   "Z10_PRECOS_EXEQUIBILIDADE_PLANILHA",
   "Z11_PAGAMENTO_REAJUSTE_IMR_SANCOES",
   "Z12_MAPA_CRUZADO_MULTIPECA",
+  "Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO",
+  "Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO",
 ];
 
 interface KeywordRule {
@@ -137,17 +139,34 @@ const ZONE_DEFINITIONS: Array<{
     ],
   },
   {
-    id: "Z7_DIRECIONAMENTO_MARCA_EQUIVALENCIA",
-    shortTheme: "Marca/Modelo/Equivalência",
+    id: "Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP",
+    shortTheme: "Direcionamento Oculto / Datasheet Trap",
     keywords: [
-      { label: "marca", normalized: "MARCA", wordBoundary: true },
-      { label: "modelo", normalized: "MODELO", wordBoundary: true },
-      { label: "similar", normalized: "SIMILAR", wordBoundary: true },
-      { label: "equivalente", normalized: "EQUIVALENTE" },
-      { label: "melhor qualidade", normalized: "MELHOR QUALIDADE" },
-      { label: "exclusivo", normalized: "EXCLUSIVO", prefixMatch: true },
-      { label: "proprietário", normalized: "PROPRIETARIO", prefixMatch: true },
-      { label: "padronização", normalized: "PADRONIZACAO" },
+      { label: "part number", normalized: "PART NUMBER" },
+      { label: "P/N", normalized: "P/N", wordBoundary: true },
+      { label: "SKU", normalized: "SKU", wordBoundary: true },
+      { label: "datasheet", normalized: "DATASHEET" },
+      { label: "dimensões exatas", normalized: "DIMENSOES EXATAS" },
+      { label: "parâmetros de catálogo", normalized: "PARAMETROS DE CATALOGO" },
+      { label: "catálogo do fabricante", normalized: "CATALOGO DO FABRICANTE" },
+      { label: "frequência mínima", normalized: "FREQUENCIA MINIMA" },
+      { label: "frequência de", normalized: "FREQUENCIA DE" },
+      { label: "tolerância máxima", normalized: "TOLERANCIA MAXIMA" },
+      { label: "tolerância de", normalized: "TOLERANCIA DE" },
+      { label: "especificação técnica detalhada", normalized: "ESPECIFICACAO TECNICA DETALHADA" },
+      { label: "GHz", normalized: "GHZ", wordBoundary: true },
+      { label: "Gbps", normalized: "GBPS", wordBoundary: true },
+      { label: "IOPS", normalized: "IOPS", wordBoundary: true },
+      { label: "NVMe", normalized: "NVME", wordBoundary: true },
+      { label: "throughput", normalized: "THROUGHPUT" },
+      { label: "latência máxima", normalized: "LATENCIA MAXIMA" },
+      { label: "MTBF", normalized: "MTBF", wordBoundary: true },
+      { label: "rack 1U", normalized: "RACK 1U" },
+      { label: "rack 2U", normalized: "RACK 2U" },
+      { label: "SFP+", normalized: "SFP+" },
+      { label: "SFP28", normalized: "SFP28" },
+      { label: "Nutanix", normalized: "NUTANIX", wordBoundary: true },
+      { label: "VMware", normalized: "VMWARE", wordBoundary: true },
     ],
   },
   {
@@ -202,6 +221,63 @@ const ZONE_DEFINITIONS: Array<{
       { label: "ICT", normalized: "ICT", wordBoundary: true },
       { label: "multa", normalized: "MULTA", wordBoundary: true },
       { label: "impedimento de licitar", normalized: "IMPEDIMENTO DE LICITAR" },
+    ],
+  },
+  {
+    id: "Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO",
+    shortTheme: "Marca Explícita / Padronização de Nicho",
+    keywords: [
+      { label: "marca", normalized: "MARCA", wordBoundary: true },
+      { label: "modelo", normalized: "MODELO", wordBoundary: true },
+      { label: "fabricante", normalized: "FABRICANTE", wordBoundary: true },
+      { label: "padronização", normalized: "PADRONIZACAO" },
+      {
+        label: "processo de padronização",
+        normalized: "PROCESSO DE PADRONIZACAO",
+      },
+      { label: "parque instalado", normalized: "PARQUE INSTALADO" },
+      { label: "parque atual", normalized: "PARQUE ATUAL" },
+      { label: "compatibilidade com", normalized: "COMPATIBILIDADE COM" },
+      { label: "interoperabilidade", normalized: "INTEROPERABILIDADE" },
+      { label: "exclusivo", normalized: "EXCLUSIVO", prefixMatch: true },
+      { label: "fornecedor exclusivo", normalized: "FORNECEDOR EXCLUSIVO" },
+      { label: "equivalente", normalized: "EQUIVALENTE" },
+      { label: "similar", normalized: "SIMILAR", wordBoundary: true },
+      { label: "melhor qualidade", normalized: "MELHOR QUALIDADE" },
+      { label: "Art. 41", normalized: "ART. 41", wordBoundary: true },
+      { label: "Art. 43", normalized: "ART. 43", wordBoundary: true },
+    ],
+  },
+  {
+    id: "Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO",
+    shortTheme: "Métricas / Unidade de Medida e Licenciamento",
+    keywords: [
+      { label: "unidade de medida", normalized: "UNIDADE DE MEDIDA" },
+      { label: "métrica", normalized: "METRICA", prefixMatch: true },
+      { label: "UST", normalized: "UST", wordBoundary: true },
+      { label: "USM", normalized: "USM", wordBoundary: true },
+      { label: "HST", normalized: "HST", wordBoundary: true },
+      { label: "ponto de função", normalized: "PONTO DE FUNCAO" },
+      { label: "PF", normalized: "PF", wordBoundary: true },
+      { label: "IFPUG", normalized: "IFPUG", wordBoundary: true },
+      { label: "SNAP", normalized: "SNAP", wordBoundary: true },
+      { label: "hora técnica", normalized: "HORA TECNICA" },
+      { label: "homem-hora", normalized: "HOMEM-HORA" },
+      { label: "catálogo de serviços", normalized: "CATALOGO DE SERVICOS" },
+      { label: "complexidade", normalized: "COMPLEXIDADE" },
+      { label: "por core", normalized: "POR CORE" },
+      { label: "por núcleo", normalized: "POR NUCLEO" },
+      { label: "vCore", normalized: "VCORE", wordBoundary: true },
+      { label: "por socket", normalized: "POR SOCKET" },
+      { label: "usuário nomeado", normalized: "USUARIO NOMEADO" },
+      { label: "named user", normalized: "NAMED USER" },
+      { label: "usuário concorrente", normalized: "USUARIO CONCORRENTE" },
+      { label: "concurrent user", normalized: "CONCURRENT USER" },
+      { label: "subscrição", normalized: "SUBSCRICAO" },
+      { label: "licenciamento", normalized: "LICENCIAMENTO" },
+      { label: "EPS", normalized: "EPS", wordBoundary: true },
+      { label: "vCPU", normalized: "VCPU", wordBoundary: true },
+      { label: "Súmula 269", normalized: "SUMULA 269" },
     ],
   },
 ];
@@ -431,12 +507,14 @@ export function detectImpugnationZones(
     Z4_VISTORIA_VISITA_TECNICA: [],
     Z5_AMOSTRA_POC_HOMOLOGACAO: [],
     Z6_VINCULO_FABRICANTE_SOLIDARIEDADE: [],
-    Z7_DIRECIONAMENTO_MARCA_EQUIVALENCIA: [],
+    Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP: [],
     Z8_PRAZOS_ENTREGA_SLA_GARANTIA: [],
     Z9_EQUIPE_CERTIFICACOES_SEDE: [],
     Z10_PRECOS_EXEQUIBILIDADE_PLANILHA: [],
     Z11_PAGAMENTO_REAJUSTE_IMR_SANCOES: [],
     Z12_MAPA_CRUZADO_MULTIPECA: [],
+    Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO: [],
+    Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO: [],
   };
 
   const headingByCoord = new Map<string, string>();
@@ -601,7 +679,7 @@ export function renderCartographyMarkdownBlock(
 ): string[] {
   const lines: string[] = [];
 
-  lines.push("## Bloco 1: Mapa Cartográfico Estrutural e Radar das 12 Zonas de Impugnação");
+  lines.push("## Bloco 1: Mapa Cartográfico Estrutural e Radar das 14 Zonas de Impugnação");
   lines.push("");
 
   // 1.1 Esqueleto de Títulos e Fronteiras
@@ -636,8 +714,8 @@ export function renderCartographyMarkdownBlock(
   }
   lines.push("");
 
-  // 1.3 Radar Léxico das 12 Zonas de Impugnação
-  lines.push("### 1.3. Radar Léxico das 12 Zonas de Impugnação (`Z1` a `Z12`)");
+  // 1.3 Radar Léxico das 14 Zonas de Impugnação
+  lines.push("### 1.3. Radar Léxico das 14 Zonas de Impugnação (`Z1` a `Z14`)");
   for (const zoneId of ALL_IMPUGNATION_ZONE_IDS) {
     const hits = cartography.impugnation_zones[zoneId] || [];
     if (hits.length === 0) {

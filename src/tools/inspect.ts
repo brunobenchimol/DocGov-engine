@@ -220,7 +220,7 @@ export function generatePdfLinearAuditViewMarkdown(
   );
   lines.push("");
 
-  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 12 Zonas de Impugnação
+  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 14 Zonas de Impugnação
   lines.push(...renderCartographyMarkdownBlock(cartography));
 
   // Bloco 2: Conteúdo Integral Paginado [PAG_XXX | LYYYY]
@@ -263,7 +263,7 @@ export function generateLinearAuditViewMarkdown(
   );
   lines.push("");
 
-  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 12 Zonas de Impugnação
+  // Bloco 1: Mapa Cartográfico Estrutural + Radar das 14 Zonas de Impugnação
   const cartography: DocumentCartography =
     inspection.outline_headings &&
     inspection.page_signals &&
@@ -588,7 +588,7 @@ export async function inspectDocx(
   const structure_fingerprint = computeStructureFingerprint(rawResult);
   rawResult.structure_fingerprint = structure_fingerprint;
 
-  // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 com Cartografia + Z1..Z12)
+  // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 / v0.8.1 com Cartografia + Z1..Z14)
   let auditViewPath: string;
   if (outputPath) {
     const resolvedOut = resolve(outputPath);
@@ -798,7 +798,7 @@ export function formatInspectDocxSyntheticResult(
 
   let nextHint =
     inspection.doc_type === "pdf"
-      ? "PDF inspecionado com Cartografia e Radar Z1..Z12. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
+      ? "PDF inspecionado com Cartografia e Radar Z1..Z14. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
       : "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
   if (
     inspection.template_match?.status === "EXACT" ||

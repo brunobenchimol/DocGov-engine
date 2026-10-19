@@ -96,7 +96,7 @@ describe("Testes Unitários: generate_audit_docx (Layout A4, Zero Tabelas, Copy-
     const syntheticAudit = formatGenerateAuditDocxSyntheticResult(res);
     expect(syntheticAudit.status).toBe("success");
     expect(syntheticAudit.engine_version).toBe(VERSION);
-    expect(syntheticAudit.engine_version).toBe("0.8.0");
+    expect(syntheticAudit.engine_version).toBe("0.8.1");
     expect(syntheticAudit.outputPath).toContain("Relatorio_Auditoria_ETP.docx");
     expect(syntheticAudit.next_step_hint).toContain("Ciclo de auditoria concluído");
     expect(

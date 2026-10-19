@@ -53,7 +53,7 @@ export function getMcpToolsDefinition() {
     {
       name: "bootstrap_case",
       description:
-        "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx e .pdf (validando Magic Bytes %PDF-) em inputs/, salvando mapas estruturais em state/estrutura_<nome>.json e visões lineares em state/visao_auditoria_<nome>.md com Cartografia Estrutural (outline_headings, page_signals) e Radar das 12 Zonas de Impugnação (Z1..Z12).\n" +
+        "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx e .pdf (validando Magic Bytes %PDF-) em inputs/, salvando mapas estruturais em state/estrutura_<nome>.json e visões lineares em state/visao_auditoria_<nome>.md com Cartografia Estrutural (outline_headings, page_signals) e Radar das 14 Zonas de Impugnação (Z1..Z14).\n" +
         "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
         "- Pós-condição & Próximo Passo: Pastas criadas, arquivos batizados e documentos .docx/.pdf inspecionados. Próximo passo recomendado: ler 'state/visao_auditoria_<nome>.md', inspecionar detalhes adicionais com 'inspect_docx' ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
       inputSchema: {
@@ -68,7 +68,7 @@ export function getMcpToolsDefinition() {
           uploadsDir: {
             type: "string",
             description:
-              "Caminho opcional da pasta contendo os uploads originais do usuário (ex.: 'C:/workspace/.user_uploaded'). Arquivos .docx e .pdf válidos são copiados e inspecionados com Cartografia e Radar das 12 Zonas.",
+              "Caminho opcional da pasta contendo os uploads originais do usuário (ex.: 'C:/workspace/.user_uploaded'). Arquivos .docx e .pdf válidos são copiados e inspecionados com Cartografia e Radar das 14 Zonas.",
           },
           fileRenameMap: {
             type: "object",
@@ -89,7 +89,7 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_docx",
       description:
-        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx) ou PDF (.pdf), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z12), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z12 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB).\n" +
+        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx) ou PDF (.pdf), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z14), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z14 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para inspecionar um arquivo .docx ou .pdf específico, descobrir os índices exatos ou reaproveitar templates do cache global, OU após 'fill_docx_template' sobre o arquivo gerado em output/.\n" +
         "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural com toc_map/cartografia e o markdown 'visao_auditoria_<nome>.md'. Se template_match for EXACT ou MODIFIED, informe a data do cache ao usuário no Gate 1 e chame 'build_docx_template'; se NEW ou PDF, leia a visão de auditoria ou elabore o slots_manifest.json.",
       inputSchema: {
