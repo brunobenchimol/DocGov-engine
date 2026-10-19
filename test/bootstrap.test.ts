@@ -55,7 +55,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(Buffer.byteLength(syntheticJson, "utf-8")).toBeLessThan(1024);
     expect(syntheticMcp.status).toBe("success");
     expect(syntheticMcp.engine_version).toBe(VERSION);
-    expect(syntheticMcp.engine_version).toBe("0.8.1");
+    expect(syntheticMcp.engine_version).toBe("0.9.0");
     expect(syntheticMcp.caseDir).toBe("cases/caso_01");
     expect(syntheticMcp.docx_inspected[0]).toEqual({
       filename: "modelo_etp_base.docx",
@@ -133,7 +133,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
 
     expect(byteLength).toBeLessThan(1024);
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic.ingested_files).toBeDefined();
     expect(synthetic.ingested_files!.length).toBe(4);
     expect(synthetic.ingested_files![0].saved_as).toBe("ETP_ORGAO_A_3b9d.docx");

@@ -24,7 +24,7 @@ import {
 } from "../src/index.ts";
 import { createSampleRawDocx } from "./helpers/fixtures.ts";
 
-describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
+describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
   test("1. bootstrap_case deve conter 'engine_version' na raiz e payload < 1024 bytes", () => {
     const synthetic = formatBootstrapCaseSyntheticResult(
       {
@@ -58,7 +58,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -115,7 +115,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -142,7 +142,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -162,7 +162,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -178,7 +178,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic).toHaveProperty("engine_version");
     expect(synthetic.next_step_hint).toContain("Ciclo de auditoria concluído");
 
@@ -187,7 +187,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
       outputPath: "output/Relatorio_Auditoria_DFD.docx",
       message: "Relatório de Auditoria (.docx) gerado com sucesso em: output/Relatorio_Auditoria_DFD.docx",
     });
-    expect(aliasSynthetic.engine_version).toBe("0.8.1");
+    expect(aliasSynthetic.engine_version).toBe("0.9.0");
 
     const json = JSON.stringify(synthetic, null, 2);
     const bytes = Buffer.byteLength(json, "utf-8");
@@ -236,7 +236,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1: engine_version e Teto Estrito MCP (
 
     expect(payloads.length).toBe(5);
     for (const p of payloads) {
-      expect(p.engine_version).toBe("0.8.1");
+      expect(p.engine_version).toBe("0.9.0");
       expect(p.engine_version).toBe(VERSION);
       expect(p.status).toBe("success");
       const bytes = Buffer.byteLength(JSON.stringify(p, null, 2), "utf-8");
@@ -542,7 +542,7 @@ describe("Testes Unitários e E2E v0.7.3: Resiliência de Diretórios e Zero ENO
   });
 });
 
-describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem IA (3 Camadas) e Radar das 14 Zonas de Impugnação", () => {
+describe("Testes Unitários e E2E v0.8.1 / v0.9.0: Suporte Nativo a PDF, Cartografia Sem IA (3 Camadas) e Radar das 14 Zonas de Impugnação", () => {
   const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v080");
 
   const samplePagesLines: string[][] = [
@@ -692,7 +692,7 @@ describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem 
       outJsonPath,
       result
     );
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     expect(synthetic.doc_type).toBe("pdf");
     expect(synthetic.page_count).toBe(3);
     expect(synthetic.line_count).toBe(22);
@@ -751,7 +751,7 @@ describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem 
       res,
       "cases/caso_licitacao_pdf"
     );
-    expect(synthetic.engine_version).toBe("0.8.1");
+    expect(synthetic.engine_version).toBe("0.9.0");
     const bytes = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
     expect(bytes).toBeLessThan(1024);
   });
@@ -780,7 +780,7 @@ describe("Testes Unitários e E2E v0.8.1: Suporte Nativo a PDF, Cartografia Sem 
 
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe("success");
-    expect(parsed.engine_version).toBe("0.8.1");
+    expect(parsed.engine_version).toBe("0.9.0");
     expect(parsed.doc_type).toBe("pdf");
     expect(parsed.page_count).toBe(3);
     expect(parsed.line_count).toBe(22);

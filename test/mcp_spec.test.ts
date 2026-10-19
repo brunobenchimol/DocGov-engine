@@ -114,9 +114,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.8.1 e novos recursos v0.8.1 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.8.1");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.8.1");
+  test("deve expor versão 0.9.0 e novos recursos v0.9.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.9.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.0");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade de Versão MCP");
@@ -133,6 +133,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Auto-Offset");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("saveToRegistry");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("visao_auditoria");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Dossiê de Hotspots");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Índice Cartográfico Mestre Unificado");
 
     const tools = getMcpToolsDefinition();
     const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
@@ -140,6 +142,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(inspectTool.description).toContain("created_at");
     expect(inspectTool.description).toContain("Auto-Offset");
     expect(inspectTool.description).toContain("visao_auditoria");
+    expect(inspectTool.description).toContain("dossie_hotspots");
 
     const buildTool = tools.find((t) => t.name === "build_docx_template")!;
     expect(buildTool.description).toContain("Exact Copy-Paste Error");
@@ -160,9 +163,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.8.1)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.8.1)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.0)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -187,7 +190,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("loop_table_rows");
   });
 
-  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.8.1)", async () => {
+  test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.9.0)", async () => {
     const barrel = await import("../src/index.ts");
 
     // Ferramentas do Pipeline
@@ -222,6 +225,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.isValidIsoDate).toBe("function");
     expect(typeof barrel.extractCacheTemporalMetadata).toBe("function");
     expect(typeof barrel.compareSemver).toBe("function");
+    expect(typeof barrel.generateHotspotsDossierMarkdown).toBe("function");
+    expect(typeof barrel.generateCaseMasterIndexMarkdown).toBe("function");
 
     // Utilitários
     expect(typeof barrel.safeReadJsonFile).toBe("function");
@@ -233,6 +238,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.validateTemplateTagSyntax).toBe("function");
     expect(typeof barrel.resolveTargetFileName).toBe("function");
     expect(typeof barrel.detectFileExtensionFromBuffer).toBe("function");
+    expect(typeof barrel.reconstructLinesFromTextItems).toBe("function");
     expect(typeof barrel.isInsideTableCell).toBe("function");
     expect(typeof barrel.ensureNumberingPart).toBe("function");
     expect(typeof barrel.createNumberingResolver).toBe("function");
@@ -243,6 +249,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.8.1");
+    expect(barrel.VERSION).toBe("0.9.0");
   });
 });

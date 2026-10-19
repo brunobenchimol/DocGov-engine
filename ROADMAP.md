@@ -13,7 +13,7 @@
 
 ---
 
-## 🚧 MARCO 1 — `v0.9.0`: Inteligência Avançada de Leitura PDF e Multi-Documento [PRÓXIMO PASSO]
+## ✅ MARCO 1 — `v0.9.0`: Inteligência Avançada de Leitura PDF e Multi-Documento [CONCLUÍDO]
 *(Importante: Manter nomes atuais de binários e tools MCP nesta versão para isolamento de testes).*
 
 - [x] **1.1. Reconstrução Espacial de Tabelas e Colunas em PDF (`Y-Axis Line Grouping`):**
@@ -32,7 +32,7 @@
 
 ---
 
-## 🖨️ MARCO 2 — `v0.9.5`: Geração e Exportação Nativa de PDF (`DOCX -> PDF` & Relatórios PDF)
+## 🚧 MARCO 2 — `v0.9.5`: Geração e Exportação Nativa de PDF (`DOCX -> PDF` & Relatórios PDF) [PRÓXIMO PASSO]
 *(Importante: Ainda mantendo compatibilidade de nomes antes do corte da v1.0.0).*
 
 - [ ] **2.1. Pipeline Híbrido de Conversão `.docx` $\rightarrow$ `.pdf` (`src/utils/pdf_exporter.ts`):**
