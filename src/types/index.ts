@@ -390,6 +390,7 @@ export interface BootstrapCaseResult {
   inspectedDocx: BootstrapCaseInspectedDocx[];
   inspectedPdf?: BootstrapCaseInspectedPdf[];
   ingestedFiles?: IngestedFileSummary[];
+  indice_mestre_path?: string;
 }
 
 export interface BootstrapCaseSyntheticDocx {
@@ -409,6 +410,7 @@ export interface BootstrapCaseSyntheticResult {
   status: "success";
   engine_version: string;
   caseDir: string;
+  master_index_path?: string;
   ingested_files?: IngestedFileSyntheticItem[];
   docx_inspected: BootstrapCaseSyntheticDocx[];
   pdf_inspected?: Array<{

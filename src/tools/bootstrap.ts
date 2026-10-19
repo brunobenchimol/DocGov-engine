@@ -6,7 +6,7 @@ import {
   copyFileSync,
   readdirSync,
 } from "node:fs";
-import { resolve, relative, extname } from "node:path";
+import { resolve, relative, extname, basename } from "node:path";
 import { spawn } from "node:child_process";
 import {
   detectFileExtensionFromBuffer,
@@ -15,6 +15,7 @@ import {
 import { isPdfBuffer } from "../utils/pdf.ts";
 import { inspectDocx, compactInspectionResult } from "./inspect.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
+import { ALL_IMPUGNATION_ZONE_IDS } from "../core/cartography.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   BackgroundCopyFileItem,
@@ -327,6 +328,81 @@ export async function bootstrapCase(
         : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
   };
 
+  // 4. Consolidação do Índice Cartográfico Unificado do Caso (state/indice_mestre_caso.md v0.9.0)
+  const masterIndexEntries: MasterIndexEntry[] = [];
+
+  for (const docx of inspectedDocx) {
+    const relStructure = relative(resolvedCaseDir, docx.structurePath).replace(
+      /\\/g,
+      "/"
+    );
+    const relAudit = docx.audit_view_path
+      ? relative(resolvedCaseDir, docx.audit_view_path).replace(/\\/g, "/")
+      : undefined;
+    const activeCount = Object.values(
+      docx.compactStructure.impugnation_zones || {}
+    ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
+
+    masterIndexEntries.push({
+      fileName: docx.fileName,
+      type: "docx",
+      volumeSummary: `${docx.paragraphsCount} parágrafo(s), ${docx.tablesCount} tabela(s)`,
+      structureRelPath: relStructure,
+      auditViewRelPath: relAudit,
+      activeZonesCount: activeCount,
+      impugnationZones: docx.compactStructure.impugnation_zones || {},
+      pageSignals: docx.compactStructure.page_signals || [],
+    });
+  }
+
+  for (const pdf of inspectedPdf) {
+    const relStructure = relative(resolvedCaseDir, pdf.structurePath).replace(
+      /\\/g,
+      "/"
+    );
+    const relAudit = pdf.audit_view_path
+      ? relative(resolvedCaseDir, pdf.audit_view_path).replace(/\\/g, "/")
+      : undefined;
+    const relDossie = pdf.dossie_hotspots_path
+      ? relative(resolvedCaseDir, pdf.dossie_hotspots_path).replace(/\\/g, "/")
+      : undefined;
+
+    let impugnationZones: any = {};
+    let pageSignals: any = [];
+    try {
+      if (existsSync(pdf.structurePath)) {
+        const parsed = JSON.parse(readFileSync(pdf.structurePath, "utf-8"));
+        impugnationZones = parsed.impugnation_zones || {};
+        pageSignals = parsed.page_signals || [];
+      }
+    } catch {
+      // Ignora erro de leitura caso estrutura não esteja no disco
+    }
+
+    masterIndexEntries.push({
+      fileName: pdf.fileName,
+      type: "pdf",
+      volumeSummary: `${pdf.pageCount} página(s), ${pdf.lineCount} linha(s)`,
+      structureRelPath: relStructure,
+      auditViewRelPath: relAudit,
+      dossieRelPath: relDossie,
+      activeZonesCount: pdf.activeZonesCount,
+      scannedPages: pdf.scanned_pages_detected,
+      impugnationZones,
+      pageSignals,
+    });
+  }
+
+  let masterIndexPath: string | undefined;
+  if (masterIndexEntries.length > 0) {
+    masterIndexPath = resolve(stateDir, "indice_mestre_caso.md");
+    const masterMd = generateCaseMasterIndexMarkdown(
+      resolvedCaseDir,
+      masterIndexEntries
+    );
+    writeFileSync(masterIndexPath, masterMd, "utf-8");
+  }
+
   return {
     status: "success",
     caseDir: resolvedCaseDir,
@@ -336,7 +412,168 @@ export async function bootstrapCase(
     inspectedDocx,
     inspectedPdf,
     ingestedFiles,
+    ...(masterIndexPath ? { indice_mestre_path: masterIndexPath } : {}),
   };
+}
+
+export interface MasterIndexEntry {
+  fileName: string;
+  type: "docx" | "pdf";
+  volumeSummary: string;
+  structureRelPath: string;
+  auditViewRelPath?: string;
+  dossieRelPath?: string;
+  activeZonesCount: number;
+  scannedPages?: number[];
+  impugnationZones: Record<
+    string,
+    Array<{ coord: string; keyword: string; snippet: string; section?: string }>
+  >;
+  pageSignals: Array<{
+    page?: number;
+    coord_range: string;
+    signal_type: string;
+    matched_terms: string[];
+  }>;
+}
+
+export function generateCaseMasterIndexMarkdown(
+  caseDir: string,
+  entries: MasterIndexEntry[]
+): string {
+  const caseName = basename(caseDir);
+  const lines: string[] = [];
+
+  lines.push(`# 🗺️ Índice Mestre Cartográfico do Processo: ${caseName}`);
+  lines.push(
+    `> Documento consolidado gerado por docgov-engine v${VERSION} (${entries.length} arquivo(s) analisado(s)).`
+  );
+  lines.push(
+    `> Consolidação do inventário probatório e mapa cruzado das 14 Zonas de Impugnação (Z1 a Z14) entre todos os documentos de inputs/.`
+  );
+  lines.push("");
+
+  // 1. Inventário Geral do Caso
+  lines.push("## 1. Inventário de Documentos do Processo");
+  lines.push("");
+  lines.push(
+    "| Arquivo | Tipo | Volume | Estrutura JSON | Visão de Auditoria | Dossiê de Hotspots | Zonas Ativas |"
+  );
+  lines.push(
+    "| :--- | :---: | :--- | :--- | :--- | :--- | :---: |"
+  );
+
+  for (const entry of entries) {
+    const scannedBadge =
+      entry.scannedPages && entry.scannedPages.length > 0
+        ? ` <br>⚠️ **Escaneado (Pág ${entry.scannedPages.join(", ")})**`
+        : "";
+    const structLink = `\`${entry.structureRelPath}\``;
+    const auditLink = entry.auditViewRelPath
+      ? `\`${entry.auditViewRelPath}\``
+      : "-";
+    const dossieLink = entry.dossieRelPath
+      ? `\`${entry.dossieRelPath}\``
+      : "-";
+
+    lines.push(
+      `| **${entry.fileName}**${scannedBadge} | \`.${entry.type}\` | ${entry.volumeSummary} | ${structLink} | ${auditLink} | ${dossieLink} | **${entry.activeZonesCount} / 14** |`
+    );
+  }
+  lines.push("");
+
+  // 2. Matriz Cruzada das 14 Zonas de Impugnação (Z1..Z14)
+  lines.push("## 2. Matriz Cruzada das 14 Zonas de Impugnação (Z1 a Z14)");
+  lines.push("");
+
+  for (const zoneId of ALL_IMPUGNATION_ZONE_IDS) {
+    const docsWithZone = entries.filter(
+      (e) => e.impugnationZones[zoneId] && e.impugnationZones[zoneId].length > 0
+    );
+
+    if (docsWithZone.length === 0) {
+      lines.push(`### ${zoneId}`);
+      lines.push(
+        "- *(0 ocorrências identificadas no conjunto de documentos do processo)*"
+      );
+      lines.push("");
+    } else {
+      const totalHits = docsWithZone.reduce(
+        (acc, d) => acc + d.impugnationZones[zoneId].length,
+        0
+      );
+      lines.push(
+        `### ${zoneId} (${totalHits} ocorrência(s) em ${docsWithZone.length} documento(s))`
+      );
+
+      for (const d of docsWithZone) {
+        const hits = d.impugnationZones[zoneId];
+        lines.push(`- **${d.fileName}** (${hits.length} ocorrência(s)):`);
+        for (const hit of hits) {
+          const sec = hit.section ? ` [${hit.section}]` : "";
+          lines.push(
+            `  - \`${hit.coord}\` [${hit.keyword}]${sec}: "${hit.snippet}"`
+          );
+        }
+      }
+      lines.push("");
+    }
+  }
+
+  // 3. Alertas Globais e Sinais de Alta Densidade
+  lines.push(
+    "## 3. Alertas Globais e Sinais de Alta Densidade Técnica/Orçamentária"
+  );
+  lines.push("");
+
+  // 3.1 Páginas Escaneadas
+  const docsWithScanned = entries.filter(
+    (e) => e.scannedPages && e.scannedPages.length > 0
+  );
+  lines.push("### 3.1. Alerta de Páginas Escaneadas (Scanned PDF Trap)");
+  if (docsWithScanned.length === 0) {
+    lines.push(
+      "- *(Nenhuma página escaneada detectada no processo — 100% dos documentos possuem camada de texto pesquisável)*"
+    );
+  } else {
+    for (const d of docsWithScanned) {
+      lines.push(
+        `- ⚠️ **${d.fileName}**: Página(s) **${d.scannedPages!.join(
+          ", "
+        )}** escaneada(s) como imagem sem camada de texto.`
+      );
+    }
+  }
+  lines.push("");
+
+  // 3.2 Sinais de Alta Densidade
+  const docsWithSignals = entries.filter((e) => e.pageSignals.length > 0);
+  lines.push(
+    "### 3.2. Sinais de Alta Densidade (Planilhas de Itens / Especificações Técnicas)"
+  );
+  if (docsWithSignals.length === 0) {
+    lines.push(
+      "- *(Sem sinais de alta densidade orçamentária ou técnica identificados)*"
+    );
+  } else {
+    for (const d of docsWithSignals) {
+      lines.push(`- **${d.fileName}**:`);
+      for (const sig of d.pageSignals) {
+        const pageLabel =
+          sig.page !== undefined
+            ? `PAG_${String(sig.page).padStart(3, "0")} (${sig.coord_range})`
+            : sig.coord_range;
+        lines.push(
+          `  - **${pageLabel}** [${sig.signal_type}] — Termos: ${sig.matched_terms.join(
+            ", "
+          )}`
+        );
+      }
+    }
+  }
+  lines.push("");
+
+  return lines.join("\n").trim() + "\n";
 }
 
 export function formatBootstrapCaseSyntheticResult(
@@ -347,6 +584,9 @@ export function formatBootstrapCaseSyntheticResult(
   const docxLimit = res.ingestedFiles && res.ingestedFiles.length > 2 ? 0 : 1;
   const hasPdfInspected = !!(res.inspectedPdf && res.inspectedPdf.length > 0);
   const pdfLimit = hasIngested ? 0 : 1;
+  const relMasterIndex = res.indice_mestre_path
+    ? relative(res.caseDir, res.indice_mestre_path).replace(/\\/g, "/")
+    : undefined;
 
   const buildResult = (
     ingestedCount: number,
@@ -357,6 +597,7 @@ export function formatBootstrapCaseSyntheticResult(
     status: "success",
     engine_version: VERSION,
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
+    ...(relMasterIndex ? { master_index_path: relMasterIndex } : {}),
     ...(hasIngested && ingestedCount > 0
       ? {
           ingested_files: res.ingestedFiles!
@@ -422,10 +663,10 @@ export function formatBootstrapCaseSyntheticResult(
   });
 
   let result = buildResult(4, true, docxLimit, pdfLimit);
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1015) {
     result = buildResult(4, false, 0, 0);
   }
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1015) {
     result = buildResult(2, false, 0, 0);
   }
 

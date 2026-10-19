@@ -27,7 +27,7 @@
 - [x] **1.3. Detector de Páginas Escaneadas / Sem Camada de Texto (`Scanned PDF Trap`):**
   - Calcular a densidade de caracteres extraídos por página.
   - Se houver páginas com zero (ou quase zero) caracteres extraíveis, retornar `"scanned_pages_detected": [p1, p2, ...]` no JSON da estrutura e inserir o marcador `[ALERTA CRÍTICO: PÁGINA ESCANEADA COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL]` na `visao_auditoria_<stem>.md`.
-- [ ] **1.4. Índice Cartográfico Unificado do Caso (`state/indice_mestre_caso.md` no `bootstrap_case`):**
+- [x] **1.4. Índice Cartográfico Unificado do Caso (`state/indice_mestre_caso.md` no `bootstrap_case`):**
   - Quando a pasta `inputs/` contiver múltiplos arquivos (ex.: `Edital.pdf` + `Anexo_I_TR.pdf` + `Anexo_II_Especificacoes.pdf` + `Planilha.docx`), o `bootstrap_case` consolida um **`state/indice_mestre_caso.md`** mostrando quais arquivos compõem o processo e em qual arquivo/página está cada uma das 14 Zonas (`Z1` a `Z14`).
 
 ---

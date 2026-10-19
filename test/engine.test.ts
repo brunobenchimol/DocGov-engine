@@ -1000,6 +1000,82 @@ describe("Testes Unitários v0.9.0: Reconstrução Espacial de Tabelas e Colunas
 
     rmSync(suiteDir, { recursive: true, force: true });
   });
+
+  test("7. bootstrapCase com múltiplos arquivos deve consolidar state/indice_mestre_caso.md mapeando documentos e dispersão das 14 Zonas", async () => {
+    const suiteDir = resolve(process.cwd(), "cases", "_test_temp_v090_master");
+    const uploadsDir = resolve(suiteDir, "uploads");
+    const caseDir = resolve(suiteDir, "caso_multi_doc");
+
+    mkdirSync(uploadsDir, { recursive: true });
+
+    // Arquivo 1: Edital em PDF (Z1, Z2, Z7)
+    const editalPages = [
+      [
+        "EDITAL DE LICITAÇÃO Nº 10/2026 - ORGAO_CONTRATANTE",
+        "PREÂMBULO",
+        "Contratação em lote único com vedação de consórcio.",
+        "CLÁUSULA DE QUALIFICAÇÃO TÉCNICA",
+        "Apresentação de atestado de capacidade técnica.",
+      ],
+      [
+        "ESPECIFICAÇÕES TÉCNICAS E DATASHEET",
+        "Equipamento com processador de 3.2 GHz e memória NVMe.",
+        "Apresentação do datasheet do fabricante.",
+      ],
+    ];
+    writeFileSync(resolve(uploadsDir, "Edital.pdf"), createSyntheticPdfBuffer(editalPages));
+
+    // Arquivo 2: TR em PDF (Z1, Z4, Z8)
+    const trPages = [
+      [
+        "ANEXO I - TERMO DE REFERÊNCIA",
+        "Contratação por preço global em lote único.",
+        "Vistoria técnica presencial in loco facultativa.",
+        "Prazo de entrega de 30 dias corridos com SLA de atendimento.",
+      ],
+    ];
+    writeFileSync(resolve(uploadsDir, "Anexo_I_TR.pdf"), createSyntheticPdfBuffer(trPages));
+
+    // Arquivo 3: Minuta em DOCX (Z3, Z11)
+    await createSampleRawDocx(resolve(uploadsDir, "Minuta_Contrato.docx"));
+
+    const res = await bootstrapCase(caseDir, uploadsDir);
+
+    expect(res.status).toBe("success");
+    expect(res.inspectedPdf).toBeDefined();
+    expect(res.inspectedPdf!.length).toBe(2);
+    expect(res.inspectedDocx.length).toBe(1);
+
+    expect(res.indice_mestre_path).toBeDefined();
+    expect(existsSync(res.indice_mestre_path!)).toBe(true);
+
+    const masterMd = readFileSync(res.indice_mestre_path!, "utf-8");
+    expect(masterMd).toContain("# 🗺️ Índice Mestre Cartográfico do Processo: caso_multi_doc");
+    expect(masterMd).toContain("## 1. Inventário de Documentos do Processo");
+    expect(masterMd).toContain("Edital.pdf");
+    expect(masterMd).toContain("Anexo_I_TR.pdf");
+    expect(masterMd).toContain("Minuta_Contrato.docx");
+
+    expect(masterMd).toContain("## 2. Matriz Cruzada das 14 Zonas de Impugnação (Z1 a Z14)");
+    // Z1 deve ser detectada tanto em Edital.pdf quanto em Anexo_I_TR.pdf
+    expect(masterMd).toContain("Z1_AGRUPAMENTO_CONSORCIO_SUBCONTRATACAO");
+    expect(masterMd).toContain("Edital.pdf");
+    expect(masterMd).toContain("Anexo_I_TR.pdf");
+
+    // Z7 detectada em Edital.pdf
+    expect(masterMd).toContain("Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP");
+
+    expect(masterMd).toContain("## 3. Alertas Globais e Sinais de Alta Densidade Técnica/Orçamentária");
+    expect(masterMd).toContain("### 3.1. Alerta de Páginas Escaneadas (Scanned PDF Trap)");
+
+    // Retorno sintético deve conter master_index_path e manter teto < 1024 bytes (Lei 2)
+    const synthetic = formatBootstrapCaseSyntheticResult(res, "cases/caso_multi_doc");
+    expect(synthetic.master_index_path).toBe("state/indice_mestre_caso.md");
+    const byteLen = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
+    expect(byteLen).toBeLessThan(1024);
+
+    rmSync(suiteDir, { recursive: true, force: true });
+  });
 });
 
 
