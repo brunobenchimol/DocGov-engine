@@ -37,9 +37,8 @@
 
 - [ ] **2.1. Pipeline Híbrido de Conversão `.docx` $\rightarrow$ `.pdf` (`src/utils/pdf_exporter.ts`):**
   - Implementar exportador capaz de gerar `.pdf` a partir dos `.docx` compilados:
-    1. **Tier 1 (Windows com MS Word):** Automação silenciosa via PowerShell/COM (`SaveAs2` formato `wdFormatPDF = 17`) para fidelidade visual 100% idêntica ao Word (preservando brasões, cabeçalhos, tabelas e `numbering.xml`).
-    2. **Tier 2 (Linux / WSL / Headless):** Conversão via `libreoffice --headless --convert-to pdf` se disponível no PATH.
-    3. **Tier 3 (Standalone Pure-JS Fallback):** Renderizador PDF vetorial embutido via `pdf-lib` para garantir geração de PDF mesmo em ambientes sem Office instalado.
+    1. **Tier 1 (Fidelidade Máxima com MS Word COM / Windows):** Automação silenciosa via PowerShell/COM (`SaveAs2` formato `wdFormatPDF = 17`) para fidelidade visual 100% idêntica ao Word (preservando brasões, cabeçalhos, tabelas e `numbering.xml`).
+    2. **Tier 2 (Autonomia Standalone Pure-JS Fallback via `pdf-lib`):** Renderizador PDF vetorial embutido em puro TypeScript para garantir geração de PDF determinística e autônoma sem exigir LibreOffice ou dependências externas adicionais no sistema.
 - [ ] **2.2. Suporte a `outputFormat: "docx" | "pdf" | "both"` nas Ferramentas de Saída:**
   - Adicionar o parâmetro opcional `outputFormat` (default `"docx"`, aceitando `"pdf"` ou `"both"`) em `fill_docx_template` e `generate_audit_docx`.
   - Quando `"pdf"` ou `"both"` for solicitado, entregar `output/<arquivo>.pdf` pronto e validado (`%PDF-`).
