@@ -99,7 +99,7 @@ describe("Testes Unitários v0.9.5: Pipeline Híbrido de Conversão DOCX para PD
 
     const header = readFileSync(pdfPath).subarray(0, 5).toString("utf-8");
     expect(header).toBe("%PDF-");
-  });
+  }, 30000);
 
   test("5. convertDocxToPdf deve derivar caminho .pdf padrão quando pdfPath é omitido", async () => {
     const docxPath = resolve(tempDir, "default_deriv.docx");

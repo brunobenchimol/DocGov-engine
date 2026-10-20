@@ -114,9 +114,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.9.0 e novos recursos v0.9.0 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.9.0");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.0");
+  test("deve expor versão 0.9.5 e novos recursos v0.9.5 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.9.5");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.5");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Rastreabilidade de Versão MCP");
@@ -183,9 +184,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.0)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.5)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.0)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.5)");
+    expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF (v0.9.5)");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -291,6 +293,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.9.0");
+    expect(barrel.VERSION).toBe("0.9.5");
   });
 });

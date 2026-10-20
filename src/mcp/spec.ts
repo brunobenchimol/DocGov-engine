@@ -6,7 +6,7 @@ import {
 } from "../contracts/errors.ts";
 
 // ============================================================================
-// Especificação Técnica Integral em Markdown (--dump-spec v0.9.0)
+// Especificação Técnica Integral em Markdown (--dump-spec v0.9.5)
 // ============================================================================
 
 export function generateEngineSpecMarkdown(): string {
@@ -18,11 +18,12 @@ Documento normativo e especificação canônica do motor standalone \`docgov-doc
 
 ## 1. Diretrizes de Comunicação e Resiliência MCP
 
-1. **Teto Estrito de Payload MCP (< 1024 bytes) e Identificação de Versão (v0.7.1 / v0.7.2 / v0.7.3 / v0.8.0 / v0.8.1 / v0.9.0):** Todo retorno de ferramenta via stdio MCP DEVE ser um JSON sintético conciso (< 1 KB) contendo o campo \`engine_version\` na raiz para dispensar consultas externas. Mapas estruturais densos (\`toc_map\`, \`outline_headings\`, \`page_signals\`, \`impugnation_zones\`), índices mestres (\`indice_mestre_caso.md\`), dossiês de hotspots (\`dossie_hotspots_*.md\`) e espelhos lineares de leitura integral (\`visao_auditoria_*.md\`) são persistidos no diretório \`state/\` do caso e apenas referenciados no payload sintético.
+1. **Teto Estrito de Payload MCP (< 1024 bytes) e Identificação de Versão (v0.7.1 / v0.7.2 / v0.7.3 / v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5):** Todo retorno de ferramenta via stdio MCP DEVE ser um JSON sintético conciso (< 1 KB) contendo o campo \`engine_version\` na raiz para dispensar consultas externas. Mapas estruturais densos (\`toc_map\`, \`outline_headings\`, \`page_signals\`, \`impugnation_zones\`), índices mestres (\`indice_mestre_caso.md\`), dossiês de hotspots (\`dossie_hotspots_*.md\`) e espelhos lineares de leitura integral (\`visao_auditoria_*.md\`) são persistidos no diretório \`state/\` do caso e apenas referenciados no payload sintético.
 2. **Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito):** É expressamente proibido retornar \`status: "success"\` se \`applied_slots_count === 0\` ou se o manifesto contiver chaves desconhecidas ou inválidas. Ao detectar erro de validação em \`slots_manifest.json\` ou \`relatorio_auditoria.json\`, o motor interrompe a execução com mensagem imperativa acompanhada do snippet JSON canônico pronto para copiar e colar, eliminando leituras exploratórias cegas.
 3. **Neutralidade Institucional Absoluta:** O motor e seus contratos utilizam exclusivamente identificadores canônicos universais e genéricos: \`ORGAO_CONTRATANTE\`, \`MUNICIPIO_GENERICO\`, \`ORGAO_A\`, \`ORGAO_B\`, \`AGU\`, \`MGI\`, \`TCU\`.
 4. **Resiliência e Cache Global (core/registry/templates/):** O motor realiza matching 1-para-N contra o cache global, com suporte a rastreabilidade temporal (\`created_at\`, \`updated_at\`, \`age_days\`, \`cache_date_status\`, \`engine_version\`, \`slots_count\`), retrocompatibilidade estrita com caches legados sem datas, reancoragem automática de coordenadas (Auto-Offset) em caso de drift (75%-99%) e sanity check descartando entradas corrompidos.
 5. **Extração Nativa e Reconstrução Colunar de PDF, Cartografia Estrutural Sem IA, Dossiê de Hotspots e Radar das 14 Zonas (v0.8.0 / v0.8.1 / v0.9.0):** Suporte avançado a arquivos \`.pdf\` e \`.docx\` com agrupamento de linhas no eixo Y (2.5pt) e colunas (\` | \` para gutters >= 18pt), detecção de armadilha de OCR em páginas escaneadas (< 25 chars), dossiê cirúrgico de pontos quentes (\`dossie_hotspots_*.md\` com contexto expandido de ±12 linhas), numeração paginada \`[PAG_XXX | LYYYY]\`, esqueleto de títulos (\`outline_headings\`), detector de densidade técnica e tabelas de itens (\`page_signals\`), radar determinístico das 14 Zonas Críticas de Impugnação (\`Z1\` a \`Z14\`, separando Z7_DIRECIONAMENTO_OCULTO_DATASHEET_TRAP, Z13_MARCA_EXPLICITA_PADRONIZACAO_NICHO e Z14_METRICA_UNIDADE_MEDIDA_E_LICENCIAMENTO, além de cruzamento multipeça \`Z12_MAPA_CRUZADO_MULTIPECA\`) e Índice Cartográfico Mestre Unificado Multi-Documento (\`indice_mestre_caso.md\`).
+6. **Pipeline Híbrido de Conversão DOCX para PDF (v0.9.5):** Conversão de alta fidelidade visual com seleção automática em 2 níveis: Tier 1 (MS Word COM via PowerShell no Windows/WSL Interop com 100% de fidelidade) e Tier 2 (Pure-JS standalone determinístico com pdf-lib + xmldom + JSZip sem dependências de SO). Disponível via parâmetro \`outputFormat\` ("docx" | "pdf" | "both") em fill_docx_template e generate_audit_docx e via flag \`--format\` na CLI.
 
 ---
 
@@ -57,13 +58,15 @@ Injeta os dados de \`estado_caso.json\` no template .docx gerado.
 - **Motor Híbrido de Lista Multinível Nativa (v0.7.0):**
   - Fora de tabelas (\`<w:body>\`): gera \`word/numbering.xml\` (9 níveis decimais com \`<w:suff w:val="tab"/>\`), aplica \`<w:numPr>\` com \`<w:startOverride>\` sincronizado com o capítulo pai e remove o prefixo numérico literal do \`<w:t>\`.
   - Dentro de tabelas (\`<w:tc>\`) ou em alíneas/bullets: mantém o marcador literal separado por \`<w:r><w:tab/></w:r>\` e aplica *Hanging Indent* (\`<w:ind w:left w:hanging>\` + \`<w:tabs>\`).
-- **Auto-Inspeção Integrada:** Salva automaticamente \`state/inspecao_<stem>.json\` e o espelho linear de auditoria \`state/visao_auditoria_<stem>.md\` na pasta \`state/\` do caso, dispensando rodar \`inspect_docx\` novamente.
-- **Retorno Sintético MCP (< 1 KB):** Devolve \`status\`, \`engine_version\`, \`outputPath\`, \`inspection_path\`, \`visao_auditoria_path\` e \`next_step_hint\` que orienta o acionamento direto do auditor externo sobre a visão linear gerada.
+- **Pipeline Híbrido de Exportação DOCX para PDF (v0.9.5):** Suporta \`outputFormat: "docx" | "pdf" | "both"\` com conversão de alta fidelidade visual (Tier 1 Word COM / Tier 2 Pure-JS).
+- **Auto-Inspeção Integrada:** Salva automaticamente \`state/inspecao_<stem>.json\` e o espelho linear de auditoria \`state/visao_auditoria_<stem>.md\` na pasta \`state/\` do caso (auto-inspecionando o PDF gerado caso \`outputFormat: "pdf"\`), dispensando rodar \`inspect_docx\` novamente.
+- **Retorno Sintético MCP (< 1 KB):** Devolve \`status\`, \`engine_version\`, \`outputPath\`, \`pdf_path\` (se gerado), \`inspection_path\`, \`visao_auditoria_path\` e \`next_step_hint\` que orienta o acionamento direto do auditor externo sobre a visão linear gerada.
 
 ### 2.5. generate_audit_docx
 Compila o parecer executivo de auditoria de controle externo em layout vertical A4 (ZERO tabelas <w:tbl>, 100% largura útil), com sanitização de crases e enums, fichas verticais e transcrições integrais em blocos de citação recuados.
 - **Validação Fail-Fast e Exact Copy-Paste Error (v0.6.2):** Campos obrigatórios \`processo_id\` e \`resumo_executivo\` devem ser strings não-vazias; \`apontamentos\` deve ser array.
-- **Retorno Sintético MCP (< 1 KB):** Devolve JSON sintético com \`status\`, \`engine_version\`, \`outputPath\`, \`message\` e \`next_step_hint\`.
+- **Exportação para PDF (v0.9.5):** Suporta \`outputFormat: "docx" | "pdf" | "both"\` com conversão via Pipeline Híbrido.
+- **Retorno Sintético MCP (< 1 KB):** Devolve JSON sintético com \`status\`, \`engine_version\`, \`outputPath\`, \`pdf_path\` (se gerado), \`message\` e \`next_step_hint\`.
 - **Contrato Canônico de \`relatorio_auditoria.json\`:**
 \`\`\`json
 ${EXACT_COPY_PASTE_AUDIT_REPORT_SNIPPET}

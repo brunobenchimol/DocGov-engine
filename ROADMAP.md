@@ -32,20 +32,22 @@
 
 ---
 
-## 🚧 MARCO 2 — `v0.9.5`: Geração e Exportação Nativa de PDF (`DOCX -> PDF` & Relatórios PDF) [PRÓXIMO PASSO]
+## ✅ MARCO 2 — `v0.9.5`: Geração e Exportação Nativa de PDF (`DOCX -> PDF` & Relatórios PDF) [CONCLUÍDO]
 *(Importante: Ainda mantendo compatibilidade de nomes antes do corte da v1.0.0).*
 
-- [ ] **2.1. Pipeline Híbrido de Conversão `.docx` $\rightarrow$ `.pdf` (`src/utils/pdf_exporter.ts`):**
+- [x] **2.1. Pipeline Híbrido de Conversão `.docx` $\rightarrow$ `.pdf` (`src/utils/pdf_exporter.ts`):**
   - Implementar exportador capaz de gerar `.pdf` a partir dos `.docx` compilados:
-    1. **Tier 1 (Fidelidade Máxima com MS Word COM / Windows):** Automação silenciosa via PowerShell/COM (`SaveAs2` formato `wdFormatPDF = 17`) para fidelidade visual 100% idêntica ao Word (preservando brasões, cabeçalhos, tabelas e `numbering.xml`).
-    2. **Tier 2 (Autonomia Standalone Pure-JS Fallback via `pdf-lib`):** Renderizador PDF vetorial embutido em puro TypeScript para garantir geração de PDF determinística e autônoma sem exigir LibreOffice ou dependências externas adicionais no sistema.
-- [ ] **2.2. Suporte a `outputFormat: "docx" | "pdf" | "both"` nas Ferramentas de Saída:**
+    1. **Tier 1 (Fidelidade Máxima com MS Word COM / Windows / WSL Interop):** Automação silenciosa via PowerShell/COM (`SaveAs2` formato `wdFormatPDF = 17`) para fidelidade visual 100% idêntica ao Word (preservando brasões, cabeçalhos, tabelas e `numbering.xml`).
+    2. **Tier 2 (Autonomia Standalone Pure-JS Fallback via `pdf-lib`):** Renderizador PDF vetorial embutido em puro TypeScript (`pdf-lib` + `@xmldom/xmldom` + `jszip`) para garantir geração de PDF determinística e autônoma sem exigir LibreOffice ou dependências externas adicionais no sistema.
+- [x] **2.2. Suporte a `outputFormat: "docx" | "pdf" | "both"` nas Ferramentas de Saída e CLI:**
   - Adicionar o parâmetro opcional `outputFormat` (default `"docx"`, aceitando `"pdf"` ou `"both"`) em `fill_docx_template` e `generate_audit_docx`.
   - Quando `"pdf"` ou `"both"` for solicitado, entregar `output/<arquivo>.pdf` pronto e validado (`%PDF-`).
+  - Auto-inspeção imediata do PDF gerado no `fill_docx_template` quando `outputFormat: "pdf"`.
+  - Suporte correspondente na CLI via flag `--format <docx|pdf|both>` e no servidor MCP.
 
 ---
 
-## 🚀 MARCO 3 — `v1.0.0`: O Grande Corte Limpo (`Clean Cut Refactoring` para `docgov-engine`)
+## 🚀 MARCO 3 — `v1.0.0`: O Grande Corte Limpo (`Clean Cut Refactoring` para `docgov-engine`) [PRÓXIMO PASSO]
 *(Breaking Change planejado: executado de uma só vez após a certificação integral dos Marcos 1 e 2).*
 
 - [ ] **3.1. Nova Identidade Unificada do Motor:**
