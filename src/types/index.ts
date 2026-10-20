@@ -465,12 +465,16 @@ export interface ProcessDocumentOptions {
   autoInspect?: boolean;
   stateDir?: string;
   inspectionOutputPath?: string;
+  outputFormat?: "docx" | "pdf" | "both";
+  pdfTimeoutMs?: number;
 }
 
 export interface ProcessDocumentResult {
   success: boolean;
   message: string;
   outputPath: string;
+  pdf_path?: string;
+  tier_used?: string;
   inspection_path?: string;
   visao_auditoria_path?: string;
   next_step_hint: string;
@@ -480,16 +484,23 @@ export interface FillDocxTemplateSyntheticResult {
   status: "success";
   engine_version: string;
   outputPath: string;
+  pdf_path?: string;
   inspection_path?: string;
   visao_auditoria_path?: string;
   message: string;
   next_step_hint: string;
 }
 
+export interface GenerateAuditDocxOptions {
+  outputFormat?: "docx" | "pdf" | "both";
+  pdfTimeoutMs?: number;
+}
+
 export interface GenerateAuditDocxSyntheticResult {
   status: "success";
   engine_version: string;
   outputPath: string;
+  pdf_path?: string;
   message: string;
   next_step_hint: string;
 }

@@ -749,4 +749,80 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
       "1.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
     );
   });
+
+  test("v0.9.5: fillDocxTemplate com outputFormat: 'pdf' e 'both' deve exportar PDF (%PDF-) e manter payload < 1024 bytes", async () => {
+    const testCase = resolve(tempDir, "output_format_case");
+    const inputDir = resolve(testCase, "inputs");
+    const stateDir = resolve(testCase, "state");
+    const outputDir = resolve(testCase, "output");
+    mkdirSync(inputDir, { recursive: true });
+    mkdirSync(stateDir, { recursive: true });
+    mkdirSync(outputDir, { recursive: true });
+
+    const sourceDocx = resolve(inputDir, "template_base.docx");
+    await createSampleRawDocx(sourceDocx);
+
+    const stateJson = resolve(stateDir, "estado.json");
+    writeFileSync(
+      stateJson,
+      JSON.stringify({
+        processo_id: "PROC-2026/01",
+        objeto: { descricao: "Contratação de Solução de Infraestrutura" },
+      }),
+      "utf-8"
+    );
+
+    // 1. Teste com outputFormat: "pdf"
+    const finalDocx = resolve(outputDir, "Documento_Final.docx");
+    const expectedPdf = resolve(outputDir, "Documento_Final.pdf");
+
+    const resPdf = await processDocument(sourceDocx, stateJson, finalDocx, {
+      outputFormat: "pdf",
+      autoInspect: true,
+    });
+
+    expect(resPdf.success).toBe(true);
+    expect(resPdf.pdf_path).toBe(expectedPdf);
+    expect(existsSync(expectedPdf)).toBe(true);
+    expect(readFileSync(expectedPdf).subarray(0, 5).toString("utf-8")).toBe("%PDF-");
+    expect(resPdf.visao_auditoria_path).toBeDefined();
+    expect(existsSync(resPdf.visao_auditoria_path!)).toBe(true);
+
+    const syntheticPdf = formatFillDocxTemplateSyntheticResult(resPdf, testCase);
+    expect(syntheticPdf.status).toBe("success");
+    expect(syntheticPdf.pdf_path).toBe("output/Documento_Final.pdf");
+    expect(Buffer.byteLength(JSON.stringify(syntheticPdf, null, 2), "utf-8")).toBeLessThan(1024);
+
+    // 2. Teste com outputFormat: "both"
+    const bothDocx = resolve(outputDir, "Documento_Both.docx");
+    const bothPdf = resolve(outputDir, "Documento_Both.pdf");
+
+    const resBoth = await processDocument(sourceDocx, stateJson, bothDocx, {
+      outputFormat: "both",
+      autoInspect: true,
+    });
+
+    expect(resBoth.success).toBe(true);
+    expect(existsSync(bothDocx)).toBe(true);
+    expect(existsSync(bothPdf)).toBe(true);
+    expect(resBoth.pdf_path).toBe(bothPdf);
+
+    const syntheticBoth = formatFillDocxTemplateSyntheticResult(resBoth, testCase);
+    expect(syntheticBoth.status).toBe("success");
+    expect(syntheticBoth.outputPath).toBe("output/Documento_Both.docx");
+    expect(syntheticBoth.pdf_path).toBe("output/Documento_Both.pdf");
+    expect(Buffer.byteLength(JSON.stringify(syntheticBoth, null, 2), "utf-8")).toBeLessThan(1024);
+
+    // 3. Teste com formato inválido deve lançar erro
+    let threwInvalid = false;
+    try {
+      await processDocument(sourceDocx, stateJson, resolve(outputDir, "invalido.docx"), {
+        outputFormat: "invalido" as any,
+      });
+    } catch (err: any) {
+      threwInvalid = true;
+      expect(err.message).toContain("Formato de saída inválido");
+    }
+    expect(threwInvalid).toBe(true);
+  }, 30000);
 });
