@@ -218,4 +218,81 @@ describe("Testes Unitários: generate_audit_docx (Layout A4, Zero Tabelas, Copy-
     expect(errAudit3.message).toContain("NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:");
     expect(errAudit3.message).toContain("apontamentos");
   });
+
+  test("v0.9.5: generateAuditDocx com outputFormat: 'pdf' e 'both' deve gerar PDF (%PDF-) e manter payload < 1024 bytes", async () => {
+    const auditJsonPath = resolve(tempDir, "relatorio_format_test.json");
+    const auditDocxPath = resolve(tempDir, "Parecer_Format_Test.docx");
+    const expectedPdfPath = resolve(tempDir, "Parecer_Format_Test.pdf");
+
+    writeFileSync(
+      auditJsonPath,
+      JSON.stringify(
+        {
+          processo_id: "PROC-2026/009",
+          orgao_entidade: "ORGAO_CONTRATANTE",
+          artefato_auditado: "Edital e Termo de Referência",
+          resumo_executivo: "Auditoria de conformidade legal preliminar concluída sem óbices bloqueantes.",
+          apontamentos: [
+            {
+              id: "AP-01",
+              severidade: "ALERTA PREVENTIVO",
+              titulo_apontamento: "Recomendação de detalhamento de cronograma",
+              base_legal: "Art. 40 da Lei nº 14.133/2021",
+              localizacao: "Cláusula 5.2",
+              trecho_impugnado: "O prazo poderá ser prorrogado a critério do órgão.",
+              risco_controle_externo: "Risco de indeterminação temporal.",
+              redacao_saneadora_sugerida: "Fixar limites temporais expressos.",
+            },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    // 1. outputFormat: "pdf"
+    const resPdf = await generateAuditDocx(auditJsonPath, auditDocxPath, {
+      outputFormat: "pdf",
+    });
+
+    expect(resPdf.success).toBe(true);
+    expect(resPdf.pdf_path).toBe(expectedPdfPath);
+    expect(existsSync(expectedPdfPath)).toBe(true);
+    expect(readFileSync(expectedPdfPath).subarray(0, 5).toString("utf-8")).toBe("%PDF-");
+
+    const syntheticPdf = formatGenerateAuditDocxSyntheticResult(resPdf);
+    expect(syntheticPdf.status).toBe("success");
+    expect(syntheticPdf.pdf_path).toBeDefined();
+    expect(Buffer.byteLength(JSON.stringify(syntheticPdf, null, 2), "utf-8")).toBeLessThan(1024);
+
+    // 2. outputFormat: "both"
+    const bothDocx = resolve(tempDir, "Parecer_Both.docx");
+    const bothPdf = resolve(tempDir, "Parecer_Both.pdf");
+    const resBoth = await generateAuditDocx(auditJsonPath, bothDocx, {
+      outputFormat: "both",
+    });
+
+    expect(resBoth.success).toBe(true);
+    expect(existsSync(bothDocx)).toBe(true);
+    expect(existsSync(bothPdf)).toBe(true);
+    expect(resBoth.pdf_path).toBe(bothPdf);
+
+    const syntheticBoth = formatGenerateAuditDocxSyntheticResult(resBoth);
+    expect(syntheticBoth.status).toBe("success");
+    expect(syntheticBoth.pdf_path).toBeDefined();
+    expect(Buffer.byteLength(JSON.stringify(syntheticBoth, null, 2), "utf-8")).toBeLessThan(1024);
+
+    // 3. Formato inválido
+    let threw = false;
+    try {
+      await generateAuditDocx(auditJsonPath, resolve(tempDir, "err.docx"), {
+        outputFormat: "invalido" as any,
+      });
+    } catch (e: any) {
+      threw = true;
+      expect(e.message).toContain("Formato de saída inválido");
+    }
+    expect(threw).toBe(true);
+  }, 30000);
 });
