@@ -163,6 +163,26 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(fillTool.inputSchema.properties.autoInspect).toBeDefined();
   });
 
+  test("deve documentar suporte a outputFormat nas ferramentas MCP fill_docx_template e generate_audit_docx (v0.9.5)", () => {
+    const tools = getMcpToolsDefinition();
+
+    const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
+    expect(fillTool.inputSchema.properties.outputFormat).toBeDefined();
+    expect((fillTool.inputSchema.properties.outputFormat as any).enum).toEqual([
+      "docx",
+      "pdf",
+      "both",
+    ]);
+
+    const auditTool = tools.find((t) => t.name === "generate_audit_docx")!;
+    expect(auditTool.inputSchema.properties.outputFormat).toBeDefined();
+    expect((auditTool.inputSchema.properties.outputFormat as any).enum).toEqual([
+      "docx",
+      "pdf",
+      "both",
+    ]);
+  });
+
   test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.0)", () => {
     const spec = generateEngineSpecMarkdown();
     expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.0)");
@@ -188,6 +208,24 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("ORGAO_CONTRATANTE");
     expect(spec).toContain("slots");
     expect(spec).toContain("loop_table_rows");
+  });
+
+  test("deve exibir opções de --format no --help da CLI (v0.9.5)", async () => {
+    let output = "";
+    const originalLog = console.log;
+    console.log = (msg?: any) => {
+      output += String(msg ?? "") + "\n";
+    };
+    try {
+      const { runCli } = await import("../src/cli/index.ts");
+      await runCli(["--help"]);
+    } finally {
+      console.log = originalLog;
+    }
+
+    expect(output).toContain("--format <docx|pdf|both>");
+    expect(output).toContain("--inject");
+    expect(output).toContain("--generate-audit-docx");
   });
 
   test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.9.0)", async () => {
@@ -243,6 +281,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.ensureNumberingPart).toBe("function");
     expect(typeof barrel.createNumberingResolver).toBe("function");
     expect(typeof barrel.NumberingManager).toBe("function");
+    expect(typeof barrel.convertDocxToPdf).toBe("function");
+    expect(typeof barrel.convertViaWordCom).toBe("function");
+    expect(typeof barrel.convertViaPureJs).toBe("function");
+    expect(typeof barrel.sanitizeTextForPdf).toBe("function");
 
     // Contratos de Erro
     expect(typeof barrel.createSlotsManifestContractError).toBe("function");

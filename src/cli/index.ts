@@ -38,8 +38,8 @@ Uso:
   docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
   docgov-docx --inspect <arq.docx|.pdf> [--out <mapa.json>] [--compact]
   docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
-  docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--no-auto-inspect]
-  docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx>
+  docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--format <docx|pdf|both>] [--no-auto-inspect]
+  docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
   docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
   docgov-docx -u, --update                        Atualiza o binário para a versão mais recente (se houver)
   docgov-docx --force-update                      Força o download e reinstalação da última release
@@ -290,9 +290,23 @@ Uso:
       process.exit(1);
     }
 
+    const formatIdx =
+      args.indexOf("--format") !== -1
+        ? args.indexOf("--format")
+        : args.indexOf("-f");
+    const outputFormat =
+      formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
+        ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
+        : undefined;
+
     try {
-      const res = await generateAuditDocx(auditJsonPath, outPath);
+      const res = await generateAuditDocx(auditJsonPath, outPath, {
+        outputFormat,
+      });
       console.log(res.message);
+      if (res.pdf_path) {
+        console.log(`Documento PDF gerado: ${res.pdf_path}`);
+      }
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -313,14 +327,26 @@ Uso:
     process.exit(1);
   }
 
+  const formatIdx =
+    args.indexOf("--format") !== -1
+      ? args.indexOf("--format")
+      : args.indexOf("-f");
+  const outputFormat =
+    formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
+      ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
+      : undefined;
+
   try {
     const res = await processDocument(
       args[templateIdx + 1],
       args[stateIdx + 1],
       args[outIdx + 1],
-      { autoInspect: !noAutoInspect }
+      { autoInspect: !noAutoInspect, outputFormat }
     );
     console.log(res.message);
+    if (res.pdf_path) {
+      console.log(`Documento PDF gerado: ${res.pdf_path}`);
+    }
     if (res.visao_auditoria_path) {
       console.log(`Visão linear de auditoria: ${res.visao_auditoria_path}`);
     }

@@ -192,6 +192,12 @@ export function getMcpToolsDefinition() {
             description:
               "Executa automaticamente a inspeção estrutural pós-compilação gerando state/inspecao_<stem>.json e state/visao_auditoria_<stem>.md para auditoria imediata. Padrão: true.",
           },
+          outputFormat: {
+            type: "string",
+            enum: ["docx", "pdf", "both"],
+            description:
+              "Formato de saída do documento gerado: 'docx' (apenas Word, padrão), 'pdf' (converte para PDF via pipeline híbrido Word COM/Pure-JS e auto-inspeciona o PDF) ou 'both' (mantém o .docx e gera também o .pdf correspondente).",
+          },
         },
       },
       annotations: {
@@ -219,6 +225,12 @@ export function getMcpToolsDefinition() {
             type: "string",
             description:
               "Caminho onde o arquivo .docx do parecer de auditoria executivo será salvo (ex.: 'C:/workspace/cases/caso_exemplo/output/Relatorio_Auditoria_ETP.docx').",
+          },
+          outputFormat: {
+            type: "string",
+            enum: ["docx", "pdf", "both"],
+            description:
+              "Formato de saída do parecer de auditoria: 'docx' (apenas Word, padrão), 'pdf' (converte para PDF via pipeline híbrido Word COM/Pure-JS) ou 'both' (mantém o .docx e gera também o .pdf correspondente).",
           },
         },
       },
@@ -366,18 +378,24 @@ export async function runMcpServer() {
       }
 
       if (toolName === "fill_docx_template") {
-        const { templatePath, statePath, outputPath, autoInspect } =
-          request.params.arguments as {
-            templatePath: string;
-            statePath: string;
-            outputPath: string;
-            autoInspect?: boolean;
-          };
+        const {
+          templatePath,
+          statePath,
+          outputPath,
+          autoInspect,
+          outputFormat,
+        } = request.params.arguments as {
+          templatePath: string;
+          statePath: string;
+          outputPath: string;
+          autoInspect?: boolean;
+          outputFormat?: "docx" | "pdf" | "both";
+        };
         const result = await processDocument(
           templatePath,
           statePath,
           outputPath,
-          { autoInspect }
+          { autoInspect, outputFormat }
         );
         const synthetic = formatFillDocxTemplateSyntheticResult(result);
         return {
@@ -391,11 +409,15 @@ export async function runMcpServer() {
       }
 
       if (toolName === "generate_audit_docx") {
-        const { auditJsonPath, outputPath } = request.params.arguments as {
-          auditJsonPath: string;
-          outputPath: string;
-        };
-        const result = await generateAuditDocx(auditJsonPath, outputPath);
+        const { auditJsonPath, outputPath, outputFormat } =
+          request.params.arguments as {
+            auditJsonPath: string;
+            outputPath: string;
+            outputFormat?: "docx" | "pdf" | "both";
+          };
+        const result = await generateAuditDocx(auditJsonPath, outputPath, {
+          outputFormat,
+        });
         const synthetic = formatGenerateAuditDocxSyntheticResult(result);
         return {
           content: [
