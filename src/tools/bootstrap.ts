@@ -121,7 +121,9 @@ export async function bootstrapCase(
 
   if (uploadsDir && existsSync(uploadsDir)) {
     const resolvedUploadsDir = resolve(uploadsDir);
-    const entries = readdirSync(resolvedUploadsDir, { withFileTypes: true });
+    const entries = readdirSync(resolvedUploadsDir, {
+      withFileTypes: true,
+    }).sort((a, b) => a.name.localeCompare(b.name));
 
     for (const entry of entries) {
       if (entry.isFile() && !entry.name.startsWith("~$")) {
@@ -245,7 +247,9 @@ export async function bootstrapCase(
   }
 
   // 3. Inspeciona todos os arquivos .docx e .pdf encontrados em inputs/
-  const inputEntries = readdirSync(inputsDir, { withFileTypes: true });
+  const inputEntries = readdirSync(inputsDir, { withFileTypes: true }).sort(
+    (a, b) => a.name.localeCompare(b.name)
+  );
   const inspectedDocx: BootstrapCaseResult["inspectedDocx"] = [];
   const inspectedPdf: BootstrapCaseInspectedPdf[] = [];
 

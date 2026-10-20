@@ -365,7 +365,9 @@ export function loadAllRegistryTemplates(
   if (!existsSync(dir)) return [];
   const entries: TemplateRegistryEntry[] = [];
   try {
-    const files = readdirSync(dir, { withFileTypes: true });
+    const files = readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name.localeCompare(b.name)
+    );
     for (const f of files) {
       if (f.isFile() && f.name.toLowerCase().endsWith(".json")) {
         const fullPath = resolve(dir, f.name);

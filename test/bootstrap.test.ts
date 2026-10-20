@@ -136,8 +136,36 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(synthetic.engine_version).toBe("0.9.5");
     expect(synthetic.ingested_files).toBeDefined();
     expect(synthetic.ingested_files!.length).toBe(4);
+
+    // Como as entradas de uploads são ordenadas alfabeticamente:
+    // 1. media_1792... -> ETP_ORGAO_A_3b9d.docx
+    // 2. media_9999... -> TR_ORGAO_B_fa12.pdf
+    // 3. modelo_tr_legivel.docx -> modelo_tr_legivel.docx
+    // 4. tmp_renamed_anexo -> DFD_Planejamento.pdf
     expect(synthetic.ingested_files![0].saved_as).toBe("ETP_ORGAO_A_3b9d.docx");
     expect(synthetic.ingested_files![0].type).toBe("ETP");
-    expect(synthetic.ingested_files![0].structure).toBe("state/estrutura_ETP_ORGAO_A_3b9d.json");
+    expect(synthetic.ingested_files![0].structure).toBe(
+      "state/estrutura_ETP_ORGAO_A_3b9d.json"
+    );
+
+    // Valida também busca semântica resiliente por predicado
+    const etpItem = synthetic.ingested_files!.find(
+      (f) => f.saved_as === "ETP_ORGAO_A_3b9d.docx"
+    );
+    expect(etpItem).toBeDefined();
+    expect(etpItem!.type).toBe("ETP");
+    expect(etpItem!.structure).toBe("state/estrutura_ETP_ORGAO_A_3b9d.json");
+
+    const trItem = synthetic.ingested_files!.find(
+      (f) => f.saved_as === "TR_ORGAO_B_fa12.pdf"
+    );
+    expect(trItem).toBeDefined();
+    expect(trItem!.type).toBe("TR");
+
+    const renamedItem = synthetic.ingested_files!.find(
+      (f) => f.saved_as === "DFD_Planejamento.pdf"
+    );
+    expect(renamedItem).toBeDefined();
+    expect(renamedItem!.type).toBe("DFD");
   });
 });

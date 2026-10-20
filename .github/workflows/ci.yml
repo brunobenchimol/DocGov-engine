@@ -1,6 +1,10 @@
 name: Continuous Integration - Docx Engine
 
 on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
