@@ -75,6 +75,10 @@
     4. `fill_docx_template` (com suporte a `outputFormat: "docx" | "pdf" | "both"`)
   - Ferramenta de Emissão de Relatório de Auditoria / Impugnação (`.docx` e/ou `.pdf`):
     5. **`generate_audit_report`** *(ou mantendo alias `generate_audit_docx` com suporte a `outputFormat: "docx" | "pdf" | "both"`)*
-- [ ] **3.3. Atualização do Auto-Updater (`--update`) e Repositório GitHub:**
-  - Apontar o `--update` para o repositório renomeado `docgov-engine` e para os novos nomes de assets `docgov-engine-*`.
-  - Renomear o repositório no GitHub (`docgov-docx-engine` $\rightarrow$ `docgov-engine`) e a pasta local de desenvolvimento.
+- [ ] **3.3. Atualização do Auto-Updater (`--update`), Scripts de Instalação e Repositório GitHub:**
+  - Apontar o `--update` para o repositório renomeado `DocGov-engine` no GitHub e para os novos nomes de assets binários `docgov-engine-*`.
+  - Atualizar os scripts de instalação (`scripts/install.ps1` e `scripts/install.sh`):
+    - Apontar repositório remoto para `brunobenchimol/DocGov-engine`.
+    - Atualizar assets de download para `docgov-engine-win-x64.exe` (Windows) e `docgov-engine-linux-x64` (Linux).
+    - Atualizar binários de destino locais para `docgov-engine.exe` e `docgov-engine`.
+  - Renomear o repositório no GitHub (`docgov-docx-engine` $\rightarrow$ `DocGov-engine`) mantendo o nome do pacote e binários estritamente em minúsculas (`docgov-engine`).
