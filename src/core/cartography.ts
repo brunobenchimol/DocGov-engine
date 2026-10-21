@@ -780,7 +780,7 @@ export function generateHotspotsDossierMarkdown(
     triggersByLine.set(lineIdx, list);
   };
 
-  // 1. Coleta triggers de todas as Zonas de Impugnação
+  // 1. Coleta triggers exclusivamente das Zonas de Impugnação (CORR-01: sem ancoragem cega de page_signals na Linha 1)
   for (const zoneId of ALL_IMPUGNATION_ZONE_IDS) {
     const hits = cartography.impugnation_zones[zoneId] || [];
     for (const hit of hits) {
@@ -800,24 +800,6 @@ export function generateHotspotsDossierMarkdown(
               addTrigger(lIdx, { lineIdx: lIdx, zoneId, keyword: hit.keyword });
             }
           }
-        }
-      }
-    }
-  }
-
-  // 2. Coleta triggers de páginas densas de orçamento ou spec técnica
-  for (const sig of cartography.page_signals) {
-    if (sig.page !== undefined) {
-      const pageInfo = extraction.pages.find((p) => p.pageNumber === sig.page);
-      if (pageInfo && pageInfo.lines.length > 0) {
-        const firstLineIdx = lineIndexByBracket.get(
-          pageInfo.lines[0].bracket_coord
-        );
-        if (firstLineIdx !== undefined) {
-          addTrigger(firstLineIdx, {
-            lineIdx: firstLineIdx,
-            signalType: `${sig.signal_type} (pág. ${sig.page})`,
-          });
         }
       }
     }
