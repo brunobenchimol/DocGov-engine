@@ -294,10 +294,12 @@ Uso:
       args.indexOf("--format") !== -1
         ? args.indexOf("--format")
         : args.indexOf("-f");
-    const outputFormat =
+    const explicitFormat =
       formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
         ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
         : undefined;
+    const outputFormat =
+      explicitFormat || (outPath.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
 
     try {
       const res = await generateAuditDocx(auditJsonPath, outPath, {
@@ -331,10 +333,13 @@ Uso:
     args.indexOf("--format") !== -1
       ? args.indexOf("--format")
       : args.indexOf("-f");
-  const outputFormat =
+  const explicitFormat =
     formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
       ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
       : undefined;
+  const outPath = args[outIdx + 1];
+  const outputFormat =
+    explicitFormat || (outPath?.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
 
   try {
     const res = await processDocument(

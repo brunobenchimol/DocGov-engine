@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync, mkdirSync, statSync, unlinkSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { execFileSync, spawnSync } from "node:child_process";
 import JSZip from "jszip";
@@ -7,10 +7,114 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { extractPdfPages } from "./pdf.ts";
 
 // ============================================================================
-// 1. Tipos e Contratos do Pipeline Híbrido de Exportação PDF (v0.9.5)
+// 1. Tipos e Contratos do Pipeline Híbrido de Exportação PDF (v0.9.5 / v0.9.6)
 // ============================================================================
 
 export type PdfExportTier = "word" | "purejs";
+
+export interface ResolvedOutputPaths {
+  docxPath: string;
+  pdfPath?: string;
+  tempDocxPath?: string;
+  primaryOutputPath: string;
+  isExclusivePdf: boolean;
+}
+
+/**
+ * Resolução Canônica de Caminhos de Saída (CORR-04 / v0.9.6):
+ * Remove extensões .docx/.pdf duplicadas e, em modo exclusivo PDF ('pdf'),
+ * direciona o DOCX intermediário para um arquivo temporário único a ser
+ * deletado após a compilação, prevenindo sobrescrita ZIP e resíduos em disco.
+ */
+export function resolveOutputPaths(
+  rawOutPath: string,
+  format: "docx" | "pdf" | "both" = "docx"
+): ResolvedOutputPaths {
+  const resolved = resolve(rawOutPath);
+  const dir = dirname(resolved);
+  const rawName = basename(resolved);
+  const baseStem = rawName.replace(/\.(docx|pdf)$/i, "");
+  const basePath = resolve(dir, baseStem);
+
+  if (format === "pdf") {
+    const pdfPath = `${basePath}.pdf`;
+    const tempDocxPath = `${basePath}.__tmp_${Date.now()}_${Math.random().toString(36).slice(2, 6)}.docx`;
+    return {
+      docxPath: tempDocxPath,
+      tempDocxPath,
+      pdfPath,
+      primaryOutputPath: pdfPath,
+      isExclusivePdf: true,
+    };
+  } else if (format === "both") {
+    const docxPath = `${basePath}.docx`;
+    const pdfPath = `${basePath}.pdf`;
+    return {
+      docxPath,
+      pdfPath,
+      primaryOutputPath: docxPath,
+      isExclusivePdf: false,
+    };
+  } else {
+    const docxPath = `${basePath}.docx`;
+    return {
+      docxPath,
+      primaryOutputPath: docxPath,
+      isExclusivePdf: false,
+    };
+  }
+}
+
+/**
+ * Remoção Assíncrona Resiliente de Arquivo (CORR-05 / v0.9.6):
+ * Tolera eventuais file locks temporários do SO/antivírus através de retry com backoff.
+ */
+export async function safeUnlink(
+  filePath?: string,
+  retries: number = 4,
+  delayMs: number = 100
+): Promise<void> {
+  if (!filePath) return;
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+      return;
+    } catch {
+      if (i < retries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+}
+
+/**
+ * Remoção Síncrona Resiliente de Arquivo (CORR-05 / v0.9.6).
+ */
+export function safeUnlinkSync(
+  filePath?: string,
+  retries: number = 3,
+  delayMs: number = 100
+): void {
+  if (!filePath) return;
+  for (let i = 0; i < retries; i++) {
+    try {
+      if (existsSync(filePath)) {
+        unlinkSync(filePath);
+      }
+      return;
+    } catch {
+      if (i < retries - 1) {
+        try {
+          Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs);
+        } catch {
+          // SharedArrayBuffer indisponível em runtime limitado
+        }
+      }
+    }
+  }
+}
 
 export interface ConvertDocxToPdfOptions {
   timeoutMs?: number;
@@ -100,6 +204,7 @@ export function convertViaWordCom(
   const psScript = `
 $ErrorActionPreference = 'Stop'
 $word = $null
+$doc = $null
 try {
   $word = New-Object -ComObject Word.Application
   $word.Visible = $false
@@ -108,12 +213,17 @@ try {
   try {
     $doc.SaveAs2('${escapedPdf}', 17) # 17 = wdFormatPDF
   } finally {
-    $doc.Close([ref]0) # 0 = wdDoNotSaveChanges
+    if ($doc -ne $null) {
+      $doc.Close([ref]0) # 0 = wdDoNotSaveChanges
+      [System.Runtime.InteropServices.Marshal]::ReleaseComObject($doc) | Out-Null
+      $doc = $null
+    }
   }
 } finally {
   if ($word -ne $null) {
-    $word.Quit()
+    $word.Quit([ref]0)
     [System.Runtime.InteropServices.Marshal]::ReleaseComObject($word) | Out-Null
+    $word = $null
   }
   [System.GC]::Collect()
   [System.GC]::WaitForPendingFinalizers()
@@ -508,8 +618,11 @@ export async function convertDocxToPdf(
   }
 
   const resolvedPdf = pdfPath
-    ? resolve(pdfPath)
-    : resolve(dirname(resolvedDocx), `${basename(resolvedDocx, ".docx")}.pdf`);
+    ? resolve(pdfPath.replace(/\.pdf\.pdf$/i, ".pdf"))
+    : resolve(
+        dirname(resolvedDocx),
+        `${basename(resolvedDocx).replace(/\.(docx|pdf)$/i, "")}.pdf`
+      );
 
   const outDir = dirname(resolvedPdf);
   if (!existsSync(outDir)) {

@@ -6,7 +6,11 @@ import { createReport } from "docx-templates";
 import { safeReadJsonFile, unflattenDotKeys, unflattenDotNotation } from "../utils/json.ts";
 export { unflattenDotKeys, unflattenDotNotation };
 import { inspectDocx } from "./inspect.ts";
-import { convertDocxToPdf } from "../utils/pdf_exporter.ts";
+import {
+  convertDocxToPdf,
+  resolveOutputPaths,
+  safeUnlink,
+} from "../utils/pdf_exporter.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   ProcessDocumentOptions,
@@ -766,11 +770,6 @@ export async function processDocument(
   });
 
   const finalBuffer = await postProcessInjectedDocxBuffer(outputBuffer);
-  const outDir = dirname(resolvedOutput);
-  if (!existsSync(outDir)) {
-    mkdirSync(outDir, { recursive: true });
-  }
-  writeFileSync(resolvedOutput, finalBuffer);
 
   const outputFormat = options?.outputFormat || "docx";
   if (!["docx", "pdf", "both"].includes(outputFormat)) {
@@ -779,77 +778,94 @@ export async function processDocument(
     );
   }
 
-  let pdfPath: string | undefined;
-  let tierUsed: string | undefined;
-
-  if (outputFormat === "pdf" || outputFormat === "both") {
-    const targetPdfPath = resolvedOutput.replace(/\.docx$/i, "") + ".pdf";
-    const pdfRes = await convertDocxToPdf(resolvedOutput, targetPdfPath, {
-      timeoutMs: options?.pdfTimeoutMs,
-    });
-    pdfPath = pdfRes.pdfPath;
-    tierUsed = pdfRes.tierUsed;
+  const outPaths = resolveOutputPaths(resolvedOutput, outputFormat);
+  const outDir = dirname(outPaths.primaryOutputPath);
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
   }
 
-  const stem = basename(resolvedOutput, ".docx");
+  let pdfPath: string | undefined;
+  let tierUsed: string | undefined;
+  const stem = basename(outPaths.primaryOutputPath).replace(/\.(docx|pdf)$/i, "");
   let inspectionPath: string | undefined;
   let auditViewPath: string | undefined;
   let nextHint: string;
 
-  if (options?.autoInspect !== false) {
-    let stateDir: string;
-    if (options?.stateDir) {
-      stateDir = resolve(options.stateDir);
-    } else {
-      const outputDir = dirname(resolvedOutput);
-      const parentDir = dirname(outputDir);
-      const siblingState = resolve(parentDir, "state");
-      const sameDirState = resolve(outputDir, "state");
-      const stateParent = dirname(resolvedState);
+  try {
+    writeFileSync(outPaths.docxPath, finalBuffer);
 
-      if (basename(outputDir).toLowerCase() === "output") {
-        stateDir = siblingState;
-      } else if (basename(stateParent).toLowerCase() === "state") {
-        stateDir = stateParent;
+    if (outputFormat === "pdf" || outputFormat === "both") {
+      const pdfRes = await convertDocxToPdf(outPaths.docxPath, outPaths.pdfPath, {
+        timeoutMs: options?.pdfTimeoutMs,
+      });
+      pdfPath = pdfRes.pdfPath;
+      tierUsed = pdfRes.tierUsed;
+    }
+
+    if (options?.autoInspect !== false) {
+      let stateDir: string;
+      if (options?.stateDir) {
+        stateDir = resolve(options.stateDir);
       } else {
-        stateDir = sameDirState;
+        const outputDir = dirname(outPaths.primaryOutputPath);
+        const parentDir = dirname(outputDir);
+        const siblingState = resolve(parentDir, "state");
+        const sameDirState = resolve(outputDir, "state");
+        const stateParent = dirname(resolvedState);
+
+        if (basename(outputDir).toLowerCase() === "output") {
+          stateDir = siblingState;
+        } else if (basename(stateParent).toLowerCase() === "state") {
+          stateDir = stateParent;
+        } else {
+          stateDir = sameDirState;
+        }
+      }
+
+      if (!existsSync(stateDir)) {
+        mkdirSync(stateDir, { recursive: true });
+      }
+
+      inspectionPath = options?.inspectionOutputPath
+        ? resolve(options.inspectionOutputPath)
+        : resolve(stateDir, `inspecao_${stem}.json`);
+
+      const inspectTarget =
+        outPaths.isExclusivePdf && pdfPath ? pdfPath : outPaths.docxPath;
+      const inspResult = await inspectDocx(inspectTarget, inspectionPath, true);
+      auditViewPath =
+        inspResult.audit_view_path ?? resolve(stateDir, `visao_auditoria_${stem}.md`);
+
+      const relVisao =
+        relative(process.cwd(), auditViewPath).replace(/\\/g, "/") ||
+        auditViewPath;
+
+      if (pdfPath) {
+        const relPdf =
+          relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
+        nextHint = `Documento compilado em PDF (${relPdf}) e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+      } else {
+        nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+      }
+    } else {
+      const relOutput =
+        relative(process.cwd(), outPaths.primaryOutputPath).replace(/\\/g, "/") ||
+        outPaths.primaryOutputPath;
+      if (pdfPath) {
+        const relPdf =
+          relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
+        if (outPaths.isExclusivePdf) {
+          nextHint = `Documento compilado em PDF (${relPdf}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+        } else {
+          nextHint = `Documento compilado em PDF (${relPdf}) e DOCX (${relOutput}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+        }
+      } else {
+        nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
       }
     }
-
-    if (!existsSync(stateDir)) {
-      mkdirSync(stateDir, { recursive: true });
-    }
-
-    inspectionPath = options?.inspectionOutputPath
-      ? resolve(options.inspectionOutputPath)
-      : resolve(stateDir, `inspecao_${stem}.json`);
-
-    const inspectTarget = outputFormat === "pdf" && pdfPath ? pdfPath : resolvedOutput;
-    const inspResult = await inspectDocx(inspectTarget, inspectionPath, true);
-    auditViewPath =
-      inspResult.audit_view_path ?? resolve(stateDir, `visao_auditoria_${stem}.md`);
-
-    const relVisao =
-      relative(process.cwd(), auditViewPath).replace(/\\/g, "/") ||
-      auditViewPath;
-
-    if (pdfPath) {
-      const relPdf =
-        relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
-      nextHint = `Documento compilado em PDF (${relPdf}) e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
-    } else {
-      nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
-    }
-  } else {
-    const relOutput =
-      relative(process.cwd(), resolvedOutput).replace(/\\/g, "/") ||
-      resolvedOutput;
-    if (pdfPath) {
-      const relPdf =
-        relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
-      nextHint = `Documento compilado em PDF (${relPdf}) e DOCX (${relOutput}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
-    } else {
-      nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+  } finally {
+    if (outPaths.isExclusivePdf && outPaths.tempDocxPath) {
+      await safeUnlink(outPaths.tempDocxPath);
     }
   }
 
@@ -857,15 +873,15 @@ export async function processDocument(
   if (outputFormat === "pdf" && pdfPath) {
     finalMessage = `Documento PDF gerado com sucesso em: ${pdfPath}`;
   } else if (outputFormat === "both" && pdfPath) {
-    finalMessage = `Documentos (.docx e .pdf) gerados com sucesso em: ${resolvedOutput} e ${pdfPath}`;
+    finalMessage = `Documentos (.docx e .pdf) gerados com sucesso em: ${outPaths.docxPath} e ${pdfPath}`;
   } else {
-    finalMessage = `Documento gerado com sucesso em: ${resolvedOutput}`;
+    finalMessage = `Documento gerado com sucesso em: ${outPaths.docxPath}`;
   }
 
   return {
     success: true,
     message: finalMessage,
-    outputPath: resolvedOutput,
+    outputPath: outPaths.primaryOutputPath,
     ...(pdfPath ? { pdf_path: pdfPath } : {}),
     ...(tierUsed ? { tier_used: tierUsed } : {}),
     ...(inspectionPath ? { inspection_path: inspectionPath } : {}),
@@ -901,7 +917,11 @@ export function formatFillDocxTemplateSyntheticResult(
       nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
     }
   } else {
-    nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+    if (relPdf && result.outputPath.endsWith(".pdf")) {
+      nextHint = `Documento compilado com sucesso em PDF (${relPdf}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+    } else {
+      nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+    }
   }
 
   const payload: FillDocxTemplateSyntheticResult = {

@@ -4,7 +4,11 @@ import JSZip from "jszip";
 import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { createAuditReportContractError } from "../contracts/errors.ts";
-import { convertDocxToPdf } from "../utils/pdf_exporter.ts";
+import {
+  convertDocxToPdf,
+  resolveOutputPaths,
+  safeUnlink,
+} from "../utils/pdf_exporter.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   AuditReportData,
@@ -699,7 +703,8 @@ export async function generateAuditDocx(
 
   zip.file("word/document.xml", serializer.serializeToString(docXml));
 
-  const outDir = dirname(resolvedOutput);
+  const outPaths = resolveOutputPaths(resolvedOutput, outputFormat);
+  const outDir = dirname(outPaths.primaryOutputPath);
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
@@ -708,29 +713,35 @@ export async function generateAuditDocx(
     type: "nodebuffer",
     compression: "DEFLATE",
   });
-  writeFileSync(resolvedOutput, outBuffer);
 
   let pdfPath: string | undefined;
-  if (outputFormat === "pdf" || outputFormat === "both") {
-    const targetPdfPath = resolvedOutput.replace(/\.docx$/i, "") + ".pdf";
-    const pdfRes = await convertDocxToPdf(resolvedOutput, targetPdfPath, {
-      timeoutMs: options?.pdfTimeoutMs,
-    });
-    pdfPath = pdfRes.pdfPath;
+  try {
+    writeFileSync(outPaths.docxPath, outBuffer);
+
+    if (outputFormat === "pdf" || outputFormat === "both") {
+      const pdfRes = await convertDocxToPdf(outPaths.docxPath, outPaths.pdfPath, {
+        timeoutMs: options?.pdfTimeoutMs,
+      });
+      pdfPath = pdfRes.pdfPath;
+    }
+  } finally {
+    if (outPaths.isExclusivePdf && outPaths.tempDocxPath) {
+      await safeUnlink(outPaths.tempDocxPath);
+    }
   }
 
   let finalMessage: string;
   if (outputFormat === "pdf" && pdfPath) {
     finalMessage = `Relatório de Auditoria (.pdf) gerado com sucesso em: ${pdfPath}`;
   } else if (outputFormat === "both" && pdfPath) {
-    finalMessage = `Relatórios de Auditoria (.docx e .pdf) gerados com sucesso em: ${resolvedOutput} e ${pdfPath}`;
+    finalMessage = `Relatórios de Auditoria (.docx e .pdf) gerados com sucesso em: ${outPaths.docxPath} e ${pdfPath}`;
   } else {
-    finalMessage = `Relatório de Auditoria (.docx) gerado com sucesso em: ${resolvedOutput}`;
+    finalMessage = `Relatório de Auditoria (.docx) gerado com sucesso em: ${outPaths.docxPath}`;
   }
 
   return {
     success: true,
-    outputPath: resolvedOutput,
+    outputPath: outPaths.primaryOutputPath,
     ...(pdfPath ? { pdf_path: pdfPath } : {}),
     message: finalMessage,
   };
@@ -749,7 +760,11 @@ export function formatGenerateAuditDocxSyntheticResult(
 
   let nextHint: string;
   if (relPdf) {
-    nextHint = `Ciclo de auditoria concluído: o parecer em layout vertical A4 está pronto em PDF (${relPdf}) e DOCX (${relOutput}) para revisão e assinatura.`;
+    if (result.outputPath.endsWith(".pdf")) {
+      nextHint = `Ciclo de auditoria concluído: o parecer em layout vertical A4 está pronto em PDF (${relPdf}) para revisão e assinatura.`;
+    } else {
+      nextHint = `Ciclo de auditoria concluído: o parecer em layout vertical A4 está pronto em PDF (${relPdf}) e DOCX (${relOutput}) para revisão e assinatura.`;
+    }
   } else {
     nextHint =
       "Ciclo de auditoria concluído: o parecer em layout vertical A4 (zero tabelas) está pronto em output/ para revisão e assinatura.";
