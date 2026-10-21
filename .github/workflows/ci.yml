@@ -1,4 +1,4 @@
-name: Continuous Integration - Docx Engine
+name: Continuous Integration - DocGov Engine
 
 on:
   push:
@@ -16,12 +16,12 @@ jobs:
         include:
           - os: ubuntu-24.04
             build_script: bun run build:linux
-            binary_name: docgov-docx
-            run_cmd: ./bin/docgov-docx
+            binary_name: docgov-engine
+            run_cmd: ./bin/docgov-engine
           - os: windows-latest
             build_script: bun run build:windows
-            binary_name: docgov-docx.exe
-            run_cmd: ./bin/docgov-docx.exe
+            binary_name: docgov-engine.exe
+            run_cmd: ./bin/docgov-engine.exe
 
     steps:
       - name: Checkout Código
