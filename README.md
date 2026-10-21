@@ -6,19 +6,67 @@ Compilado em **binário standalone** (Windows `x64` e Linux `x64`) via Bun — n
 
 ---
 
-## 1. Download Rápido e Auto-Atualização
+## 1. Instalação Rápida e Auto-Atualização
 
-### Windows (PowerShell)
+### Instalação Automática em 1 Linha (Recomendado)
+
+#### Windows (PowerShell)
+Instala o binário em `$env:LOCALAPPDATA\docgov\bin\docgov-engine.exe`, valida a integridade do arquivo (> 50 MB), testa `--version` e exibe o snippet pronto para MCP:
+```powershell
+irm https://raw.githubusercontent.com/brunobenchimol/DocGov-engine/main/scripts/install.ps1 | iex
+```
+
+#### Linux / WSL (Bash)
+Instala o binário em `~/.docgov/bin/docgov-engine`, concede permissão de execução, valida a versão e orienta sobre o PATH:
+```bash
+curl -fsSL https://raw.githubusercontent.com/brunobenchimol/DocGov-engine/main/scripts/install.sh | bash
+```
+
+---
+
+### Download Manual Direto (Alternativa)
+
+#### Windows (PowerShell)
 ```powershell
 curl.exe -fL "https://github.com/brunobenchimol/DocGov-engine/releases/latest/download/docgov-engine-win-x64.exe" -o docgov-engine.exe
 .\docgov-engine.exe -v
 ```
 
-### Linux / WSL (Bash)
+#### Linux / WSL (Bash)
 ```bash
 curl -fL "https://github.com/brunobenchimol/DocGov-engine/releases/latest/download/docgov-engine-linux-x64" -o docgov-engine
 chmod +x docgov-engine
 ./docgov-engine -v
+```
+
+---
+
+### Configuração no Claude Desktop ou Antigravity MCP
+
+Adicione ao seu arquivo de configuração MCP (`claude_desktop_config.json` ou similar):
+
+#### Windows
+```json
+{
+  "mcpServers": {
+    "docgov-engine": {
+      "command": "C:\\caminho\\para\\docgov-engine.exe",
+      "args": []
+    }
+  }
+}
+```
+
+#### Linux / WSL
+```json
+{
+  "mcpServers": {
+    "docgov-engine": {
+      "command": "/caminho/para/docgov-engine",
+      "args": []
+    }
+  }
+}
 ```
 
 ### Auto-Atualização do Binário (`Self-Update`)
