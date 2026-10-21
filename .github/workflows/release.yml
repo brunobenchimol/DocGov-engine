@@ -1,4 +1,4 @@
-name: Release Docx Engine Binaries
+name: Release DocGov Engine Binaries
 
 on:
   push:
@@ -14,13 +14,13 @@ jobs:
       matrix:
         include:
           - os: ubuntu-24.04
-            artifact_name: docgov-docx-linux-x64
+            artifact_name: docgov-engine-linux-x64
             build_script: bun run build:linux
-            binary_path: bin/docgov-docx
+            binary_path: bin/docgov-engine
           - os: windows-latest
-            artifact_name: docgov-docx-windows-x64.exe
+            artifact_name: docgov-engine-win-x64.exe
             build_script: bun run build:windows
-            binary_path: bin/docgov-docx.exe
+            binary_path: bin/docgov-engine.exe
 
     steps:
       - name: Checkout Código
@@ -69,7 +69,6 @@ jobs:
         uses: softprops/action-gh-release@v3
         with:
           files: |
-            artifacts/docgov-docx-linux-x64/docgov-docx-linux-x64
-            artifacts/docgov-docx-windows-x64.exe/docgov-docx-windows-x64.exe
+            artifacts/docgov-engine-linux-x64/docgov-engine-linux-x64
+            artifacts/docgov-engine-win-x64.exe/docgov-engine-win-x64.exe
           generate_release_notes: true
-

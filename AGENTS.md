@@ -1,6 +1,6 @@
-# Estatuto de Governança do Motor MCP docgov-docx-engine
+# Estatuto de Governança do Motor MCP docgov-engine
 
-Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalone `docgov-docx-engine`. Qualquer agente de IA ou desenvolvedor deve segui-las estritamente em todas as sessões e contribuições.
+Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalone `docgov-engine`. Qualquer agente de IA ou desenvolvedor deve segui-las estritamente em todas as sessões e contribuições.
 
 ---
 
@@ -10,8 +10,8 @@ Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalo
 - Na interação com o desenvolvedor, adapte a execução dos comandos com flexibilidade ao ambiente informado no diálogo (ex.: WSL, terminal nativo ou container).
 
 ## Lei 2: Teto Estrito de Payload MCP (< 1024 bytes)
-- Todo retorno sintético de ferramentas via stdio MCP DEVE ter menos de 1024 bytes (UTF-8) para evitar truncamento em `output.txt` pelas IDEs consumidoras.
-- Documentos grandes, mapas estruturais completos (`toc_map`) e espelhos de leitura linear (`visao_auditoria_*.md`) são persistidos em disco (`state/estrutura_*.json`, `state/visao_auditoria_*.md`) e apenas referenciados por caminho no JSON sintético.
+- Todo retorno sintético de ferramentas via stdio MCP DEVE ter menos de 1024 bytes (UTF-8, margem segura recomendada < 920 bytes) para evitar truncamento em `output.txt` pelas IDEs consumidoras.
+- Documentos grandes, mapas estruturais completos (`toc_map`), dossiês de hotspots (`dossie_hotspots_*.md`) e espelhos de leitura linear (`visao_auditoria_*.md`) são persistidos em disco (`state/estrutura_*.json`, `state/visao_auditoria_*.md`) e apenas referenciados por caminho no JSON sintético.
 
 ## Lei 3: Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)
 - É estritamente proibido retornar `status: "success"` se `applied_slots_count === 0`.
@@ -40,4 +40,3 @@ Este documento estabelece as 7 Leis Invioláveis de Engenharia do motor standalo
   1. Atualização do número de versão SemVer em `package.json` e `src/index.ts`;
   2. Aprovação de 100% dos testes via `bun test`;
   3. Git commit convencional, criação de tag `vX.Y.Z` anotada e push para origin.
-

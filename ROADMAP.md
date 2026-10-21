@@ -1,7 +1,7 @@
-# 🗺️ ROADMAP OFICIAL — `docgov-engine` (Rumo à `v1.0.0`)
+# 🗺️ ROADMAP OFICIAL — `docgov-engine` (v1.0.0)
 
 > **Propósito deste Documento:** Fonte única de verdade sobre o estado evolutivo do motor MCP/CLI, separando as entregas já certificadas, as evoluções funcionais de PDF (`v0.9.x`) e a virada de chave arquitetural/nomenclatura (`v1.0.0 — Clean Cut`).
-> **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao concluir cada marco. **NÃO** antecipe mudanças de nomes da `v1.0.0` durante as versões `v0.9.x`.
+> **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao concluir cada marco.
 
 ---
 
@@ -14,8 +14,6 @@
 ---
 
 ## ✅ MARCO 1 — `v0.9.0`: Inteligência Avançada de Leitura PDF e Multi-Documento [CONCLUÍDO]
-*(Importante: Manter nomes atuais de binários e tools MCP nesta versão para isolamento de testes).*
-
 - [x] **1.1. Reconstrução Espacial de Tabelas e Colunas em PDF (`Y-Axis Line Grouping`):**
   - Agrupar itens de texto do PDF pela coordenada vertical `(y)` com tolerância fina e ordenar horizontalmente por `(x)`, separando colunas distintas com ` | ` (estilo tabela Markdown).
   - Evitar que planilhas de itens/preços (`Item | Descrição | Unid | Qtd | Valor`) e tabelas de *datasheets* saiam fragmentadas em linhas soltas.
@@ -33,8 +31,6 @@
 ---
 
 ## ✅ MARCO 2 — `v0.9.5`: Geração e Exportação Nativa de PDF (`DOCX -> PDF` & Relatórios PDF) [CONCLUÍDO]
-*(Importante: Ainda mantendo compatibilidade de nomes antes do corte da v1.0.0).*
-
 - [x] **2.1. Pipeline Híbrido de Conversão `.docx` $\rightarrow$ `.pdf` (`src/utils/pdf_exporter.ts`):**
   - Implementar exportador capaz de gerar `.pdf` a partir dos `.docx` compilados:
     1. **Tier 1 (Fidelidade Máxima com MS Word COM / Windows / WSL Interop):** Automação silenciosa via PowerShell/COM (`SaveAs2` formato `wdFormatPDF = 17`) para fidelidade visual 100% idêntica ao Word (preservando brasões, cabeçalhos, tabelas e `numbering.xml`).
@@ -48,8 +44,6 @@
 ---
 
 ## ✅ MARCO 2.1 — `v0.9.6`: Patch de Conformidade Contratual Black-Box (.NET Asserts 12 & 13) [CONCLUÍDO]
-*(Correção estrita das 5 violações de contrato identificadas pela suíte Black-Box Certification Suite antes da v1.0.0).*
-
 - [x] **CORR-01 (Cartografia / Dossiê Hotspots):** Desacoplamento de `page_signals` dos gatilhos do Bloco 2 no `dossie_hotspots_<stem>.md`. Linha 1 (`[PAG_001 | L0001]`) não vira mais `ALVO` indevido e linhas introdutórias distantes (`L01..L08`) não vazam mais no recorte cirúrgico quando o hotspot real está em linhas posteriores (ex.: Linha 22).
 - [x] **CORR-02 (Reconstrução Espacial de Tabela PDF com Y-Jitter):** Agrupamento vertical estável ($\Delta Y \le 2.5\text{pt}$) preservando o separador colunar ` | ` entre todas as colunas mesmo com micro-variação vertical no PDF.
 - [x] **CORR-03 (Ordenação X e Gutter de Tokens Curtos em PDF):** Ordenação estrita por $X$ crescente e clamping de largura segura (`effectiveWidth`) para tokens curtos (`01`, `02`, `UN`), garantindo que não engulam o gutter horizontal até a próxima coluna.
@@ -58,27 +52,27 @@
 
 ---
 
-## 🚀 MARCO 3 — `v1.0.0`: O Grande Corte Limpo (`Clean Cut Refactoring` para `docgov-engine`) [PRÓXIMO PASSO]
-*(Breaking Change planejado: executado de uma só vez após a certificação integral dos Marcos 1 e 2).*
+## ✅ MARCO 3 — `v1.0.0`: O Grande Corte Limpo (`Clean Cut Refactoring` para `docgov-engine`) [CONCLUÍDO]
+*(Lançamento oficial da v1.0.0 consolidando a identidade definitiva e ferramentas multimodais).*
 
-- [ ] **3.1. Nova Identidade Unificada do Motor:**
+- [x] **3.1. Nova Identidade Unificada do Motor (`docgov-engine v1.0.0`):**
   - Renomear pacote, banners, `--version` e constantes internas de `docgov-docx-engine` para **`docgov-engine v1.0.0`**.
   - Renomear binários gerados no build e no GitHub Actions para:
-    - Windows: `docgov-engine.exe` (asset: `docgov-engine-win-x64.exe`)
-    - Linux: `docgov-engine-linux` (asset: `docgov-engine-linux-x64`)
-- [ ] **3.2. Padronização Semântica das Ferramentas MCP (`v1.0.0`):**
+    - Windows: `docgov-engine.exe` (asset de release: `docgov-engine-win-x64.exe`)
+    - Linux: `docgov-engine` (asset de release: `docgov-engine-linux-x64`)
+- [x] **3.2. Padronização Semântica das Ferramentas MCP (`v1.0.0`):**
   - Ferramentas Agnósticas Multimodal (`.pdf` + `.docx`):
     1. `bootstrap_case` (ingere e mapeia toda a pasta `inputs/`)
-    2. **`inspect_doc`** *(substitui `inspect_docx`; parâmetro principal passa a ser `filePath`, mantendo `docxPath` como fallback silencioso)*
+    2. **`inspect_doc`** *(substitui `inspect_docx`; parâmetro principal passa a ser `filePath`, mantendo `docxPath` como fallback silencioso e seguro)*
   - Ferramentas Específicas de Template Word (`.docx` explícito):
     3. `build_docx_template`
     4. `fill_docx_template` (com suporte a `outputFormat: "docx" | "pdf" | "both"`)
-  - Ferramenta de Emissão de Relatório de Auditoria / Impugnação (`.docx` e/ou `.pdf`):
-    5. **`generate_audit_report`** *(ou mantendo alias `generate_audit_docx` com suporte a `outputFormat: "docx" | "pdf" | "both"`)*
-- [ ] **3.3. Atualização do Auto-Updater (`--update`), Scripts de Instalação e Repositório GitHub:**
-  - Apontar o `--update` para o repositório renomeado `DocGov-engine` no GitHub e para os novos nomes de assets binários `docgov-engine-*`.
+  - Ferramenta de Emissão de Relatório de Auditoria / Impugnação Word:
+    5. `generate_audit_docx` (com suporte a `outputFormat: "docx" | "pdf" | "both"`)
+  - Margem Segura de Payload MCP: limiar de truncamento sintético ajustado para `< 900 bytes`, mantendo folga garantida abaixo de 920 bytes (longe do teto estrito de 1024 bytes da Lei 2).
+- [x] **3.3. Atualização do Auto-Updater (`--update`), Scripts de Instalação e Repositório GitHub:**
+  - Apontar o `--update` para o repositório `DocGov-engine` no GitHub e para os novos nomes de assets binários `docgov-engine-*`.
   - Atualizar os scripts de instalação (`scripts/install.ps1` e `scripts/install.sh`):
     - Apontar repositório remoto para `brunobenchimol/DocGov-engine`.
     - Atualizar assets de download para `docgov-engine-win-x64.exe` (Windows) e `docgov-engine-linux-x64` (Linux).
     - Atualizar binários de destino locais para `docgov-engine.exe` e `docgov-engine`.
-  - Renomear o repositório no GitHub (`docgov-docx-engine` $\rightarrow$ `DocGov-engine`) mantendo o nome do pacote e binários estritamente em minúsculas (`docgov-engine`).

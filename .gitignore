@@ -8,6 +8,8 @@ bin/*
 !bin/.gitkeep
 **/docgov-docx
 **/docgov-docx.exe
+**/docgov-engine
+**/docgov-engine.exe
 *.exe
 bun.lock
 
@@ -15,4 +17,3 @@ bun.lock
 .env
 .DS_Store
 Thumbs.db
-

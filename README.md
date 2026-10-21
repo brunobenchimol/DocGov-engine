@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` / `.pdf` & Servidor MCP (`v0.9.6`)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.0.0)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -10,66 +10,56 @@ Compilado em **binário standalone** (Windows `x64` e Linux `x64`) via Bun — n
 
 ### Windows (PowerShell)
 ```powershell
-curl.exe -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/latest/download/docgov-docx-windows-x64.exe" -o docgov-docx.exe
-.\docgov-docx.exe -v
+curl.exe -fL "https://github.com/brunobenchimol/DocGov-engine/releases/latest/download/docgov-engine-win-x64.exe" -o docgov-engine.exe
+.\docgov-engine.exe -v
 ```
 
 ### Linux / WSL (Bash)
 ```bash
-curl -fL "https://github.com/brunobenchimol/docgov-docx-engine/releases/latest/download/docgov-docx-linux-x64" -o docgov-docx
-chmod +x docgov-docx
-./docgov-docx -v
+curl -fL "https://github.com/brunobenchimol/DocGov-engine/releases/latest/download/docgov-engine-linux-x64" -o docgov-engine
+chmod +x docgov-engine
+./docgov-engine -v
 ```
 
 ### Auto-Atualização do Binário (`Self-Update`)
 Depois de baixado pela primeira vez, o próprio binário consegue verificar novas releases no GitHub e atualizar a si mesmo:
 ```powershell
 # Verificar se há uma nova versão disponível
-./docgov-docx --check-update
+./docgov-engine --check-update
 
 # Atualizar automaticamente para a versão mais recente (se houver)
-./docgov-docx --update
+./docgov-engine --update
 
 # Forçar download e reinstalação da última release
-./docgov-docx --force-update
+./docgov-engine --force-update
 ```
 
 ---
 
-## 2. Destaques da Versão `v0.9.6` (Patch de Conformidade Black-Box) e Marcos Anteriores
+## 2. Destaques da Versão `v1.0.0` (Marco 3 — Clean Cut) e Marcos Anteriores
 
-A versão **`v0.9.6`** consolida a conformidade estrita do motor com a suíte de certificação black-box `.NET` (`DocGov.EngineTests` Asserts 12 e 13), resolvendo 5 violações de contrato:
+A versão **`v1.0.0`** consolida o Marco 3 (Clean Cut) com a identidade definitiva do ecossistema:
 
-### Novidades e Correções da `v0.9.6` — Conformidade Contratual Black-Box
+### Novidades da `v1.0.0` — Clean Cut & Ferramenta Multimodal
+1. **Identidade Oficial Unificada:** Transição completa para `docgov-engine v1.0.0` em todos os binários (`./bin/docgov-engine.exe` e `./bin/docgov-engine`), servidor MCP (`name: "docgov-engine"`), banners CLI e especificações normativas.
+2. **Nova Ferramenta Multimodal `inspect_doc`:** Substituição semântica de `inspect_docx` por `inspect_doc`, recebendo o parâmetro principal `filePath` para arquivos `.docx` e `.pdf`, mantendo resiliência total com o alias `docxPath` e retrocompatibilidade estrita.
+3. **Margem de Segurança Estrita MCP (< 920 bytes):** Redução estratégica das mensagens de salvaguarda e ajuste do gatilho de corte sintético em `bootstrap_case` e `inspect_doc` para `< 900 bytes`, garantindo folga segura abaixo de 920 bytes contra o teto de 1024 bytes (Lei 2).
+4. **Sincronização Integral de Self-Discovery (Lei 4):** `--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS` e documentação alinhados na versão canônica `v1.0.0`.
+
+### Novidades e Correções Anteriores (`v0.9.6`) — Conformidade Contratual Black-Box
 1. **CORR-01 (Cartografia e Dossiê Hotspots):** Desacoplamento de `page_signals` dos gatilhos de contexto no `dossie_hotspots_<stem>.md`. A Linha 1 não vira mais `ALVO` falso e linhas introdutórias distantes (`L01..L08`) não vazam mais no recorte cirúrgico de $\pm 12$ linhas quando o hotspot real está em linhas posteriores.
 2. **CORR-02 (Reconstrução Espacial de Tabela com Y-Jitter):** Tolerância a micro-variações no eixo vertical ($\Delta Y \le 2.5\text{pt}$) com preservação estrita do separador colunar ` | ` entre todas as células de tabelas e planilhas.
 3. **CORR-03 (Ordenação X e Gutter de Tokens Curtos):** Clamping de largura segura (`effectiveWidth`) para tokens curtos (`01`, `02`, `UN`), garantindo que a distância horizontal até a próxima coluna não seja engolida e que itens fora de ordem no stream PDF sejam separados por ` | `.
 4. **CORR-04 (Modo Exclusivo PDF sem Sobrescrita ZIP):** Resolução canônica de caminhos (`resolveOutputPaths`), isolamento de DOCX temporário (`__tmp_*.docx`) removido confiavelmente após compilação e eliminação definitiva de extensões duplicadas (`.pdf.pdf`).
 5. **CORR-05 (Liberação Determinística Word COM e Resiliência contra File Locks):** Liberação de handles COM (`$doc` e `$word`) no script PowerShell com `ReleaseComObject` e `GC::WaitForPendingFinalizers`, acompanhado de rotina de remoção com retries e backoff (`safeUnlink`) contra locks temporários no Windows.
 
-### Novidades da `v0.9.5` — Exportação Híbrida DOCX $\rightarrow$ PDF e Relatórios
-1. **Pipeline Híbrido de Conversão DOCX para PDF (`src/utils/pdf_exporter.ts`):**
-   - **Tier 1 (Fidelidade Máxima via MS Word COM):** Automação silenciosa via PowerShell/COM (`SaveAs2` com `wdFormatPDF = 17`) no Windows e WSL Interop. Preserva 100% da fidelidade visual original do Microsoft Word (brasões, cabeçalhos, tabelas, formatações complexas e numeração nativa de `numbering.xml`).
-   - **Tier 2 (Fallback Standalone Pure-JS Determinístico):** Renderizador vetorial nativo em puro TypeScript (`pdf-lib` + `@xmldom/xmldom` + `jszip`). Converte parágrafos, cabeçalhos e tabelas OpenXML para PDF sem exigir Word, LibreOffice ou qualquer dependência de sistema operacional externa.
-2. **Suporte a `outputFormat` nas Ferramentas de Saída:**
-   - `fill_docx_template` aceita `outputFormat: "docx" | "pdf" | "both"`. Quando `"pdf"` ou `"both"` é solicitado, entrega `output/<arquivo>.pdf` pronto e validado (`%PDF-`).
-   - `generate_audit_docx` aceita `outputFormat: "docx" | "pdf" | "both"`, emitindo pareceres técnicos de auditoria diretamente em PDF.
-   - Quando `outputFormat: "pdf"` é usado no `fill_docx_template`, o motor executa **auto-inspeção diretamente no arquivo PDF gerado**.
-3. **Integração na CLI com `--format`:**
-   - Adicionada a flag `--format <docx|pdf|both>` (ou `-f`) para comandos `--inject` e `--generate-audit-docx`.
-4. **Determinismo Universal de Sistema de Arquivos:**
-   - Todas as leituras de diretórios (`uploadsDir`, `inputsDir` e cache global) possuem ordenação alfabética determinística (`readdirSync().sort()`), garantindo comportamento 100% idêntico entre Linux (ext4), Windows (NTFS) e macOS.
-
-### Recursos Consolidados da `v0.9.0` — Leitura Avançada de PDF e Multi-Documento
-1. **Reconstrução Espacial de Tabelas e Colunas (`Y-Axis Line Grouping`):**
-   - Agrupa itens de texto pela coordenada vertical `(y)` com tolerância de 2.5pt e ordena horizontalmente por `(x)`, separando colunas distintas com ` | ` (estilo Markdown).
-   - Impede que tabelas orçamentárias (`Item | Descrição | Unid | Qtd | Valor`) ou *datasheets* técnicos fiquem fragmentados em linhas soltas.
-2. **Dossiê Executivo de Hotspots (`state/dossie_hotspots_<stem>.md`):**
-   - Extrai automaticamente um dossiê cirúrgico contendo o mapa de títulos e **$\pm$12 linhas de contexto expandido** em torno de cada ocorrência das 14 Zonas de Impugnação (`Z1` a `Z14`) e áreas de densidade técnica, permitindo triagem de editais de 300 páginas em **1 único turno de leitura**.
-3. **Detector de Páginas Escaneadas (`Scanned PDF Trap`):**
-   - Avalia a densidade de texto por página. Caso haja páginas com $< 25$ caracteres extraíveis, retorna `scanned_pages_detected: [p1, p2, ...]` e insere alertas críticos na visão linear de auditoria.
-4. **Índice Cartográfico Mestre Unificado (`state/indice_mestre_caso.md`):**
-   - No `bootstrap_case`, se `inputs/` contiver múltiplos arquivos (ex.: `Edital.pdf` + `Termo_Referencia.pdf` + `Minuta.docx`), o motor consolida uma matriz cruzada indicando em qual documento e em qual página/linha cada zona (`Z1` a `Z14`) se manifesta.
+### Recursos Consolidados das Versões Anteriores (`v0.9.0` e `v0.9.5`)
+- **Pipeline Híbrido DOCX $\rightarrow$ PDF (`src/utils/pdf_exporter.ts`):** Tier 1 (Word COM alta fidelidade) e Tier 2 (Pure-JS standalone `pdf-lib` + `jszip`).
+- **Suporte a `outputFormat: "docx" | "pdf" | "both"`** em `fill_docx_template` e `generate_audit_docx`.
+- **Reconstrução Espacial de Tabelas e Colunas (`Y-Axis Line Grouping`):** Agrupa texto por coordenadas verticais ($y$) e ordena por ($x$), separando colunas por ` | `.
+- **Dossiê Executivo de Hotspots (`state/dossie_hotspots_<stem>.md`):** Recorte cirúrgico de $\pm 12$ linhas nas 14 Zonas de Impugnação (`Z1` a `Z14`).
+- **Detector de Páginas Escaneadas (`Scanned PDF Trap`):** Detecção de páginas sem OCR / escaneadas como imagem.
+- **Índice Cartográfico Mestre Unificado (`state/indice_mestre_caso.md`):** Consolidação multipeça no `bootstrap_case`.
 
 ---
 
@@ -77,9 +67,9 @@ A versão **`v0.9.6`** consolida a conformidade estrita do motor com a suíte de
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v0.9.6`):** Inclusão mandatória do campo `"engine_version": "0.9.6"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
-2. **Teto Estrito de Payload MCP ($< 1024$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
-3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_docx`, `bootstrap_case`).
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.0.0`):** Inclusão mandatória do campo `"engine_version": "1.0.0"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
+2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 920$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
+3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`).
 4. **Motor Híbrido de Lista Multinível Nativa (`v0.7.0`):**
    - **Fora de tabelas (`<w:body>`):** Cria ou atualiza `word/numbering.xml` com definição multinível de 9 níveis decimais escalonados (`%1.`, `%1.%2.`, `%1.%2.%3.`), insere `<w:pPr><w:numPr>` com `<w:startOverride>` sincronizado com o capítulo pai e limpa o prefixo numérico literal do `<w:t>`.
    - **Dentro de tabelas (`<w:tc>`):** Aplica *Hanging Indent* estático (`<w:ind w:left w:hanging>` + `<w:tabs>`) separando o marcador numérico literal com `<w:r><w:tab/></w:r>`.
@@ -93,7 +83,7 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
    acompanhada do snippet JSON canônico completo e pronto para copiar e colar.
 8. **Exportação de Especificação Técnica Integral (`--dump-spec`):** Exporta a especificação técnica integral do motor em Markdown (UTF-8) para alinhamento instantâneo com agentes consumidores.
 9. **Radar das 14 Zonas de Impugnação (`Z1` a `Z14`):** Varre as linhas de `.pdf` e `.docx` identificando atestados, prazos, garantias, marcas exclusivas, datasheets direcionados, métricas e cruzamento multipeça.
-10. **Auto-Inspeção Integrada no Preenchimento:** O `fill_docx_template` executa automaticamente a inspeção estrutural pós-compilação gravando `state/inspecao_<stem>.json` e `state/visao_auditoria_<stem>.md`, dispensando rodar `inspect_docx` novamente.
+10. **Auto-Inspeção Integrada no Preenchimento:** O `fill_docx_template` executa automaticamente a inspeção estrutural pós-compilação gravando `state/inspecao_<stem>.json` e `state/visao_auditoria_<stem>.md`, dispensando rodar `inspect_doc` novamente.
 
 ---
 
@@ -110,11 +100,11 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Copia de forma síncrona imediata os modelos `.docx` e documentos `.pdf` de `uploadsDir` para `inputs/`, extrai seus mapas estruturais (`state/estrutura_<nome>.json`), gera a **Visão Linear de Auditoria** (`state/visao_auditoria_<nome>.md`), o **Dossiê de Hotspots** (`state/dossie_hotspots_<nome>.md`) e o **Índice Mestre do Caso** (`state/indice_mestre_caso.md`).
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*), `fileRenameMap` (*opcional*).
 
-2. **`inspect_docx`**
+2. **`inspect_doc`**
    - Realiza a engenharia reversa de arquivos `.docx` ou `.pdf`.
    - **Para PDF:** Extrai todas as páginas, numera linhas com coordenada dupla `[PAG_XXX | LYYYY]`, reconstrói colunas com ` | `, constrói a Cartografia Estrutural em 3 camadas e o Radar das 14 Zonas (`Z1` a `Z14`), gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md`.
    - **Para DOCX:** Mapeia parágrafos, tabelas, constrói `toc_map`, calcula `structure_fingerprint`, busca no Cache Global e gera `state/visao_auditoria_<stem>.md`.
-   - Parâmetros: `docxPath` (*obrigatório*), `outputPath` (*opcional*), `compact` (*opcional*).
+   - Parâmetros: `filePath` (*obrigatório*, com alias retrocompatível `docxPath`), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**
    - Transforma um `.docx` bruto (sem tags) em um template parametrizado com tags `{{...}}` a partir de um arquivo `slots_manifest.json`, preservando 100% da formatação visual (`<w:pPr>`, `<w:rPr>`, estilos, cabeçalhos e tabelas).
@@ -124,13 +114,13 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 4. **`fill_docx_template`**
    - Preenche um template `.docx` parametrizado injetando os dados de um arquivo JSON de estado (`{{...}}`, loops `FOR`, condicionais `IF`, quebras `\n` em parágrafos reais, negrito `**...**` e listas hierárquicas multinível híbridas).
-   - **Exportação Híbrida para PDF (v0.9.5):** Suporta `outputFormat: "docx" | "pdf" | "both"`. Em modo `"pdf"`, converte via Word COM ou Pure-JS e auto-inspeciona o PDF gerado.
+   - **Exportação Híbrida para PDF (v0.9.5 / v1.0.0):** Suporta `outputFormat: "docx" | "pdf" | "both"`. Em modo `"pdf"`, converte via Word COM ou Pure-JS e auto-inspeciona o PDF gerado.
    - Executa **auto-inspeção integrada**, gravando `state/inspecao_<stem>.json` e `state/visao_auditoria_<stem>.md`.
    - Parâmetros: `templatePath`, `statePath`, `outputPath` (*obrigatórios*), `autoInspect` (*opcional*), `outputFormat` (*opcional*).
 
 5. **`generate_audit_docx`**
    - Gera um Parecer de Auditoria Técnico-Jurídica em layout editorial vertical corrido (folha A4 retrato, **zero tabelas** `<w:tbl>`, 100% da largura útil da página), com fichas individualizadas e transcrições literais de evidências.
-   - **Exportação para PDF (v0.9.5):** Suporta `outputFormat: "docx" | "pdf" | "both"`.
+   - **Exportação para PDF (v0.9.5 / v1.0.0):** Suporta `outputFormat: "docx" | "pdf" | "both"`.
    - Parâmetros: `auditJsonPath`, `outputPath` (*obrigatórios*), `outputFormat` (*opcional*).
 
 ---
@@ -139,38 +129,38 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 ```powershell
 # 1. Inicializar pasta do caso, copiar uploads e inspecionar documentos (.docx e .pdf)
-./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded
+./docgov-engine --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded
 
 # Com mapeamento explícito de nomes de arquivos
-./docgov-docx --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --rename-map '{"media_1792069974647_14a93b9d": "Edital_Pregao.pdf"}'
+./docgov-engine --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --rename-map '{"media_1792069974647_14a93b9d": "Edital_Pregao.pdf"}'
 
 # 2. Inspecionar estrutura de um arquivo (.docx ou .pdf) gerando Cartografia, Radar Z1..Z14 e Dossiê de Hotspots
-./docgov-docx --inspect edital_licitacao.pdf --out state/estrutura_edital.json
-./docgov-docx --inspect modelo_etp.docx --out state/estrutura_etp.json --compact
+./docgov-engine --inspect edital_licitacao.pdf --out state/estrutura_edital.json
+./docgov-engine --inspect modelo_etp.docx --out state/estrutura_etp.json --compact
 
 # 3. Construir template parametrizado a partir de um .docx bruto + slots_manifest.json
-./docgov-docx --build-template --source modelo_etp.docx --manifest slots_manifest.json --out template.docx --save-to-registry --template-id etp_padrao_v1
+./docgov-engine --build-template --source modelo_etp.docx --manifest slots_manifest.json --out template.docx --save-to-registry --template-id etp_padrao_v1
 
 # 4. Preencher template com o JSON de estado (gerando .docx e/ou .pdf)
-./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.docx
-./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.docx --format both
-./docgov-docx --inject --template template.docx --state estado_caso.json --out minuta_final.pdf --format pdf
+./docgov-engine --inject --template template.docx --state estado_caso.json --out minuta_final.docx
+./docgov-engine --inject --template template.docx --state estado_caso.json --out minuta_final.docx --format both
+./docgov-engine --inject --template template.docx --state estado_caso.json --out minuta_final.pdf --format pdf
 
 # 5. Gerar Parecer de Auditoria em Word (.docx) ou PDF a partir do JSON de auditoria
-./docgov-docx --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.docx
-./docgov-docx --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.pdf --format pdf
+./docgov-engine --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.docx
+./docgov-engine --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.pdf --format pdf
 
 # 6. Exportar especificação técnica normativa em Markdown
-./docgov-docx --dump-spec especificacao_motor.md
+./docgov-engine --dump-spec especificacao_motor.md
 
 # 7. Verificar / Atualizar o próprio binário
-./docgov-docx --check-update
-./docgov-docx --update
-./docgov-docx --force-update
+./docgov-engine --check-update
+./docgov-engine --update
+./docgov-engine --force-update
 
 # Verificar a versão instalada e exibir ajuda
-./docgov-docx -v
-./docgov-docx -h
+./docgov-engine -v
+./docgov-engine -h
 ```
 
 | Parâmetro | Descrição |
@@ -198,7 +188,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--check-update` | Consulta o GitHub Releases e informa se há uma nova versão disponível. |
 | `-u`, `--update` | Atualiza o próprio binário para a versão mais recente. |
 | `--force-update` | Força o download e substituição do binário pela última release publicada. |
-| `-v`, `--version` | Exibe a versão atual do binário (`docgov-docx-engine vX.Y.Z`). |
+| `-v`, `--version` | Exibe a versão atual do binário (`docgov-engine vX.Y.Z`). |
 | `-h`, `--help` | Exibe o resumo de uso e parâmetros disponíveis. |
 
 ---
@@ -277,8 +267,8 @@ Edite `~/.gemini/config/mcp_config.json` (ou acesse **Additional Options (...) >
 ```json
 {
   "mcpServers": {
-    "docgov_docx": {
-      "command": "C:/caminho/para/docgov-docx.exe",
+    "docgov": {
+      "command": "C:/caminho/para/docgov-engine.exe",
       "args": []
     }
   }
@@ -288,10 +278,10 @@ Edite `~/.gemini/config/mcp_config.json` (ou acesse **Additional Options (...) >
 ### Claude Code (CLI)
 ```powershell
 # Windows
-claude mcp add docgov_docx -- "C:\caminho\para\docgov-docx.exe"
+claude mcp add docgov -- "C:\caminho\para\docgov-engine.exe"
 
 # Linux / macOS
-claude mcp add docgov_docx -- "/caminho/para/docgov-docx"
+claude mcp add docgov -- "/caminho/para/docgov-engine"
 ```
 
 ### Claude Desktop / Cursor / Windsurf
@@ -299,8 +289,8 @@ No arquivo `claude_desktop_config.json`, `.cursor/mcp.json` ou `~/.codeium/winds
 ```json
 {
   "mcpServers": {
-    "docgov_docx": {
-      "command": "C:/caminho/para/docgov-docx.exe",
+    "docgov": {
+      "command": "C:/caminho/para/docgov-engine.exe",
       "args": []
     }
   }
@@ -317,7 +307,7 @@ Requer [Bun](https://bun.sh/) instalado:
 # Instalar dependências
 bun install
 
-# Executar suíte completa de testes unitários e E2E (77 testes em 10 arquivos)
+# Executar suíte completa de testes unitários e E2E
 bun test
 
 # Executar suítes específicas por domínio
@@ -340,7 +330,7 @@ bun run build:linux
 ### Estatuto de Governança (`AGENTS.md`)
 O motor é governado pelas **7 Leis Invioláveis de Engenharia**:
 1. Runtime e testes padronizados via Bun (`bun test`).
-2. Teto estrito de payload MCP ($< 1024$ bytes UTF-8).
+2. Teto estrito de payload MCP ($< 1024$ bytes UTF-8, com margem de segurança $< 920$ bytes).
 3. Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast estrito).
 4. Sincronia obrigatória de Self-Discovery (`--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, etc.).
 5. Neutralidade institucional absoluta (zero menções a localidades ou órgãos específicos).

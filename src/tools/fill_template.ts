@@ -843,9 +843,9 @@ export async function processDocument(
       if (pdfPath) {
         const relPdf =
           relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
-        nextHint = `Documento compilado em PDF (${relPdf}) e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+        nextHint = `Documento compilado em PDF (${relPdf}) e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).`;
       } else {
-        nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+        nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).`;
       }
     } else {
       const relOutput =
@@ -855,12 +855,12 @@ export async function processDocument(
         const relPdf =
           relative(process.cwd(), pdfPath).replace(/\\/g, "/") || pdfPath;
         if (outPaths.isExclusivePdf) {
-          nextHint = `Documento compilado em PDF (${relPdf}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+          nextHint = `Documento compilado em PDF (${relPdf}). Próximo: execute 'inspect_doc' para gerar o espelho estrutural antes de auditar.`;
         } else {
-          nextHint = `Documento compilado em PDF (${relPdf}) e DOCX (${relOutput}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+          nextHint = `Documento compilado em PDF (${relPdf}) e DOCX (${relOutput}). Próximo: execute 'inspect_doc' para gerar o espelho estrutural antes de auditar.`;
         }
       } else {
-        nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+        nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_doc' para gerar o espelho estrutural antes de auditar.`;
       }
     }
   } finally {
@@ -914,13 +914,13 @@ export function formatFillDocxTemplateSyntheticResult(
     if (relPdf) {
       nextHint = `Documento compilado em PDF (${relPdf}) e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear.`;
     } else {
-      nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).`;
+      nextHint = `Documento compilado e visão linear de auditoria gerada automaticamente em ${relVisao}. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).`;
     }
   } else {
     if (relPdf && result.outputPath.endsWith(".pdf")) {
-      nextHint = `Documento compilado com sucesso em PDF (${relPdf}). Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+      nextHint = `Documento compilado com sucesso em PDF (${relPdf}). Próximo: execute 'inspect_doc' para gerar o espelho estrutural antes de auditar.`;
     } else {
-      nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_docx' para gerar o espelho estrutural antes de auditar.`;
+      nextHint = `Documento compilado com sucesso em ${relOutput}. Próximo: execute 'inspect_doc' para gerar o espelho estrutural antes de auditar.`;
     }
   }
 

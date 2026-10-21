@@ -40,6 +40,7 @@ import type {
   DocxInspectionResult,
   HeaderFooterParagraphInfo,
   TemplateMatchResult,
+  InspectDocSyntheticResult,
   InspectDocxSyntheticResult,
   PdfExtractionResult,
   DocumentCartography,
@@ -759,11 +760,11 @@ export async function inspectDocx(
   return finalResult;
 }
 
-export function formatInspectDocxSyntheticResult(
-  docxPath: string,
+export function formatInspectDocSyntheticResult(
+  filePath: string,
   outputPath: string,
   inspection: DocxInspectionResult
-): InspectDocxSyntheticResult {
+): InspectDocSyntheticResult {
   let totalRows = 0;
   for (const table of inspection.tables) {
     totalRows += table.rows.length;
@@ -875,10 +876,11 @@ export function formatInspectDocxSyntheticResult(
 
   const buildPayload = (
     summaryItems: Array<{ coord: string; title: string; target?: string }>
-  ): InspectDocxSyntheticResult => ({
+  ): InspectDocSyntheticResult => ({
     status: "success",
     engine_version: VERSION,
-    docxPath,
+    filePath,
+    docxPath: filePath,
     outputPath,
     ...(inspection.doc_type === "pdf"
       ? {
@@ -901,21 +903,32 @@ export function formatInspectDocxSyntheticResult(
     next_step_hint: nextHint,
   });
 
-  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8)
+  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8 com folga segura < 920 bytes)
   const currentSummary = [...toc_summary];
   let result = buildPayload(currentSummary);
   while (
     currentSummary.length > 0 &&
-    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900
   ) {
     currentSummary.pop();
     result = buildPayload(currentSummary);
   }
 
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000) {
+  if (
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000 &&
+    !nextHint.includes("Cache reconhecido") &&
+    !nextHint.includes("ALERTA:")
+  ) {
     result.next_step_hint = "Inspeção gravada. Chame 'build_docx_template'.";
+  }
+
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1010 && result.dossie_path) {
+    delete result.dossie_path;
   }
 
   return result;
 }
+
+export const formatInspectDocxSyntheticResult = formatInspectDocSyntheticResult;
+export const inspectDoc = inspectDocx;
 

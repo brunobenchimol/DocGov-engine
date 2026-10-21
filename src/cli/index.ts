@@ -9,7 +9,9 @@ import {
   formatBootstrapCaseSyntheticResult,
 } from "../tools/bootstrap.ts";
 import {
+  inspectDoc,
   inspectDocx,
+  formatInspectDocSyntheticResult,
   formatInspectDocxSyntheticResult,
 } from "../tools/inspect.ts";
 import { buildDocxTemplate } from "../tools/build_template.ts";
@@ -23,28 +25,28 @@ import type { BackgroundCopyInput } from "../types/index.ts";
 
 export async function runCli(args: string[]) {
   if (args.includes("--version") || args.includes("-v")) {
-    console.log(`docgov-docx-engine v${VERSION}`);
+    console.log(`docgov-engine v${VERSION}`);
     return;
   }
 
   if (args.includes("--help") || args.includes("-h")) {
     console.log(`
-DocGov Docx Engine v${VERSION} — CLI & MCP Server
+DocGov Engine v${VERSION} — CLI & MCP Server
 
 Uso:
-  docgov-docx                                     Inicia como servidor MCP via stdio (padrão)
-  docgov-docx --mcp                               Inicia como servidor MCP via stdio
-  docgov-docx --dump-spec [caminho.md]            Exporta a especificação técnica integral do motor em Markdown
-  docgov-docx --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
-  docgov-docx --inspect <arq.docx|.pdf> [--out <mapa.json>] [--compact]
-  docgov-docx --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
-  docgov-docx --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--format <docx|pdf|both>] [--no-auto-inspect]
-  docgov-docx --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
-  docgov-docx --check-update                      Verifica se há nova versão disponível no GitHub
-  docgov-docx -u, --update                        Atualiza o binário para a versão mais recente (se houver)
-  docgov-docx --force-update                      Força o download e reinstalação da última release
-  docgov-docx -v, --version                       Exibe a versão do software
-  docgov-docx -h, --help                          Exibe esta mensagem de ajuda
+  docgov-engine                                   Inicia como servidor MCP via stdio (padrão)
+  docgov-engine --mcp                             Inicia como servidor MCP via stdio
+  docgov-engine --dump-spec [caminho.md]          Exporta a especificação técnica integral do motor em Markdown
+  docgov-engine --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
+  docgov-engine --inspect <arq.docx|.pdf> [--out <mapa.json>] [--compact]
+  docgov-engine --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
+  docgov-engine --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--format <docx|pdf|both>] [--no-auto-inspect]
+  docgov-engine --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
+  docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
+  docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
+  docgov-engine --force-update                    Força o download e reinstalação da última release
+  docgov-engine -v, --version                     Exibe a versão do software
+  docgov-engine -h, --help                        Exibe esta mensagem de ajuda
 `);
     return;
   }
@@ -180,35 +182,38 @@ Uso:
     return;
   }
 
-  // 1) Modo --inspect
-  if (args.includes("--inspect")) {
+  // 1) Modo --inspect ou --file
+  if (args.includes("--inspect") || args.includes("--file")) {
     const inspectIdx = args.indexOf("--inspect");
+    const fileIdx = args.indexOf("--file");
+    const docxIdx = args.indexOf("--docx");
     const sourceIdx = args.indexOf("--source");
     const outIdx = args.indexOf("--out");
     const compact = args.includes("--compact");
 
-    let docxPath: string | undefined;
-    if (sourceIdx !== -1 && args[sourceIdx + 1]) {
-      docxPath = args[sourceIdx + 1];
-    } else if (
-      args[inspectIdx + 1] &&
-      !args[inspectIdx + 1].startsWith("--")
-    ) {
-      docxPath = args[inspectIdx + 1];
+    let filePath: string | undefined;
+    if (fileIdx !== -1 && args[fileIdx + 1] && !args[fileIdx + 1].startsWith("--")) {
+      filePath = args[fileIdx + 1];
+    } else if (docxIdx !== -1 && args[docxIdx + 1] && !args[docxIdx + 1].startsWith("--")) {
+      filePath = args[docxIdx + 1];
+    } else if (sourceIdx !== -1 && args[sourceIdx + 1] && !args[sourceIdx + 1].startsWith("--")) {
+      filePath = args[sourceIdx + 1];
+    } else if (inspectIdx !== -1 && args[inspectIdx + 1] && !args[inspectIdx + 1].startsWith("--")) {
+      filePath = args[inspectIdx + 1];
     }
 
     const outPath = outIdx !== -1 ? args[outIdx + 1] : undefined;
 
-    if (!docxPath) {
-      console.error("Erro: Informe o caminho do arquivo .docx após --inspect.");
+    if (!filePath) {
+      console.error("Erro: Informe o caminho do arquivo (.docx ou .pdf) após --inspect ou --file.");
       process.exit(1);
     }
 
     try {
-      const res = await inspectDocx(docxPath, outPath, compact);
+      const res = await inspectDoc(filePath, outPath, compact);
       if (outPath) {
-        const synthetic = formatInspectDocxSyntheticResult(
-          docxPath,
+        const synthetic = formatInspectDocSyntheticResult(
+          filePath,
           resolve(outPath),
           res
         );

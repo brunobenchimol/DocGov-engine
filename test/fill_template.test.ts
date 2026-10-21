@@ -518,12 +518,12 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
 
     expect(result.next_step_hint).toContain("Documento compilado e visão linear de auditoria gerada automaticamente em");
     expect(result.next_step_hint).toContain("visao_auditoria_ETP_Final.md");
-    expect(result.next_step_hint).toContain("Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).");
+    expect(result.next_step_hint).toContain("Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).");
 
     const synthetic = formatFillDocxTemplateSyntheticResult(result);
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.6");
+    expect(synthetic.engine_version).toBe("1.0.0");
     expect(synthetic.outputPath).toContain("ETP_Final.docx");
     expect(synthetic.inspection_path).toContain("inspecao_ETP_Final.json");
     expect(synthetic.visao_auditoria_path).toContain("visao_auditoria_ETP_Final.md");
@@ -547,12 +547,12 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     expect(resultNoInspect.visao_auditoria_path).toBeUndefined();
     expect(existsSync(resolve(stateDir, "inspecao_ETP_NoInspect.json"))).toBe(false);
     expect(existsSync(resolve(stateDir, "visao_auditoria_ETP_NoInspect.md"))).toBe(false);
-    expect(resultNoInspect.next_step_hint).toContain("inspect_docx");
+    expect(resultNoInspect.next_step_hint).toContain("inspect_doc");
 
     const syntheticNoInspect = formatFillDocxTemplateSyntheticResult(resultNoInspect);
     expect(syntheticNoInspect.status).toBe("success");
     expect(syntheticNoInspect.engine_version).toBe(VERSION);
-    expect(syntheticNoInspect.engine_version).toBe("0.9.6");
+    expect(syntheticNoInspect.engine_version).toBe("1.0.0");
     expect(syntheticNoInspect.inspection_path).toBeUndefined();
     expect(syntheticNoInspect.visao_auditoria_path).toBeUndefined();
     expect(Buffer.byteLength(JSON.stringify(syntheticNoInspect), "utf-8")).toBeLessThan(1024);

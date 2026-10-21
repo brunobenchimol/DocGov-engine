@@ -659,19 +659,22 @@ export function formatBootstrapCaseSyntheticResult(
           : res.backgroundCopy.status,
       message:
         res.backgroundFiles.length > 0
-          ? "Salvaguarda ativa em segundo plano."
-          : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
+          ? "Salvaguarda ativa em 2º plano."
+          : "Sem pendências.",
     },
     next_step_hint:
-      "Estrutura criada. Elabore o slots_manifest.json para 'build_docx_template'.",
+      "Estrutura pronta. Elabore slots_manifest.json e chame build_docx_template.",
   });
 
   let result = buildResult(4, true, docxLimit, pdfLimit);
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1015) {
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 920) {
     result = buildResult(4, false, 0, 0);
   }
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1015) {
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 990) {
     result = buildResult(2, false, 0, 0);
+  }
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1015) {
+    result = buildResult(1, false, 0, 0);
   }
 
   return result;

@@ -14,7 +14,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
   test("deve implementar as 4 camadas nativas de Autodescoberta (Self-Discovery) no servidor MCP (v0.4.0)", () => {
     // 1. Camada 1: instructions contendo pipeline canônico e sintaxe
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("1. **bootstrap_case**");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("2. **inspect_docx**");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("2. **inspect_doc**");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("3. **build_docx_template**");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("4. **fill_docx_template**");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("5. **generate_audit_docx**");
@@ -29,7 +29,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toEqual([
       "bootstrap_case",
-      "inspect_docx",
+      "inspect_doc",
       "build_docx_template",
       "fill_docx_template",
       "generate_audit_docx",
@@ -103,7 +103,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("unflatten");
 
     const tools = getMcpToolsDefinition();
-    const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
+    const inspectTool = tools.find((t) => t.name === "inspect_doc")!;
     expect(inspectTool.description).toContain("toc_map");
     expect(inspectTool.description).toContain("toc_summary");
 
@@ -114,9 +114,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.9.6 e novos recursos v0.9.6 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.9.6");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.6");
+  test("deve expor versão 1.0.0 e novos recursos v1.0.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.0.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.0.0");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
@@ -138,7 +138,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Índice Cartográfico Mestre Unificado");
 
     const tools = getMcpToolsDefinition();
-    const inspectTool = tools.find((t) => t.name === "inspect_docx")!;
+    const inspectTool = tools.find((t) => t.name === "inspect_doc")!;
     expect(inspectTool.description).toContain("structure_fingerprint");
     expect(inspectTool.description).toContain("created_at");
     expect(inspectTool.description).toContain("Auto-Offset");
@@ -184,9 +184,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.6)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.0.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.6)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.0.0)");
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
@@ -202,7 +202,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).not.toContain("Ritual de Qualidade e Release");
 
     expect(spec).toContain("2.1. bootstrap_case");
-    expect(spec).toContain("2.2. inspect_docx");
+    expect(spec).toContain("2.2. inspect_doc");
     expect(spec).toContain("2.3. build_docx_template");
     expect(spec).toContain("2.4. fill_docx_template");
     expect(spec).toContain("2.5. generate_audit_docx");
@@ -235,6 +235,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
 
     // Ferramentas do Pipeline
     expect(typeof barrel.bootstrapCase).toBe("function");
+    expect(typeof barrel.inspectDoc).toBe("function");
     expect(typeof barrel.inspectDocx).toBe("function");
     expect(typeof barrel.buildDocxTemplate).toBe("function");
     expect(typeof barrel.processDocument).toBe("function");
@@ -296,6 +297,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.9.6");
+    expect(barrel.VERSION).toBe("1.0.0");
   });
 });

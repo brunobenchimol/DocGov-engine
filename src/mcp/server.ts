@@ -17,7 +17,9 @@ import {
   formatBootstrapCaseSyntheticResult,
 } from "../tools/bootstrap.ts";
 import {
+  inspectDoc,
   inspectDocx,
+  formatInspectDocSyntheticResult,
   formatInspectDocxSyntheticResult,
 } from "../tools/inspect.ts";
 import {
@@ -42,7 +44,7 @@ export function getMcpPromptsDefinition() {
     {
       name: "docx_workflow_guide",
       description:
-        "Guia canônico e manual de arquitetura do docgov-docx: ordem do pipeline (1..5), sintaxe de tags, estrutura do slots_manifest.json e boas práticas de injeção.",
+        "Guia canônico e manual de arquitetura do docgov-engine: ordem do pipeline (1..5), sintaxe de tags, estrutura do slots_manifest.json e boas práticas de injeção.",
       arguments: [],
     },
   ];
@@ -55,7 +57,7 @@ export function getMcpToolsDefinition() {
       description:
         "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx e .pdf (validando Magic Bytes %PDF-) em inputs/, detectando páginas escaneadas como imagem ('scanned_pages_detected'), salvando mapas estruturais em state/estrutura_<nome>.json, visões lineares em state/visao_auditoria_<nome>.md com Cartografia Estrutural (outline_headings, page_signals) e Radar das 14 Zonas de Impugnação (Z1..Z14), dossiês cirúrgicos em state/dossie_hotspots_<nome>.md e consolidando o Índice Cartográfico Mestre Unificado em state/indice_mestre_caso.md.\n" +
         "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
-        "- Pós-condição & Próximo Passo: Pastas criadas, arquivos batizados e documentos .docx/.pdf inspecionados. Próximo passo recomendado: ler 'state/indice_mestre_caso.md' ou 'state/visao_auditoria_<nome>.md', inspecionar detalhes adicionais com 'inspect_docx' ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
+        "- Pós-condição & Próximo Passo: Pastas criadas, arquivos batizados e documentos .docx/.pdf inspecionados. Próximo passo recomendado: ler 'state/indice_mestre_caso.md' ou 'state/visao_auditoria_<nome>.md', inspecionar detalhes adicionais com 'inspect_doc' ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
       inputSchema: {
         type: "object",
         required: ["caseDir"],
@@ -87,19 +89,24 @@ export function getMcpToolsDefinition() {
       },
     },
     {
-      name: "inspect_docx",
+      name: "inspect_doc",
       description:
-        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx) ou PDF (.pdf com agrupamento Y e separação de colunas por ' | '), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z14), detectando páginas escaneadas como imagem ('scanned_pages_detected'), gerando o dossiê executivo de pontos quentes ('dossie_hotspots_<nome>.md' com contexto expandido ±12 linhas), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z14 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB).\n" +
+        "Realiza a engenharia reversa estrutural completa de um arquivo Word (.docx) ou PDF (.pdf com agrupamento Y e separação de colunas por ' | '), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z14), detectando páginas escaneadas como imagem ('scanned_pages_detected'), gerando o dossiê executivo de pontos quentes ('dossie_hotspots_<nome>.md' com contexto expandido ±12 linhas), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z14 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB, margem de segurança < 920 bytes).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para inspecionar um arquivo .docx ou .pdf específico, descobrir os índices exatos ou reaproveitar templates do cache global, OU após 'fill_docx_template' sobre o arquivo gerado em output/.\n" +
         "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural com toc_map/cartografia, o markdown 'visao_auditoria_<nome>.md' e o dossiê 'dossie_hotspots_<nome>.md'. Se template_match for EXACT ou MODIFIED, informe a data do cache ao usuário no Gate 1 e chame 'build_docx_template'; se NEW ou PDF, leia o dossiê de hotspots, a visão de auditoria ou elabore o slots_manifest.json.",
       inputSchema: {
         type: "object",
-        required: ["docxPath"],
+        required: ["filePath"],
         properties: {
-          docxPath: {
+          filePath: {
             type: "string",
             description:
               "Caminho absoluto ou relativo do arquivo Word (.docx) ou PDF (.pdf) a ser inspecionado (ex.: 'C:/workspace/cases/caso_exemplo/inputs/edital.pdf' ou 'C:/workspace/cases/caso_exemplo/inputs/modelo_etp.docx').",
+          },
+          docxPath: {
+            type: "string",
+            description:
+              "Alias retrocompatível para filePath (caminho do arquivo .docx ou .pdf).",
           },
           outputPath: {
             type: "string",
@@ -123,7 +130,7 @@ export function getMcpToolsDefinition() {
       name: "build_docx_template",
       description:
         "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', aliases ('col_index', 'paragraph_index'), validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.2).\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_docx' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
+        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_doc' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
         "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
         type: "object",
@@ -167,7 +174,7 @@ export function getMcpToolsDefinition() {
       description:
         "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível via Motor Híbrido v0.7.0 (word/numbering.xml + <w:numPr> com startOverride fora de tabelas e Hanging Indent com <w:tab/> dentro de tabelas).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
-        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_docx novamente).",
+        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).",
       inputSchema: {
         type: "object",
         required: ["templatePath", "statePath", "outputPath"],
@@ -245,7 +252,7 @@ export function getMcpToolsDefinition() {
 
 export async function runMcpServer() {
   const server = new Server(
-    { name: "docgov-docx-engine", version: VERSION },
+    { name: "docgov-engine", version: VERSION },
     {
       capabilities: {
         tools: {},
@@ -265,7 +272,7 @@ export async function runMcpServer() {
     const promptName = request.params.name;
     if (promptName === "docx_workflow_guide") {
       return {
-        description: "Guia Canônico do Ciclo de Vida docgov-docx",
+        description: "Guia Canônico do Ciclo de Vida docgov-engine",
         messages: [
           {
             role: "user",
@@ -309,26 +316,31 @@ export async function runMcpServer() {
         };
       }
 
-      if (toolName === "inspect_docx") {
-        const { docxPath, outputPath, compact } = request.params.arguments as {
-          docxPath: string;
+      if (toolName === "inspect_doc" || toolName === "inspect_docx") {
+        const args = (request.params.arguments || {}) as {
+          filePath?: string;
+          docxPath?: string;
           outputPath?: string;
           compact?: boolean;
         };
-        const resolvedDocx = resolve(docxPath);
-        const docStem = basename(resolvedDocx).replace(/\.(?:docx|pdf)$/i, "");
-        const effectiveOutputPath = outputPath
-          ? resolve(outputPath)
-          : resolve(dirname(resolvedDocx), `estrutura_${docStem}.json`);
+        const rawPath = args.filePath || args.docxPath;
+        if (!rawPath) {
+          throw new Error("Parâmetro obrigatório 'filePath' não fornecido para inspect_doc.");
+        }
+        const resolvedDoc = resolve(rawPath);
+        const docStem = basename(resolvedDoc).replace(/\.(?:docx|pdf)$/i, "");
+        const effectiveOutputPath = args.outputPath
+          ? resolve(args.outputPath)
+          : resolve(dirname(resolvedDoc), `estrutura_${docStem}.json`);
 
-        const inspection = await inspectDocx(
-          resolvedDocx,
+        const inspection = await inspectDoc(
+          resolvedDoc,
           effectiveOutputPath,
-          compact !== false
+          args.compact !== false
         );
 
-        const synthetic = formatInspectDocxSyntheticResult(
-          docxPath,
+        const synthetic = formatInspectDocSyntheticResult(
+          rawPath,
           effectiveOutputPath,
           inspection
         );

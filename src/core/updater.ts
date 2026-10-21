@@ -33,6 +33,12 @@ export function compareSemver(current: string, latest: string): number {
 
 export function getPlatformAssetName(platform: string = process.platform): string {
   return platform === "win32"
+    ? "docgov-engine-win-x64.exe"
+    : "docgov-engine-linux-x64";
+}
+
+export function getLegacyPlatformAssetName(platform: string = process.platform): string {
+  return platform === "win32"
     ? "docgov-docx-windows-x64.exe"
     : "docgov-docx-linux-x64";
 }
@@ -50,8 +56,8 @@ export function resolveSelfBinaryPath(customTargetPath?: string): string {
   ) {
     return resolve(
       process.platform === "win32"
-        ? "./bin/docgov-docx.exe"
-        : "./bin/docgov-docx"
+        ? "./bin/docgov-engine.exe"
+        : "./bin/docgov-engine"
     );
   }
   return resolve(process.execPath);
@@ -78,6 +84,7 @@ export async function fetchLatestReleaseInfo(
   assetName: string;
 }> {
   const assetName = getPlatformAssetName();
+  const legacyAssetName = getLegacyPlatformAssetName();
 
   // Tentativa 1: API oficial do GitHub
   try {
@@ -85,7 +92,7 @@ export async function fetchLatestReleaseInfo(
       `https://api.github.com/repos/${repo}/releases/latest`,
       {
         headers: {
-          "User-Agent": `docgov-docx-engine/${VERSION}`,
+          "User-Agent": `docgov-engine/${VERSION}`,
           Accept: "application/vnd.github+json",
         },
       }
@@ -99,11 +106,14 @@ export async function fetchLatestReleaseInfo(
       if (data.tag_name) {
         const tag = data.tag_name;
         const version = tag.replace(/^v/i, "");
-        const matchedAsset = data.assets?.find((a) => a.name === assetName);
+        const matchedAsset =
+          data.assets?.find((a) => a.name === assetName) ||
+          data.assets?.find((a) => a.name === legacyAssetName);
+        const resolvedAssetName = matchedAsset ? matchedAsset.name : assetName;
         const downloadUrl =
           matchedAsset?.browser_download_url ??
-          `https://github.com/${repo}/releases/download/${tag}/${assetName}`;
-        return { tag, version, downloadUrl, assetName };
+          `https://github.com/${repo}/releases/download/${tag}/${resolvedAssetName}`;
+        return { tag, version, downloadUrl, assetName: resolvedAssetName };
       }
     }
   } catch {
@@ -116,7 +126,7 @@ export async function fetchLatestReleaseInfo(
     {
       redirect: "follow",
       headers: {
-        "User-Agent": `docgov-docx-engine/${VERSION}`,
+        "User-Agent": `docgov-engine/${VERSION}`,
       },
     }
   );
@@ -240,7 +250,7 @@ export async function selfUpdate(
 
   if (options.checkOnly) {
     const msg = updateAvailable
-      ? `Nova versão disponível: v${latest.version} (atual: v${VERSION}). Execute 'docgov-docx --update' para atualizar.`
+      ? `Nova versão disponível: v${latest.version} (atual: v${VERSION}). Execute 'docgov-engine --update' para atualizar.`
       : `Você já está na versão mais recente (v${VERSION}).`;
     return {
       updated: false,
@@ -269,7 +279,7 @@ export async function selfUpdate(
   const res = await fetch(latest.downloadUrl, {
     redirect: "follow",
     headers: {
-      "User-Agent": `docgov-docx-engine/${VERSION}`,
+      "User-Agent": `docgov-engine/${VERSION}`,
     },
   });
 

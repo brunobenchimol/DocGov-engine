@@ -427,10 +427,11 @@ export interface BootstrapCaseSyntheticResult {
   next_step_hint: string;
 }
 
-export interface InspectDocxSyntheticResult {
+export interface InspectDocSyntheticResult {
   status: "success";
   engine_version: string;
-  docxPath: string;
+  filePath: string;
+  docxPath?: string;
   outputPath: string;
   doc_type?: "docx" | "pdf";
   page_count?: number;
@@ -449,6 +450,8 @@ export interface InspectDocxSyntheticResult {
   }>;
   next_step_hint: string;
 }
+
+export type InspectDocxSyntheticResult = InspectDocSyntheticResult;
 
 export interface BuildDocxTemplateSyntheticResult {
   status: "success";

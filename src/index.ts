@@ -1,5 +1,5 @@
 // ============================================================================
-// docgov-docx-engine — Facade Principal & Entrypoint
+// docgov-engine — Facade Principal & Entrypoint
 // ============================================================================
 
 // 1. Constantes de Governança e Autodescoberta
@@ -57,6 +57,7 @@ if (import.meta.main) {
     args.includes("--internal-bg-copy") ||
     args.includes("--bootstrap-case") ||
     args.includes("--inspect") ||
+    args.includes("--file") ||
     args.includes("--build-template") ||
     args.includes("--inject") ||
     args.includes("--template") ||
