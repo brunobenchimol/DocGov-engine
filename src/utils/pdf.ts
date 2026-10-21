@@ -204,12 +204,14 @@ export interface RawPdfTextItem {
   y: number;
   width: number;
   height: number;
+  fontSize: number;
 }
 
 /**
- * Reconstrução Espacial de Linhas e Colunas em PDF (Y-Axis Line Grouping v0.9.0):
- * Agrupa itens pela coordenada vertical (y) com tolerância fina, ordena horizontalmente
- * por (x) e detecta colunas distintas de tabelas/planilhas separando-as por ' | '.
+ * Reconstrução Espacial de Linhas e Colunas em PDF (Y-Axis Line Grouping v0.9.0 / v0.9.6):
+ * Agrupa itens pela coordenada vertical (y) com tolerância fina (deltaY <= 2.5pt),
+ * ordena horizontalmente por (x) e detecta colunas distintas de tabelas/planilhas
+ * separando-as por ' | ' com suporte resiliente a Y-jitter e tokens curtos.
  */
 export function reconstructLinesFromTextItems(
   items: Array<any>,
@@ -230,12 +232,16 @@ export function reconstructLinesFromTextItems(
       Array.isArray(raw.transform) && typeof raw.transform[5] === "number"
         ? raw.transform[5]
         : 0;
+    const fontSize =
+      typeof raw.height === "number" && raw.height > 0
+        ? raw.height
+        : (Array.isArray(raw.transform) && Math.abs(raw.transform[0])) || 10;
     const width =
       typeof raw.width === "number" && raw.width > 0
         ? raw.width
-        : raw.str.length * 6;
+        : raw.str.length * fontSize * 0.55;
     const height =
-      typeof raw.height === "number" && raw.height > 0 ? raw.height : 10;
+      typeof raw.height === "number" && raw.height > 0 ? raw.height : fontSize;
 
     validItems.push({
       str: raw.str,
@@ -243,6 +249,7 @@ export function reconstructLinesFromTextItems(
       y,
       width,
       height,
+      fontSize,
     });
   }
 
@@ -257,6 +264,7 @@ export function reconstructLinesFromTextItems(
   });
 
   interface LineCluster {
+    anchorY: number;
     avgY: number;
     items: RawPdfTextItem[];
   }
@@ -266,7 +274,7 @@ export function reconstructLinesFromTextItems(
   for (const it of validItems) {
     let matchedCluster: LineCluster | null = null;
     for (const c of clusters) {
-      if (Math.abs(c.avgY - it.y) <= yTolerance) {
+      if (Math.abs(c.anchorY - it.y) <= yTolerance) {
         matchedCluster = c;
         break;
       }
@@ -278,6 +286,7 @@ export function reconstructLinesFromTextItems(
       matchedCluster.avgY = (matchedCluster.avgY * (n - 1) + it.y) / n;
     } else {
       clusters.push({
+        anchorY: it.y,
         avgY: it.y,
         items: [it],
       });
@@ -313,14 +322,25 @@ export function reconstructLinesFromTextItems(
       if (!prevItem) {
         lineText = itemStr;
       } else {
-        const prevEnd = prevItem.x + prevItem.width;
+        const estimatedPrevWidth = Math.max(
+          1,
+          prevItem.str.length * prevItem.fontSize * 0.55
+        );
+        const effectivePrevWidth =
+          prevItem.width > 0
+            ? Math.min(prevItem.width, estimatedPrevWidth)
+            : estimatedPrevWidth;
+
+        const prevEnd = prevItem.x + effectivePrevWidth;
         const gap = item.x - prevEnd;
+        const deltaX = item.x - prevItem.x;
 
         const prevTrimmed = lineText.trim();
         const currTrimmed = itemStr.trim();
 
+        const isShortToken = prevItem.str.trim().length <= 4;
         const isColumnGutter =
-          gap >= colGapThreshold &&
+          (gap >= colGapThreshold || (isShortToken && deltaX >= 35)) &&
           prevTrimmed.length > 0 &&
           currTrimmed.length > 0;
 
