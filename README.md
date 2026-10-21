@@ -1,4 +1,4 @@
-# docgov-docx-engine — Motor Standalone `.docx` / `.pdf` & Servidor MCP (`v0.9.5`)
+# docgov-docx-engine — Motor Standalone `.docx` / `.pdf` & Servidor MCP (`v0.9.6`)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -36,9 +36,16 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v0.9.5` (Marco 2) e `v0.9.0` (Marco 1)
+## 2. Destaques da Versão `v0.9.6` (Patch de Conformidade Black-Box) e Marcos Anteriores
 
-As versões `v0.9.0` e `v0.9.5` consolidam o motor tanto para **auditoria profunda e leitura de PDFs complexos** quanto para **geração e exportação de alta fidelidade visual para PDF**:
+A versão **`v0.9.6`** consolida a conformidade estrita do motor com a suíte de certificação black-box `.NET` (`DocGov.EngineTests` Asserts 12 e 13), resolvendo 5 violações de contrato:
+
+### Novidades e Correções da `v0.9.6` — Conformidade Contratual Black-Box
+1. **CORR-01 (Cartografia e Dossiê Hotspots):** Desacoplamento de `page_signals` dos gatilhos de contexto no `dossie_hotspots_<stem>.md`. A Linha 1 não vira mais `ALVO` falso e linhas introdutórias distantes (`L01..L08`) não vazam mais no recorte cirúrgico de $\pm 12$ linhas quando o hotspot real está em linhas posteriores.
+2. **CORR-02 (Reconstrução Espacial de Tabela com Y-Jitter):** Tolerância a micro-variações no eixo vertical ($\Delta Y \le 2.5\text{pt}$) com preservação estrita do separador colunar ` | ` entre todas as células de tabelas e planilhas.
+3. **CORR-03 (Ordenação X e Gutter de Tokens Curtos):** Clamping de largura segura (`effectiveWidth`) para tokens curtos (`01`, `02`, `UN`), garantindo que a distância horizontal até a próxima coluna não seja engolida e que itens fora de ordem no stream PDF sejam separados por ` | `.
+4. **CORR-04 (Modo Exclusivo PDF sem Sobrescrita ZIP):** Resolução canônica de caminhos (`resolveOutputPaths`), isolamento de DOCX temporário (`__tmp_*.docx`) removido confiavelmente após compilação e eliminação definitiva de extensões duplicadas (`.pdf.pdf`).
+5. **CORR-05 (Liberação Determinística Word COM e Resiliência contra File Locks):** Liberação de handles COM (`$doc` e `$word`) no script PowerShell com `ReleaseComObject` e `GC::WaitForPendingFinalizers`, acompanhado de rotina de remoção com retries e backoff (`safeUnlink`) contra locks temporários no Windows.
 
 ### Novidades da `v0.9.5` — Exportação Híbrida DOCX $\rightarrow$ PDF e Relatórios
 1. **Pipeline Híbrido de Conversão DOCX para PDF (`src/utils/pdf_exporter.ts`):**
@@ -70,7 +77,7 @@ As versões `v0.9.0` e `v0.9.5` consolidam o motor tanto para **auditoria profun
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v0.9.5`):** Inclusão mandatória do campo `"engine_version": "0.9.5"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v0.9.6`):** Inclusão mandatória do campo `"engine_version": "0.9.6"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_docx`, `bootstrap_case`).
 4. **Motor Híbrido de Lista Multinível Nativa (`v0.7.0`):**

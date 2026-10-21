@@ -47,6 +47,17 @@
 
 ---
 
+## ✅ MARCO 2.1 — `v0.9.6`: Patch de Conformidade Contratual Black-Box (.NET Asserts 12 & 13) [CONCLUÍDO]
+*(Correção estrita das 5 violações de contrato identificadas pela suíte Black-Box Certification Suite antes da v1.0.0).*
+
+- [x] **CORR-01 (Cartografia / Dossiê Hotspots):** Desacoplamento de `page_signals` dos gatilhos do Bloco 2 no `dossie_hotspots_<stem>.md`. Linha 1 (`[PAG_001 | L0001]`) não vira mais `ALVO` indevido e linhas introdutórias distantes (`L01..L08`) não vazam mais no recorte cirúrgico quando o hotspot real está em linhas posteriores (ex.: Linha 22).
+- [x] **CORR-02 (Reconstrução Espacial de Tabela PDF com Y-Jitter):** Agrupamento vertical estável ($\Delta Y \le 2.5\text{pt}$) preservando o separador colunar ` | ` entre todas as colunas mesmo com micro-variação vertical no PDF.
+- [x] **CORR-03 (Ordenação X e Gutter de Tokens Curtos em PDF):** Ordenação estrita por $X$ crescente e clamping de largura segura (`effectiveWidth`) para tokens curtos (`01`, `02`, `UN`), garantindo que não engulam o gutter horizontal até a próxima coluna.
+- [x] **CORR-04 (Modo Exclusivo PDF sem Resíduo ZIP):** Função utilitária canônica `resolveOutputPaths` evitando extensões duplicadas (`.pdf.pdf`) e isolando o DOCX intermediário em arquivo temporário (`__tmp_*.docx`), removido confiavelmente no `finally`.
+- [x] **CORR-05 (Liberação Determinística Word COM & File Locks):** Liberação expressa de referências COM (`$doc` e `$word`) no script PowerShell com `ReleaseComObject` + `GC::WaitForPendingFinalizers` e rotina de deleção resiliente `safeUnlink` contra file locks intermitentes no Windows.
+
+---
+
 ## 🚀 MARCO 3 — `v1.0.0`: O Grande Corte Limpo (`Clean Cut Refactoring` para `docgov-engine`) [PRÓXIMO PASSO]
 *(Breaking Change planejado: executado de uma só vez após a certificação integral dos Marcos 1 e 2).*
 

@@ -24,7 +24,7 @@ import {
 } from "../src/index.ts";
 import { createSampleRawDocx } from "./helpers/fixtures.ts";
 
-describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
+describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5 / v0.9.6: engine_version e Teto Estrito MCP (< 1024 bytes) nas 5 Ferramentas", () => {
   test("1. bootstrap_case deve conter 'engine_version' na raiz e payload < 1024 bytes", () => {
     const synthetic = formatBootstrapCaseSyntheticResult(
       {
@@ -58,7 +58,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -115,7 +115,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -142,7 +142,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -162,7 +162,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -178,7 +178,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic).toHaveProperty("engine_version");
     expect(synthetic.next_step_hint).toContain("Ciclo de auditoria concluído");
 
@@ -187,7 +187,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
       outputPath: "output/Relatorio_Auditoria_DFD.docx",
       message: "Relatório de Auditoria (.docx) gerado com sucesso em: output/Relatorio_Auditoria_DFD.docx",
     });
-    expect(aliasSynthetic.engine_version).toBe("0.9.5");
+    expect(aliasSynthetic.engine_version).toBe("0.9.6");
 
     const json = JSON.stringify(synthetic, null, 2);
     const bytes = Buffer.byteLength(json, "utf-8");
@@ -236,7 +236,7 @@ describe("Testes Unitários v0.8.0 / v0.8.1 / v0.9.0 / v0.9.5: engine_version e 
 
     expect(payloads.length).toBe(5);
     for (const p of payloads) {
-      expect(p.engine_version).toBe("0.9.5");
+      expect(p.engine_version).toBe("0.9.6");
       expect(p.engine_version).toBe(VERSION);
       expect(p.status).toBe("success");
       const bytes = Buffer.byteLength(JSON.stringify(p, null, 2), "utf-8");
@@ -692,7 +692,7 @@ describe("Testes Unitários e E2E v0.8.1 / v0.9.0: Suporte Nativo a PDF, Cartogr
       outJsonPath,
       result
     );
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     expect(synthetic.doc_type).toBe("pdf");
     expect(synthetic.page_count).toBe(3);
     expect(synthetic.line_count).toBe(22);
@@ -751,7 +751,7 @@ describe("Testes Unitários e E2E v0.8.1 / v0.9.0: Suporte Nativo a PDF, Cartogr
       res,
       "cases/caso_licitacao_pdf"
     );
-    expect(synthetic.engine_version).toBe("0.9.5");
+    expect(synthetic.engine_version).toBe("0.9.6");
     const bytes = Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8");
     expect(bytes).toBeLessThan(1024);
   });
@@ -780,7 +780,7 @@ describe("Testes Unitários e E2E v0.8.1 / v0.9.0: Suporte Nativo a PDF, Cartogr
 
     const parsed = JSON.parse(stdout);
     expect(parsed.status).toBe("success");
-    expect(parsed.engine_version).toBe("0.9.5");
+    expect(parsed.engine_version).toBe("0.9.6");
     expect(parsed.doc_type).toBe("pdf");
     expect(parsed.page_count).toBe(3);
     expect(parsed.line_count).toBe(22);

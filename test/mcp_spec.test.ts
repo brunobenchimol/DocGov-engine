@@ -114,9 +114,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 0.9.5 e novos recursos v0.9.5 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("0.9.5");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.5");
+  test("deve expor versão 0.9.6 e novos recursos v0.9.6 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("0.9.6");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v0.9.6");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
@@ -184,10 +184,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.5)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v0.9.6)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.5)");
-    expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF (v0.9.5)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-docx-engine (v0.9.6)");
+    expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -287,12 +287,15 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.convertViaWordCom).toBe("function");
     expect(typeof barrel.convertViaPureJs).toBe("function");
     expect(typeof barrel.sanitizeTextForPdf).toBe("function");
+    expect(typeof barrel.resolveOutputPaths).toBe("function");
+    expect(typeof barrel.safeUnlink).toBe("function");
+    expect(typeof barrel.safeUnlinkSync).toBe("function");
 
     // Contratos de Erro
     expect(typeof barrel.createSlotsManifestContractError).toBe("function");
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("0.9.5");
+    expect(barrel.VERSION).toBe("0.9.6");
   });
 });
