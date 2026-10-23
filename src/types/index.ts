@@ -199,6 +199,8 @@ export interface DocxInspectionResult {
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
   tables: TableInfo[];
+  budget_audit?: BudgetAuditReport;
+  diff_result?: StructuralDiffResult;
 }
 
 export interface ReplaceParagraphRule {
@@ -448,6 +450,19 @@ export interface InspectDocSyntheticResult {
     title: string;
     target?: string;
   }>;
+  budget_audit?: {
+    tables_checked: number;
+    items_checked: number;
+    math_errors: number;
+    rounding_warnings: number;
+    divergence?: string;
+  };
+  diff_summary?: {
+    added: number;
+    removed: number;
+    modified: number;
+    report?: string;
+  };
   next_step_hint: string;
 }
 
@@ -549,4 +564,105 @@ export interface AuditReportData {
   apontamentos?: AuditFinding[];
   [key: string]: any;
 }
+
+// ============================================================================
+// Auditoria Matemática Determinística de Planilhas Orçamentárias (v1.1.0)
+// ============================================================================
+
+export type BudgetDiscrepancySeverity = "MATH_ERROR" | "ROUNDING_WARNING";
+
+export interface BudgetItemAudit {
+  item_number?: string;
+  description: string;
+  coord: string; // Ex: "[T0.R2.C4]" ou "[PAG_002 | L0015]"
+  quantity: number;
+  quantity_raw: string;
+  unit_cents: number;
+  unit_raw: string;
+  declared_total_cents: number;
+  declared_total_raw: string;
+  expected_total_cents: number;
+  diff_cents: number;
+  discrepancy_severity?: BudgetDiscrepancySeverity;
+  formatted_diff?: string;
+  has_error: boolean;
+}
+
+export interface BudgetTableAudit {
+  table_coord: string; // Ex: "T0" ou "PAG_002"
+  header_sample: string[];
+  total_items: number;
+  items_with_math_errors: number;
+  items_with_rounding_warnings: number;
+  items: BudgetItemAudit[];
+  sum_declared_cents: number;
+  sum_expected_cents: number;
+  table_declared_total_row_cents?: number;
+  table_declared_total_row_raw?: string;
+  table_total_discrepancy_cents?: number;
+  table_total_discrepancy_severity?: BudgetDiscrepancySeverity;
+}
+
+export interface BudgetTextCrossCheck {
+  text_coord: string;
+  snippet: string;
+  text_value_cents: number;
+  text_value_raw: string;
+  table_sum_cents: number;
+  diff_cents: number;
+  discrepancy_severity: BudgetDiscrepancySeverity;
+}
+
+export interface BudgetAuditReport {
+  has_budget_table: boolean;
+  tables_checked: number;
+  total_items_checked: number;
+  math_errors_count: number;
+  rounding_warnings_count: number;
+  total_declared_cents: number;
+  total_expected_cents: number;
+  net_divergence_cents: number;
+  tables: BudgetTableAudit[];
+  text_cross_checks: BudgetTextCrossCheck[];
+}
+
+// ============================================================================
+// Diff Estrutural e Semântico Multi-Versão (v1.1.0)
+// ============================================================================
+
+export type StructuralDiffChangeType = "ADDED" | "REMOVED" | "MODIFIED" | "UNCHANGED";
+
+export interface StructuralDiffItem {
+  change_type: StructuralDiffChangeType;
+  coord_old?: string;
+  coord_new?: string;
+  section_title?: string;
+  old_text?: string;
+  new_text?: string;
+  inline_diff?: string; // Destaque: ~~antigo~~ -> **novo**
+}
+
+export interface ZoneDeltaReport {
+  zone_id: ImpugnationZoneId;
+  zone_title: string;
+  status: "INTRODUCED" | "RESOLVED" | "RETAINED";
+  old_occurrences_count: number;
+  new_occurrences_count: number;
+  details?: string;
+}
+
+export interface StructuralDiffResult {
+  old_path: string;
+  new_path: string;
+  old_type: "docx" | "pdf";
+  new_type: "docx" | "pdf";
+  total_added: number;
+  total_removed: number;
+  total_modified: number;
+  total_unchanged: number;
+  changes: StructuralDiffItem[];
+  zones_delta: ZoneDeltaReport[];
+  diff_report_path?: string;
+}
+
 
