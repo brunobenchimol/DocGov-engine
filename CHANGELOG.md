@@ -6,6 +6,14 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [Unreleased]
+
+### Adicionado
+- **Instituição da Lei 8 de Governança no `AGENTS.md`:** Adição da Lei 8 estabelecendo como requisito obrigatório a disciplina autônoma de micro-commits atômicos e semânticos (`feat`, `fix`, `test`, `docs`, `chore`), a garantia de reversibilidade cirúrgica (`git bisect`/`git revert`) e a manutenção proativa da memória evolutiva do projeto.
+- **Protocolo Operacional de Micro-Commits e Rastreabilidade Contínua:** Novo capítulo no [`AGENTS.md`](AGENTS.md) padronizando o fatiamento obrigatório de micro-commits em todo plano técnico (`/plan`), a exigência de testes 100% verdes por commit, o ritual contínuo entre `CHANGELOG.md` e `ROADMAP.md`, e o Definition of Done (DoD) global do motor.
+
+---
+
 ## [1.0.0] - 2026-10-21
 
 ### Adicionado

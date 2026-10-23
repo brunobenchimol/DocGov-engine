@@ -86,7 +86,7 @@
 
 ## 🛡️ Estatuto de Governança para Agentes IA
 
-Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente as **7 Leis Invioláveis de Engenharia** descritas no [`AGENTS.md`](AGENTS.md):
+Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente as **8 Leis Invioláveis de Engenharia** descritas no [`AGENTS.md`](AGENTS.md):
 1. **Runtime Bun & Portabilidade:** Sem caminhos locais absolutos.
 2. **Teto de Payload MCP (< 1024 bytes):** Margem segura recomendada `< 900 bytes`.
 3. **Exact Copy-Paste Error:** Fail-fast com snippet de autocorreção imediata.
@@ -94,3 +94,4 @@ Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente a
 5. **Neutralidade Institucional Absoluta:** Exclusivamente identificadores genéricos ou federais universais (`ORGAO_CONTRATANTE`, `MUNICIPIO_GENERICO`, `AGU`, `MGI`, `TCU`).
 6. **Resiliência de Caminhos e Cache Global:** Resolução desacoplada de `process.cwd()`.
 7. **Ritual de Qualidade e Release:** SemVer, aprovação em testes automatizados, tags anotadas e changelog atualizado.
+8. **Disciplina Autônoma de Micro-Commits & Memória:** Fatiamento em commits atômicos, testes por commit e sincronia contínua de `CHANGELOG.md` e `ROADMAP.md`.
