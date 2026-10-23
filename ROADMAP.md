@@ -2,35 +2,33 @@
 
 > **Memória Histórica:** Para o histórico consolidado de versões desde o commit inicial (`v0.0.1`) até o lançamento principal (`v1.0.0 — Clean Cut`), consulte o [CHANGELOG.md](CHANGELOG.md).
 > **Propósito deste Documento:** Fonte única da verdade sobre o planejamento arquitetural, evoluções funcionais e marcos estratégicos futuros do motor (`v1.1.0+`).
+> **Natureza Standalone & Desacoplada:** O `docgov-engine` é um motor autônomo e determinístico. Embora sirva como fundação para a camada de agentes do ecossistema `docgov`, ele possui ciclo próprio de evolução e pode ser utilizado de forma independente via CLI ou MCP por qualquer cliente, agente de IA ou pipeline automatizado.
 > **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao planejar ou concluir cada marco evolutivo.
 
 ---
 
-## 🎯 MARCO 4 — `v1.1.0`: Auditoria Matemática de Planilhas e Diff Estrutural Semântico
+## 🎯 MARCO 4 — `v1.1.0`: Auditoria Matemática de Planilhas Orçamentárias (`pdf` e `docx`)
 
-- [ ] **4.1. Auditoria Matemática Determinística de Planilhas Orçamentárias (`pdf` e `docx`):**
-  - **Parsing e Extração de Linhas de Itens:** Extrair com precisão linhas de tabelas contendo identificadores, descrições, quantidades, unidades de medida e valores monetários (`Item | Descrição | Unid | Qtd | Valor Unit | Valor Total`).
-  - **Validação Aritmética Determinística:**
-    - Verificar produto de cada item: $\text{Qtd} \times \text{Valor Unitário} = \text{Valor Total}$ (com tolerância configurável de arredondamento cambial/centavos $\le R\$\,0,02$).
-    - Verificar somatórios parciais de subtotais e soma global da planilha orçamentária.
-    - Identificar potenciais distorções em alíquotas de BDI (Bonificação e Despesas Indiretas), encargos sociais e custos unitários de referência (ex.: SINAPI / SICRO).
-  - **Emissão Estruturada de Inconsistências:**
-    - Persistir relatório detalhado em `state/auditoria_orcamentaria_<stem>.json`.
-    - Integrar alertas de erro de cálculo diretamente no `state/dossie_hotspots_<stem>.md` e na `state/visao_auditoria_<stem>.md`.
+- [ ] **4.1. Parsing e Extração Tabular de Linhas de Itens Orçamentários:**
+  - Extrair com precisão linhas de tabelas contendo identificadores, descrições, quantidades, unidades de medida e valores monetários (`Item | Descrição | Unid | Qtd | Valor Unit | Valor Total`).
+  - Normalização determinística de formatos numéricos brasileiros (`1.234,56`) e internacionais (`1,234.56`).
+
+- [ ] **4.2. Validação Aritmética Determinística:**
+  - Verificar produto de cada item: $\text{Qtd} \times \text{Valor Unitário} = \text{Valor Total}$ (com tolerância configurável de arredondamento de centavos $\le R\$\,0,02$).
+  - Verificar somatórios parciais de subtotais e soma global da planilha orçamentária.
+  - Identificar potenciais distorções em alíquotas de BDI (Bonificação e Despesas Indiretas), encargos sociais e custos unitários de referência (ex.: SINAPI / SICRO).
+
+- [ ] **4.3. Emissão Estruturada de Inconsistências Aritméticas:**
+  - Persistir relatório detalhado em `state/auditoria_orcamentaria_<stem>.json`.
+  - Integrar alertas de erro de cálculo diretamente no `state/dossie_hotspots_<stem>.md` e na `state/visao_auditoria_<stem>.md`.
   - **Payload Sintético MCP:** Expor métricas sintéticas compactas (`total_items_checked`, `arithmetic_errors_count`, `divergence_sum`) mantendo a resposta estritamente abaixo de 900 bytes (Lei 2).
 
-- [ ] **4.2. Diff Estrutural Semântico Multi-Versão (Comparador de Minutas e Editais Retificados):**
-  - **Comparação Estrutural de Documentos:**
-    - Analisar pares de documentos correlatos (ex.: `Edital_Original.pdf` vs. `Edital_Retificado.pdf` ou `Minuta_TR.docx` vs. `TR_Final.docx`).
-    - Detectar seções adicionadas, modificadas, removidas ou reordenadas com base no `toc_map` e índices cartográficos.
-  - **Rastreamento de Impacto nas 14 Zonas (`Z1` a `Z14`):**
-    - Alertar especificamente alterações que introduzam ou suprimam cláusulas sensíveis (ex.: alteração de prazos em `Z6`, inserção de marcas em `Z13`, alterações de qualificação técnica em `Z2`).
-  - **Emissão do Dossiê Comparativo:**
-    - Gerar automaticamente `state/diff_documental_<stemA>_vs_<stemB>.md` com marcações visuais claras de acréscimo (`[+]`) e supressão (`[-]`).
+- [ ] **4.4. Diff Estrutural Rápido de Documentos:**
+  - Comparação posicional de seções e títulos com base no `toc_map` entre versões sucessivas de minutas e editais retificados (`state/diff_estrutural_<stemA>_vs_<stemB>.md`).
 
 ---
 
-## 🎯 MARCO 5 — `v1.2.0`: Engenharia Tabular Avançada & Pipeline OCR Headless
+## 🎯 MARCO 5 — `v1.2.0`: Engenharia Tabular Avançada Multi-Página & Pipeline OCR Headless
 
 - [ ] **5.1. Extração Tabular Complexa Multi-Página com Quebras Estruturais:**
   - **Fusão Contínua de Cabeçalhos:** Detectar continuidade de tabelas que se estendem por múltiplas páginas consecutivas com repetição de cabeçalho.
@@ -47,15 +45,42 @@
 
 ---
 
-## 🎯 MARCO 6 — `v2.0.0`: Núcleo de Auditoria Contratual e Fiscalização Contínua
+## 🎯 MARCO 6 — `v1.3.0`: Motor de Diff Semântico, Evolução de Cláusulas e Nota Técnica Comparativa
 
-- [ ] **6.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
+- [ ] **6.1. Mapeamento de Evolução de Cláusulas e Histórico Cirúrgico ("Antes vs. Depois"):**
+  - Registro estruturado do ciclo de vida de alterações em slots e cláusulas durante o saneamento documental:
+    - *Slot ID / Coordenada da Cláusula;*
+    - *Redação Anterior (Original);*
+    - *Nova Redação Saneadora;*
+    - *Fundamentação Técnica e Justificativa Jurídica (Artigos da Lei 14.133/2021, Jurisprudência TCU, Pareceres AGU).*
+  - Cálculo de diff semântico e granular de texto (inserções, supressões e substituições parciais) com marcação visual clara (`[+]` / `[-]`).
+
+- [ ] **6.2. Geração da Nota Técnica Comparativa Padronizada (`.docx` e `.pdf`):**
+  - Emissão automatizada em `output/Nota_Tecnica_Evolucao_<Artefato>.docx` e `.pdf` contendo o quadro de alterações e a justificativa motivada.
+  - Layout formal de alta fidelidade visual para instrução de processo administrativo, submissão à Procuradoria / Consultoria Jurídica e órgãos de Controle Interno.
+  - Suporte completo via CLI (`docgov-engine --diff-report ...`) e ferramenta MCP especializada, alimentando nativamente o Workbench Mode do ecossistema consumidor.
+
+---
+
+## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua
+
+- [ ] **7.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
   - Cartografia pericial de instrumentos contratuais, vigências, garantias e termos aditivos de acréscimo/supressão.
-  - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços e 50% para reformas).
-- [ ] **6.2. Motor de Validação Cruzada Tripartite (Edital $\leftrightarrow$ Proposta Vencedora $\leftrightarrow$ Contrato):**
-  - Verificação de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada e as cláusulas pactuadas no contrato administrativo.
-- [ ] **6.3. Monitoramento e Histórico de Reajustes / Repactuações:**
+  - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços e 50% para reformas, conforme Lei nº 14.133/2021).
+
+- [ ] **7.2. Motor de Validação Cruzada Tripartite (Edital $\leftrightarrow$ Proposta Vencedora $\leftrightarrow$ Contrato):**
+  - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada e as cláusulas pactuadas no contrato administrativo.
+  - Detecção de desvios de objeto, itens suprimidos sem amparo e divergências de especificação técnica.
+
+- [ ] **7.3. Monitoramento e Histórico de Reajustes / Repactuações:**
   - Rastreamento de índices inflacionários contratuais (IPCA, INPC, IGP-M) e memória de cálculo de repactuação de mão de obra exclusiva.
+
+---
+
+## 🎯 VISÃO DE LONGO PRAZO / `v2.0.0` (Major Release Condicional)
+
+- Reservado estritamente para o momento em que houver **Breaking Changes** reais na API pública ou no protocolo MCP (ex.: redefinição arquitetural do padrão de ferramentas, quebra de contratos de slots ou descontinuação de comandos centrais), em estrita conformidade com o SemVer.
+- Até que haja necessidade de quebra de compatibilidade retroativa, todas as evoluções funcionais continuam sendo entregues de forma incremental e aditiva na série `v1.x`.
 
 ---
 
