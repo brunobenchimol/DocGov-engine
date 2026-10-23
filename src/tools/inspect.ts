@@ -29,6 +29,12 @@ import {
   renderCartographyMarkdownBlock,
   generateHotspotsDossierMarkdown,
 } from "../core/cartography.ts";
+import {
+  auditDocumentBudget,
+  injectBudgetAuditIntoImpugnationZones,
+  formatBudgetAuditMarkdownBlock,
+  formatCentsToCurrency,
+} from "../core/budget_auditor.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   BodyParagraphInfo,
@@ -416,6 +422,37 @@ export async function inspectDocx(
     const extraction = await extractPdfPages(buffer);
     const cartography = buildPdfCartography(extraction);
 
+    // Auditoria Matemática Orçamentária (v1.1.0)
+    const budgetAudit = auditDocumentBudget({ pdfLines: extraction.lines });
+    if (budgetAudit.has_budget_table) {
+      injectBudgetAuditIntoImpugnationZones(
+        budgetAudit,
+        cartography.impugnation_zones
+      );
+
+      const budgetOutDir = outputPath
+        ? dirname(resolve(outputPath))
+        : dirname(resolvedDocx);
+      const budgetBase = outputPath
+        ? basename(resolve(outputPath), ".json").replace(
+            /^(?:estrutura_|inspecao_)/,
+            ""
+          )
+        : basename(resolvedDocx).replace(/\.pdf$/i, "");
+      const budgetAuditPath = resolve(
+        budgetOutDir,
+        `auditoria_orcamentaria_${budgetBase}.json`
+      );
+      if (!existsSync(budgetOutDir)) {
+        mkdirSync(budgetOutDir, { recursive: true });
+      }
+      writeFileSync(
+        budgetAuditPath,
+        JSON.stringify(budgetAudit, null, 2),
+        "utf-8"
+      );
+    }
+
     let auditViewPath: string;
     if (outputPath) {
       const resolvedOut = resolve(outputPath);
@@ -431,11 +468,14 @@ export async function inspectDocx(
       auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
     }
 
-    const auditMd = generatePdfLinearAuditViewMarkdown(
+    let auditMd = generatePdfLinearAuditViewMarkdown(
       basename(resolvedDocx),
       extraction,
       cartography
     );
+    if (budgetAudit.has_budget_table) {
+      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    }
     const auditDir = dirname(auditViewPath);
     if (!existsSync(auditDir)) {
       mkdirSync(auditDir, { recursive: true });
@@ -458,11 +498,14 @@ export async function inspectDocx(
       dossieHotspotsPath = resolve(docDir, `dossie_hotspots_${docBase}.md`);
     }
 
-    const dossieMd = generateHotspotsDossierMarkdown(
+    let dossieMd = generateHotspotsDossierMarkdown(
       basename(resolvedDocx),
       extraction,
       cartography
     );
+    if (budgetAudit.has_budget_table) {
+      dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    }
     writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
 
     const toc_map: DocxTocMap = {
@@ -497,6 +540,7 @@ export async function inspectDocx(
       footers: [],
       paragraphs,
       tables: [],
+      ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
     };
 
     if (outputPath) {
@@ -619,6 +663,40 @@ export async function inspectDocx(
   const toc_map = buildTocMap(paragraphs, tables);
   const docxCartography = buildDocxCartography(paragraphs, tables, toc_map);
 
+  // Auditoria Matemática Orçamentária (v1.1.0)
+  const budgetAudit = auditDocumentBudget({
+    docxTables: tables,
+    docxParagraphs: paragraphs,
+  });
+  if (budgetAudit.has_budget_table) {
+    injectBudgetAuditIntoImpugnationZones(
+      budgetAudit,
+      docxCartography.impugnation_zones
+    );
+
+    const budgetOutDir = outputPath
+      ? dirname(resolve(outputPath))
+      : dirname(resolvedDocx);
+    const budgetBase = outputPath
+      ? basename(resolve(outputPath), ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        )
+      : basename(resolvedDocx, ".docx");
+    const budgetAuditPath = resolve(
+      budgetOutDir,
+      `auditoria_orcamentaria_${budgetBase}.json`
+    );
+    if (!existsSync(budgetOutDir)) {
+      mkdirSync(budgetOutDir, { recursive: true });
+    }
+    writeFileSync(
+      budgetAuditPath,
+      JSON.stringify(budgetAudit, null, 2),
+      "utf-8"
+    );
+  }
+
   const rawResult: DocxInspectionResult = {
     doc_type: "docx",
     outline_headings: docxCartography.outline_headings,
@@ -629,6 +707,7 @@ export async function inspectDocx(
     footers,
     paragraphs,
     tables,
+    ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
   };
 
   // Cálculo da Impressão Digital Estrutural (v0.6.0)
@@ -651,10 +730,13 @@ export async function inspectDocx(
     auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
   }
 
-  const auditMd = generateLinearAuditViewMarkdown(
+  let auditMd = generateLinearAuditViewMarkdown(
     basename(resolvedDocx),
     rawResult
   );
+  if (budgetAudit.has_budget_table) {
+    auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+  }
   const auditDir = dirname(auditViewPath);
   if (!existsSync(auditDir)) {
     mkdirSync(auditDir, { recursive: true });
@@ -874,6 +956,13 @@ export function formatInspectDocSyntheticResult(
     }
   }
 
+  if (
+    inspection.budget_audit?.has_budget_table &&
+    inspection.budget_audit.math_errors_count > 0
+  ) {
+    nextHint = `ALERTA: ${inspection.budget_audit.math_errors_count} erro(s) matemático(s) na planilha. Consulte visao_auditoria_*.md.`;
+  }
+
   const buildPayload = (
     summaryItems: Array<{ coord: string; title: string; target?: string }>
   ): InspectDocSyntheticResult => ({
@@ -895,6 +984,24 @@ export function formatInspectDocSyntheticResult(
     ...(conciseMatch ? { template_match: conciseMatch } : {}),
     ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
     ...(relDossiePath ? { dossie_path: relDossiePath } : {}),
+    ...(inspection.budget_audit && inspection.budget_audit.has_budget_table
+      ? {
+          budget_audit: {
+            tables_checked: inspection.budget_audit.tables_checked,
+            items_checked: inspection.budget_audit.total_items_checked,
+            math_errors: inspection.budget_audit.math_errors_count,
+            rounding_warnings:
+              inspection.budget_audit.rounding_warnings_count,
+            ...(inspection.budget_audit.net_divergence_cents !== 0
+              ? {
+                  divergence: formatCentsToCurrency(
+                    inspection.budget_audit.net_divergence_cents
+                  ),
+                }
+              : {}),
+          },
+        }
+      : {}),
     ...(inspection.scanned_pages_detected &&
     inspection.scanned_pages_detected.length > 0
       ? { scanned_pages: inspection.scanned_pages_detected }

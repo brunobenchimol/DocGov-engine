@@ -201,4 +201,44 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
     // Valida que o tamanho do arquivo é muito compacto (< 10 KB para este caso)
     expect(Buffer.byteLength(mdContent, "utf-8")).toBeLessThan(10240);
   });
+
+  test("deve formatar synthetic inspect_doc com budget_audit respeitando a margem segura (< 900 bytes) (v1.1.0)", () => {
+    const mockInspection: any = {
+      doc_type: "docx",
+      tables: [{ index: 0, rows: [{}, {}, {}] }],
+      paragraphs: [{ index: 0, text: "A" }, { index: 1, text: "B" }],
+      toc_map: {
+        sections: [
+          { coord: "P0", title: "1. OBJETO DO TERMO DE REFERÊNCIA" },
+          { coord: "P1", title: "2. JUSTIFICATIVA E MOTIVAÇÃO" },
+        ],
+        form_fields: [{ coord: "T0.R1.C1", title: "Órgão Requisitante" }],
+        tables: [{ table_index: 0, rows: 3, cols: 5, headers: ["Item", "Qtd"] }],
+      },
+      budget_audit: {
+        has_budget_table: true,
+        tables_checked: 1,
+        total_items_checked: 5,
+        math_errors_count: 1,
+        rounding_warnings_count: 0,
+        net_divergence_cents: 5000,
+      },
+      audit_view_path: "state/visao_auditoria_exemplo.md",
+      dossie_hotspots_path: "state/dossie_hotspots_exemplo.md",
+    };
+
+    const synthetic = formatInspectDocxSyntheticResult(
+      "inputs/exemplo.docx",
+      "state/estrutura_exemplo.json",
+      mockInspection
+    );
+
+    expect(synthetic.budget_audit).toBeDefined();
+    expect(synthetic.budget_audit!.tables_checked).toBe(1);
+    expect(synthetic.budget_audit!.math_errors).toBe(1);
+    expect(synthetic.budget_audit!.divergence).toBe("R$ 50,00");
+
+    const jsonStr = JSON.stringify(synthetic, null, 2);
+    expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(900);
+  });
 });
