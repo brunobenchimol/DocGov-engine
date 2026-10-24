@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import { DOMParser } from "@xmldom/xmldom";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { extractPdfPages } from "./pdf.ts";
+import { sanitizeXmlString } from "./xml.ts";
 
 // ============================================================================
 // 1. Tipos e Contratos do Pipeline Híbrido de Exportação PDF (v0.9.5 / v0.9.6)
@@ -287,7 +288,7 @@ export async function parseDocxBlocks(docxBuffer: Buffer): Promise<ParsedBlock[]
     throw new Error("Arquivo DOCX inválido: 'word/document.xml' não encontrado.");
   }
 
-  const xmlText = await docFile.async("string");
+  const xmlText = sanitizeXmlString(await docFile.async("string"));
   const doc = new DOMParser().parseFromString(xmlText, "text/xml");
   const body = doc.getElementsByTagName("w:body")[0];
   if (!body) return [];

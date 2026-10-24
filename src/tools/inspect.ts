@@ -15,6 +15,7 @@ import {
   extractParagraphNumbering,
   extractCellText,
   createNumberingResolver,
+  sanitizeXmlString,
 } from "../utils/xml.ts";
 import {
   computeStructureFingerprint,
@@ -616,7 +617,7 @@ export async function inspectDocx(
 
   for (const name of fileNames) {
     if (/^word\/header\d*\.xml$/i.test(name)) {
-      const xmlStr = await zip.file(name)!.async("string");
+      const xmlStr = sanitizeXmlString(await zip.file(name)!.async("string"));
       const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
       const pList = getAllElements(xmlDoc, "w:p");
       pList.forEach((p, idx) => {
@@ -629,7 +630,7 @@ export async function inspectDocx(
         });
       });
     } else if (/^word\/footer\d*\.xml$/i.test(name)) {
-      const xmlStr = await zip.file(name)!.async("string");
+      const xmlStr = sanitizeXmlString(await zip.file(name)!.async("string"));
       const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
       const pList = getAllElements(xmlDoc, "w:p");
       pList.forEach((p, idx) => {
@@ -651,7 +652,7 @@ export async function inspectDocx(
     );
   }
 
-  const docXmlStr = await docFile.async("string");
+  const docXmlStr = sanitizeXmlString(await docFile.async("string"));
   const docXml = parser.parseFromString(docXmlStr, "application/xml");
   const body = getAllElements(docXml, "w:body")[0];
   if (!body) {

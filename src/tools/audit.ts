@@ -9,6 +9,7 @@ import {
   resolveOutputPaths,
   safeUnlink,
 } from "../utils/pdf_exporter.ts";
+import { sanitizeXmlString } from "../utils/xml.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   AuditReportData,
@@ -645,7 +646,10 @@ export async function generateAuditDocx(
 
   const parser = new DOMParser();
   const serializer = new XMLSerializer();
-  const docXml = parser.parseFromString(documentXml, "application/xml");
+  const docXml = parser.parseFromString(
+    sanitizeXmlString(documentXml),
+    "application/xml"
+  );
 
   const zip = new JSZip();
 

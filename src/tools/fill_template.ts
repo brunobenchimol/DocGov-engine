@@ -30,6 +30,7 @@ import {
   NumberingManager,
   ensureNumberingPart,
   sanitizeTemplateTagExpression,
+  sanitizeXmlString,
 } from "../utils/xml.ts";
 
 // ============================================================================
@@ -706,7 +707,7 @@ async function postProcessInjectedDocxBuffer(
     ) {
       const partFile = zip.file(name);
       if (!partFile) continue;
-      const xmlStr = await partFile.async("string");
+      const xmlStr = sanitizeXmlString(await partFile.async("string"));
       const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
       const managerForPart =
         name === "word/document.xml" ? numberingManager : undefined;

@@ -16,6 +16,7 @@ import {
   applyInlineReplacementsToXmlDoc,
   ensureContentTypesOverride,
   normalizeTag,
+  sanitizeXmlString,
 } from "../utils/xml.ts";
 import { inspectDocx } from "./inspect.ts";
 import {
@@ -86,7 +87,7 @@ export async function buildDocxTemplate(
   const parser = new DOMParser();
   const serializer = new XMLSerializer();
 
-  const docXmlStr = await docFile.async("string");
+  const docXmlStr = sanitizeXmlString(await docFile.async("string"));
   const docXml = parser.parseFromString(docXmlStr, "application/xml");
   const body = getAllElements(docXml, "w:body")[0];
   if (!body) {
@@ -324,7 +325,7 @@ export async function buildDocxTemplate(
     for (const name of fileNames) {
       if (/^word\/(header|footer)\d*\.xml$/i.test(name)) {
         const partFile = zip.file(name)!;
-        const partXmlStr = await partFile.async("string");
+        const partXmlStr = sanitizeXmlString(await partFile.async("string"));
         const partXmlDoc = parser.parseFromString(
           partXmlStr,
           "application/xml"

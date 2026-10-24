@@ -3,6 +3,24 @@ import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import type { ParagraphNumberingInfo, ReplaceInlineRule } from "../types/index.ts";
 import { createSlotsManifestContractError } from "../contracts/errors.ts";
 
+/**
+ * Sanitiza strings XML removendo UTF-8 BOM (\uFEFF) e quaisquer espaços, quebras de linha
+ * ou caracteres antes do primeiro elemento ou declaração XML ('<'), garantindo que
+ * '<?xml' esteja estritamente na posição 0 para evitar fatalError do @xmldom/xmldom
+ * ('processing instruction at position X is an xml declaration which is only at the start of the document').
+ */
+export function sanitizeXmlString(xml: string): string {
+  if (!xml || typeof xml !== "string") return xml;
+  // 1. Remove UTF-8 BOM (\uFEFF)
+  let clean = xml.replace(/^\uFEFF/, "");
+  // 2. Localiza o primeiro '<'
+  const firstTagIdx = clean.indexOf("<");
+  if (firstTagIdx > 0) {
+    clean = clean.substring(firstTagIdx);
+  }
+  return clean;
+}
+
 // ============================================================================
 // Utilitários Internos OpenXML / DOM
 // ============================================================================
@@ -586,7 +604,7 @@ export async function ensureContentTypesOverride(zip: JSZip): Promise<void> {
     return;
   }
 
-  const xmlStr = await file.async("string");
+  const xmlStr = sanitizeXmlString(await file.async("string"));
   const parser = new DOMParser();
   const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
   const typesRoot = getAllElements(xmlDoc, "Types")[0] ?? xmlDoc.documentElement;
@@ -633,8 +651,9 @@ export class NumberingManager {
 
   constructor(existingXmlStr?: string | null) {
     const parser = new DOMParser();
-    if (existingXmlStr && existingXmlStr.trim()) {
-      this.xmlDoc = parser.parseFromString(existingXmlStr, "application/xml");
+    const cleanExisting = sanitizeXmlString(existingXmlStr || "");
+    if (cleanExisting && cleanExisting.trim()) {
+      this.xmlDoc = parser.parseFromString(cleanExisting, "application/xml");
       const existingRoot =
         getAllElements(this.xmlDoc, "w:numbering")[0] ??
         this.xmlDoc.documentElement;
@@ -827,7 +846,7 @@ export async function ensureNumberingPart(
   await ensureContentTypesOverride(zip);
   const ctFile = zip.file("[Content_Types].xml");
   if (ctFile) {
-    const ctXmlStr = await ctFile.async("string");
+    const ctXmlStr = sanitizeXmlString(await ctFile.async("string"));
     const ctDoc = parser.parseFromString(ctXmlStr, "application/xml");
     const typesRoot =
       getAllElements(ctDoc, "Types")[0] ?? ctDoc.documentElement;
@@ -863,7 +882,7 @@ export async function ensureNumberingPart(
     return;
   }
 
-  const relsXmlStr = await relsFile.async("string");
+  const relsXmlStr = sanitizeXmlString(await relsFile.async("string"));
   const relsDoc = parser.parseFromString(relsXmlStr, "application/xml");
   const relsRoot =
     getAllElements(relsDoc, "Relationships")[0] ?? relsDoc.documentElement;
@@ -925,9 +944,10 @@ export function createNumberingResolver(
   const nums = new Map<string, NumDef>();
   const activeCounters = new Map<string, Map<number, number>>();
 
-  if (numberingXmlStr && numberingXmlStr.trim()) {
+  const cleanNumbering = sanitizeXmlString(numberingXmlStr || "");
+  if (cleanNumbering && cleanNumbering.trim()) {
     const parser = new DOMParser();
-    const xmlDoc = parser.parseFromString(numberingXmlStr, "application/xml");
+    const xmlDoc = parser.parseFromString(cleanNumbering, "application/xml");
     const root =
       getAllElements(xmlDoc, "w:numbering")[0] ?? xmlDoc.documentElement;
 
