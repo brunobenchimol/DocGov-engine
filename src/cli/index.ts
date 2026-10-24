@@ -38,7 +38,7 @@ Uso:
   docgov-engine --mcp                             Inicia como servidor MCP via stdio
   docgov-engine --dump-spec [caminho.md]          Exporta a especificação técnica integral do motor em Markdown
   docgov-engine --bootstrap-case --case-dir <dir> [--uploads-dir <dir>] [--rename-map <json>] [--wait]
-  docgov-engine --inspect <arq.docx|.pdf> [--out <mapa.json>] [--compact]
+  docgov-engine --inspect <arq.docx|.pdf> [--diff <base.docx|.pdf>] [--out <mapa.json>] [--compact]
   docgov-engine --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
   docgov-engine --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--format <docx|pdf|both>] [--no-auto-inspect]
   docgov-engine --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
@@ -204,13 +204,21 @@ Uso:
 
     const outPath = outIdx !== -1 ? args[outIdx + 1] : undefined;
 
+    const diffIdx = args.indexOf("--diff");
+    let compareWithPath: string | undefined;
+    if (diffIdx !== -1 && args[diffIdx + 1] && !args[diffIdx + 1].startsWith("--")) {
+      compareWithPath = args[diffIdx + 1];
+    }
+
     if (!filePath) {
       console.error("Erro: Informe o caminho do arquivo (.docx ou .pdf) após --inspect ou --file.");
       process.exit(1);
     }
 
     try {
-      const res = await inspectDoc(filePath, outPath, compact);
+      const res = await inspectDoc(filePath, outPath, compact, {
+        compareWithPath,
+      });
       if (outPath) {
         const synthetic = formatInspectDocSyntheticResult(
           filePath,

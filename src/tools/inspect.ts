@@ -35,6 +35,10 @@ import {
   formatBudgetAuditMarkdownBlock,
   formatCentsToCurrency,
 } from "../core/budget_auditor.ts";
+import {
+  computeStructuralDiff,
+  generateDiffReportMarkdown,
+} from "../core/structural_diff.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   BodyParagraphInfo,
@@ -397,11 +401,51 @@ export function generateLinearAuditViewMarkdown(
 // 1. Função de Inspeção Estrutural (inspect_docx — suporta .docx e .pdf)
 // ============================================================================
 
+async function applyStructuralDiffIfRequested(
+  currentResult: DocxInspectionResult,
+  currentPath: string,
+  outputPath?: string,
+  compareWithPath?: string
+): Promise<void> {
+  if (!compareWithPath) return;
+  const resolvedOld = resolve(compareWithPath);
+  if (!existsSync(resolvedOld)) {
+    throw new Error(`Arquivo de comparação não encontrado: ${resolvedOld}`);
+  }
+  const oldInspection = await inspectDocx(resolvedOld, undefined, true);
+  const diff = computeStructuralDiff(
+    oldInspection,
+    currentResult,
+    resolvedOld,
+    currentPath
+  );
+
+  const diffOutDir = outputPath
+    ? dirname(resolve(outputPath))
+    : dirname(currentPath);
+  const diffBase = outputPath
+    ? basename(resolve(outputPath), ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      )
+    : basename(currentPath).replace(/\.(?:docx|pdf)$/i, "");
+  const diffMdPath = resolve(diffOutDir, `diff_documental_${diffBase}.md`);
+  const diffJsonPath = resolve(diffOutDir, `diff_documental_${diffBase}.json`);
+  if (!existsSync(diffOutDir)) {
+    mkdirSync(diffOutDir, { recursive: true });
+  }
+  const diffMd = generateDiffReportMarkdown(diff);
+  writeFileSync(diffMdPath, diffMd, "utf-8");
+  diff.diff_report_path = diffMdPath;
+  writeFileSync(diffJsonPath, JSON.stringify(diff, null, 2), "utf-8");
+  currentResult.diff_result = diff;
+}
+
 export async function inspectDocx(
   docxPath: string,
   outputPath?: string,
   compact: boolean = false,
-  options: { registryDir?: string } = {}
+  options: { registryDir?: string; compareWithPath?: string } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolve(docxPath);
   if (!existsSync(resolvedDocx)) {
@@ -542,6 +586,13 @@ export async function inspectDocx(
       tables: [],
       ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
     };
+
+    await applyStructuralDiffIfRequested(
+      pdfResult,
+      resolvedDocx,
+      outputPath,
+      options.compareWithPath
+    );
 
     if (outputPath) {
       const resolvedOut = resolve(outputPath);
@@ -828,6 +879,13 @@ export async function inspectDocx(
   }
   rawResult.template_match = template_match;
 
+  await applyStructuralDiffIfRequested(
+    rawResult,
+    resolvedDocx,
+    outputPath,
+    options.compareWithPath
+  );
+
   const finalResult = compact ? compactInspectionResult(rawResult) : rawResult;
 
   if (outputPath) {
@@ -963,6 +1021,14 @@ export function formatInspectDocSyntheticResult(
     nextHint = `ALERTA: ${inspection.budget_audit.math_errors_count} erro(s) matemático(s) na planilha. Consulte visao_auditoria_*.md.`;
   }
 
+  if (inspection.diff_result) {
+    const diff = inspection.diff_result;
+    nextHint = `Diff concluído (+${diff.total_added} / -${diff.total_removed} / ~${diff.total_modified}). Relatório: ${relative(
+      process.cwd(),
+      diff.diff_report_path || ""
+    ).replace(/\\/g, "/")}.`;
+  }
+
   const buildPayload = (
     summaryItems: Array<{ coord: string; title: string; target?: string }>
   ): InspectDocSyntheticResult => ({
@@ -999,6 +1065,21 @@ export function formatInspectDocSyntheticResult(
                   ),
                 }
               : {}),
+          },
+        }
+      : {}),
+    ...(inspection.diff_result
+      ? {
+          diff_summary: {
+            added: inspection.diff_result.total_added,
+            removed: inspection.diff_result.total_removed,
+            modified: inspection.diff_result.total_modified,
+            report: inspection.diff_result.diff_report_path
+              ? relative(
+                  process.cwd(),
+                  inspection.diff_result.diff_report_path
+                ).replace(/\\/g, "/")
+              : undefined,
           },
         }
       : {}),

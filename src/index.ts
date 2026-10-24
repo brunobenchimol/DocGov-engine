@@ -23,6 +23,8 @@ export * from "./core/cartography.ts";
 export * from "./core/manifest.ts";
 export * from "./core/registry.ts";
 export * from "./core/updater.ts";
+export * from "./core/budget_auditor.ts";
+export * from "./core/structural_diff.ts";
 
 // 6. Ferramentas do Pipeline (Bootstrap, Inspect, Build, Fill, Audit)
 export * from "./tools/inspect.ts";

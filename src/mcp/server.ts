@@ -118,6 +118,11 @@ export function getMcpToolsDefinition() {
             description:
               "Se true (padrão), omite parágrafos e células vazias no JSON de saída para economizar espaço em disco, preservando intactos os índices originais 0-based, o toc_map e a cartografia.",
           },
+          compareWithPath: {
+            type: "string",
+            description:
+              "Caminho opcional de um documento base/anterior (.docx ou .pdf) para executar o Diff Estrutural e Semântico Multi-Versão. Se fornecido, gera state/diff_documental_<stem>.md e state/diff_documental_<stem>.json comparando alterações, redações e impacto nas 14 Zonas (v1.1.0).",
+          },
         },
       },
       annotations: {
@@ -322,6 +327,7 @@ export async function runMcpServer() {
           docxPath?: string;
           outputPath?: string;
           compact?: boolean;
+          compareWithPath?: string;
         };
         const rawPath = args.filePath || args.docxPath;
         if (!rawPath) {
@@ -336,7 +342,8 @@ export async function runMcpServer() {
         const inspection = await inspectDoc(
           resolvedDoc,
           effectiveOutputPath,
-          args.compact !== false
+          args.compact !== false,
+          { compareWithPath: args.compareWithPath }
         );
 
         const synthetic = formatInspectDocSyntheticResult(

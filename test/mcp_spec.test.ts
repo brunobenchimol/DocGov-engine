@@ -106,6 +106,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     const inspectTool = tools.find((t) => t.name === "inspect_doc")!;
     expect(inspectTool.description).toContain("toc_map");
     expect(inspectTool.description).toContain("toc_summary");
+    expect(inspectTool.inputSchema.properties.compareWithPath).toBeDefined();
 
     const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
     expect(fillTool.description).toContain("unflatten");
@@ -268,6 +269,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.compareSemver).toBe("function");
     expect(typeof barrel.generateHotspotsDossierMarkdown).toBe("function");
     expect(typeof barrel.generateCaseMasterIndexMarkdown).toBe("function");
+    expect(typeof barrel.auditDocumentBudget).toBe("function");
+    expect(typeof barrel.computeStructuralDiff).toBe("function");
 
     // Utilitários
     expect(typeof barrel.safeReadJsonFile).toBe("function");
