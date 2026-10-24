@@ -357,68 +357,34 @@ export async function bootstrapCase(
     }
   }
 
-  // 3. Inspeciona todos os arquivos .docx e .pdf encontrados em inputs/
+  // 3. Inspeciona todos os arquivos .docx e .pdf encontrados em inputs/ (com Isolamento try/catch v1.1.1)
   const inputEntries = readdirSync(inputsDir, { withFileTypes: true }).sort(
     (a, b) => a.name.localeCompare(b.name)
   );
   const inspectedDocx: BootstrapCaseResult["inspectedDocx"] = [];
   const inspectedPdf: BootstrapCaseInspectedPdf[] = [];
+  const failedInspections: Array<{ fileName: string; type: string; error: string }> = [];
+  const otherFiles: Array<{ fileName: string; extension: string; size: number }> = [];
 
   for (const entry of inputEntries) {
     if (!entry.isFile() || entry.name.startsWith("~$")) continue;
 
     if (entry.name.toLowerCase().endsWith(".docx")) {
-      const docxPath = resolve(inputsDir, entry.name);
-      const base = entry.name.replace(/\.docx$/i, "");
-      const structurePath = resolve(stateDir, `estrutura_${base}.json`);
-      const full = await inspectDocx(docxPath, structurePath);
-      const compact = compactInspectionResult(full);
-      inspectedDocx.push({
-        fileName: entry.name,
-        docxPath,
-        structurePath,
-        tablesCount: compact.tables.length,
-        paragraphsCount: compact.paragraphs.length,
-        compactStructure: compact,
-        ...(compact.template_match ? { template_match: compact.template_match } : {}),
-        ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
-      });
-
-      const relStructure = relative(resolvedCaseDir, structurePath).replace(
-        /\\/g,
-        "/"
-      );
-      const match = ingestedFiles.find((f) => f.saved_as === entry.name);
-      if (match) {
-        match.structure_json = relStructure;
-      }
-    } else if (entry.name.toLowerCase().endsWith(".pdf")) {
-      const pdfPath = resolve(inputsDir, entry.name);
-      const buf = readFileSync(pdfPath);
-      if (isPdfBuffer(buf)) {
-        const base = entry.name.replace(/\.pdf$/i, "");
+      try {
+        const docxPath = resolve(inputsDir, entry.name);
+        const base = entry.name.replace(/\.docx$/i, "");
         const structurePath = resolve(stateDir, `estrutura_${base}.json`);
-        const full = await inspectDocx(pdfPath, structurePath, true);
-        const activeZonesCount = Object.values(
-          full.impugnation_zones || {}
-        ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
-
-        inspectedPdf.push({
+        const full = await inspectDocx(docxPath, structurePath);
+        const compact = compactInspectionResult(full);
+        inspectedDocx.push({
           fileName: entry.name,
-          pdfPath,
+          docxPath,
           structurePath,
-          ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
-          ...(full.dossie_hotspots_path
-            ? { dossie_hotspots_path: full.dossie_hotspots_path }
-            : {}),
-          ...(full.scanned_pages_detected &&
-          full.scanned_pages_detected.length > 0
-            ? { scanned_pages_detected: full.scanned_pages_detected }
-            : {}),
-          pageCount: full.page_count ?? 0,
-          lineCount: full.line_count ?? 0,
-          outlineHeadingsCount: full.outline_headings?.length ?? 0,
-          activeZonesCount,
+          tablesCount: compact.tables.length,
+          paragraphsCount: compact.paragraphs.length,
+          compactStructure: compact,
+          ...(compact.template_match ? { template_match: compact.template_match } : {}),
+          ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
         });
 
         const relStructure = relative(resolvedCaseDir, structurePath).replace(
@@ -429,6 +395,77 @@ export async function bootstrapCase(
         if (match) {
           match.structure_json = relStructure;
         }
+      } catch (err: any) {
+        failedInspections.push({
+          fileName: entry.name,
+          type: "docx",
+          error: err?.message || "Falha desconhecida na extração de DOCX",
+        });
+      }
+    } else if (entry.name.toLowerCase().endsWith(".pdf")) {
+      try {
+        const pdfPath = resolve(inputsDir, entry.name);
+        const buf = readFileSync(pdfPath);
+        if (isPdfBuffer(buf)) {
+          const base = entry.name.replace(/\.pdf$/i, "");
+          const structurePath = resolve(stateDir, `estrutura_${base}.json`);
+          const full = await inspectDocx(pdfPath, structurePath, true);
+          const activeZonesCount = Object.values(
+            full.impugnation_zones || {}
+          ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
+
+          inspectedPdf.push({
+            fileName: entry.name,
+            pdfPath,
+            structurePath,
+            ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
+            ...(full.dossie_hotspots_path
+              ? { dossie_hotspots_path: full.dossie_hotspots_path }
+              : {}),
+            ...(full.scanned_pages_detected &&
+            full.scanned_pages_detected.length > 0
+              ? { scanned_pages_detected: full.scanned_pages_detected }
+              : {}),
+            pageCount: full.page_count ?? 0,
+            lineCount: full.line_count ?? 0,
+            outlineHeadingsCount: full.outline_headings?.length ?? 0,
+            activeZonesCount,
+          });
+
+          const relStructure = relative(resolvedCaseDir, structurePath).replace(
+            /\\/g,
+            "/"
+          );
+          const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+          if (match) {
+            match.structure_json = relStructure;
+          }
+        } else if (!backgroundFiles.includes(entry.name)) {
+          failedInspections.push({
+            fileName: entry.name,
+            type: "pdf",
+            error: "Arquivo não contém assinatura válida (%PDF-)",
+          });
+        }
+      } catch (err: any) {
+        failedInspections.push({
+          fileName: entry.name,
+          type: "pdf",
+          error: err?.message || "Falha desconhecida na extração de PDF",
+        });
+      }
+    } else {
+      // Outros formatos (planilhas .xlsx, .csv, textos, metadados)
+      try {
+        const otherPath = resolve(inputsDir, entry.name);
+        const stats = statSync(otherPath);
+        otherFiles.push({
+          fileName: entry.name,
+          extension: extname(entry.name).toLowerCase().replace(/^\./, "") || "anexo",
+          size: stats.size,
+        });
+      } catch {
+        // Ignora falha de stat
       }
     }
   }
@@ -443,7 +480,7 @@ export async function bootstrapCase(
         : "Nenhum arquivo pesado pendente de cópia em segundo plano.",
   };
 
-  // 4. Consolidação do Índice Cartográfico Unificado do Caso (state/indice_mestre_caso.md v0.9.0)
+  // 4. Consolidação do Índice Cartográfico Unificado do Caso (state/indice_mestre_caso.md v0.9.0 / v1.1.1)
   const masterIndexEntries: MasterIndexEntry[] = [];
 
   for (const docx of inspectedDocx) {
@@ -461,6 +498,7 @@ export async function bootstrapCase(
     masterIndexEntries.push({
       fileName: docx.fileName,
       type: "docx",
+      status: "inspected",
       volumeSummary: `${docx.paragraphsCount} parágrafo(s), ${docx.tablesCount} tabela(s)`,
       structureRelPath: relStructure,
       auditViewRelPath: relAudit,
@@ -497,6 +535,7 @@ export async function bootstrapCase(
     masterIndexEntries.push({
       fileName: pdf.fileName,
       type: "pdf",
+      status: "inspected",
       volumeSummary: `${pdf.pageCount} página(s), ${pdf.lineCount} linha(s)`,
       structureRelPath: relStructure,
       auditViewRelPath: relAudit,
@@ -505,6 +544,34 @@ export async function bootstrapCase(
       scannedPages: pdf.scanned_pages_detected,
       impugnationZones,
       pageSignals,
+    });
+  }
+
+  // Documentos que falharam na inspeção isolada (Resiliência Forense v1.1.1)
+  for (const failed of failedInspections) {
+    masterIndexEntries.push({
+      fileName: failed.fileName,
+      type: failed.type,
+      status: "error",
+      errorMessage: failed.error,
+      volumeSummary: "Falha na extração estrutural",
+      activeZonesCount: 0,
+      impugnationZones: {},
+      pageSignals: [],
+    });
+  }
+
+  // Anexos probatórios e planilhas de outros formatos (Inventário Completo v1.1.1)
+  for (const other of otherFiles) {
+    const sizeKb = (other.size / 1024).toFixed(1);
+    masterIndexEntries.push({
+      fileName: other.fileName,
+      type: other.extension,
+      status: "attachment",
+      volumeSummary: `${sizeKb} KB (Anexo/Planilha)`,
+      activeZonesCount: 0,
+      impugnationZones: {},
+      pageSignals: [],
     });
   }
 
@@ -527,15 +594,19 @@ export async function bootstrapCase(
     inspectedDocx,
     inspectedPdf,
     ingestedFiles,
+    ...(failedInspections.length > 0 ? { failed_inspections: failedInspections } : {}),
+    ...(otherFiles.length > 0 ? { other_files: otherFiles } : {}),
     ...(masterIndexPath ? { indice_mestre_path: masterIndexPath } : {}),
   };
 }
 
 export interface MasterIndexEntry {
   fileName: string;
-  type: "docx" | "pdf";
+  type: string;
+  status?: "inspected" | "error" | "attachment";
+  errorMessage?: string;
   volumeSummary: string;
-  structureRelPath: string;
+  structureRelPath?: string;
   auditViewRelPath?: string;
   dossieRelPath?: string;
   activeZonesCount: number;
@@ -558,10 +629,11 @@ export function generateCaseMasterIndexMarkdown(
 ): string {
   const caseName = basename(caseDir);
   const lines: string[] = [];
+  const sortedEntries = entries.slice().sort((a, b) => a.fileName.localeCompare(b.fileName));
 
   lines.push(`# 🗺️ Índice Mestre Cartográfico do Processo: ${caseName}`);
   lines.push(
-    `> Documento consolidado gerado por docgov-engine v${VERSION} (${entries.length} arquivo(s) analisado(s)).`
+    `> Documento consolidado gerado por docgov-engine v${VERSION} (${sortedEntries.length} arquivo(s) mapeado(s)).`
   );
   lines.push(
     `> Consolidação do inventário probatório e mapa cruzado das 14 Zonas de Impugnação (Z1 a Z14) entre todos os documentos de inputs/.`
@@ -578,12 +650,25 @@ export function generateCaseMasterIndexMarkdown(
     "| :--- | :---: | :--- | :--- | :--- | :--- | :---: |"
   );
 
-  for (const entry of entries) {
+  for (const entry of sortedEntries) {
     const scannedBadge =
       entry.scannedPages && entry.scannedPages.length > 0
         ? ` <br>⚠️ **Escaneado (Pág ${entry.scannedPages.join(", ")})**`
         : "";
-    const structLink = `\`${entry.structureRelPath}\``;
+
+    let structCol = "-";
+    let activeZonesCol = `**${entry.activeZonesCount} / 14**`;
+
+    if (entry.status === "error") {
+      structCol = `⚠️ **Falha de leitura:** ${entry.errorMessage || "Erro na extração"}`;
+      activeZonesCol = "⚠️ Falha";
+    } else if (entry.status === "attachment") {
+      structCol = `📊 *Anexo de dados (não inspecionado)*`;
+      activeZonesCol = "-";
+    } else if (entry.structureRelPath) {
+      structCol = `\`${entry.structureRelPath}\``;
+    }
+
     const auditLink = entry.auditViewRelPath
       ? `\`${entry.auditViewRelPath}\``
       : "-";
@@ -592,7 +677,7 @@ export function generateCaseMasterIndexMarkdown(
       : "-";
 
     lines.push(
-      `| **${entry.fileName}**${scannedBadge} | \`.${entry.type}\` | ${entry.volumeSummary} | ${structLink} | ${auditLink} | ${dossieLink} | **${entry.activeZonesCount} / 14** |`
+      `| **${entry.fileName}**${scannedBadge} | \`.${entry.type}\` | ${entry.volumeSummary} | ${structCol} | ${auditLink} | ${dossieLink} | ${activeZonesCol} |`
     );
   }
   lines.push("");
@@ -773,8 +858,13 @@ export function formatBootstrapCaseSyntheticResult(
           ? "Salvaguarda ativa em 2º plano."
           : "Sem pendências.",
     },
+    ...(res.failed_inspections && res.failed_inspections.length > 0
+      ? { inspection_errors_count: res.failed_inspections.length }
+      : {}),
     next_step_hint:
-      "Estrutura pronta. Elabore slots_manifest.json e chame build_docx_template.",
+      res.failed_inspections && res.failed_inspections.length > 0
+        ? `Estrutura pronta com ${res.failed_inspections.length} ressalva(s). Elabore slots_manifest.json e chame build_docx_template.`
+        : "Estrutura pronta. Elabore slots_manifest.json e chame build_docx_template.",
   });
 
   let result = buildResult(4, true, docxLimit, pdfLimit);

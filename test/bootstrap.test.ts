@@ -241,4 +241,73 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
       expect(existsSync(resolve(caseDir, name))).toBe(false);
     }
   });
+
+  test("deve isolar falhas de inspeção por arquivo com try/catch e garantir inventário de 100% dos arquivos no state/indice_mestre_caso.md (v1.1.1)", async () => {
+    const caseDir = resolve(tempDir, "caso_resiliencia_multi_arquivos");
+    const inputsDir = resolve(caseDir, "inputs");
+    mkdirSync(inputsDir, { recursive: true });
+
+    // 1. Arquivos válidos
+    await createSampleRawDocx(resolve(inputsDir, "01 - DFD_Valido.docx"));
+    await createSampleRawDocx(resolve(inputsDir, "02 - ETP_Valido.docx"));
+    writeFileSync(
+      resolve(inputsDir, "03 - Edital_Valido.pdf"),
+      Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n")
+    );
+
+    // 2. Arquivos corrompidos / com erro intencional
+    writeFileSync(
+      resolve(inputsDir, "04 - Docx_Corrompido.docx"),
+      Buffer.from("LIXO_BINARIO_NAO_OPENXML")
+    );
+    writeFileSync(
+      resolve(inputsDir, "05 - Pdf_Sem_Magic_Bytes.pdf"),
+      Buffer.from("TEXTO_NORMAL_SEM_PDF_HEADER")
+    );
+
+    // 3. Outro formato (Planilha de dados)
+    writeFileSync(
+      resolve(inputsDir, "06 - Planilha_Custos.xlsx"),
+      Buffer.from("PK\x03\x04-synthetic-excel-spreadsheet-content")
+    );
+
+    // Executa bootstrap_case
+    const res = await bootstrapCase(caseDir);
+
+    expect(res.status).toBe("success");
+    expect(res.inspectedDocx.length).toBe(2);
+    expect(res.inspectedPdf!.length).toBe(1);
+    expect(res.failed_inspections).toBeDefined();
+    expect(res.failed_inspections!.length).toBe(2);
+    expect(res.failed_inspections![0].fileName).toBe("04 - Docx_Corrompido.docx");
+    expect(res.failed_inspections![1].fileName).toBe("05 - Pdf_Sem_Magic_Bytes.pdf");
+    expect(res.other_files).toBeDefined();
+    expect(res.other_files!.length).toBe(1);
+    expect(res.other_files![0].fileName).toBe("06 - Planilha_Custos.xlsx");
+
+    // 4. Valida que o índice mestre foi gravado e lista 100% dos 6 arquivos
+    expect(res.indice_mestre_path).toBeDefined();
+    expect(existsSync(res.indice_mestre_path!)).toBe(true);
+    const masterMd = readFileSync(res.indice_mestre_path!, "utf-8");
+
+    expect(masterMd).toContain("01 - DFD_Valido.docx");
+    expect(masterMd).toContain("02 - ETP_Valido.docx");
+    expect(masterMd).toContain("03 - Edital_Valido.pdf");
+    expect(masterMd).toContain("04 - Docx_Corrompido.docx");
+    expect(masterMd).toContain("05 - Pdf_Sem_Magic_Bytes.pdf");
+    expect(masterMd).toContain("06 - Planilha_Custos.xlsx");
+
+    // Badges de erro e de anexo presentes no markdown
+    expect(masterMd).toContain("Falha de leitura");
+    expect(masterMd).toContain("Anexo de dados (não inspecionado)");
+
+    // 5. Valida payload sintético MCP (Lei 2 < 1024 bytes)
+    const synthetic = formatBootstrapCaseSyntheticResult(res, "cases/resiliencia");
+    const jsonStr = JSON.stringify(synthetic, null, 2);
+    const byteLength = Buffer.byteLength(jsonStr, "utf-8");
+
+    expect(byteLength).toBeLessThan(1024);
+    expect(synthetic.inspection_errors_count).toBe(2);
+    expect(synthetic.next_step_hint).toContain("2 ressalva(s)");
+  });
 });

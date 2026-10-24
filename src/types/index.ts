@@ -392,6 +392,8 @@ export interface BootstrapCaseResult {
   inspectedDocx: BootstrapCaseInspectedDocx[];
   inspectedPdf?: BootstrapCaseInspectedPdf[];
   ingestedFiles?: IngestedFileSummary[];
+  failed_inspections?: Array<{ fileName: string; type: string; error: string }>;
+  other_files?: Array<{ fileName: string; extension: string; size: number }>;
   indice_mestre_path?: string;
 }
 
@@ -426,6 +428,7 @@ export interface BootstrapCaseSyntheticResult {
     status: "active" | "started" | "idle" | "completed" | "partial_error";
     message: string;
   };
+  inspection_errors_count?: number;
   next_step_hint: string;
 }
 
