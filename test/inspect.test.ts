@@ -96,7 +96,7 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
     expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(1024);
     expect(syntheticInspect.status).toBe("success");
     expect(syntheticInspect.engine_version).toBe(VERSION);
-    expect(syntheticInspect.engine_version).toBe("1.0.0");
+    expect(syntheticInspect.engine_version).toBe("1.1.0");
     expect(syntheticInspect.filePath).toBe(rawDocxPath);
     expect(syntheticInspect.docxPath).toBe(rawDocxPath);
     expect(syntheticInspect.outputPath).toBe(outJsonPath);
@@ -160,7 +160,7 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
     expect(synthetic.toc_summary!.length).toBeGreaterThan(0);
     const jsonStr = JSON.stringify(synthetic, null, 2);
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.0.0");
+    expect(synthetic.engine_version).toBe("1.1.0");
     expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(1024);
   });
 

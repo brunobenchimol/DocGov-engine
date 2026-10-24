@@ -9,22 +9,22 @@
 
 ## 🎯 MARCO 4 — `v1.1.0`: Auditoria Matemática de Planilhas Orçamentárias (`pdf` e `docx`)
 
-- [ ] **4.1. Parsing e Extração Tabular de Linhas de Itens Orçamentários:**
+- [x] **4.1. Parsing e Extração Tabular de Linhas de Itens Orçamentários:**
   - Extrair com precisão linhas de tabelas contendo identificadores, descrições, quantidades, unidades de medida e valores monetários (`Item | Descrição | Unid | Qtd | Valor Unit | Valor Total`).
   - Normalização determinística de formatos numéricos brasileiros (`1.234,56`) e internacionais (`1,234.56`).
 
-- [ ] **4.2. Validação Aritmética Determinística:**
-  - Verificar produto de cada item: $\text{Qtd} \times \text{Valor Unitário} = \text{Valor Total}$ (com tolerância configurável de arredondamento de centavos $\le R\$\,0,02$).
+- [x] **4.2. Validação Aritmética Determinística:**
+  - Verificar produto de cada item: $\text{Qtd} \times \text{Valor Unitário} = \text{Valor Total}$ (com detecção estrita de divergências em centavos, categorizadas em `ROUNDING_WARNING` para $\le R\$\,0,02$ e `MATH_ERROR` para $> R\$\,0,02$).
   - Verificar somatórios parciais de subtotais e soma global da planilha orçamentária.
-  - Identificar potenciais distorções em alíquotas de BDI (Bonificação e Despesas Indiretas), encargos sociais e custos unitários de referência (ex.: SINAPI / SICRO).
+  - Identificar potenciais distorções e inconsistências matemáticas contra valores declarados no texto (Z12).
 
-- [ ] **4.3. Emissão Estruturada de Inconsistências Aritméticas:**
+- [x] **4.3. Emissão Estruturada de Inconsistências Aritméticas:**
   - Persistir relatório detalhado em `state/auditoria_orcamentaria_<stem>.json`.
-  - Integrar alertas de erro de cálculo diretamente no `state/dossie_hotspots_<stem>.md` e na `state/visao_auditoria_<stem>.md`.
+  - Integrar alertas de erro de cálculo diretamente no `state/dossie_hotspots_<stem>.md` e na `state/visao_auditoria_<stem>.md` (Radar Z10 e Z12).
   - **Payload Sintético MCP:** Expor métricas sintéticas compactas (`total_items_checked`, `arithmetic_errors_count`, `divergence_sum`) mantendo a resposta estritamente abaixo de 900 bytes (Lei 2).
 
-- [ ] **4.4. Diff Estrutural Rápido de Documentos:**
-  - Comparação posicional de seções e títulos com base no `toc_map` entre versões sucessivas de minutas e editais retificados (`state/diff_estrutural_<stemA>_vs_<stemB>.md`).
+- [x] **4.4. Diff Estrutural Rápido de Documentos:**
+  - Comparação posicional e semântica de seções e títulos com base no `toc_map` entre versões sucessivas de minutas e editais retificados (`state/diff_documental_<stem>.md` e `.json`) com delta do Radar das 14 Zonas (`INTRODUCED`, `RESOLVED`, `RETAINED`).
 
 ---
 

@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.0.0)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.1.0)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,9 +84,26 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.0.0` (Marco 3 — Clean Cut) e Marcos Anteriores
+## 2. Destaques da Versão `v1.1.0` (Marco 4) e Marcos Anteriores
 
-A versão **`v1.0.0`** consolida o Marco 3 (Clean Cut) com a identidade definitiva do ecossistema:
+A versão **`v1.1.0`** consolida o Marco 4 com recursos avançados de integridade orçamentária e comparabilidade documental:
+
+### Novidades da `v1.1.0` — Auditoria Matemática de Planilhas e Diff Estrutural
+1. **Auditoria Matemática Determinística de Planilhas Orçamentárias (`.docx` e `.pdf`):**
+   - Módulo autônomo `src/core/budget_auditor.ts` com aritmética estrita em **centavos inteiros (`BigInt` / `Math.round`)**, eliminando imprecisões de ponto flutuante IEEE 754.
+   - Detecção inteligente de colunas orçamentárias (`Item`, `Descrição`, `Unid`, `Qtd`, `Valor Unitário`, `Valor Total`) em tabelas OpenXML e grades colunares PDF.
+   - **Dupla Verificação Determinística:** Checagem horizontal linha a linha ($\text{Qtd} \times \text{Unit} = \text{Total}$) classificando divergências em `ROUNDING_WARNING` ($\le R\$\,0,02$) e `MATH_ERROR` ($> R\$\,0,02$).
+   - **Verificação Vertical:** Validação de subtotais e somatório do Total Geral da planilha.
+   - **Cruzamento com o Texto:** Busca automática por valores globais no corpo do documento (`"valor estimado de R$..."`) e cruzamento com a soma da planilha.
+   - **Integração ao Radar das 14 Zonas:** Achados injetados automaticamente em `Z10_PRECOS_EXEQUIBILIDADE_PLANILHA` e `Z12_MAPA_CRUZADO_MULTIPECA`.
+   - **Persistência de Evidências:** Gravação de `state/auditoria_orcamentaria_<stem>.json` e inclusão de bloco executivo na visão de auditoria e no dossiê de hotspots.
+2. **Motor de Diff Estrutural e Semântico Multi-Versão (`src/core/structural_diff.ts`):**
+   - Comparação analítica entre versões de minutas e editais retificados (`oldPath` vs `newPath`).
+   - Mapeamento granular de títulos e seções: `ADDED`, `REMOVED` e `MODIFIED` (com realce de mudanças inline `~~antigo~~` $\rightarrow$ `**novo**`).
+   - **Delta do Radar das 14 Zonas:** Rastreamento de pontos quentes introduzidos (`INTRODUCED`), sanados (`RESOLVED`) e mantidos (`RETAINED`).
+   - **Persistência de Diffs:** Gravação de `state/diff_documental_<stem>.md` e `state/diff_documental_<stem>.json`.
+   - **Exposição MCP & CLI:** Disponível via parâmetro `compareWithPath` em `inspect_doc` e flag `--diff <caminho>` na CLI.
+3. **Respeito Estrito à Lei 2 (Teto MCP < 1024 bytes):** Retorno sintético enriquecido com métricas orçamentárias e de diff com payload médio entre 400 e 600 bytes (margem garantida $< 900$ bytes).
 
 ### Novidades da `v1.0.0` — Clean Cut & Ferramenta Multimodal
 1. **Identidade Oficial Unificada:** Transição completa para `docgov-engine v1.0.0` em todos os binários (`./bin/docgov-engine.exe` e `./bin/docgov-engine`), servidor MCP (`name: "docgov-engine"`), banners CLI e especificações normativas.
@@ -115,8 +132,8 @@ A versão **`v1.0.0`** consolida o Marco 3 (Clean Cut) com a identidade definiti
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.0.0`):** Inclusão mandatória do campo `"engine_version": "1.0.0"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
-2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 920$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.1.0`):** Inclusão mandatória do campo `"engine_version": "1.1.0"` na raiz do payload JSON sintético retornado por todas as 5 ferramentas MCP.
+2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`).
 4. **Motor Híbrido de Lista Multinível Nativa (`v0.7.0`):**
    - **Fora de tabelas (`<w:body>`):** Cria ou atualiza `word/numbering.xml` com definição multinível de 9 níveis decimais escalonados (`%1.`, `%1.%2.`, `%1.%2.%3.`), insere `<w:pPr><w:numPr>` com `<w:startOverride>` sincronizado com o capítulo pai e limpa o prefixo numérico literal do `<w:t>`.
@@ -130,8 +147,10 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
    > *"NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:"*
    acompanhada do snippet JSON canônico completo e pronto para copiar e colar.
 8. **Exportação de Especificação Técnica Integral (`--dump-spec`):** Exporta a especificação técnica integral do motor em Markdown (UTF-8) para alinhamento instantâneo com agentes consumidores.
-9. **Radar das 14 Zonas de Impugnação (`Z1` a `Z14`):** Varre as linhas de `.pdf` e `.docx` identificando atestados, prazos, garantias, marcas exclusivas, datasheets direcionados, métricas e cruzamento multipeça.
+9. **Radar das 14 Zonas de Impugnação (`Z1` a `Z14`):** Varre as linhas de `.pdf` e `.docx` identificando atestados, prazos, garantias, marcas exclusivas, datasheets direcionados, métricas, orçamentos e cruzamento multipeça.
 10. **Auto-Inspeção Integrada no Preenchimento:** O `fill_docx_template` executa automaticamente a inspeção estrutural pós-compilação gravando `state/inspecao_<stem>.json` e `state/visao_auditoria_<stem>.md`, dispensando rodar `inspect_doc` novamente.
+11. **Auditoria Matemática de Planilhas Orçamentárias (`v1.1.0`):** Realiza a checagem aritmética exata em centavos inteiros ($Qtd \times Unit = Total$, subtotais e total geral) e o cruzamento com menções textuais de valor global no Radar `Z10`/`Z12`, persistindo `state/auditoria_orcamentaria_<stem>.json`.
+12. **Diff Estrutural e Semântico Multi-Versão (`v1.1.0`):** Compara versões sucessivas de documentos através do parâmetro `compareWithPath` no `inspect_doc` ou da flag `--diff` na CLI, computando seções adicionadas/removidas/modificadas (com inline diff) e o delta de zonas de risco (`INTRODUCED`, `RESOLVED`, `RETAINED`) em `state/diff_documental_<stem>.md`.
 
 ---
 
@@ -145,14 +164,16 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 1. **`bootstrap_case`**
    - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `templates/`, `output/`), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita `fileRenameMap`.
-   - Copia de forma síncrona imediata os modelos `.docx` e documentos `.pdf` de `uploadsDir` para `inputs/`, extrai seus mapas estruturais (`state/estrutura_<nome>.json`), gera a **Visão Linear de Auditoria** (`state/visao_auditoria_<nome>.md`), o **Dossiê de Hotspots** (`state/dossie_hotspots_<nome>.md`) e o **Índice Mestre do Caso** (`state/indice_mestre_caso.md`).
+   - Copia de forma síncrona imediata os modelos `.docx` e documentos `.pdf` de `uploadsDir` para `inputs/`, extrai seus mapas estruturais (`state/estrutura_<nome>.json`), gera a **Visão Linear de Auditoria** (`state/visao_auditoria_<nome>.md`), o **Dossiê de Hotspots** (`state/dossie_hotspots_<nome>.md`), o relatório de **Auditoria Orçamentária** (`state/auditoria_orcamentaria_<nome>.json`, se houver tabelas de itens) e o **Índice Mestre do Caso** (`state/indice_mestre_caso.md`).
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*), `fileRenameMap` (*opcional*).
 
 2. **`inspect_doc`**
    - Realiza a engenharia reversa de arquivos `.docx` ou `.pdf`.
    - **Para PDF:** Extrai todas as páginas, numera linhas com coordenada dupla `[PAG_XXX | LYYYY]`, reconstrói colunas com ` | `, constrói a Cartografia Estrutural em 3 camadas e o Radar das 14 Zonas (`Z1` a `Z14`), gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md`.
    - **Para DOCX:** Mapeia parágrafos, tabelas, constrói `toc_map`, calcula `structure_fingerprint`, busca no Cache Global e gera `state/visao_auditoria_<stem>.md`.
-   - Parâmetros: `filePath` (*obrigatório*, com alias retrocompatível `docxPath`), `outputPath` (*opcional*), `compact` (*opcional*).
+   - **Auditoria Orçamentária Automática:** Realiza checagem determinística em centavos de preços e quantitativos, alimentando o Radar Z10/Z12 e gerando `state/auditoria_orcamentaria_<stem>.json`.
+   - **Diff Multi-Versão (`compareWithPath`):** Quando fornecido caminho de documento anterior/retificado, calcula as divergências textuais e estruturais com delta das 14 zonas em `state/diff_documental_<stem>.md` e `.json`.
+   - Parâmetros: `filePath` (*obrigatório*, com alias retrocompatível `docxPath`), `compareWithPath` (*opcional*), `outputPath` (*opcional*), `compact` (*opcional*).
 
 3. **`build_docx_template`**
    - Transforma um `.docx` bruto (sem tags) em um template parametrizado com tags `{{...}}` a partir de um arquivo `slots_manifest.json`, preservando 100% da formatação visual (`<w:pPr>`, `<w:rPr>`, estilos, cabeçalhos e tabelas).
@@ -181,6 +202,13 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 # Com mapeamento explícito de nomes de arquivos
 ./docgov-engine --bootstrap-case --case-dir cases/caso_exemplo --uploads-dir .user_uploaded --rename-map '{"media_1792069974647_14a93b9d": "Edital_Pregao.pdf"}'
+
+# 2. Inspecionar estrutura de um arquivo (.docx ou .pdf) gerando Cartografia, Radar Z1..Z14, Auditoria Orçamentária e Dossiê
+./docgov-engine --inspect edital_licitacao.pdf --out state/estrutura_edital.json
+./docgov-engine --inspect modelo_etp.docx --out state/estrutura_etp.json --compact
+
+# Inspecionar comparando com versão anterior (Diff Estrutural e Semântico Multi-Versão)
+./docgov-engine --inspect edital_v2.pdf --diff edital_v1.pdf
 
 # 2. Inspecionar estrutura de um arquivo (.docx ou .pdf) gerando Cartografia, Radar Z1..Z14 e Dossiê de Hotspots
 ./docgov-engine --inspect edital_licitacao.pdf --out state/estrutura_edital.json
@@ -217,7 +245,8 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--dump-spec [caminho.md]` | Exporta a especificação técnica integral do motor em Markdown (UTF-8). |
 | `--bootstrap-case` | Cria `inputs/`, `state/`, `templates/`, `output/` em `--case-dir`, copia e inspeciona `.docx` e `.pdf` imediatamente, gerando a Cartografia, o Radar Z1..Z14, o Dossiê de Hotspots e o Índice Mestre. |
 | `--wait` | Aguarda a conclusão da cópia dos arquivos pesados em segundo plano no `--bootstrap-case`. |
-| `--inspect <arq.docx\|.pdf>` | Extrai mapa estrutural (`state/estrutura_<stem>.json`), gera `state/visao_auditoria_<stem>.md`, `state/dossie_hotspots_<stem>.md` e busca no Cache Global. |
+| `--inspect <arq.docx\|.pdf>` | Extrai mapa estrutural (`state/estrutura_<stem>.json`), gera `state/visao_auditoria_<stem>.md`, `state/dossie_hotspots_<stem>.md`, executa auditoria orçamentária e busca no Cache Global. |
+| `--diff <caminho>` | Compara o documento inspecionado com versão anterior/retificada gerando `state/diff_documental_<stem>.md` e `.json` (usado com `--inspect`). |
 | `--compact` | Filtra parágrafos e células vazias no `--inspect` preservando os índices originais 0-based. |
 | `--build-template` | Gera um template `.docx` parametrizado a partir de `--source`, `--manifest` e `--out`. |
 | `--save-to-registry` | Persiste o manifesto homologado no Cache Global de templates (`core/registry/templates/`). |

@@ -8,9 +8,25 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+---
+
+## [1.1.0] - 2026-10-23
+
 ### Adicionado
+- **Auditoria Matemática Determinística de Planilhas Orçamentárias (`src/core/budget_auditor.ts`):** Módulo autônomo com conversão e normalização monetária pt-BR e internacional para centavos inteiros (`BigInt` / `Math.round`), eliminando imprecisões de ponto flutuante IEEE 754.
+- **Detecção Inteligente de Colunas e Quadros de Preços:** Identificação resiliente de tabelas OpenXML (`.docx`) e colunas reconstruídas via ` | ` (`.pdf`) contendo variações de `Item`, `Descrição`, `Unid`, `Qtd`, `Valor Unitário` e `Valor Total`.
+- **Dupla Verificação Matemática Determinística (Marco 4.2):** Checagem horizontal linha a linha ($\text{Qtd} \times \text{Unit} = \text{Total}$) com classificação estrita em `ROUNDING_WARNING` ($\le R\$\,0,02$) e `MATH_ERROR` ($> R\$\,0,02$), validação vertical de subtotais e somatório do Total Geral da planilha.
+- **Cruzamento com o Texto e Radar Z10/Z12:** Detecção automática de valores globais no corpo do documento e validação cruzada contra o total da planilha, injetando alertas diretamente no Radar das 14 Zonas (`Z10_PRECOS_EXEQUIBILIDADE_PLANILHA` e `Z12_MAPA_CRUZADO_MULTIPECA`).
+- **Persistência de Evidências Orçamentárias:** Emissão do relatório detalhado em `state/auditoria_orcamentaria_<stem>.json` e incorporação de bloco executivo na visão linear (`state/visao_auditoria_<stem>.md`) e no dossiê de hotspots (`state/dossie_hotspots_<stem>.md`).
+- **Motor de Diff Estrutural e Semântico Multi-Versão (`src/core/structural_diff.ts`):** Comparação profunda entre versões de minutas e editais retificados (`oldPath` vs `newPath`), classificando seções e parágrafos em `ADDED`, `REMOVED` e `MODIFIED` com realce cirúrgico inline `~~antigo~~` $\rightarrow$ `**novo**`.
+- **Rastreamento de Impacto no Radar das 14 Zonas:** Identificação do delta de pontos quentes entre versões (`INTRODUCED`, `RESOLVED`, `RETAINED`) persistido em `state/diff_documental_<stem>.md` e `state/diff_documental_<stem>.json`.
+- **Exposição Multi-Interface de Diff:** Suporte ao parâmetro `compareWithPath` na ferramenta MCP `inspect_doc` e flag `--diff <caminho>` na CLI.
 - **Instituição da Lei 8 de Governança no `AGENTS.md`:** Adição da Lei 8 estabelecendo como requisito obrigatório a disciplina autônoma de micro-commits atômicos e semânticos (`feat`, `fix`, `test`, `docs`, `chore`), a garantia de reversibilidade cirúrgica (`git bisect`/`git revert`) e a manutenção proativa da memória evolutiva do projeto.
 - **Protocolo Operacional de Micro-Commits e Rastreabilidade Contínua:** Novo capítulo no [`AGENTS.md`](AGENTS.md) padronizando o fatiamento obrigatório de micro-commits em todo plano técnico (`/plan`), a exigência de testes 100% verdes por commit, o ritual contínuo entre `CHANGELOG.md` e `ROADMAP.md`, e o Definition of Done (DoD) global do motor.
+
+### Alterado
+- **Enriquecimento do Payload Sintético MCP (Lei 2):** Incorporação de resumos executivos de auditoria orçamentária (`budget_audit`) e diff (`diff_summary`) nas ferramentas `inspect_doc` e `bootstrap_case`, preservando o payload estritamente abaixo do teto seguro (< 900 bytes).
+- **Sincronia Estrita de Self-Discovery (Lei 4):** Atualização de `--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, esquemas MCP e documentação normativa com as especificações da `v1.1.0`.
 
 ---
 

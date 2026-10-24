@@ -1,6 +1,6 @@
 {
   "name": "docgov-engine",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Motor standalone determinístico (docgov-engine) de bootstrap de casos, extração nativa de PDF e DOCX, cartografia estrutural sem IA, radar das 14 zonas de impugnação, construção de templates, injeção de estado e geração de relatórios de auditoria Word (.docx) e servidor MCP via stdio para o ecossistema DocGov",
   "main": "src/index.ts",
   "type": "module",
