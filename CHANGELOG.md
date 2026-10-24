@@ -10,6 +10,19 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.1.1] - 2026-10-24
+
+### Corrigido
+- **Sanitização Universal de UTF-8 BOM e Whitespaces Iniciais (`src/utils/xml.ts`):** Implementada a função utilitária `sanitizeXmlString`, eliminando Byte Order Mark (`\uFEFF`) e quaisquer caracteres em branco ou quebras de linha antes do primeiro caractere `<`. Corrige o crash fatal do `@xmldom/xmldom` (`sax.js:922`: `processing instruction at position 1 is an xml declaration which is only at the start of the document`), assegurando abertura resiliente de documentos DOCX manipulados por suítes de escritório diversas.
+- **Deduplicação e Movimentação Limpa da Raiz do Caso (`src/tools/bootstrap.ts`):** Detecção automática de documentos colocados soltos na raiz de `cases/<slug>/`. Os insumos são transferidos de forma limpa para `inputs/` ou deduplicados (`unlinkSync`) caso já existam em `inputs/`, preservando integralmente arquivos do sistema (`context.json`, `metadata.json`, `README.md`) e prevenindo duplicação indevida de espaço em disco.
+
+### Adicionado
+- **Resiliência Multi-Arquivo com Isolamento `try/catch` (`src/tools/bootstrap.ts`):** O loop de inspeção inicial agora processa cada documento de forma isolada. Erros de leitura ou parsing em anexos corrompidos são registrados em `failed_inspections` sem interromper o processamento das demais peças do caso.
+- **Inventário Probatório Completo no Índice Mestre (`state/indice_mestre_caso.md`):** Garantia de que 100% dos arquivos presentes em `inputs/` constem na tabela do dossiê, com status claros (`inspected`, `⚠️ Falha de leitura` e `📊 Anexo de dados` para planilhas `.xlsx`/`.csv`).
+- **Métricas de Ressalva no Payload Sintético MCP (Lei 2):** Inclusão de `inspection_errors_count` no payload JSON de retorno do `bootstrap_case`, mantendo o tamanho estritamente abaixo de 900 bytes e alertando o agente consumidor caso haja necessidade de conversão ou reparo prévio de insumos.
+
+---
+
 ## [1.1.0] - 2026-10-23
 
 ### Adicionado

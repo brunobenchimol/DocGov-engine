@@ -26,6 +26,11 @@
 - [x] **4.4. Diff Estrutural Rápido de Documentos:**
   - Comparação posicional e semântica de seções e títulos com base no `toc_map` entre versões sucessivas de minutas e editais retificados (`state/diff_documental_<stem>.md` e `.json`) com delta do Radar das 14 Zonas (`INTRODUCED`, `RESOLVED`, `RETAINED`).
 
+- [x] **4.5. Patch `v1.1.1` — Hotfix de Sanitização XML BOM, Deduplicação da Raiz e Resiliência Multi-Arquivo:**
+  - Sanitização universal de UTF-8 BOM (`\uFEFF`) e whitespaces antes de tags XML no `@xmldom/xmldom`.
+  - Movimentação automática e deduplicação de documentos soltos na raiz para `inputs/` sem clonagem de disco e preservando `context.json`.
+  - Isolamento `try/catch` por documento em `bootstrap_case` com inventário probatório de 100% dos insumos no `indice_mestre_caso.md`.
+
 ---
 
 ## 🎯 MARCO 5 — `v1.2.0`: Engenharia Tabular Avançada Multi-Página & Pipeline OCR Headless

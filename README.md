@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.1.0)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.1.1)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,9 +84,22 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.1.0` (Marco 4) e Marcos Anteriores
+## 2. Destaques da Versão `v1.1.1` (Hotfix Arquitetural) e Marcos Anteriores
 
-A versão **`v1.1.0`** consolida o Marco 4 com recursos avançados de integridade orçamentária e comparabilidade documental:
+A versão **`v1.1.1`** introduz correções críticas de robustez para ingestão em casos reais com múltiplos insumos volumosos:
+
+### Novidades da `v1.1.1` — Sanitização XML BOM, Deduplicação da Raiz e Resiliência Multi-Arquivo
+1. **Sanitização Universal de XML BOM e Whitespaces Iniciais:**
+   - Remoção automática de UTF-8 Byte Order Mark (`\uFEFF`) e caracteres em branco/quebras de linha antes da tag raiz ou de `<?xml` em todos os parsers OpenXML (`inspect`, `build_template`, `fill_template`, `audit`, `xml.ts`, `pdf_exporter.ts`).
+   - Eliminação definitiva do erro fatal `processing instruction at position 1 is an xml declaration which is only at the start of the document` disparado pelo `@xmldom/xmldom` (`sax.js:922`).
+2. **Movimentação Limpa e Deduplicação da Raiz do Caso para `inputs/`:**
+   - Detecção automática de documentos soltos colocados diretamente na raiz de `cases/<slug>/` durante `bootstrap_case`.
+   - Movimentação segura para `inputs/` ou deduplicação imediata quando já existirem em `inputs/`, preservando arquivos de sistema (`context.json`, `metadata.json`, `README.md`) e garantindo zero duplicação de espaço em disco.
+3. **Resiliência Multi-Arquivo com Isolamento `try/catch` por Documento:**
+   - Cada arquivo `.docx` e `.pdf` é inspecionado de forma isolada; falhas de parsing em um anexo específico não abortam mais o bootstrap do caso.
+   - Geração garantida do `state/indice_mestre_caso.md` com inventário probatório de 100% dos insumos (incluindo status `⚠️ Falha de leitura` e anexos de dados `.xlsx`/`.csv`).
+4. **Métricas de Ressalva no Payload MCP (Lei 2):**
+   - Retorno sintético enriquecido com `inspection_errors_count` mantendo payload estritamente abaixo de 900 bytes.
 
 ### Novidades da `v1.1.0` — Auditoria Matemática de Planilhas e Diff Estrutural
 1. **Auditoria Matemática Determinística de Planilhas Orçamentárias (`.docx` e `.pdf`):**
