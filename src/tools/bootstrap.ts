@@ -5,6 +5,9 @@ import {
   mkdirSync,
   copyFileSync,
   readdirSync,
+  unlinkSync,
+  renameSync,
+  statSync,
 } from "node:fs";
 import { resolve, relative, extname, basename } from "node:path";
 import { spawn } from "node:child_process";
@@ -119,8 +122,11 @@ export async function bootstrapCase(
   const ingestedFiles: IngestedFileSummary[] = [];
   const bgItems: BackgroundCopyFileItem[] = [];
 
-  if (uploadsDir && existsSync(uploadsDir)) {
-    const resolvedUploadsDir = resolve(uploadsDir);
+  const resolvedUploadsDir =
+    uploadsDir && existsSync(uploadsDir) ? resolve(uploadsDir) : null;
+  const uploadsIsSameAsCase = resolvedUploadsDir === resolvedCaseDir;
+
+  if (resolvedUploadsDir && !uploadsIsSameAsCase) {
     const entries = readdirSync(resolvedUploadsDir, {
       withFileTypes: true,
     }).sort((a, b) => a.name.localeCompare(b.name));
@@ -243,6 +249,111 @@ export async function bootstrapCase(
           await bgPromise;
         }
       }
+    }
+  }
+
+  // 2b. Organização e movimentação limpa da raiz de cases/<slug>/ para inputs/ (Zero Duplicação v1.1.1)
+  const SYSTEM_ROOT_FILES = new Set([
+    "context.json",
+    "metadata.json",
+    "readme.md",
+    ".gitignore",
+    ".env",
+  ]);
+
+  const DOCUMENT_EXTENSIONS = new Set([
+    ".docx",
+    ".pdf",
+    ".xlsx",
+    ".xls",
+    ".csv",
+    ".txt",
+    ".odt",
+    ".rtf",
+    ".doc",
+    ".md",
+  ]);
+
+  const rootEntries = readdirSync(resolvedCaseDir, { withFileTypes: true }).sort(
+    (a, b) => a.name.localeCompare(b.name)
+  );
+
+  for (const entry of rootEntries) {
+    if (!entry.isFile() || entry.name.startsWith("~$")) continue;
+    const lowerName = entry.name.toLowerCase();
+    if (SYSTEM_ROOT_FILES.has(lowerName)) continue;
+
+    const rootFilePath = resolve(resolvedCaseDir, entry.name);
+    let buf: Buffer;
+    try {
+      buf = readFileSync(rootFilePath);
+    } catch {
+      continue;
+    }
+
+    const currentExt = extname(entry.name).toLowerCase();
+    const detectedExt = detectFileExtensionFromBuffer(buf);
+    const isDoc =
+      DOCUMENT_EXTENSIONS.has(currentExt) ||
+      DOCUMENT_EXTENSIONS.has(detectedExt) ||
+      isPdfBuffer(buf);
+
+    if (!isDoc) continue;
+
+    const resolved = await resolveTargetFileName(
+      entry.name,
+      buf,
+      options.fileRenameMap
+    );
+
+    let finalTarget = resolved.targetFileName;
+    let counter = 1;
+    const usedNames = new Set([
+      ...copiedFiles,
+      ...backgroundFiles,
+      ...ingestedFiles.map((f) => f.saved_as),
+    ]);
+    while (usedNames.has(finalTarget)) {
+      const ext = extname(finalTarget);
+      const stem = ext ? finalTarget.slice(0, -ext.length) : finalTarget;
+      finalTarget = `${stem}_${counter}${ext}`;
+      counter++;
+    }
+
+    const destPath = resolve(inputsDir, finalTarget);
+
+    if (existsSync(destPath)) {
+      // Se o arquivo já existe em inputs/, verifica se tem o mesmo tamanho para remover a cópia redundante da raiz
+      try {
+        const rootSize = statSync(rootFilePath).size;
+        const destSize = statSync(destPath).size;
+        if (rootSize === destSize) {
+          unlinkSync(rootFilePath);
+        }
+      } catch {
+        // Ignora falha de exclusão
+      }
+    } else {
+      // Move o arquivo da raiz para inputs/
+      try {
+        renameSync(rootFilePath, destPath);
+      } catch {
+        copyFileSync(rootFilePath, destPath);
+        try {
+          unlinkSync(rootFilePath);
+        } catch {}
+      }
+    }
+
+    if (!copiedFiles.includes(finalTarget)) {
+      copiedFiles.push(finalTarget);
+    }
+    if (!ingestedFiles.some((f) => f.saved_as === finalTarget)) {
+      ingestedFiles.push({
+        original_name: entry.name,
+        saved_as: finalTarget,
+        detected_type: resolved.detectedType,
+      });
     }
   }
 

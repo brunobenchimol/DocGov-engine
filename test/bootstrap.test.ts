@@ -168,4 +168,77 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(renamedItem).toBeDefined();
     expect(renamedItem!.type).toBe("DFD");
   });
+
+  test("deve mover documentos soltos na raiz de cases/<slug>/ para inputs/ com deduplicação automática e preservar context.json (v1.1.1)", async () => {
+    const caseDir = resolve(tempDir, "caso_com_arquivos_na_raiz");
+    mkdirSync(caseDir, { recursive: true });
+
+    // 1. Cria 8 arquivos na raiz do caso (simulando caso real de 8 documentos / 19 MB)
+    const docxNames = [
+      "01 - DFD.docx",
+      "02 - ETP.docx",
+      "03 - Analise de Risco.docx",
+      "04 - TR.docx",
+      "04D - Matriz Responsabilidade.docx",
+    ];
+    for (const name of docxNames) {
+      await createSampleRawDocx(resolve(caseDir, name));
+    }
+
+    // PDFs sintéticos com magic bytes
+    const pdfNames = ["04A - Anexo Tecnico.pdf", "04C - Estudo Mercado.pdf"];
+    for (const name of pdfNames) {
+      writeFileSync(
+        resolve(caseDir, name),
+        Buffer.from("%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF\n")
+      );
+    }
+
+    // Planilha de insumo adicional
+    writeFileSync(
+      resolve(caseDir, "04B - Planilha Custos.xlsx"),
+      Buffer.from("PK\x03\x04-synthetic-xlsx-content")
+    );
+
+    // Arquivo de metadados do sistema que DEVE permanecer na raiz
+    const contextJsonPath = resolve(caseDir, "context.json");
+    writeFileSync(
+      contextJsonPath,
+      JSON.stringify({ caso_id: "caso_real_8_docs", orgao: "ORGAO_CONTRATANTE" }, null, 2),
+      "utf-8"
+    );
+
+    // 2. Executa bootstrap_case apontando apenas para caseDir
+    const res = await bootstrapCase(caseDir);
+
+    expect(res.status).toBe("success");
+    expect(existsSync(resolve(caseDir, "inputs"))).toBe(true);
+    expect(existsSync(contextJsonPath)).toBe(true);
+
+    // 3. Valida que todos os 8 documentos foram movidos para inputs/
+    const allExpectedFiles = [
+      ...docxNames,
+      ...pdfNames,
+      "04B - Planilha Custos.xlsx",
+    ];
+
+    for (const name of allExpectedFiles) {
+      const inInputs = existsSync(resolve(caseDir, "inputs", name));
+      const inRoot = existsSync(resolve(caseDir, name));
+
+      expect(inInputs).toBe(true); // Está em inputs/
+      expect(inRoot).toBe(false);  // Não está mais solto na raiz!
+    }
+
+    // 4. Cenário de Re-Execução / Idempotência:
+    // Se o usuário acionar bootstrap_case novamente com uploadsDir apontando para caseDir,
+    // o motor não deve falhar nem recriar arquivos duplicados na raiz
+    const reRunRes = await bootstrapCase(caseDir, caseDir);
+    expect(reRunRes.status).toBe("success");
+
+    for (const name of allExpectedFiles) {
+      expect(existsSync(resolve(caseDir, "inputs", name))).toBe(true);
+      expect(existsSync(resolve(caseDir, name))).toBe(false);
+    }
+  });
 });
