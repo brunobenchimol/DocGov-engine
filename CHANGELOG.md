@@ -8,6 +8,12 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Adicionado
+- **Automação de Checksums SHA-256 no Pipeline de Release da CI (`.github/workflows/release.yml`):**
+  - Geração automatizada de `SHA256SUMS.txt` diretamente no runner limpo da CI (`ubuntu-24.04`) na publicação de releases via tags ou `workflow_dispatch`.
+  - Publicação exclusiva dos 3 assets canônicos oficiais (`docgov-engine-linux-x64`, `docgov-engine-win-x64.exe` e `SHA256SUMS.txt`), eliminando duplicações redundantes de aliases curtos e preservando a quota de armazenamento do GitHub.
+  - Script `scripts/generate_sha256sums.ts` alinhado para referenciar estritamente os nomes canônicos de release.
+
 ---
 
 ## [1.2.0] - 2026-10-25
