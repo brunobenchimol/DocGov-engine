@@ -11,6 +11,7 @@ import {
 } from "node:fs";
 import { resolve, relative, extname, basename } from "node:path";
 import { spawn } from "node:child_process";
+import JSZip from "jszip";
 import {
   detectFileExtensionFromBuffer,
   resolveTargetFileName,
@@ -454,8 +455,81 @@ export async function bootstrapCase(
           error: err?.message || "Falha desconhecida na extração de PDF",
         });
       }
+    } else if (
+      entry.name.toLowerCase().endsWith(".xlsx") ||
+      entry.name.toLowerCase().endsWith(".xls") ||
+      entry.name.toLowerCase().endsWith(".csv")
+    ) {
+      const sheetPath = resolve(inputsDir, entry.name);
+      let isValidSheet = false;
+      if (entry.name.toLowerCase().endsWith(".csv")) {
+        try {
+          const content = readFileSync(sheetPath, "utf-8");
+          isValidSheet = content.includes(";") || content.includes(",");
+        } catch {
+          isValidSheet = false;
+        }
+      } else {
+        try {
+          const buf = readFileSync(sheetPath);
+          if (buf.length > 30 && buf[0] === 0x50 && buf[1] === 0x4b) {
+            const zip = await JSZip.loadAsync(buf);
+            isValidSheet = Boolean(
+              zip.file("xl/workbook.xml") ||
+              Object.keys(zip.files).some((k) => k.startsWith("xl/"))
+            );
+          }
+        } catch {
+          isValidSheet = false;
+        }
+      }
+
+      if (isValidSheet) {
+        try {
+          const ext = extname(entry.name);
+          const base = entry.name.slice(0, -ext.length);
+          const structurePath = resolve(stateDir, `estrutura_${base}.json`);
+          const full = await inspectDocx(sheetPath, structurePath);
+          const compact = compactInspectionResult(full);
+          inspectedDocx.push({
+            fileName: entry.name,
+            docxPath: sheetPath,
+            structurePath,
+            tablesCount: compact.tables.length,
+            paragraphsCount: full.line_count ?? 0,
+            compactStructure: compact,
+            ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
+          });
+
+          const relStructure = relative(resolvedCaseDir, structurePath).replace(
+            /\\/g,
+            "/"
+          );
+          const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+          if (match) {
+            match.structure_json = relStructure;
+          }
+        } catch (err: any) {
+          failedInspections.push({
+            fileName: entry.name,
+            type: extname(entry.name).toLowerCase().replace(/^\./, ""),
+            error: err?.message || "Falha na inspeção de planilha",
+          });
+        }
+      } else {
+        try {
+          const stats = statSync(sheetPath);
+          otherFiles.push({
+            fileName: entry.name,
+            extension: extname(entry.name).toLowerCase().replace(/^\./, "") || "anexo",
+            size: stats.size,
+          });
+        } catch {
+          // Ignora falha de stat
+        }
+      }
     } else {
-      // Outros formatos (planilhas .xlsx, .csv, textos, metadados)
+      // Outros formatos (textos, imagens, metadados)
       try {
         const otherPath = resolve(inputsDir, entry.name);
         const stats = statSync(otherPath);
@@ -495,11 +569,22 @@ export async function bootstrapCase(
       docx.compactStructure.impugnation_zones || {}
     ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
 
+    const isSpreadsheet =
+      docx.fileName.toLowerCase().endsWith(".xlsx") ||
+      docx.fileName.toLowerCase().endsWith(".xls") ||
+      docx.fileName.toLowerCase().endsWith(".csv");
+    const docType = isSpreadsheet
+      ? (docx.fileName.toLowerCase().endsWith(".csv") ? "csv" : "xlsx")
+      : "docx";
+    const volumeSummary = isSpreadsheet
+      ? `${docx.tablesCount} aba(s)/tabela(s), ${docx.paragraphsCount} linha(s) de dados`
+      : `${docx.paragraphsCount} parágrafo(s), ${docx.tablesCount} tabela(s)`;
+
     masterIndexEntries.push({
       fileName: docx.fileName,
-      type: "docx",
+      type: docType,
       status: "inspected",
-      volumeSummary: `${docx.paragraphsCount} parágrafo(s), ${docx.tablesCount} tabela(s)`,
+      volumeSummary,
       structureRelPath: relStructure,
       auditViewRelPath: relAudit,
       activeZonesCount: activeCount,

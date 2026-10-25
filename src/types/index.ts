@@ -183,7 +183,8 @@ export interface DocumentCartography {
 }
 
 export interface DocxInspectionResult {
-  doc_type?: "docx" | "pdf";
+  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet";
+  format?: string;
   page_count?: number;
   line_count?: number;
   outline_headings?: OutlineHeadingItem[];
@@ -195,6 +196,8 @@ export interface DocxInspectionResult {
   audit_view_path?: string;
   dossie_hotspots_path?: string;
   scanned_pages_detected?: number[];
+  ocr_applied?: boolean;
+  ocr_pages?: number[];
   headers: HeaderFooterParagraphInfo[];
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
@@ -459,7 +462,8 @@ export interface InspectDocSyntheticResult {
   filePath: string;
   docxPath?: string;
   outputPath: string;
-  doc_type?: "docx" | "pdf";
+  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet";
+  format?: string;
   page_count?: number;
   line_count?: number;
   tables: number;
@@ -469,6 +473,7 @@ export interface InspectDocSyntheticResult {
   audit_view_path?: string;
   dossie_path?: string;
   scanned_pages?: number[];
+  ocr_applied?: boolean;
   toc_summary?: Array<{
     coord: string;
     title: string;

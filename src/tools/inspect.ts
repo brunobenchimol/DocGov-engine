@@ -40,6 +40,12 @@ import {
   computeStructuralDiff,
   generateDiffReportMarkdown,
 } from "../core/structural_diff.ts";
+import {
+  parseXlsxBuffer,
+  parseCsvBuffer,
+  generateSpreadsheetLinearAuditViewMarkdown,
+  generateSpreadsheetHotspotsDossierMarkdown,
+} from "../parsers/spreadsheet.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   BodyParagraphInfo,
@@ -454,6 +460,100 @@ export async function inspectDocx(
   }
 
   const buffer = readFileSync(resolvedDocx);
+  const lowerPath = resolvedDocx.toLowerCase();
+  const isSpreadsheet =
+    lowerPath.endsWith(".xlsx") ||
+    lowerPath.endsWith(".xls") ||
+    lowerPath.endsWith(".csv");
+
+  if (isSpreadsheet) {
+    const isCsv = lowerPath.endsWith(".csv");
+    const extraction = isCsv
+      ? parseCsvBuffer(buffer)
+      : await parseXlsxBuffer(buffer);
+
+    // Auditoria Matemática Orçamentária
+    const budgetAudit = auditDocumentBudget({ docxTables: extraction.tables });
+
+    const baseStem = outputPath
+      ? basename(resolve(outputPath), ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        )
+      : basename(resolvedDocx).replace(/\.(?:xlsx|xls|csv)$/i, "");
+
+    const outDir = outputPath
+      ? dirname(resolve(outputPath))
+      : dirname(resolvedDocx);
+
+    if (!existsSync(outDir)) {
+      mkdirSync(outDir, { recursive: true });
+    }
+
+    const auditViewPath = resolve(outDir, `visao_auditoria_${baseStem}.md`);
+    const dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${baseStem}.md`);
+    const budgetAuditPath = resolve(
+      outDir,
+      `auditoria_orcamentaria_${baseStem}.json`
+    );
+
+    let auditMd = generateSpreadsheetLinearAuditViewMarkdown(
+      basename(resolvedDocx),
+      extraction
+    );
+    if (budgetAudit.has_budget_table) {
+      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    }
+    writeFileSync(auditViewPath, auditMd, "utf-8");
+
+    let dossieMd = generateSpreadsheetHotspotsDossierMarkdown(
+      basename(resolvedDocx),
+      extraction
+    );
+    if (budgetAudit.has_budget_table) {
+      dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+      writeFileSync(budgetAuditPath, JSON.stringify(budgetAudit, null, 2), "utf-8");
+    }
+    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
+
+    const toc_map: DocxTocMap = {
+      sections: extraction.sheets.map((s) => ({
+        coord: `ABA_${s.index + 1}`,
+        title: s.name,
+      })),
+      form_fields: [],
+      tables: extraction.tables.map((t) => ({
+        table_index: t.index,
+        rows: t.rows.length,
+        cols: t.rows[0]?.cells.length ?? 0,
+        headers: t.rows[0]?.cells.map((c) => c.text) ?? [],
+        sample_row_coord: t.rows.length > 1 ? `T${t.index}.R1` : undefined,
+      })),
+    };
+
+    const result: DocxInspectionResult = {
+      doc_type: isCsv ? "csv" : "xlsx",
+      format: extraction.format,
+      page_count: extraction.sheets.length,
+      line_count: extraction.totalRows,
+      audit_view_path: auditViewPath,
+      dossie_hotspots_path: dossieHotspotsPath,
+      headers: [],
+      footers: [],
+      paragraphs: [],
+      tables: extraction.tables,
+      toc_map,
+      budget_audit: budgetAudit,
+    };
+
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      writeFileSync(resolvedOut, JSON.stringify(result, null, 2), "utf-8");
+    }
+
+    return result;
+  }
+
   const isPdf =
     isPdfBuffer(buffer) || resolvedDocx.toLowerCase().endsWith(".pdf");
 
@@ -1038,9 +1138,9 @@ export function formatInspectDocSyntheticResult(
     filePath,
     docxPath: filePath,
     outputPath,
-    ...(inspection.doc_type === "pdf"
+    ...(inspection.doc_type && inspection.doc_type !== "docx"
       ? {
-          doc_type: "pdf",
+          doc_type: inspection.doc_type,
           page_count: inspection.page_count,
           line_count: inspection.line_count,
         }
@@ -1092,7 +1192,7 @@ export function formatInspectDocSyntheticResult(
     next_step_hint: nextHint,
   });
 
-  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8 com folga segura < 920 bytes)
+  // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8 com folga segura < 900 bytes)
   const currentSummary = [...toc_summary];
   let result = buildPayload(currentSummary);
   while (
@@ -1104,15 +1204,36 @@ export function formatInspectDocSyntheticResult(
   }
 
   if (
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
+    result.docxPath &&
+    result.doc_type &&
+    result.doc_type !== "docx"
+  ) {
+    delete result.docxPath;
+  }
+
+  if (
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
+    result.dossie_path
+  ) {
+    delete result.dossie_path;
+  }
+
+  if (
+    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
+    !nextHint.includes("Cache reconhecido") &&
+    result.next_step_hint &&
+    result.next_step_hint.length > 60
+  ) {
+    result.next_step_hint = "Inspeção gravada. Siga para 'generate_audit_docx'.";
+  }
+
+  if (
     Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000 &&
     !nextHint.includes("Cache reconhecido") &&
     !nextHint.includes("ALERTA:")
   ) {
     result.next_step_hint = "Inspeção gravada. Chame 'build_docx_template'.";
-  }
-
-  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1010 && result.dossie_path) {
-    delete result.dossie_path;
   }
 
   return result;
