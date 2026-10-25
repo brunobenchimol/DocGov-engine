@@ -39,7 +39,7 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(content).toContain("--version");
   });
 
-  it("4. .github/workflows/release.yml deve compilar e publicar os assets canônicos da release", () => {
+  it("4. .github/workflows/release.yml deve compilar e publicar os assets canônicos e SHA256SUMS", () => {
     const releaseYmlPath = resolve(process.cwd(), ".github/workflows/release.yml");
     expect(existsSync(releaseYmlPath)).toBe(true);
 
@@ -48,6 +48,8 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(content).toContain("artifact_name: docgov-engine-win-x64.exe");
     expect(content).toContain("binary_path: bin/docgov-engine");
     expect(content).toContain("binary_path: bin/docgov-engine.exe");
+    expect(content).toContain("SHA256SUMS.txt");
+    expect(content).toContain("dist-release/SHA256SUMS.txt");
   });
 
   it("5. .github/workflows/ci.yml deve conter os smoke tests dos instaladores oficiais", () => {

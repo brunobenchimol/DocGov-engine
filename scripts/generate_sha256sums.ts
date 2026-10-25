@@ -11,18 +11,19 @@ export function generateSha256Sums(binDir: string = "./bin"): string {
   const entries: Array<{ fileName: string; hash: string }> = [];
 
   const targets = [
-    { diskName: "docgov-engine", releaseAliases: ["docgov-engine", "docgov-engine-linux-x64"] },
-    { diskName: "docgov-engine.exe", releaseAliases: ["docgov-engine.exe", "docgov-engine-win-x64.exe"] },
+    { diskName: "docgov-engine-linux-x64", fallbackName: "docgov-engine", releaseName: "docgov-engine-linux-x64" },
+    { diskName: "docgov-engine-win-x64.exe", fallbackName: "docgov-engine.exe", releaseName: "docgov-engine-win-x64.exe" },
   ];
 
   for (const t of targets) {
-    const filePath = resolve(resolvedBinDir, t.diskName);
+    let filePath = resolve(resolvedBinDir, t.diskName);
+    if (!existsSync(filePath)) {
+      filePath = resolve(resolvedBinDir, t.fallbackName);
+    }
     if (existsSync(filePath)) {
       const buffer = readFileSync(filePath);
       const hash = createHash("sha256").update(buffer).digest("hex").toLowerCase();
-      for (const alias of t.releaseAliases) {
-        entries.push({ fileName: alias, hash });
-      }
+      entries.push({ fileName: t.releaseName, hash });
     }
   }
 

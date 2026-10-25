@@ -123,9 +123,8 @@ a665a45920422f9d417e4867efdc4fb8a04a1f3fff1fa07e998e86f7f7a27ae3 *docgov-engine-
       .digest("hex")
       .toLowerCase();
 
-    expect(generated).toContain(`${expectedHash}  docgov-engine`);
     expect(generated).toContain(`${expectedHash}  docgov-engine-linux-x64`);
-    expect(generated).toContain(`${expectedHash}  docgov-engine.exe`);
     expect(generated).toContain(`${expectedHash}  docgov-engine-win-x64.exe`);
+    expect(generated.trim().split("\n").length).toBe(2);
   });
 });
