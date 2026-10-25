@@ -304,6 +304,27 @@ export interface SelfUpdateOptions {
   checkOnly?: boolean;
   force?: boolean;
   targetPath?: string;
+  token?: string;
+  skipChecksumVerification?: boolean;
+}
+
+export interface ReleaseInfo {
+  tag: string;
+  version: string;
+  downloadUrl: string;
+  apiUrl?: string;
+  assetName: string;
+  sha256sumsDownloadUrl?: string;
+  sha256sumsApiUrl?: string;
+  token?: string;
+}
+
+export interface Sha256VerificationResult {
+  valid: boolean;
+  expectedHash?: string;
+  actualHash: string;
+  assetFoundInManifest: boolean;
+  message?: string;
 }
 
 export interface SelfUpdateResult {
