@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.2.0)
+# Especificação Técnica do Motor docgov-engine (v1.3.0)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.2.0`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.0`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -18,10 +18,11 @@ Documento normativo e especificação canônica do motor standalone `docgov-engi
 10. **Pipeline OCR Headless para PDFs Escaneados (v1.2.0):** Detecção automática de armadilhas de documento escaneado ('scanned_pages_detected') com fallback determinístico operando 100% offline dentro do binário Bun, injetando o texto extraído nas coordenadas homogêneas '[PAG_XXX | LYYYY]' para auditoria imediata pelo Radar das 14 Zonas e marcação 'ocr_applied: true'.
 11. **Geração Parametrizada de Matriz de Riscos e Checklist de Conformidade (v1.2.0):** Emissão estruturada em layout vertical corrido A4 corporativo (zero tabelas <w:tbl>) de Matriz de Gerenciamento de Riscos (Art. 18, X e Art. 22 da Lei nº 14.133/2021) com severidade cromática e alocação contratual, e Checklist de Conformidade Normativa (TCU/AGU/MGI) com status e fundamentações legais em Word (.docx) e PDF via 'generate_audit_docx'.
 12. **Segurança de Supply-Chain & Auto-Updater SHA-256 (v1.2.0):** Validação criptográfica de integridade SHA-256 antes da substituição de binários em disco no '--update' e suporte híbrido transparente a tokens em variáveis de ambiente ou arquivo local '.env'.
+13. **Diff Semântico Granular em Nível de Token & Nota Técnica Comparativa Padronizada (Marco 6 — v1.3.0):** Motor de tokenização com regex Unicode `gu` preservando acentuação pt-BR, algoritmo LCS com guardrail de complexidade para cláusulas extensas (> 2.000.000 de comparações), blocos de diff granular com renderização markdown inline ({++inclusão++}, {--supressão--}), e gerador formal de Nota Técnica Comparativa ('Antes vs. Depois') em layout editorial vertical A4 (zero tabelas) com cards coloridos (verde/vermelho/azul), quadro de evolução com fundamentação técnica e jurídica individualizada por cláusula, delta das 14 zonas de impugnação e exportação para Word (.docx) e PDF via CLI ('--diff-report', '--generate-technical-note') e MCP ('generate_technical_note_docx').
 
 ---
 
-## 2. Ferramentas MCP Nativas (5 Tools)
+## 2. Ferramentas MCP Nativas (6 Tools)
 
 ### 2.1. bootstrap_case
 Inicializa a governança de pastas do caso (`inputs/`, `state/`, `templates/`, `output/`), preserva nomes legíveis, move e deduplica automaticamente documentos soltos na raiz para `inputs/` (preservando `context.json`), infere extensões por magic bytes (`PK\x03\x04` para .docx e `%PDF` para .pdf), aceita `fileRenameMap` opcional, realiza auto-batismo de uploads anônimos (`media_*` -> `<TIPO>_<ORGAO>_<hash4>.<ext>`), detecta páginas escaneadas como imagem (`scanned_pages_detected`), inspeciona minutas `.docx` e editais/anexos `.pdf` com isolamento `try/catch` por arquivo gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md`, `state/dossie_hotspots_<stem>.md`, `state/auditoria_orcamentaria_<stem>.json` e o consolidado multipeça `state/indice_mestre_caso.md` contendo o inventário de 100% dos arquivos com matriz cruzada Z1..Z14 e alertas globais. Retorna sumário executivo sintético (< 1 KB, margem segura < 920 bytes) com `master_index_path`.
@@ -136,6 +137,42 @@ Compila o parecer executivo de auditoria de controle externo em layout vertical 
       "redacao_saneadora_sugerida": "Incluir memória de cálculo detalhada com base no histórico de consumo."
     }
   ]
+}
+```
+
+### 2.6. generate_technical_note_docx
+Gera Nota Técnica Comparativa de Evolução Documental ('Antes vs. Depois', Marco 6) em formato Word (.docx) e PDF em layout editorial vertical A4 (ZERO tabelas <w:tbl>, 100% largura útil), com destaque visual colorido por cards com bordas laterais (verde para inclusão, vermelho para supressão, azul para alteração), diff inline em nível de token e fundamentação técnica/jurídica individualizada por cláusula.
+- **Modos Híbridos:** Suporta modo direto via `noteJsonPath` ou modo comparativo automático derivado a partir de `oldPath` e `newPath` (com enriquecimento opcional via `noteJsonPath`).
+- **Validação Fail-Fast e Exact Copy-Paste Error:** Validação estrita de contrato impedindo geração com campos obrigatórios ausentes.
+- **Exportação para PDF:** Suporta `outputFormat: "docx" | "pdf" | "both"` via Pipeline Híbrido (Tier 1 COM / Tier 2 Pure-JS).
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve `status`, `engine_version`, `document_type: "TECHNICAL_NOTE"`, `outputPath`, `pdf_path` (se gerado), `total_changes`, `message` e `next_step_hint`.
+- **Contrato Canônico de `nota_tecnica.json`:**
+```json
+{
+  "document_type": "TECHNICAL_NOTE",
+  "processo_id": "08000.001234/2026-00",
+  "orgao_entidade": "ORGAO_CONTRATANTE",
+  "artefato_auditado": "Termo de Referência (TR)",
+  "versao_anterior": "Minuta Original v1.0",
+  "versao_nova": "Minuta Saneada v2.0",
+  "regime_juridico": "Lei Federal nº 14.133/2021",
+  "resumo_executivo": "A presente Nota Técnica demonstra as alterações saneadoras promovidas no Termo de Referência...",
+  "quadro_evolucao": [
+    {
+      "id": "EVO-01",
+      "slot_id": "P14",
+      "coordenada": "[P14]",
+      "secao_titulo": "Cláusula 5ª — Do Prazo de Entrega e Garantia",
+      "tipo_alteracao": "MODIFICACAO",
+      "redacao_anterior": "O prazo de entrega será impreterivelmente de 10 dias corridos...",
+      "redacao_nova": "O prazo de entrega será de até 30 (trinta) dias úteis nos termos do Art. 111...",
+      "justificativa_tecnica": "Adequação ao prazo de fabricação apurado na pesquisa de mercado...",
+      "fundamentacao_juridica": "Art. 18, inc. X e Art. 40, § 1º da Lei nº 14.133/2021; Acórdão TCU nº 1234/2023-Plenário",
+      "apontamento_origem_id": "AUD-02",
+      "impacto_risco": "Eliminação de risco de direcionamento e restrição indevida (Zona Z8)"
+    }
+  ],
+  "conclusao_encaminhamento": "Submete-se à Consultoria Jurídica com parecer favorável ao prosseguimento."
 }
 ```
 

@@ -8,11 +8,40 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+---
+
+## [1.3.0] - 2026-10-25
+
 ### Adicionado
-- **Automação de Checksums SHA-256 no Pipeline de Release da CI (`.github/workflows/release.yml`):**
-  - Geração automatizada de `SHA256SUMS.txt` diretamente no runner limpo da CI (`ubuntu-24.04`) na publicação de releases via tags ou `workflow_dispatch`.
-  - Publicação exclusiva dos 3 assets canônicos oficiais (`docgov-engine-linux-x64`, `docgov-engine-win-x64.exe` e `SHA256SUMS.txt`), eliminando duplicações redundantes de aliases curtos e preservando a quota de armazenamento do GitHub.
-  - Script `scripts/generate_sha256sums.ts` alinhado para referenciar estritamente os nomes canônicos de release.
+- **Diff Semântico Granular em Nível de Token (`src/core/structural_diff.ts` — Marco 6.1):**
+  - Tokenizador com regex Unicode `gu` (`/(?:R\$\s*[\d\.,]+|\d+(?:\.\d+)+|[\p{L}\p{N}_ºª§]+|\s+|[^\p{L}\p{N}_\s])/gu`), tratando adequadamente palavras acentuadas da língua portuguesa (`contratação`, `órgão`), quantias monetárias (`R$ 1.500,00`), numerais de artigos e ordinais (`1º`, `art. 67`) e pontuações sem fragmentação.
+  - Algoritmo LCS (*Longest Common Subsequence*) com guardrail de complexidade para blocos de cláusulas extensas ($m \times n > 2.000.000$, particionamento por sentenças `/(?<=[.;!?])\s+/`), garantindo performance instantânea sem estouro de memória ou tempo de execução.
+  - Agrupamento inteligente de tokens contíguos em blocos semânticos (`diff_chunks`), gerando representação em markdown inline com `{++inclusão++}` e `{--supressão--}`.
+  - Enriquecimento dos resultados de `computeStructuralDiff` com `diff_chunks` anexados a cada item de alteração.
+- **Contrato Canônico de Evolução de Cláusulas e Fail-Fast (`src/contracts/errors.ts` — Marco 6.1):**
+  - Definição do contrato estrito `TechnicalNoteData` (`processo_id`, `orgao_entidade`, `artefato_auditado`, `versao_anterior`, `versao_nova`, `resumo_executivo`, `contagem`, `quadro_evolucao` com itens `EvolutionClauseItem` contendo `justificativa_tecnica` e `fundamentacao_juridica`, e `delta_zonas`).
+  - Validador fail-fast `validateTechnicalNoteData` com o padrão Exact Copy-Paste Error (`EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET`), interrompendo com instrução mandatória e snippet canônico em caso de inconsistência contratual.
+- **Renderizador Formal da Nota Técnica Comparativa em DOCX e PDF (`src/tools/technical_note.ts` — Marco 6.2):**
+  - Emissão executiva formal ("Antes vs. Depois") para instrução processual de alterações contratuais (Art. 124 a 136 da Lei nº 14.133/2021).
+  - Diagramação corporativa em folha A4 retrato vertical corrida (zero tabelas `<w:tbl>`, 100% de largura útil).
+  - Cards visuais com bordas laterais coloridas por tipo de alteração (verde para `INCLUSAO`, vermelho para `SUPRESSAO`, azul para `MODIFICACAO`).
+  - Renderização granular de diff de tokens inline destacando termos adicionados e suprimidos dentro da mesma cláusula.
+  - Seções formais com dados do processo e órgão, quadro executivo de alterações, detalhamento individualizado de cláusula por cláusula (com justificativa técnica e fundamentação jurídica), síntese de impacto nas 14 Zonas de Impugnação, conclusão executiva e linhas de assinatura.
+  - Suporte nativo a exportação direta para PDF via Pipeline Híbrido (Tier 1 Word COM / Tier 2 Pure-JS).
+  - Formatação sintética `formatTechnicalNoteSyntheticResult` mantendo o payload rigorosamente abaixo de 900 bytes (Lei 2).
+- **Orquestrador de Comparação Multi-Arquivo e Modo CLI `--diff-report` (`src/cli/index.ts` — Marco 6.2):**
+  - Nova flag CLI `--diff-report --old <base> --new <revisado> --out <nota.docx> [--format <docx|pdf|both>] [--data <nota.json>]` orquestrando inspeção e diff automático entre arquivos brutos (`.docx`, `.pdf` ou `.json`), derivando `TechnicalNoteData` e compilando a Nota Técnica.
+  - Nova flag CLI `--generate-technical-note --note-json <nota.json> --out <nota.docx> [--format <docx|pdf|both>]` para compilação direta de nota técnica a partir de JSON estruturado.
+  - Função auxiliar `createTechnicalNoteDataFromDiff` para derivação unificada e consistente entre CLI e MCP.
+- **Ferramenta MCP `generate_technical_note_docx` Híbrida (`src/mcp/server.ts` — Marco 6.2):**
+  - Registro da 6ª ferramenta nativa no servidor MCP com suporte tanto ao modo direto (`noteJsonPath` + `outputPath`) quanto ao modo comparativo automático (`oldPath` + `newPath` + `outputPath`, com enriquecimento opcional via `noteJsonPath`).
+  - Retorno sintético com `document_type: "TECHNICAL_NOTE"`, `total_changes`, `next_step_hint` e payload $< 900$ bytes.
+  - Roteamento transparente em `generate_audit_docx` para `generateTechnicalNoteDocx` quando `document_type === "TECHNICAL_NOTE"` ou `"EVOLUTION_REPORT"`.
+
+### Alterado
+- **Sincronia Estrita de Self-Discovery (Lei 4):**
+  - Atualização da versão para `1.3.0` em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts`, `docs/especificacao_motor.md` e `README.md`.
+  - Sincronização de `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, descrições das ferramentas MCP em `getMcpToolsDefinition()` e hints para cobrir as 6 ferramentas e o Marco 6.
 
 ---
 

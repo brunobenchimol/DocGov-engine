@@ -116,9 +116,11 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.2.0 e novos recursos v1.2.0 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.2.0");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.1.1");
+  test("deve expor versão 1.3.0 e novos recursos v1.3.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.3.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Diff Semântico Granular em Nível de Token");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Nota Técnica Comparativa Padronizada em DOCX e PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Sanitização de Tags JS");
@@ -160,6 +162,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     const auditTool = tools.find((t) => t.name === "generate_audit_docx")!;
     expect(auditTool.description).toContain("Exact Copy-Paste Error");
 
+    const noteTool = tools.find((t) => t.name === "generate_technical_note_docx")!;
+    expect(noteTool).toBeDefined();
+    expect(noteTool.description).toContain("Antes vs. Depois");
+
     const fillTool = tools.find((t) => t.name === "fill_docx_template")!;
     expect(fillTool.description).toContain("visao_auditoria");
     expect(fillTool.description).toContain("word/numbering.xml");
@@ -186,10 +192,11 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.2.0)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.2.0)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.0)");
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
+    expect(spec).toContain("Diff Semântico Granular em Nível de Token");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
@@ -208,6 +215,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("2.3. build_docx_template");
     expect(spec).toContain("2.4. fill_docx_template");
     expect(spec).toContain("2.5. generate_audit_docx");
+    expect(spec).toContain("2.6. generate_technical_note_docx");
 
     expect(spec).toContain("ORGAO_CONTRATANTE");
     expect(spec).toContain("slots");
@@ -246,6 +254,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.generateAuditDocx).toBe("function");
     expect(typeof barrel.formatGenerateAuditDocxSyntheticResult).toBe("function");
     expect(typeof barrel.formatAuditDocxSyntheticResult).toBe("function");
+    expect(typeof barrel.generateTechnicalNoteDocx).toBe("function");
+    expect(typeof barrel.formatTechnicalNoteSyntheticResult).toBe("function");
+    expect(typeof barrel.createTechnicalNoteDataFromDiff).toBe("function");
 
     // Servidor MCP e Especificação
     expect(typeof barrel.runMcpServer).toBe("function");
@@ -272,6 +283,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.generateCaseMasterIndexMarkdown).toBe("function");
     expect(typeof barrel.auditDocumentBudget).toBe("function");
     expect(typeof barrel.computeStructuralDiff).toBe("function");
+    expect(typeof barrel.tokenizeDiffText).toBe("function");
+    expect(typeof barrel.computeTokenLcsDiff).toBe("function");
+    expect(typeof barrel.generateGranularInlineDiff).toBe("function");
 
     // Utilitários
     expect(typeof barrel.safeReadJsonFile).toBe("function");
@@ -299,8 +313,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     // Contratos de Erro
     expect(typeof barrel.createSlotsManifestContractError).toBe("function");
     expect(typeof barrel.createAuditReportContractError).toBe("function");
+    expect(typeof barrel.createTechnicalNoteContractError).toBe("function");
+    expect(typeof barrel.validateTechnicalNoteData).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.2.0");
+    expect(barrel.VERSION).toBe("1.3.0");
   });
 });

@@ -71,7 +71,7 @@
 
 ## 🎯 MARCO 6 — `v1.3.0`: Motor de Diff Semântico, Evolução de Cláusulas e Nota Técnica Comparativa Padronizada
 
-- [ ] **6.1. Mapeamento de Evolução de Cláusulas e Histórico Cirúrgico ("Antes vs. Depois"):**
+- [x] **6.1. Mapeamento de Evolução de Cláusulas e Histórico Cirúrgico ("Antes vs. Depois"):**
   - Registro estruturado do ciclo de vida de alterações em slots e cláusulas durante o saneamento documental:
     - *Slot ID / Coordenada da Cláusula;*
     - *Redação Anterior (Original);*
@@ -79,7 +79,7 @@
     - *Fundamentação Técnica e Justificativa Jurídica (Artigos da Lei 14.133/2021, Jurisprudência TCU, Pareceres AGU).*
   - Cálculo de diff semântico e granular de texto (inserções, supressões e substituições parciais) com marcação visual clara (`[+]` / `[-]`).
 
-- [ ] **6.2. Geração da Nota Técnica Comparativa Padronizada (`.docx` e `.pdf`):**
+- [x] **6.2. Geração da Nota Técnica Comparativa Padronizada (`.docx` e `.pdf`):**
   - Emissão automatizada em `output/Nota_Tecnica_Evolucao_<Artefato>.docx` e `.pdf` contendo o quadro de alterações e a justificativa motivada.
   - Layout formal de alta fidelidade visual para instrução de processo administrativo, submissão à Procuradoria / Consultoria Jurídica e órgãos de Controle Interno.
   - Suporte completo via CLI (`docgov-engine --diff-report ...`) e ferramenta MCP especializada, alimentando nativamente o Workbench Mode do ecossistema consumidor.

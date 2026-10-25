@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.2.0)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.0)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,9 +84,25 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.2.0` (Geração 2 — Marco 5) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.0` (Geração 2 — Marco 6: Diff Semântico e Nota Técnica) e Marcos Anteriores
 
-A versão **`v1.2.0`** inaugura a **Geração 2** em sincronia pareada (*Lockstep Major.Minor*) com o ecossistema DocGov, trazendo 4 frentes estruturantes:
+A versão **`v1.3.0`** consolida o **Marco 6 do ROADMAP**, trazendo capacidades avançadas de rastreabilidade de alterações contratuais e governança formal de evolução de minutas:
+
+### Novidades da `v1.3.0` — Marco 6 do ROADMAP:
+1. **Diff Semântico Granular em Nível de Token (Marco 6.1):**
+   - Tokenizador com regex Unicode `gu` (`/(?:R\$\s*[\d\.,]+|\d+(?:\.\d+)+|[\p{L}\p{N}_ºª§]+|\s+|[^\p{L}\p{N}_\s])/gu`), preservando caracteres acentuados do português (`ç`, `ã`, `é`), quantias monetárias, ordinais e pontuações sem fragmentação indevida.
+   - Algoritmo LCS (*Longest Common Subsequence*) com guardrail de complexidade para blocos extensos ($m \times n > 2.000.000$, particionamento por sentenças `/(?<=[.;!?])\s+/`), garantindo performance instantânea.
+   - Agrupamento em blocos contíguos (`diff_chunks`) e renderização em markdown inline ({++inclusão++}, {--supressão--}).
+2. **Nota Técnica Comparativa Padronizada de Evolução de Cláusulas (Marco 6.2):**
+   - Relatório executivo formal ("Antes vs. Depois") para instrução processual de alterações contratuais (Art. 124 a 136 Lei 14.133/2021).
+   - Layout editorial vertical A4 corrido (zero tabelas `<w:tbl>`, 100% largura útil), com cards visuais com bordas laterais coloridas por tipo de alteração (verde para inclusão, vermelho para supressão, azul para alteração).
+   - Quadro de evolução com fundamentação técnica e jurídica individualizada por cláusula alterada, resumo executivo, contagem de alterações e delta do Radar das 14 Zonas de Impugnação.
+   - Exportação em Word (`.docx`) e PDF via Pipeline Híbrido.
+3. **Novos Comandos CLI e Ferramenta MCP Híbrida:**
+   - CLI: `--diff-report --old <base> --new <revisado> --out <nota.docx> [--format <docx|pdf|both>] [--data <nota.json>]` e `--generate-technical-note --note-json <nota.json> --out <nota.docx>`.
+   - MCP Tool: `generate_technical_note_docx` com suporte híbrido direto (`noteJsonPath`) ou comparativo automático (`oldPath` + `newPath`), mantendo o teto estrito de payload (< 900 bytes, Lei 2).
+
+---
 
 ### Novidades da `v1.2.0` — Marco 5 do ROADMAP:
 1. **Segurança de Supply-Chain & Auto-Updater SHA-256 (Marco 5.1):** Validação criptográfica de integridade SHA-256 (`SHA256SUMS.txt`) antes da substituição de binários em disco no `--update`, com suporte híbrido transparente a credenciais `DOCGOV_GITHUB_TOKEN` / `GH_TOKEN` e fallback para arquivo local `.env` em repositórios públicos ou privados.
@@ -179,9 +195,9 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
 
 ---
 
-## 4. Ciclo de Vida do Caso: 5 Ferramentas Integradas
+## 4. Ciclo de Vida do Caso: 6 Ferramentas Integradas
 
-O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **5 ferramentas fundamentais**:
+O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **6 ferramentas fundamentais**:
 
 ### A) Modo Servidor MCP (Padrão / `--mcp`)
 
@@ -217,6 +233,12 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - **Exportação para PDF (v0.9.5 / v1.0.0):** Suporta `outputFormat: "docx" | "pdf" | "both"`.
    - Parâmetros: `auditJsonPath`, `outputPath` (*obrigatórios*), `outputFormat` (*opcional*).
 
+6. **`generate_technical_note_docx`**
+   - Gera Nota Técnica Comparativa de Evolução Documental ('Antes vs. Depois', Marco 6) em Word (`.docx`) e PDF em layout editorial vertical corrido (folha A4 retrato, **zero tabelas** `<w:tbl>`, 100% largura útil), com destaque visual colorido por cards com bordas laterais (verde para inclusão, vermelho para supressão, azul para alteração), diff granular inline em nível de token e fundamentação técnica/jurídica individualizada por cláusula alterada.
+   - **Modos Híbridos:** Suporta modo direto via `noteJsonPath` ou modo comparativo automático derivado a partir de `oldPath` e `newPath` (com enriquecimento opcional de justificativas via `noteJsonPath`).
+   - **Exportação para PDF:** Suporta `outputFormat: "docx" | "pdf" | "both"`.
+   - Parâmetros: `outputPath` (*obrigatório*), `noteJsonPath` (*opcional se oldPath/newPath fornecidos*), `oldPath` (*opcional*), `newPath` (*opcional*), `outputFormat` (*opcional*).
+
 ---
 
 ### B) Modo CLI (Linha de Comando)
@@ -251,10 +273,16 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 ./docgov-engine --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.docx
 ./docgov-engine --generate-audit-docx --audit-json state/relatorio_auditoria.json --out output/Relatorio_Auditoria_ETP.pdf --format pdf
 
-# 6. Exportar especificação técnica normativa em Markdown
+# 6. Gerar Nota Técnica Comparativa de Evolução de Cláusulas (Marco 6)
+# 6a. Comparando arquivos diretamente (DOCX ou PDF)
+./docgov-engine --diff-report --old inputs/minuta_v1.docx --new inputs/minuta_v2.docx --out output/Nota_Tecnica.docx --format both
+# 6b. A partir de JSON estruturado de nota técnica
+./docgov-engine --generate-technical-note --note-json state/nota_tecnica.json --out output/Nota_Tecnica.docx --format pdf
+
+# 7. Exportar especificação técnica normativa em Markdown
 ./docgov-engine --dump-spec especificacao_motor.md
 
-# 7. Verificar / Atualizar o próprio binário
+# 8. Verificar / Atualizar o próprio binário
 ./docgov-engine --check-update
 ./docgov-engine --update
 ./docgov-engine --force-update
@@ -278,7 +306,13 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--template-id <id>` | Identificador semântico customizado do template ao salvar no registro (opcional). |
 | `--inject` | Preenche um template `.docx` a partir de `--template`, `--state` e `--out`. |
 | `--generate-audit-docx` | Gera um parecer de auditoria executivo a partir de `--audit-json` e `--out`. |
-| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject` e `--generate-audit-docx` (padrão: `docx`). |
+| `--diff-report` | Orquestra a geração de Nota Técnica Comparativa a partir de `--old` e `--new` para `--out`. |
+| `--generate-technical-note` | Gera a Nota Técnica Comparativa a partir de `--note-json` e `--out`. |
+| `--old <caminho>` | Caminho do documento base/anterior (.docx, .pdf ou .json) usado com `--diff-report`. |
+| `--new <caminho>` | Caminho do documento revisado/novo (.docx, .pdf ou .json) usado com `--diff-report`. |
+| `--note-json <caminho>` | Caminho do arquivo `nota_tecnica.json` (usado com `--generate-technical-note`). |
+| `--data <caminho>` | Caminho de dados adicionais/justificativas JSON para enriquecer o `--diff-report` (opcional). |
+| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject`, `--generate-audit-docx`, `--diff-report` e `--generate-technical-note` (padrão: `docx`). |
 | `--case-dir <dir>` | Caminho da pasta do caso (usado com `--bootstrap-case`). |
 | `--uploads-dir <dir>` | Caminho opcional da pasta `.user_uploaded` (usado com `--bootstrap-case`). |
 | `--audit-json <caminho>` | Caminho do arquivo `relatorio_auditoria.json` (usado com `--generate-audit-docx`). |
