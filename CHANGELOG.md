@@ -8,6 +8,12 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Alterado
+- **Blindagem Normativa da Lei 7 & Autodescoberta de Pipelines Externos (`AGENTS.md`):**
+  - Reformulação da Lei 7 consagrando o princípio agnóstico de autodescoberta de pipelines de CI/CD (GitHub Actions, GitLab CI ou similares), estabelecendo o push de tag Git como gatilho canônico exclusivo de release.
+  - Proibição terminante de uploads manuais locais de binários (`gh release create`), eliminando concorrência com a esteira externa, garantindo compilação em runners remotos limpos e dispensando solicitações de bypass de sandbox.
+  - Inclusão de teste automatizado de conformidade de governança em `test/distribution.test.ts`.
+
 ---
 
 ## [1.3.1] - 2026-10-25

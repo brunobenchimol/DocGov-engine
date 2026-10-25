@@ -458,17 +458,20 @@ bun test test/registry.test.ts      # Cache global, matching 1-para-N e rastreab
 bun test test/mcp_spec.test.ts      # Self-Discovery, --dump-spec e barrel
 bun test test/utils.test.ts         # Parsers de JSON, naming e updater
 
-# Compilar binários standalone
+# Compilar binários standalone locais (desenvolvimento e smoke tests)
 bun run build:windows
 bun run build:linux
 ```
 
+> ℹ️ **Nota de Distribuição & Release:** Os comandos `bun run build:*` destinam-se exclusivamente a desenvolvimento local e execução de smoke tests. A compilação oficial multi-plataforma (`ubuntu-24.04` e `windows-latest`), o cálculo de checksums (`SHA256SUMS.txt`) e a publicação de releases são **100% automatizados pela esteira externa de CI/CD** ao receber o push de tags `v*`.
+
 ### Estatuto de Governança (`AGENTS.md`)
-O motor é governado pelas **7 Leis Invioláveis de Engenharia**:
+O motor é governado pelas **8 Leis Invioláveis de Engenharia**:
 1. Runtime e testes padronizados via Bun (`bun test`).
 2. Teto estrito de payload MCP ($< 1024$ bytes UTF-8, com margem de segurança $< 920$ bytes).
 3. Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast estrito).
 4. Sincronia obrigatória de Self-Discovery (`--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, etc.).
 5. Neutralidade institucional absoluta (zero menções a localidades ou órgãos específicos).
 6. Resiliência de caminhos e cache global (`core/registry/templates/`).
-7. Ritual de qualidade e release (SemVer, 100% testes aprovados, tag anotada `vX.Y.Z`).
+7. Ritual de qualidade e release automatizada via pipeline externo (autodescoberta de CI/CD, gatilho exclusivo por tag Git e proibição estrita de upload manual de binários locais).
+8. Disciplina autônoma de micro-commits atômicos, reversibilidade e memória evolutiva (`CHANGELOG.md` & `ROADMAP.md`).

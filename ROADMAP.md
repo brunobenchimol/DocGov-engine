@@ -122,5 +122,5 @@ Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente a
 4. **Sincronia Obrigatória de Self-Discovery:** `--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS` e documentação unificados.
 5. **Neutralidade Institucional Absoluta:** Exclusivamente identificadores genéricos ou federais universais (`ORGAO_CONTRATANTE`, `MUNICIPIO_GENERICO`, `AGU`, `MGI`, `TCU`).
 6. **Resiliência de Caminhos e Cache Global:** Resolução desacoplada de `process.cwd()`.
-7. **Ritual de Qualidade e Release:** SemVer, aprovação em testes automatizados, tags anotadas e changelog atualizado.
+7. **Ritual de Qualidade e Release Automatizada:** Autodescoberta de esteira CI/CD externa, gatilho canônico por tag Git e proibição estrita de upload manual de binários locais.
 8. **Disciplina Autônoma de Micro-Commits & Memória:** Fatiamento em commits atômicos, testes por commit e sincronia contínua de `CHANGELOG.md` e `ROADMAP.md`.

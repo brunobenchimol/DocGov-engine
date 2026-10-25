@@ -71,4 +71,16 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(pkg.scripts["build:linux"]).toContain("./bin/docgov-engine");
     expect(pkg.scripts["build:windows"]).toContain("./bin/docgov-engine.exe");
   });
+
+  it("7. AGENTS.md deve consagrar a Lei 7 com autodescoberta de pipeline externo e proibição estrita de upload manual", () => {
+    const agentsPath = resolve(process.cwd(), "AGENTS.md");
+    expect(existsSync(agentsPath)).toBe(true);
+
+    const content = readFileSync(agentsPath, "utf-8");
+    expect(content).toContain("Lei 7: Ritual de Qualidade e Release Automatizada via Pipeline Externo");
+    expect(content).toContain("Autodescoberta de Pipeline Externo");
+    expect(content).toContain("TERMINANTEMENTE PROIBIDO");
+    expect(content).toContain("gh release create");
+    expect(content).toContain("Protocolo Observador");
+  });
 });
