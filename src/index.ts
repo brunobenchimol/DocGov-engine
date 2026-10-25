@@ -17,6 +17,7 @@ export * from "./utils/json.ts";
 export * from "./utils/naming.ts";
 export * from "./utils/pdf.ts";
 export * from "./utils/pdf_exporter.ts";
+export * from "./utils/paths.ts";
 
 // 5. Motor Central (Cartografia Sem IA, Manifesto, Registro Global e Auto-Atualizador)
 export * from "./core/cartography.ts";

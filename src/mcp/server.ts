@@ -41,6 +41,7 @@ import {
 } from "../tools/technical_note.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
 
 // ============================================================================
 // Modo Servidor MCP (stdio)
@@ -363,8 +364,10 @@ export async function runMcpServer() {
           uploadsDir?: string;
           fileRenameMap?: Record<string, string>;
         };
-        const res = await bootstrapCase(caseDir, uploadsDir, { fileRenameMap });
-        const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
+        const resolvedCaseDir = resolveWorkspacePath(caseDir);
+        const resolvedUploadsDir = uploadsDir ? resolveWorkspacePath(uploadsDir) : undefined;
+        const res = await bootstrapCase(resolvedCaseDir, resolvedUploadsDir, { fileRenameMap });
+        const synthetic = formatBootstrapCaseSyntheticResult(res, resolvedCaseDir);
         return {
           content: [
             {
@@ -387,17 +390,23 @@ export async function runMcpServer() {
         if (!rawPath) {
           throw new Error("Parâmetro obrigatório 'filePath' não fornecido para inspect_doc.");
         }
-        const resolvedDoc = resolve(rawPath);
-        const docStem = basename(resolvedDoc).replace(/\.(?:docx|pdf)$/i, "");
+        const resolvedDoc = resolveWorkspacePath(rawPath);
+        const docStem = basename(resolvedDoc).replace(
+          /\.(?:docx|pdf|xlsx|xls|csv|md|markdown|txt|text)$/i,
+          ""
+        );
         const effectiveOutputPath = args.outputPath
-          ? resolve(args.outputPath)
+          ? resolveWorkspacePath(args.outputPath)
           : resolve(dirname(resolvedDoc), `estrutura_${docStem}.json`);
+        const resolvedCompare = args.compareWithPath
+          ? resolveWorkspacePath(args.compareWithPath)
+          : undefined;
 
         const inspection = await inspectDoc(
           resolvedDoc,
           effectiveOutputPath,
           args.compact !== false,
-          { compareWithPath: args.compareWithPath }
+          { compareWithPath: resolvedCompare }
         );
 
         const synthetic = formatInspectDocSyntheticResult(
@@ -430,14 +439,17 @@ export async function runMcpServer() {
           saveToRegistry?: boolean;
           templateId?: string;
         };
+        const resolvedSource = resolveWorkspacePath(sourcePath);
+        const resolvedManifest = resolveWorkspacePath(manifestPath);
+        const resolvedOutput = resolveWorkspacePath(outputPath);
         const result = await buildDocxTemplate(
-          sourcePath,
-          manifestPath,
-          outputPath,
+          resolvedSource,
+          resolvedManifest,
+          resolvedOutput,
           { saveToRegistry, templateId }
         );
         const synthetic = formatBuildDocxTemplateSyntheticResult(
-          outputPath,
+          resolvedOutput,
           result
         );
         return {
@@ -464,10 +476,13 @@ export async function runMcpServer() {
           autoInspect?: boolean;
           outputFormat?: "docx" | "pdf" | "both";
         };
+        const resolvedTemplate = resolveWorkspacePath(templatePath);
+        const resolvedState = resolveWorkspacePath(statePath);
+        const resolvedOutput = resolveWorkspacePath(outputPath);
         const result = await processDocument(
-          templatePath,
-          statePath,
-          outputPath,
+          resolvedTemplate,
+          resolvedState,
+          resolvedOutput,
           { autoInspect, outputFormat }
         );
         const synthetic = formatFillDocxTemplateSyntheticResult(result);
@@ -488,7 +503,9 @@ export async function runMcpServer() {
             outputPath: string;
             outputFormat?: "docx" | "pdf" | "both";
           };
-        const result = await generateAuditDocx(auditJsonPath, outputPath, {
+        const resolvedAuditJson = resolveWorkspacePath(auditJsonPath);
+        const resolvedOutput = resolveWorkspacePath(outputPath);
+        const result = await generateAuditDocx(resolvedAuditJson, resolvedOutput, {
           outputFormat,
         });
         const synthetic = formatGenerateAuditDocxSyntheticResult(result);
@@ -523,10 +540,11 @@ export async function runMcpServer() {
           );
         }
 
+        const resolvedOutput = resolveWorkspacePath(outputPath);
         let result;
         if (oldPath && newPath) {
-          const resolvedOld = resolve(oldPath);
-          const resolvedNew = resolve(newPath);
+          const resolvedOld = resolveWorkspacePath(oldPath);
+          const resolvedNew = resolveWorkspacePath(newPath);
 
           const oldInspection = resolvedOld.toLowerCase().endsWith(".json")
             ? safeReadJsonFile(resolvedOld)
@@ -544,7 +562,7 @@ export async function runMcpServer() {
 
           let baseData;
           if (noteJsonPath) {
-            baseData = safeReadJsonFile(resolve(noteJsonPath));
+            baseData = safeReadJsonFile(resolveWorkspacePath(noteJsonPath));
           }
 
           const noteData = createTechnicalNoteDataFromDiff(
@@ -553,13 +571,13 @@ export async function runMcpServer() {
             resolvedNew,
             baseData
           );
-          result = await generateTechnicalNoteDocx(noteData, outputPath, {
+          result = await generateTechnicalNoteDocx(noteData, resolvedOutput, {
             outputFormat,
           });
         } else if (noteJsonPath) {
           result = await generateTechnicalNoteDocx(
-            resolve(noteJsonPath),
-            outputPath,
+            resolveWorkspacePath(noteJsonPath),
+            resolvedOutput,
             { outputFormat }
           );
         } else {
