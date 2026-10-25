@@ -14,6 +14,8 @@ import {
   extractParagraphText,
   extractParagraphNumbering,
   extractCellText,
+  extractCellGridSpan,
+  extractCellVMerge,
   createNumberingResolver,
   sanitizeXmlString,
 } from "../utils/xml.ts";
@@ -795,22 +797,98 @@ export async function inspectDocx(
   });
 
   const bodyTables = getDirectChildElements(body, "w:tbl");
-  const tables: TableInfo[] = bodyTables.map((tbl, index) => {
+  const rawTables: TableInfo[] = bodyTables.map((tbl, index) => {
     const trList = getDirectChildElements(tbl, "w:tr");
+    const activeVMerges = new Map<number, string>();
+
+    const rows: TableRowInfo[] = trList.map((tr, rowIndex) => {
+      const tcList = getDirectChildElements(tr, "w:tc");
+      const cells: TableCellInfo[] = [];
+      let currentCol = 0;
+
+      for (const tc of tcList) {
+        const span = extractCellGridSpan(tc);
+        const vMerge = extractCellVMerge(tc);
+        let text = extractCellText(tc);
+
+        if (vMerge === "restart") {
+          activeVMerges.set(currentCol, text);
+        } else if (vMerge === "continue") {
+          if (!text.trim() && activeVMerges.has(currentCol)) {
+            text = activeVMerges.get(currentCol) || "";
+          }
+        } else {
+          activeVMerges.delete(currentCol);
+        }
+
+        cells.push({
+          cellIndex: currentCol,
+          text,
+          ...(span > 1 ? { colSpan: span } : {}),
+          ...(vMerge ? { rowSpan: vMerge } : {}),
+        });
+
+        // Se span > 1 (gridSpan), preenche colunas lógicas intermediárias com células vazias
+        // para manter alinhamento estrito das colunas subsequentes
+        for (let s = 1; s < span; s++) {
+          cells.push({
+            cellIndex: currentCol + s,
+            text: "",
+            isSpanPlaceholder: true,
+          });
+        }
+
+        currentCol += span;
+      }
+
+      return {
+        rowIndex,
+        cells,
+      };
+    });
+
     return {
       index,
-      rows: trList.map((tr, rowIndex) => {
-        const tcList = getDirectChildElements(tr, "w:tc");
-        return {
-          rowIndex,
-          cells: tcList.map((tc, cellIndex) => ({
-            cellIndex,
-            text: extractCellText(tc),
-          })),
-        };
-      }),
+      rows,
     };
   });
+
+  // Unificação de tabelas consecutivas com mesma grade/repetição de cabeçalho
+  const tables: TableInfo[] = [];
+  for (let t = 0; t < rawTables.length; t++) {
+    const current = rawTables[t];
+    if (tables.length === 0) {
+      tables.push(current);
+      continue;
+    }
+    const prev = tables[tables.length - 1];
+    const prevHeader = prev.rows[0]?.cells.map((c) => c.text.trim()) ?? [];
+    const currHeader = current.rows[0]?.cells.map((c) => c.text.trim()) ?? [];
+
+    const isSameCols = prev.rows[0]?.cells.length === current.rows[0]?.cells.length;
+    const isRepeatedHeader =
+      isSameCols &&
+      prevHeader.length > 0 &&
+      currHeader.length > 0 &&
+      prevHeader.join("|") === currHeader.join("|");
+
+    if (isSameCols && isRepeatedHeader) {
+      // Mescla linhas da tabela seguinte na tabela anterior (omitindo o cabeçalho repetido)
+      const dataRows = current.rows.slice(1);
+      const startRowIdx = prev.rows.length;
+      for (let r = 0; r < dataRows.length; r++) {
+        prev.rows.push({
+          rowIndex: startRowIdx + r,
+          cells: dataRows[r].cells,
+        });
+      }
+    } else {
+      tables.push({
+        ...current,
+        index: tables.length,
+      });
+    }
+  }
 
   const toc_map = buildTocMap(paragraphs, tables);
   const docxCartography = buildDocxCartography(paragraphs, tables, toc_map);

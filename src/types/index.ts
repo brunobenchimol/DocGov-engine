@@ -26,6 +26,9 @@ export interface BodyParagraphInfo {
 export interface TableCellInfo {
   cellIndex: number;
   text: string;
+  colSpan?: number;
+  rowSpan?: string;
+  isSpanPlaceholder?: boolean;
 }
 
 export interface TableRowInfo {

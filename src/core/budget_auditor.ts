@@ -394,9 +394,22 @@ export function auditPdfLines(lines: PdfLineItem[]): BudgetTableAudit[] {
 
   for (const line of lines) {
     if (!line.text.includes(" | ")) {
-      // Se tivermos itens acumulados e a linha de texto não for tabela nem resumo, avalia flush
-      if (currentItems.length > 0 && !isSummaryRow(line.text)) {
-        // Permite breves quebras entre páginas sem flush imediato se a próxima for tabela
+      // Se tivermos itens acumulados e a linha de texto não contiver separador colunar,
+      // verifica se é continuação multilinha da descrição do item anterior
+      if (
+        currentItems.length > 0 &&
+        !isSummaryRow(line.text) &&
+        !/^(?:CL[ÁA]USULA|SE[ÇC][ÃA]O|CAP[IÍ]TULO|ANEXO|OBJETO|VALOR)\b/i.test(line.text.trim()) &&
+        line.text.trim().length > 0 &&
+        line.text.trim().length < 120
+      ) {
+        const lastItem = currentItems[currentItems.length - 1];
+        lastItem.description = `${lastItem.description} ${line.text.trim()}`
+          .replace(/\s+/g, " ")
+          .trim();
+        if (lastItem.description.length > 120) {
+          lastItem.description = `${lastItem.description.slice(0, 117)}...`;
+        }
       }
       continue;
     }
@@ -406,7 +419,21 @@ export function auditPdfLines(lines: PdfLineItem[]): BudgetTableAudit[] {
 
     const detectedMap = detectColumnMapping(cols);
     if (detectedMap) {
-      // Novo cabeçalho detectado
+      // Se for repetição de cabeçalho idêntico na página seguinte (fusão contínua multi-página):
+      const isRepeatedMultiPageHeader =
+        currentHeaderMap !== null &&
+        currentItems.length > 0 &&
+        currentHeaderMap.itemCol === detectedMap.itemCol &&
+        currentHeaderMap.qtdCol === detectedMap.qtdCol &&
+        currentHeaderMap.unitValCol === detectedMap.unitValCol &&
+        currentHeaderMap.totalValCol === detectedMap.totalValCol;
+
+      if (isRepeatedMultiPageHeader) {
+        // Tabela contínua multi-página: não encerra a tabela, apenas ignora a linha de cabeçalho repetido
+        continue;
+      }
+
+      // Novo cabeçalho de tabela distinta detectado
       flushTable();
       currentHeaderMap = detectedMap;
       currentHeaderSample = cols;
@@ -447,6 +474,17 @@ export function auditPdfLines(lines: PdfLineItem[]): BudgetTableAudit[] {
     const parsedTotal = parseMonetaryValueToCents(totalCell);
 
     if (!parsedQtd.isValid || !parsedUnit.isValid || !parsedTotal.isValid) {
+      // Suporte a células multilinha: agrega fragmento textual à descrição do item anterior
+      if (currentItems.length > 0 && currentHeaderMap.descCol !== -1) {
+        const continuationText = cols[currentHeaderMap.descCol] || line.text.replace(/^[| ]+|[| ]+$/g, "");
+        if (continuationText && continuationText.length > 0 && !/^(?:Item|\d+)\b/i.test(continuationText)) {
+          const lastItem = currentItems[currentItems.length - 1];
+          lastItem.description = `${lastItem.description} ${continuationText}`.replace(/\s+/g, " ").trim();
+          if (lastItem.description.length > 120) {
+            lastItem.description = `${lastItem.description.slice(0, 117)}...`;
+          }
+        }
+      }
       continue;
     }
 

@@ -155,6 +155,27 @@ export function extractCellText(tc: Element): string {
   return paragraphs.map((p) => extractParagraphText(p)).join("\n");
 }
 
+export function extractCellGridSpan(tc: Element): number {
+  const tcPr = getDirectChildElements(tc, "w:tcPr")[0];
+  if (!tcPr) return 1;
+  const gridSpanEl = getDirectChildElements(tcPr, "w:gridSpan")[0];
+  if (!gridSpanEl) return 1;
+  const val = gridSpanEl.getAttribute("w:val") || gridSpanEl.getAttribute("val");
+  const span = val ? parseInt(val, 10) : 1;
+  return isNaN(span) || span < 1 ? 1 : span;
+}
+
+export function extractCellVMerge(tc: Element): "restart" | "continue" | null {
+  const tcPr = getDirectChildElements(tc, "w:tcPr")[0];
+  if (!tcPr) return null;
+  const vMergeEl = getDirectChildElements(tcPr, "w:vMerge")[0];
+  if (!vMergeEl) return null;
+  const val = vMergeEl.getAttribute("w:val") || vMergeEl.getAttribute("val");
+  if (!val || val === "continue") return "continue";
+  if (val === "restart") return "restart";
+  return "continue";
+}
+
 export function sanitizeTemplateTagExpression(tag: string): string {
   if (!tag) return "";
   let current = tag;
