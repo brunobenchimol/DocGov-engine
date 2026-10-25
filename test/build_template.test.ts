@@ -139,7 +139,7 @@ describe("Testes Unitários: build_docx_template (Coordenadas Compactas, Fail-Fa
     const synthetic = formatBuildDocxTemplateSyntheticResult(outDocx, result);
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.1");
+    expect(synthetic.engine_version).toBe("1.3.2");
     expect(synthetic.applied_slots_count).toBe(4);
     expect(synthetic.breakdown.replace_paragraphs).toBe(1);
     expect(synthetic.breakdown.replace_table_cells).toBe(1);

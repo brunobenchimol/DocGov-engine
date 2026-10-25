@@ -89,6 +89,12 @@
   - Suporte nativo à inspeção linear de minutas e despachos em Markdown e Texto Puro (`.md` e `.txt`) gerando visão de auditoria e dossiê com Radar Z1..Z14.
   - Prevenção do erro críptico do JSZip através de guardrail de verificação de magic bytes (`isZipBuffer`) e mensagens instrutivas apontando para `.user_uploaded`.
 
+- [x] **6.4. Patch `v1.3.2` — Blindagem de Governança, Resolução de Paths Locais e Otimização do Teto MCP:**
+  - Guardrail de segurança ativa no `bootstrap_case` prevenindo inicialização acidental na raiz de repositórios Git, associado a denylist estrita de governança (`AGENTS.md`, `README.md`, `CHANGELOG.md`, `ROADMAP.md`, locks e configs) e descarte de extensões de código/script (`.ts`, `.py`, etc.).
+  - Preservação estrita de `process.cwd()` em `resolveWorkspacePath` para `.` e caminhos relativos locais (`./uploads`, `inputs/minuta.docx`) fora de pastas de IDE.
+  - Eliminação da concorrência redundante `docxPath`/`filePath` em `inspect_doc`, encurtamento protetivo de caminhos longos (`toShortDocPath`) e poda progressiva mantendo payload sintético estritamente abaixo de 900 bytes (Lei 2).
+  - Orquestrador consolidado de build `bun run build:all` sincronizando binários, checksums SHA-256 e especificação técnica em um único comando.
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite

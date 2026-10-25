@@ -8,6 +8,20 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.2] - 2026-10-25
+
+### Corrigido
+- **Guardrail de Segurança Ativa e Anti-Sequestro de Governança no `bootstrap_case` (`src/tools/bootstrap.ts`):**
+  - Implementado guardrail de segurança com erro fail-fast imperativo caso `caseDir` aponte acidentalmente para a raiz de um repositório de desenvolvimento (detectado pela presença de `.git`, `core/skills` ou `src/index.ts` + `package.json`), bloqueando imediatamente a execução espúria e orientando a especificar uma subpasta (`cases/<slug>`).
+  - Expansão estrita de `PROTECTED_ROOT_FILES` contemplando arquivos de governança (`AGENTS.md`, `README.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `ROADMAP.md`, `LICENSE`, `CONTRIBUTING.md`), manifestos e locks (`package.json`, `tsconfig.json`, `bun.lockb`, `package-lock.json`, etc.), arquivos de ambiente e metadados de caso.
+  - Filtro incondicional descartando qualquer extensão de código-fonte ou script (`.ts`, `.js`, `.mjs`, `.cjs`, `.sh`, `.ps1`, `.bat`, `.cmd`, `.py`, `.cs`, etc.), garantindo que arquivos do projeto nunca sejam tratados como minutas ou movidos para `inputs/`.
+- **Preservação de `process.cwd()` para Caminhos Locais em `resolveWorkspacePath` (`src/utils/paths.ts` — Lei 6):**
+  - Ajuste na resolução de `.` e `./` para apontar estritamente para `process.cwd()` quando executado em diretórios de trabalho legítimos (fora de pastas de instalação de IDEs como `AppData/Local/Programs/antigravity`).
+  - Resolução de caminhos relativos locais sem prefixo `cases/` (ex.: `./uploads`, `inputs/minuta.docx`) diretamente contra `process.cwd()`, impedindo o desvio indevido para a raiz do repositório pai.
+- **Otimização do Teto de Payload MCP em `inspect_doc` (< 900 bytes — Lei 2):**
+  - Eliminação da duplicação concorrente de `docxPath` e `filePath` (~134 caracteres cada) quando o payload sintético se aproxima do teto seguro (< 900 bytes), resolvendo o estouro observado de 1090 bytes.
+  - Relativização protetiva de caminhos absolutos longos via `toShortDocPath`, descarte seletivo de `dossie_path` e encurtamento progressivo de `next_step_hint`, mantendo o payload consistentemente entre 750B e 875B mesmo em casos corporativos com caminhos profundos e `template_match` completo.
+
 ### Adicionado
 - **Orquestrador Consolidado de Build, Checksums e Self-Discovery (`scripts/build_all.ts`):**
   - Implementado o comando unificado `bun run build:all` (com atalho `bun run build`) que compila os binários Linux e Windows, normaliza nomes canônicos de release de forma cross-platform via `node:fs` (`docgov-engine-linux-x64` e `docgov-engine-win-x64.exe`), recalcula `bin/SHA256SUMS.txt` e sincroniza a especificação Markdown `docs/especificacao_motor.md` (`--dump-spec`) em uma única execução rápida (~8 segundos).
