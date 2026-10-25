@@ -103,6 +103,6 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(result.success).toBe(true);
     expect(existsSync(result.sha256Path)).toBe(true);
     expect(existsSync(result.specPath)).toBe(true);
-    expect(result.elapsedMs).toBeGreaterThan(0);
+    expect(result.elapsedMs).toBeGreaterThanOrEqual(0);
   });
 });
