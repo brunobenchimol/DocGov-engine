@@ -4,7 +4,7 @@ import {
   existsSync,
   mkdirSync,
 } from "node:fs";
-import { resolve, dirname, basename, relative } from "node:path";
+import { resolve, dirname, basename, relative, isAbsolute } from "node:path";
 import JSZip from "jszip";
 import { DOMParser } from "@xmldom/xmldom";
 import {
@@ -1293,6 +1293,23 @@ export async function inspectDocx(
   return finalResult;
 }
 
+export function toShortDocPath(p: string): string {
+  if (!p) return p;
+  const idx = p.search(/[\\/]cases[\\/]/i);
+  if (idx !== -1) {
+    return p.slice(idx + 1).replace(/\\/g, "/");
+  }
+  try {
+    const rel = relative(process.cwd(), p).replace(/\\/g, "/");
+    if (!rel.startsWith("../..") && !rel.includes(":/") && !rel.includes(":\\")) {
+      return rel;
+    }
+  } catch {
+    // Mantém caminho original formatado
+  }
+  return p.replace(/\\/g, "/");
+}
+
 export function formatInspectDocSyntheticResult(
   filePath: string,
   outputPath: string,
@@ -1490,6 +1507,8 @@ export function formatInspectDocSyntheticResult(
   // Garante cumprimento estrito da Lei 2 (< 1024 bytes UTF-8 com folga segura < 900 bytes)
   const currentSummary = [...toc_summary];
   let result = buildPayload(currentSummary);
+
+  // 1. Reduz itens de toc_summary enquanto payload for >= 900 bytes
   while (
     currentSummary.length > 0 &&
     Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900
@@ -1498,15 +1517,34 @@ export function formatInspectDocSyntheticResult(
     result = buildPayload(currentSummary);
   }
 
+  // 2. Se o payload ainda estiver >= 900 bytes e filePath e docxPath estiverem presentes,
+  // descarta a chave redundante docxPath (elimina duplicação concorrente de caminhos)
   if (
     Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
     result.docxPath &&
-    result.doc_type &&
-    result.doc_type !== "docx"
+    result.filePath
   ) {
     delete result.docxPath;
   }
 
+  // 3. Se ainda estiver >= 900 bytes, relativiza/encurta caminhos longos
+  if (Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900) {
+    result.filePath = toShortDocPath(result.filePath);
+    result.outputPath = toShortDocPath(result.outputPath);
+    if (result.audit_view_path) {
+      result.audit_view_path = toShortDocPath(result.audit_view_path);
+    }
+    if (result.dossie_path) {
+      result.dossie_path = toShortDocPath(result.dossie_path);
+    }
+    if (result.template_match?.adapted_manifest_path) {
+      result.template_match.adapted_manifest_path = toShortDocPath(
+        result.template_match.adapted_manifest_path
+      );
+    }
+  }
+
+  // 4. Se ainda estiver >= 900 bytes, descarta dossie_path
   if (
     Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
     result.dossie_path
@@ -1514,22 +1552,22 @@ export function formatInspectDocSyntheticResult(
     delete result.dossie_path;
   }
 
+  // 5. Se ainda estiver >= 900 bytes, encurta next_step_hint
   if (
     Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 900 &&
-    !nextHint.includes("Cache reconhecido") &&
     result.next_step_hint &&
-    result.next_step_hint.length > 60
+    result.next_step_hint.length > 55
   ) {
-    result.next_step_hint = "Inspeção gravada. Siga para 'generate_audit_docx'.";
+    if (result.next_step_hint.includes("Cache reconhecido")) {
+      const st = result.template_match?.status ?? "EXACT";
+      const slots = result.template_match?.slots_count ?? 0;
+      result.next_step_hint = `Cache ${st} (${slots} slots). Siga para 'build_docx_template'.`;
+    } else {
+      result.next_step_hint = "Inspeção gravada. Siga para 'build_docx_template'.";
+    }
   }
 
-  if (
-    Buffer.byteLength(JSON.stringify(result, null, 2), "utf-8") >= 1000 &&
-    !nextHint.includes("Cache reconhecido") &&
-    !nextHint.includes("ALERTA:")
-  ) {
-    result.next_step_hint = "Inspeção gravada. Chame 'build_docx_template'.";
-  }
+  return result;
 
   return result;
 }
