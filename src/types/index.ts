@@ -548,9 +548,44 @@ export interface GenerateAuditDocxOptions {
   pdfTimeoutMs?: number;
 }
 
+export type AuditDocumentType =
+  | "AUDIT_REPORT"
+  | "RISK_MATRIX"
+  | "COMPLIANCE_CHECKLIST";
+
+export interface RiskItem {
+  id?: string;
+  evento_risco: string;
+  fase?: string;
+  probabilidade?: string;
+  impacto?: string;
+  nivel_risco?: "BAIXO" | "MÉDIO" | "ALTO" | "CRÍTICO" | string;
+  alocacao?: "CONTRATANTE" | "CONTRATADA" | "COMPARTILHADO" | string;
+  acoes_preventivas?: string | string[];
+  acoes_contingencia?: string | string[];
+  responsavel?: string;
+  [key: string]: any;
+}
+
+export interface ComplianceChecklistItem {
+  id?: string;
+  item_criterio: string;
+  status:
+    | "CONFORME"
+    | "NÃO CONFORME"
+    | "PARCIALMENTE CONFORME"
+    | "NÃO APLICÁVEL"
+    | string;
+  fundamentacao_legal?: string;
+  evidencia?: string;
+  recomendacao?: string;
+  [key: string]: any;
+}
+
 export interface GenerateAuditDocxSyntheticResult {
   status: "success";
   engine_version: string;
+  document_type?: AuditDocumentType;
   outputPath: string;
   pdf_path?: string;
   message: string;
@@ -583,6 +618,7 @@ export interface AuditFinding {
 }
 
 export interface AuditReportData {
+  document_type?: AuditDocumentType;
   processo_id?: string;
   orgao_entidade?: string;
   artefato_auditado?: string;
@@ -596,6 +632,10 @@ export interface AuditReportData {
   };
   resumo_executivo?: string;
   apontamentos?: AuditFinding[];
+  matriz_riscos?: RiskItem[];
+  risk_matrix?: RiskItem[];
+  checklist_conformidade?: ComplianceChecklistItem[];
+  compliance_checklist?: ComplianceChecklistItem[];
   [key: string]: any;
 }
 

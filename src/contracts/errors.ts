@@ -100,3 +100,60 @@ export function createAuditReportContractError(reason: string): string {
   ].join("\n");
 }
 
+export const EXACT_COPY_PASTE_RISK_MATRIX_SNIPPET = `{
+  "document_type": "RISK_MATRIX",
+  "processo_id": "08000.001234/2026-00",
+  "orgao_entidade": "ORGAO_CONTRATANTE",
+  "artefato_auditado": "Termo de Referência (TR)",
+  "regime_juridico": "Lei Federal nº 14.133/2021",
+  "resumo_executivo": "Matriz de Riscos elaborada conforme Art. 18, X e Art. 22 da Lei nº 14.133/2021...",
+  "matriz_riscos": [
+    {
+      "id": "RISCO-01",
+      "evento_risco": "Atraso no fornecimento dos bens devido a entraves de importação",
+      "fase": "Execução Contratual",
+      "probabilidade": "Média",
+      "impacto": "Alto",
+      "nivel_risco": "ALTO",
+      "alocacao": "CONTRATADA",
+      "acoes_preventivas": "Exigência de comprovação de canal logístico estabelecido e cronograma de importação",
+      "acoes_contingencia": "Aplicação de penalidades contratuais e convocação do remanescente",
+      "responsavel": "Fiscal Técnico do Contrato"
+    }
+  ]
+}`;
+
+export function createRiskMatrixContractError(reason: string): string {
+  return [
+    `Erro de validação na Matriz de Riscos JSON: ${reason}`,
+    `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
+    EXACT_COPY_PASTE_RISK_MATRIX_SNIPPET,
+  ].join("\n");
+}
+
+export const EXACT_COPY_PASTE_COMPLIANCE_CHECKLIST_SNIPPET = `{
+  "document_type": "COMPLIANCE_CHECKLIST",
+  "processo_id": "08000.001234/2026-00",
+  "orgao_entidade": "ORGAO_CONTRATANTE",
+  "artefato_auditado": "Edital de Pregão Eletrônico",
+  "regime_juridico": "Lei Federal nº 14.133/2021",
+  "resumo_executivo": "Avaliação de conformidade normativa preventiva com enunciados do TCU e AGU...",
+  "checklist_conformidade": [
+    {
+      "id": "CHK-01",
+      "item_criterio": "Previsão expressa de critérios objetivos de habilitação técnica e econômico-financeira",
+      "status": "CONFORME",
+      "fundamentacao_legal": "Art. 67 e 69 da Lei nº 14.133/2021; Súmula TCU nº 263",
+      "evidencia": "[PAG_004 | L0035] Cláusula 8.2 da minuta do edital",
+      "recomendacao": "Manter a redação atual que assegura ampla competitividade."
+    }
+  ]
+}`;
+
+export function createComplianceChecklistContractError(reason: string): string {
+  return [
+    `Erro de validação no Checklist de Conformidade JSON: ${reason}`,
+    `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
+    EXACT_COPY_PASTE_COMPLIANCE_CHECKLIST_SNIPPET,
+  ].join("\n");
+}
