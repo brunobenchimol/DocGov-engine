@@ -28,8 +28,8 @@ describe("Resiliência de Caminhos e Desacoplamento de CWD da IDE (Lei 6)", () =
   });
 
   test("1. Deve retornar caminho absoluto normalizado diretamente quando inputPath for absoluto", () => {
-    expect(resolveWorkspacePath("/workspace/cases/caso_01")).toBe("/workspace/cases/caso_01");
-    expect(resolveWorkspacePath("C:/workspace/cases/caso_01")).toBe("C:/workspace/cases/caso_01");
+    expect(resolveWorkspacePath("/workspace/cases/caso_01")).toBe(normalize("/workspace/cases/caso_01"));
+    expect(resolveWorkspacePath("C:/workspace/cases/caso_01")).toBe(normalize("C:/workspace/cases/caso_01"));
   });
 
   test("2. Deve priorizar variável de ambiente DOCGOV_WORKSPACE_DIR", () => {
