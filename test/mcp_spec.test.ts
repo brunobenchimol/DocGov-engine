@@ -116,9 +116,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.3.0 e novos recursos v1.3.0 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.3.0");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.0");
+  test("deve expor versão 1.3.1 e novos recursos v1.3.1 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.3.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.1");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Caminhos MCP Desacoplada de CWD");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Diff Semântico Granular em Nível de Token");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Nota Técnica Comparativa Padronizada em DOCX e PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
@@ -192,9 +193,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.0)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.1)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.0)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.1)");
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diff Semântico Granular em Nível de Token");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
@@ -317,6 +318,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.validateTechnicalNoteData).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.3.0");
+    expect(barrel.VERSION).toBe("1.3.1");
   });
 });

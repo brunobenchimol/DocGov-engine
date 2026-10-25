@@ -10,6 +10,30 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.3.1] - 2026-10-25
+
+### Corrigido
+- **Resiliência de Caminhos e Desacoplamento de CWD da IDE (`src/utils/paths.ts` — Lei 6):**
+  - Implementação do módulo centralizador de resolução de caminhos `resolveWorkspacePath`, aplicando-o a 100% dos parâmetros de arquivos e diretórios de entrada em todas as 6 ferramentas MCP (`bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `generate_technical_note_docx`).
+  - Resolução robusta de caminhos relativos (ex.: `"cases/seduc_pa_rev2_id0015"`) mesmo quando o processo MCP é instanciado pela IDE consumidora (Google Antigravity, Claude Desktop) com `process.cwd()` apontando para pastas de programas locais (`AppData/Local/Programs/antigravity`).
+  - Inferência inteligente da raiz do workspace DocGov a partir da localização do binário (`process.execPath`), variáveis de ambiente (`DOCGOV_WORKSPACE_DIR` / `DOCGOV_ROOT_DIR`) ou busca ascendente pela existência dos diretórios `cases/` ou `core/skills/`, eliminando a criação espúria de arquivos no diretório da IDE e o erro `file does not exist` no workspace.
+- **Prevenção de Erro Críptico do JSZip e Fail-Fast Amigável (`src/tools/inspect.ts`):**
+  - Implementação da validação prévia de magic bytes ZIP (`isZipBuffer`) antes de acionar `JSZip.loadAsync`, evitando exceções ininteligíveis (`Can't find end of central directory : is this a zip file?`) ao receber arquivos arbitrários ou corrompidos.
+  - Mensagens de erro claras, instrutivas e imperativas orientando que os formatos aceitos são `.docx`, `.pdf`, `.xlsx`, `.csv`, `.md` e `.txt` e indicando a localização dos binários originais em `.user_uploaded` ou `inputs/`.
+
+### Adicionado
+- **Inspeção Linear Nativa de Arquivos Markdown e Texto Puro (`.md`, `.txt` — `src/tools/inspect.ts`):**
+  - Suporte nativo à inspeção estrutural de notas técnicas, minutas e despachos em formato texto puro e markdown (`.md`, `.markdown`, `.txt`, `.text`, `.log`), gerando parágrafos, `toc_map`, Cartografia Estrutural e detecção pelo Radar das 14 Zonas de Impugnação (Z1..Z14).
+  - Emissão automática de `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md` com aviso informativo de que minutas binárias originais (`.docx`/`.pdf`) em `.user_uploaded` possuem maior fidelidade para auditoria externa.
+  - Formatação de payload sintético MCP mantendo estritamente a margem de segurança da Lei 2 ($< 900$ bytes).
+
+### Alterado
+- **Sincronia Estrita de Self-Discovery & Release v1.3.1 (Leis 4 e 7):**
+  - Atualização do número de versão SemVer para `1.3.1` em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts`, `docs/especificacao_motor.md` e `README.md`.
+  - Recompilação dos binários standalone `./bin/docgov-engine` e `./bin/docgov-engine.exe` e regeneração de `./bin/SHA256SUMS.txt`.
+
+---
+
 ## [1.3.0] - 2026-10-25
 
 ### Adicionado

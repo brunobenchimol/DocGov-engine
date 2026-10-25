@@ -84,6 +84,11 @@
   - Layout formal de alta fidelidade visual para instrução de processo administrativo, submissão à Procuradoria / Consultoria Jurídica e órgãos de Controle Interno.
   - Suporte completo via CLI (`docgov-engine --diff-report ...`) e ferramenta MCP especializada, alimentando nativamente o Workbench Mode do ecossistema consumidor.
 
+- [x] **6.3. Patch `v1.3.1` — Resiliência de Caminhos MCP (Lei 6), Inspeção Linear MD/TXT e Anti-JSZip:**
+  - Resolução canônica de caminhos `resolveWorkspacePath` desacoplada do CWD da IDE consumidora (`AppData/Local/Programs/antigravity`), garantindo integridade de caminhos relativos `"cases/..."`.
+  - Suporte nativo à inspeção linear de minutas e despachos em Markdown e Texto Puro (`.md` e `.txt`) gerando visão de auditoria e dossiê com Radar Z1..Z14.
+  - Prevenção do erro críptico do JSZip através de guardrail de verificação de magic bytes (`isZipBuffer`) e mensagens instrutivas apontando para `.user_uploaded`.
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
