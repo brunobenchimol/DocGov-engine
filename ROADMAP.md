@@ -49,22 +49,22 @@
 
 ## 🎯 MARCO 5 — `v1.2.0`: Segurança Supply-Chain, Engenharia Tabular/Planilhas e Pipeline OCR Headless
 
-- [ ] **5.1. Segurança de Supply-Chain, `.env` Fallback e Checksum `SHA-256` no `--update`:**
+- [x] **5.1. Segurança de Supply-Chain, `.env` Fallback e Checksum `SHA-256` no `--update`:**
   - **Autenticação Híbrida e Transparente no Auto-Updater:** Suporte nativo à leitura automática de variável de ambiente (`DOCGOV_GITHUB_TOKEN` ou `GH_TOKEN`) com fallback gracioso para arquivo `.env` local na raiz da aplicação, permitindo que as rotinas de auto-atualização (`--update`, `--check-update`, `--force-update`) operem de modo transparente tanto em repositório público quanto privado sem necessidade de alteração de código ou flags manuais.
   - **Validação Criptográfica de Integridade (`SHA256SUMS.txt`):** Download e conferência estrita do checksum SHA-256 antes da substituição do binário em disco, impedindo atualizações corrompidas ou adulteradas em trânsito.
 
-- [ ] **5.2. Engenharia Tabular Avançada Multi-Página & Ingestão Nativa de Planilhas (`.xlsx` / `.csv`):**
+- [x] **5.2. Engenharia Tabular Avançada Multi-Página & Ingestão Nativa de Planilhas (`.xlsx` / `.csv`):**
   - **Fusão Contínua de Cabeçalhos:** Detectar continuidade de tabelas que se estendem por múltiplas páginas consecutivas com repetição de cabeçalho.
   - **Resolução de Células Multilinha:** Agrupar linhas textuais pertencentes à mesma célula lógica, prevenindo o desalinhamento de colunas em descrições extensas de itens.
   - **Células Mescladas (`rowspan` / `colspan`):** Normalizar matrizes tabulares no espelho de leitura linear e no JSON estrutural.
   - **Ingestão Nativa de Planilhas Orçamentárias (`.xlsx` e `.csv`):** Suporte nativo à leitura direta de planilhas de insumo em `inspect_doc` e `bootstrap_case`, integrando-as diretamente ao `budget_auditor.ts` (cálculo em centavos inteiros nas zonas `Z10` e `Z12`).
 
-- [ ] **5.3. Pipeline OCR Headless para PDFs Escaneados (`Scanned Trap` $\rightarrow$ OCR Automático):**
+- [x] **5.3. Pipeline OCR Headless para PDFs Escaneados (`Scanned Trap` $\rightarrow$ OCR Automático):**
   - **Detecção e Fallback Silencioso:** Quando o detector de páginas escaneadas sinalizar páginas sem camada de texto (`scanned_pages_detected > 0`), acionar pipeline determinístico de OCR vetorial.
   - **Arquitetura Desacoplada e Standalone:** Implementar engine leve baseada em WASM ou binário utilitário encapsulado, sem exigir dependências externas pesadas no sistema operacional host.
   - **Geração de Coordenadas Homogêneas:** Injetar o texto reconhecido pelo OCR diretamente na cartografia linear `[PAG_XXX | LYYYY]`, permitindo que o Radar das 14 Zonas examine documentos escaneados com o mesmo fluxo determinístico de PDFs digitais.
 
-- [ ] **5.4. Geração Parametrizada de Matriz de Risco e Checklist de Conformidade:**
+- [x] **5.4. Geração Parametrizada de Matriz de Risco e Checklist de Conformidade:**
   - Emissão estruturada de Matrizes de Risco e Checklist de Conformidade em Word (`.docx`) e PDF via `generate_audit_docx`, com cruzamento automático da jurisprudência de órgãos de controle federal (TCU, AGU e MGI).
 
 ---

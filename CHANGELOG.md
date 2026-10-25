@@ -10,6 +10,40 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.2.0] - 2026-10-25
+
+### Adicionado
+- **Segurança de Supply-Chain & Auto-Updater com Checksum SHA-256 (`src/core/updater.ts`):**
+  - Implementada validação criptográfica estrita do hash `SHA-256` (`parseSha256Sums`, `verifyBinarySha256`) comparando o binário baixado em memória contra `SHA256SUMS.txt` antes de substituir o arquivo em disco durante `--update`.
+  - Suporte híbrido transparente para resolução de token do GitHub (`resolveGitHubToken`), priorizando `DOCGOV_GITHUB_TOKEN` e `GH_TOKEN` de variáveis de ambiente com fallback automático para arquivo local `.env` no diretório atual ou ancestrais próximos, suportando download autenticado de assets da API do GitHub (`application/octet-stream`) em repositórios públicos e privados.
+  - Criado script de release determinístico `scripts/generate_sha256sums.ts` para geração de `bin/SHA256SUMS.txt`.
+- **Ingestão Nativa de Planilhas Orçamentárias `.xlsx` e `.csv` (`src/parsers/spreadsheet.ts`):**
+  - Parser OpenXML nativo e leve (`parseXlsxBuffer`) lendo `xl/worksheets/sheet*.xml` e `xl/sharedStrings.xml` via JSZip e `@xmldom/xmldom` sem dependências externas pesadas.
+  - Indexação estrita por coordenada de célula `r="A1"` (`columnLetterToIndex`), garantindo que células intermediárias vazias omitidas pelo Excel nunca desloquem as colunas de Quantidade, Preço Unitário e Valor Total no `budget_auditor.ts`.
+  - Parser RFC 4180 (`parseCsvBuffer`) para `.csv` suportando delimitadores `,` e `;` e codificações UTF-8 e Latin1.
+  - Integração direta em `inspect_doc` e `bootstrap_case`, gerando coordenadas `[ABA_01 | R2.C4]`, auditando todas as tabelas via `budget_auditor.ts` ($	ext{Qtd} \times \text{Unit} = \text{Total}$ em centavos inteiros nas zonas Z10/Z12), emitindo `state/auditoria_orcamentaria_<stem>.json`, `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md`.
+- **Engenharia Tabular Avançada Multi-Página, Multilinha e Mesclagem (`src/utils/xml.ts`, `src/core/budget_auditor.ts`):**
+  - Detecção e unificação de tabelas multi-página consecutivas que repetem o cabeçalho em documentos DOCX e PDF.
+  - Agrupamento de linhas textuais quebradas dentro da mesma célula lógica (células multilinha), consolidando descrições extensas de itens orçamentários.
+  - Normalização de células mescladas (`extractCellGridSpan` / `gridSpan` para colspan e `extractCellVMerge` / `vMerge` para rowspan) no OpenXML, prevenindo desalinhamento de colunas em tabelas complexas.
+- **Pipeline OCR Headless para PDFs Escaneados (`src/core/ocr.ts`, `src/utils/pdf.ts`):**
+  - Mecanismo determinístico de OCR standalone que opera 100% offline embutido no binário Bun (sem dependências de ferramentas externas no SO host), acionado automaticamente quando `scanned_pages_detected > 0`.
+  - Injeção das linhas reconhecidas diretamente nas coordenadas canônicas `[PAG_XXX | LYYYY]`, permitindo que o Radar das 14 Zonas (`Z1..Z14`) e o `budget_auditor` examinem páginas escaneadas mantendo o flag `ocr_applied: true` e `ocr_pages`.
+  - Clonagem protetiva do buffer no `extractPdfPages` (`buffer.slice(0)`), evitando que workers internos do PDF desanexem o `ArrayBuffer` subjacente.
+- **Emissão Parametrizada de Matriz de Riscos e Checklist de Conformidade (`src/tools/audit.ts`):**
+  - Expansão da ferramenta `generate_audit_docx` para suportar tipos especializados via `document_type`: `"AUDIT_REPORT"` (padrão), `"RISK_MATRIX"` e `"COMPLIANCE_CHECKLIST"`.
+  - Renderização estruturada de **Matriz de Gerenciamento de Riscos (Art. 18, X e Art. 22 da Lei nº 14.133/2021)** com severidade cromática (Crítico, Alto, Médio, Baixo), alocação contratual de riscos (Contratante, Contratada, Compartilhado) e ações de mitigação/contingência.
+  - Renderização estruturada de **Checklist de Conformidade Normativa (TCU/AGU/MGI)** com status cromáticos (`[CONFORME]`, `[NÃO CONFORME]`, `[PARCIALMENTE CONFORME]`, `[NÃO APLICÁVEL]`), fundamentação legal e recomendações de adequação.
+  - Preservação estrita do layout corporativo editorial vertical corrido A4 (zero tabelas `<w:tbl>` espremidas na horizontal), suporte a exportação para PDF e validação fail-fast com padrão Exact Copy-Paste Error.
+
+### Alterado
+- **Sincronia Estrita de Self-Discovery (Lei 4):**
+  - Atualização da versão para `1.2.0` em `package.json`, `src/constants/index.ts` e spec Markdown (`--dump-spec`).
+  - Sincronização de `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, descrições das ferramentas MCP em `getMcpToolsDefinition()` e hints com a série `v1.2.x`.
+
+
+---
+
 ## [1.1.1] - 2026-10-24
 
 ### Corrigido

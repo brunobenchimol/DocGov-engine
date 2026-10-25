@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.1.1)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.2.0)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,19 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.1.1` (Hotfix Arquitetural) e Marcos Anteriores
+## 2. Destaques da Versão `v1.2.0` (Geração 2 — Marco 5) e Marcos Anteriores
+
+A versão **`v1.2.0`** inaugura a **Geração 2** em sincronia pareada (*Lockstep Major.Minor*) com o ecossistema DocGov, trazendo 4 frentes estruturantes:
+
+### Novidades da `v1.2.0` — Marco 5 do ROADMAP:
+1. **Segurança de Supply-Chain & Auto-Updater SHA-256 (Marco 5.1):** Validação criptográfica de integridade SHA-256 (`SHA256SUMS.txt`) antes da substituição de binários em disco no `--update`, com suporte híbrido transparente a credenciais `DOCGOV_GITHUB_TOKEN` / `GH_TOKEN` e fallback para arquivo local `.env` em repositórios públicos ou privados.
+2. **Ingestão Nativa de Planilhas Orçamentárias `.xlsx` e `.csv` (Marco 5.2a):** Leitor OpenXML Spreadsheet nativo e leve sem dependências externas, indexação estrita por coordenada `r="A1"` (imune a desalinhamento por células vazias) e parser CSV RFC 4180, integrados diretamente ao `budget_auditor.ts` ($	ext{Qtd} \times \text{Unit} = \text{Total}$ em centavos inteiros nas zonas Z10/Z12).
+3. **Engenharia Tabular Avançada Multi-Página & Mesclagem (Marco 5.2b):** Fusão de tabelas contínuas com cabeçalho repetido em DOCX e PDF, agrupamento de células multilinha e normalização de `gridSpan` (colspan) e `vMerge` (rowspan) do OpenXML.
+4. **Pipeline OCR Headless para PDFs Escaneados (Marco 5.3):** Recuperação determinística de texto em páginas escaneadas (`scanned_pages_detected`) operando 100% offline embutido no binário Bun com injeção em `[PAG_XXX | LYYYY]` e marcação `ocr_applied: true`.
+5. **Geração Parametrizada de Matriz de Riscos e Checklist de Conformidade (Marco 5.4):** Emissão em layout editorial vertical corrido A4 corporativo de Matriz de Gerenciamento de Riscos (Lei nº 14.133/2021) e Checklist de Conformidade Normativa (TCU/AGU/MGI) em Word e PDF via `generate_audit_docx`.
+
+---
+## 2.1. Destaques da Versão `v1.1.1` (Hotfix Arquitetural)
 
 A versão **`v1.1.1`** introduz correções críticas de robustez para ingestão em casos reais com múltiplos insumos volumosos:
 

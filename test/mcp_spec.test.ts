@@ -115,8 +115,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.1.1 e novos recursos v1.1.1 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.1.1");
+  test("deve expor versão 1.2.0 e novos recursos v1.2.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.2.0");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.1.1");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Pipeline Híbrido de Exportação DOCX para PDF");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Resiliência de Diretórios & Zero ENOENT");
@@ -185,9 +185,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.1.1)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.2.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.1.1)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.2.0)");
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
     expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
@@ -300,6 +300,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.createAuditReportContractError).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.1.1");
+    expect(barrel.VERSION).toBe("1.2.0");
   });
 });

@@ -55,7 +55,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(Buffer.byteLength(syntheticJson, "utf-8")).toBeLessThan(1024);
     expect(syntheticMcp.status).toBe("success");
     expect(syntheticMcp.engine_version).toBe(VERSION);
-    expect(syntheticMcp.engine_version).toBe("1.1.1");
+    expect(syntheticMcp.engine_version).toBe("1.2.0");
     expect(syntheticMcp.caseDir).toBe("cases/caso_01");
     expect(syntheticMcp.docx_inspected[0]).toEqual({
       filename: "modelo_etp_base.docx",
@@ -133,7 +133,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
 
     expect(byteLength).toBeLessThan(1024);
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.1.1");
+    expect(synthetic.engine_version).toBe("1.2.0");
     expect(synthetic.ingested_files).toBeDefined();
     expect(synthetic.ingested_files!.length).toBe(4);
 
@@ -169,7 +169,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(renamedItem!.type).toBe("DFD");
   });
 
-  test("deve mover documentos soltos na raiz de cases/<slug>/ para inputs/ com deduplicação automática e preservar context.json (v1.1.1)", async () => {
+  test("deve mover documentos soltos na raiz de cases/<slug>/ para inputs/ com deduplicação automática e preservar context.json (v1.2.0)", async () => {
     const caseDir = resolve(tempDir, "caso_com_arquivos_na_raiz");
     mkdirSync(caseDir, { recursive: true });
 
@@ -242,7 +242,7 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     }
   });
 
-  test("deve isolar falhas de inspeção por arquivo com try/catch e garantir inventário de 100% dos arquivos no state/indice_mestre_caso.md (v1.1.1)", async () => {
+  test("deve isolar falhas de inspeção por arquivo com try/catch e garantir inventário de 100% dos arquivos no state/indice_mestre_caso.md (v1.2.0)", async () => {
     const caseDir = resolve(tempDir, "caso_resiliencia_multi_arquivos");
     const inputsDir = resolve(caseDir, "inputs");
     mkdirSync(inputsDir, { recursive: true });
