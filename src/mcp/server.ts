@@ -34,6 +34,13 @@ import {
   generateAuditDocx,
   formatGenerateAuditDocxSyntheticResult,
 } from "../tools/audit.ts";
+import {
+  generateTechnicalNoteDocx,
+  formatTechnicalNoteSyntheticResult,
+  createTechnicalNoteDataFromDiff,
+} from "../tools/technical_note.ts";
+import { computeStructuralDiff } from "../core/structural_diff.ts";
+import { safeReadJsonFile } from "../utils/json.ts";
 
 // ============================================================================
 // Modo Servidor MCP (stdio)
@@ -252,6 +259,53 @@ export function getMcpToolsDefinition() {
         idempotentHint: true,
       },
     },
+    {
+      name: "generate_technical_note_docx",
+      description:
+        "Gera uma Nota Técnica Comparativa Padronizada de Evolução Documental ('Antes vs. Depois', Marco 6) em Word (.docx) e PDF em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com destaque visual colorido por cards com bordas laterais (verde para inclusão, vermelho para supressão, azul para alteração), renderização granular de diff de tokens inline e fundamentação técnica/jurídica individualizada por cláusula alterada.\n" +
+        "- Modos de operação híbridos:\n" +
+        "  1) Direto via JSON: forneça 'noteJsonPath' e 'outputPath';\n" +
+        "  2) Comparativo via arquivos: forneça 'oldPath' e 'newPath' (.docx, .pdf ou .json de estrutura) + 'outputPath' (e opcionalmente 'noteJsonPath' para enriquecer com justificativas elaboradas pelo agente).\n" +
+        "- Quando usar (Pré-condição): Após alterações substantivas em minutas ou artefatos instrutórios (TR, ETP, Edital) para justificar a evolução aos órgãos de controle (TCU, AGU, Controle Interno).\n" +
+        "- Pós-condição & Próximo Passo: Gera a Nota Técnica executiva em outputPath (.docx e opcionalmente .pdf). Conclui o ciclo de justificação e governança de alterações.",
+      inputSchema: {
+        type: "object",
+        required: ["outputPath"],
+        properties: {
+          outputPath: {
+            type: "string",
+            description:
+              "Caminho onde o arquivo .docx da nota técnica será gerado (ex.: 'C:/workspace/cases/caso_exemplo/output/Nota_Tecnica_Evolucao.docx').",
+          },
+          noteJsonPath: {
+            type: "string",
+            description:
+              "Caminho do arquivo nota_tecnica.json estruturado com a evolução de cláusulas e justificativas (ex.: 'C:/workspace/cases/caso_exemplo/state/nota_tecnica.json'). Obrigatório no modo direto; opcional no modo comparativo via oldPath/newPath.",
+          },
+          oldPath: {
+            type: "string",
+            description:
+              "Caminho do documento base/anterior (.docx, .pdf ou .json de estrutura) para cálculo automático do diff de evolução.",
+          },
+          newPath: {
+            type: "string",
+            description:
+              "Caminho do documento revisado/novo (.docx, .pdf ou .json de estrutura) para cálculo automático do diff de evolução.",
+          },
+          outputFormat: {
+            type: "string",
+            enum: ["docx", "pdf", "both"],
+            description:
+              "Formato de saída da nota técnica: 'docx' (apenas Word, padrão), 'pdf' (converte para PDF via pipeline híbrido Word COM/Pure-JS) ou 'both' (mantém o .docx e gera também o .pdf correspondente).",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
   ];
 }
 
@@ -438,6 +492,83 @@ export async function runMcpServer() {
           outputFormat,
         });
         const synthetic = formatGenerateAuditDocxSyntheticResult(result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
+        };
+      }
+
+      if (toolName === "generate_technical_note_docx") {
+        const {
+          noteJsonPath,
+          oldPath,
+          newPath,
+          outputPath,
+          outputFormat,
+        } = request.params.arguments as {
+          noteJsonPath?: string;
+          oldPath?: string;
+          newPath?: string;
+          outputPath: string;
+          outputFormat?: "docx" | "pdf" | "both";
+        };
+
+        if (!outputPath) {
+          throw new Error(
+            "Parâmetro obrigatório 'outputPath' não fornecido para generate_technical_note_docx."
+          );
+        }
+
+        let result;
+        if (oldPath && newPath) {
+          const resolvedOld = resolve(oldPath);
+          const resolvedNew = resolve(newPath);
+
+          const oldInspection = resolvedOld.toLowerCase().endsWith(".json")
+            ? safeReadJsonFile(resolvedOld)
+            : await inspectDoc(resolvedOld, undefined, true);
+          const newInspection = resolvedNew.toLowerCase().endsWith(".json")
+            ? safeReadJsonFile(resolvedNew)
+            : await inspectDoc(resolvedNew, undefined, true);
+
+          const diff = computeStructuralDiff(
+            oldInspection,
+            newInspection,
+            resolvedOld,
+            resolvedNew
+          );
+
+          let baseData;
+          if (noteJsonPath) {
+            baseData = safeReadJsonFile(resolve(noteJsonPath));
+          }
+
+          const noteData = createTechnicalNoteDataFromDiff(
+            diff,
+            resolvedOld,
+            resolvedNew,
+            baseData
+          );
+          result = await generateTechnicalNoteDocx(noteData, outputPath, {
+            outputFormat,
+          });
+        } else if (noteJsonPath) {
+          result = await generateTechnicalNoteDocx(
+            resolve(noteJsonPath),
+            outputPath,
+            { outputFormat }
+          );
+        } else {
+          throw new Error(
+            "Parâmetro obrigatório ausente: forneça 'noteJsonPath' OU o par 'oldPath' e 'newPath' para generate_technical_note_docx."
+          );
+        }
+
+        const synthetic = formatTechnicalNoteSyntheticResult(result);
         return {
           content: [
             {

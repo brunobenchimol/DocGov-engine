@@ -20,6 +20,7 @@ import type {
   GenerateTechnicalNoteOptions,
   GenerateTechnicalNoteSyntheticResult,
   ZoneDeltaReport,
+  StructuralDiffResult,
 } from "../types/index.ts";
 
 function escapeXml(value: unknown): string {
@@ -676,3 +677,60 @@ export function formatTechnicalNoteSyntheticResult(
 
   return payload;
 }
+
+export function createTechnicalNoteDataFromDiff(
+  diff: StructuralDiffResult,
+  oldPath: string,
+  newPath: string,
+  baseData?: Partial<TechnicalNoteData>
+): TechnicalNoteData {
+  const resolvedOld = resolve(oldPath);
+  const resolvedNew = resolve(newPath);
+
+  const relevantChanges = diff.changes.filter((c) => c.change_type !== "UNCHANGED");
+  const items: EvolutionClauseItem[] = relevantChanges.map((c, idx) => ({
+    id: `EVO-${String(idx + 1).padStart(2, "0")}`,
+    coordenada: c.coord_new || c.coord_old || `P${idx + 1}`,
+    secao_titulo: c.section_title || "Disposições Gerais",
+    tipo_alteracao: (c.change_type === "ADDED"
+      ? "INCLUSAO"
+      : c.change_type === "REMOVED"
+      ? "SUPRESSAO"
+      : "MODIFICACAO") as any,
+    redacao_anterior: c.old_text,
+    redacao_nova: c.new_text,
+    diff_inline: c.inline_diff,
+    diff_chunks: c.diff_chunks,
+    justificativa_tecnica:
+      "Adequação e aprimoramento redacional da cláusula durante a instrução processual para atendimento ao interesse público.",
+    fundamentacao_juridica:
+      "Lei Federal nº 14.133/2021; Princípio do Planejamento e Padronização Documental.",
+  }));
+
+  return {
+    document_type: "TECHNICAL_NOTE",
+    processo_id: baseData?.processo_id || "PROCESSO_ADMINISTRATIVO",
+    orgao_entidade: baseData?.orgao_entidade || "ORGAO_CONTRATANTE",
+    artefato_auditado: baseData?.artefato_auditado || basename(resolvedNew),
+    versao_anterior: baseData?.versao_anterior || basename(resolvedOld),
+    versao_nova: baseData?.versao_nova || basename(resolvedNew),
+    resumo_executivo:
+      baseData?.resumo_executivo ||
+      `Nota Técnica Comparativa gerada automaticamente a partir da comparação entre ${basename(
+        resolvedOld
+      )} e ${basename(resolvedNew)}. Foram mapeadas ${diff.total_modified} alteração(ões), ${diff.total_added} inclusão(ões) e ${diff.total_removed} supressão(ões).`,
+    contagem: baseData?.contagem || {
+      total_alteracoes: diff.total_modified + diff.total_added + diff.total_removed,
+      modificadas: diff.total_modified,
+      incluidas: diff.total_added,
+      suprimidas: diff.total_removed,
+      apontamentos_saneados: diff.zones_delta.filter((z) => z.status === "RESOLVED").length,
+    },
+    quadro_evolucao:
+      baseData?.quadro_evolucao && baseData.quadro_evolucao.length > 0
+        ? baseData.quadro_evolucao
+        : items,
+    delta_zonas: baseData?.delta_zonas || diff.zones_delta,
+  };
+}
+

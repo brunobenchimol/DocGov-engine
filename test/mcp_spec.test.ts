@@ -25,7 +25,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
 
     // 2. Camada 2: ListTools enriquecido com pré/pós-condições, descriptions em todas as propriedades e annotations
     const tools = getMcpToolsDefinition();
-    expect(tools.length).toBe(5);
+    expect(tools.length).toBe(6);
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toEqual([
       "bootstrap_case",
@@ -33,6 +33,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
       "build_docx_template",
       "fill_docx_template",
       "generate_audit_docx",
+      "generate_technical_note_docx",
     ]);
 
     for (const tool of tools) {

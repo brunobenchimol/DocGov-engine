@@ -14,6 +14,7 @@ import {
   safeUnlink,
 } from "../utils/pdf_exporter.ts";
 import { sanitizeXmlString } from "../utils/xml.ts";
+import { generateTechnicalNoteDocx } from "./technical_note.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
   AuditReportData,
@@ -490,7 +491,23 @@ export async function generateAuditDocx(
     );
   }
 
-  // 1. Detecção do Tipo de Documento (Marco 5.4)
+  // 1. Detecção do Tipo de Documento (Marco 5.4 & Marco 6.2)
+  if (
+    raw.document_type === "TECHNICAL_NOTE" ||
+    raw.document_type === "EVOLUTION_REPORT" ||
+    Array.isArray(raw.quadro_evolucao) ||
+    Array.isArray(raw.clausulas_evolucao)
+  ) {
+    const techRes = await generateTechnicalNoteDocx(raw as any, resolvedOutput, options);
+    return {
+      success: true,
+      outputPath: techRes.outputPath,
+      document_type: "TECHNICAL_NOTE",
+      ...(techRes.pdf_path ? { pdf_path: techRes.pdf_path } : {}),
+      message: techRes.message,
+    };
+  }
+
   let documentType: AuditDocumentType = "AUDIT_REPORT";
   if (
     raw.document_type === "RISK_MATRIX" ||
@@ -1198,6 +1215,12 @@ export function formatGenerateAuditDocxSyntheticResult(
       nextHint = `Ciclo de controle preventivo concluído: o checklist de conformidade em layout vertical A4 está pronto em PDF (${relPdf}) para revisão e assinatura.`;
     } else {
       nextHint = "Ciclo de controle preventivo concluído: o checklist de conformidade em layout vertical A4 (zero tabelas) está pronto em output/ para revisão e assinatura.";
+    }
+  } else if (docType === "TECHNICAL_NOTE" || docType === "EVOLUTION_REPORT") {
+    if (relPdf) {
+      nextHint = `Ciclo de análise comparativa concluído: a nota técnica em layout vertical A4 está pronta em PDF (${relPdf}) para revisão e assinatura.`;
+    } else {
+      nextHint = `Ciclo de análise comparativa concluído: a nota técnica em layout vertical A4 está pronta em DOCX (${relOutput}) para revisão e assinatura.`;
     }
   } else {
     if (relPdf) {

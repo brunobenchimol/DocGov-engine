@@ -20,6 +20,7 @@ import { processDocument } from "../tools/fill_template.ts";
 import {
   generateTechnicalNoteDocx,
   formatTechnicalNoteSyntheticResult,
+  createTechnicalNoteDataFromDiff,
 } from "../tools/technical_note.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
@@ -392,52 +393,9 @@ Uso:
       if (dataPath) {
         const resolvedData = resolve(dataPath);
         const raw = safeReadJsonFile(resolvedData);
-        noteData = {
-          ...raw,
-          delta_zonas: raw.delta_zonas || diff.zones_delta,
-          quadro_evolucao: raw.quadro_evolucao || [],
-        };
+        noteData = createTechnicalNoteDataFromDiff(diff, resolvedOld, resolvedNew, raw);
       } else {
-        const relevantChanges = diff.changes.filter((c) => c.change_type !== "UNCHANGED");
-        const items = relevantChanges.map((c, idx) => ({
-          id: `EVO-${String(idx + 1).padStart(2, "0")}`,
-          coordenada: c.coord_new || c.coord_old || `P${idx + 1}`,
-          secao_titulo: c.section_title || "Disposições Gerais",
-          tipo_alteracao: (c.change_type === "ADDED"
-            ? "INCLUSAO"
-            : c.change_type === "REMOVED"
-            ? "SUPRESSAO"
-            : "MODIFICACAO") as any,
-          redacao_anterior: c.old_text,
-          redacao_nova: c.new_text,
-          diff_inline: c.inline_diff,
-          diff_chunks: c.diff_chunks,
-          justificativa_tecnica:
-            "Adequação e aprimoramento redacional da cláusula durante a instrução processual para atendimento ao interesse público.",
-          fundamentacao_juridica:
-            "Lei Federal nº 14.133/2021; Princípio do Planejamento e Padronização Documental.",
-        }));
-
-        noteData = {
-          document_type: "TECHNICAL_NOTE",
-          processo_id: "PROCESSO_ADMINISTRATIVO",
-          orgao_entidade: "ORGAO_CONTRATANTE",
-          artefato_auditado: basename(resolvedNew),
-          versao_anterior: basename(resolvedOld),
-          versao_nova: basename(resolvedNew),
-          resumo_executivo: `Nota Técnica Comparativa gerada automaticamente a partir da comparação entre ${basename(
-            resolvedOld
-          )} e ${basename(resolvedNew)}. Foram mapeadas ${diff.total_modified} alteração(ões), ${diff.total_added} inclusão(ões) e ${diff.total_removed} supressão(ões).`,
-          contagem: {
-            total_alteracoes: diff.total_modified + diff.total_added + diff.total_removed,
-            modificadas: diff.total_modified,
-            incluidas: diff.total_added,
-            suprimidas: diff.total_removed,
-            apontamentos_saneados: diff.zones_delta.filter((z) => z.status === "RESOLVED").length,
-          },
-          quadro_evolucao: items,
-          delta_zonas: diff.zones_delta,
-        };
+        noteData = createTechnicalNoteDataFromDiff(diff, resolvedOld, resolvedNew);
       }
 
       const res = await generateTechnicalNoteDocx(noteData, outPath, {
