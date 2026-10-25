@@ -35,11 +35,17 @@ Este documento estabelece as 8 Leis Invioláveis de Engenharia do motor standalo
 - A resolução de caminhos deve ser resiliente e independente do diretório de trabalho atual (`process.cwd()`), priorizando a variável de ambiente `DOCGOV_REGISTRY_DIR` e busca ascendente a partir de `caseDir` ou `docxPath`.
 - Ao carregar templates do cache global, deve-se aplicar sanity check descartando entradas corrompidas com 0 regras válidas.
 
-## Lei 7: Ritual de Qualidade e Release
+## Lei 7: Ritual de Qualidade e Release Automatizada via Pipeline Externo
 - Toda evolução exige:
-  1. Atualização do número de versão SemVer em `package.json` e `src/index.ts`;
-  2. Aprovação de 100% dos testes via `bun test`;
-  3. Git commit convencional, criação de tag `vX.Y.Z` anotada e push para origin.
+  1. Atualização do número de versão SemVer em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts` e testes correspondentes;
+  2. Aprovação de 100% dos testes automatizados no ambiente local (`bun test`);
+  3. Sincronização de especificações e documentação pública (`--dump-spec`, `README.md`, `CHANGELOG.md` e `ROADMAP.md`);
+  4. Git commit convencional, criação de tag anotada `vX.Y.Z` e envio (`git push origin <branch>` e `git push origin vX.Y.Z`).
+- **Autodescoberta de Pipeline Externo e Proibição de Upload Manual (Zero Local Release):**
+  - O agente DEVE inspecionar se o repositório possui esteira automatizada externa de CI/CD (ex.: `.github/workflows/`, `.gitlab-ci.yml` ou equivalente).
+  - **Existindo pipeline externo configurado para tags, o push da tag Git é o gatilho canônico exclusivo de release.**
+  - É **TERMINANTEMENTE PROIBIDO** tentar subir arquivos de release na mão, criar releases por comandos locais (`gh release create`) ou fazer upload manual de binários compilados na máquina de desenvolvimento. Toda compilação oficial, cálculo de checksums e publicação de assets cabem estritamente à esteira automatizada em seus runners remotos.
+  - **Protocolo Observador:** Após o push da tag, o agente deve apenas monitorar a conclusão do pipeline externo (ex.: `gh run list` / `gh run watch`). Caso seja necessário enriquecer notas ou descrições após a publicação automatizada, o agente deve usar exclusivamente comandos declarativos de edição de metadados (ex.: `gh release edit vX.Y.Z --notes-file ...`), **sem nunca reinjetar ou sobrescrever os binários oficiais gerados pela esteira**.
 
 ## Lei 8: Disciplina Autônoma de Micro-Commits Atômicos, Reversibilidade e Memória Evolutiva (`CHANGELOG.md` & `ROADMAP.md`)
 - É terminantemente proibido realizar commits monolíticos ("Big Bang") que misturem múltiplas features, refatorações ou correções em um único disparo.
@@ -77,4 +83,5 @@ Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do 
 - [ ] **4. Neutralidade Institucional (Lei 5):** Ausência de nomes específicos de órgãos/localidades;
 - [ ] **5. Micro-Commits Semânticos (Lei 8):** Fatiamento atômico registrado no Git;
 - [ ] **6. Memória Evolutiva (Lei 8):** `CHANGELOG.md` e `ROADMAP.md` atualizados e consistentes;
-- [ ] **7. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas.
+- [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
+- [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas.
