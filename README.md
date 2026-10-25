@@ -458,12 +458,17 @@ bun test test/registry.test.ts      # Cache global, matching 1-para-N e rastreab
 bun test test/mcp_spec.test.ts      # Self-Discovery, --dump-spec e barrel
 bun test test/utils.test.ts         # Parsers de JSON, naming e updater
 
-# Compilar binários standalone locais (desenvolvimento e smoke tests)
+# Consolidação Completa de Build, Checksums e Self-Discovery (Recomendado)
+bun run build:all        # Compila Linux e Windows, normaliza nomes canônicos, gera SHA256SUMS.txt e atualiza spec
+bun run build            # Atalho equivalente a build:all
+bun run dump:spec        # Regenera diretamente docs/especificacao_motor.md (--dump-spec)
+
+# Compilar binários individuais (opcional)
 bun run build:windows
 bun run build:linux
 ```
 
-> ℹ️ **Nota de Distribuição & Release:** Os comandos `bun run build:*` destinam-se exclusivamente a desenvolvimento local e execução de smoke tests. A compilação oficial multi-plataforma (`ubuntu-24.04` e `windows-latest`), o cálculo de checksums (`SHA256SUMS.txt`) e a publicação de releases são **100% automatizados pela esteira externa de CI/CD** ao receber o push de tags `v*`.
+> ℹ️ **Nota de Distribuição & Release:** Os comandos locais `bun run build:all` e `bun run build:*` destinam-se a desenvolvimento local e execução de smoke tests. A compilação oficial multi-plataforma (`ubuntu-24.04` e `windows-latest`), o cálculo de checksums (`SHA256SUMS.txt`) e a publicação de releases são **100% automatizados pela esteira externa de CI/CD** ao receber o push de tags `v*`.
 
 ### Estatuto de Governança (`AGENTS.md`)
 O motor é governado pelas **8 Leis Invioláveis de Engenharia**:

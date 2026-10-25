@@ -8,6 +8,11 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Adicionado
+- **Orquestrador Consolidado de Build, Checksums e Self-Discovery (`scripts/build_all.ts`):**
+  - Implementado o comando unificado `bun run build:all` (com atalho `bun run build`) que compila os binários Linux e Windows, normaliza nomes canônicos de release de forma cross-platform via `node:fs` (`docgov-engine-linux-x64` e `docgov-engine-win-x64.exe`), recalcula `bin/SHA256SUMS.txt` e sincroniza a especificação Markdown `docs/especificacao_motor.md` (`--dump-spec`) em uma única execução rápida (~8 segundos).
+  - Adicionado atalho rápido `bun run dump:spec` para sincronização direta do documento de especificação técnica.
+
 ### Alterado
 - **Blindagem Normativa da Lei 7 & Autodescoberta de Pipelines Externos (`AGENTS.md`):**
   - Reformulação da Lei 7 consagrando o princípio agnóstico de autodescoberta de pipelines de CI/CD (GitHub Actions, GitLab CI ou similares), estabelecendo o push de tag Git como gatilho canônico exclusivo de release.
