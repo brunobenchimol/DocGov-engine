@@ -706,6 +706,11 @@ export interface BudgetAuditReport {
 
 export type StructuralDiffChangeType = "ADDED" | "REMOVED" | "MODIFIED" | "UNCHANGED";
 
+export interface GranularDiffChunk {
+  type: "UNCHANGED" | "ADDED" | "REMOVED";
+  text: string;
+}
+
 export interface StructuralDiffItem {
   change_type: StructuralDiffChangeType;
   coord_old?: string;
@@ -714,6 +719,7 @@ export interface StructuralDiffItem {
   old_text?: string;
   new_text?: string;
   inline_diff?: string; // Destaque: ~~antigo~~ -> **novo**
+  diff_chunks?: GranularDiffChunk[];
 }
 
 export interface ZoneDeltaReport {
