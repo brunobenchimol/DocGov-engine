@@ -188,7 +188,7 @@ export interface DocumentCartography {
 }
 
 export interface DocxInspectionResult {
-  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet";
+  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet" | "markdown" | "text";
   format?: string;
   page_count?: number;
   line_count?: number;
@@ -467,7 +467,7 @@ export interface InspectDocSyntheticResult {
   filePath: string;
   docxPath?: string;
   outputPath: string;
-  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet";
+  doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet" | "markdown" | "text";
   format?: string;
   page_count?: number;
   line_count?: number;

@@ -31,6 +31,7 @@ import {
   buildDocxCartography,
   renderCartographyMarkdownBlock,
   generateHotspotsDossierMarkdown,
+  type IndexedLineEntry,
 } from "../core/cartography.ts";
 import {
   auditDocumentBudget,
@@ -458,6 +459,72 @@ async function applyStructuralDiffIfRequested(
   currentResult.diff_result = diff;
 }
 
+export function isZipBuffer(buf: Buffer): boolean {
+  if (!buf || buf.length < 4) return false;
+  return (
+    buf[0] === 0x50 &&
+    buf[1] === 0x4b &&
+    (buf[2] === 0x03 || buf[2] === 0x05 || buf[2] === 0x07)
+  );
+}
+
+export function isTextOrMarkdownFile(filePath: string, buf: Buffer): boolean {
+  const lower = filePath.toLowerCase();
+  if (
+    lower.endsWith(".md") ||
+    lower.endsWith(".markdown") ||
+    lower.endsWith(".txt") ||
+    lower.endsWith(".text") ||
+    lower.endsWith(".log")
+  ) {
+    return true;
+  }
+  // Se for extensão conhecida de arquivo binário estruturado, não deve ser tratado como texto puro
+  if (
+    lower.endsWith(".docx") ||
+    lower.endsWith(".pdf") ||
+    lower.endsWith(".xlsx") ||
+    lower.endsWith(".xls") ||
+    lower.endsWith(".csv") ||
+    lower.endsWith(".zip") ||
+    lower.endsWith(".tar") ||
+    lower.endsWith(".gz")
+  ) {
+    return false;
+  }
+  if (isZipBuffer(buf) || isPdfBuffer(buf)) {
+    return false;
+  }
+  const checkLen = Math.min(buf.length, 512);
+  for (let i = 0; i < checkLen; i++) {
+    if (buf[i] === 0x00) {
+      return false;
+    }
+  }
+  return true;
+}
+
+export function generateTextLinearAuditViewMarkdown(
+  fileName: string,
+  paragraphs: BodyParagraphInfo[],
+  cartography: DocumentCartography,
+  isMarkdown: boolean
+): string {
+  let md = `# Visão Linear de Auditoria — ${fileName}\n\n`;
+  md += `> ℹ️ **AVISO DE INGESTÃO:** Documento de ${
+    isMarkdown ? "Markdown (.md)" : "Texto Puro (.txt)"
+  } inspecionado com sucesso. Para máxima fidelidade visual, metadados OpenXML e parametrização de templates, recomenda-se que as minutas originais em formato binário (.docx / .pdf) estejam presentes na pasta .user_uploaded ou inputs/.\n\n`;
+  md += renderCartographyMarkdownBlock(cartography);
+  md += "\n\n---\n\n## Bloco 2: Leitura Sequencial Integral\n\n";
+
+  for (const p of paragraphs) {
+    if (!p.text) continue;
+    md += `[P${p.index}] ${p.text}\n\n`;
+  }
+
+  return md;
+}
+
 export async function inspectDocx(
   docxPath: string,
   outputPath?: string,
@@ -720,7 +787,141 @@ export async function inspectDocx(
     return pdfResult;
   }
 
-  const zip = await JSZip.loadAsync(buffer);
+  const isTextOrMd = isTextOrMarkdownFile(resolvedDocx, buffer);
+  if (isTextOrMd) {
+    const isMd =
+      lowerPath.endsWith(".md") || lowerPath.endsWith(".markdown");
+    const textContent = buffer.toString("utf-8");
+    const rawLines = textContent.split(/\r?\n/);
+
+    const paragraphs: BodyParagraphInfo[] = rawLines.map((line, idx) => {
+      const trimmed = line.trim();
+      let style: string | null = null;
+      let text = trimmed;
+
+      const mdHeadingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+      if (mdHeadingMatch) {
+        const level = mdHeadingMatch[1].length;
+        style = `Heading ${level}`;
+        text = mdHeadingMatch[2].trim();
+      } else if (
+        /^(?:(?:\d+(?:\.\d+)*|[A-Z]|\b[IVXLCDM]+\b)[\.\-\)\s]|CL[ÁA]USULA|SE[ÇC][ÃA]O|CAP[IÍ]TULO|ANEXO)\s+[A-ZÀ-Ú0-9]/i.test(
+          trimmed
+        ) ||
+        /^(?:ESTUDO T[EÉ]CNICO PRELIMINAR|TERMO DE REFER[EÊ]NCIA|PROJETO B[AÁ]SICO|JUSTIFICATIVA|OBJETO|DISPOSI[ÇC][ÕO]ES)\b/i.test(
+          trimmed
+        )
+      ) {
+        style = "Heading 1";
+      }
+
+      return {
+        part: "text",
+        index: idx,
+        paragraphIndex: idx,
+        style,
+        text,
+      };
+    });
+
+    const toc_map = buildTocMap(paragraphs, []);
+    const cartography = buildDocxCartography(paragraphs, [], toc_map);
+
+    const baseStem = outputPath
+      ? basename(resolve(outputPath), ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        )
+      : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
+
+    const outDir = outputPath
+      ? dirname(resolve(outputPath))
+      : dirname(resolvedDocx);
+
+    if (!existsSync(outDir)) {
+      mkdirSync(outDir, { recursive: true });
+    }
+
+    const auditViewPath = resolve(outDir, `visao_auditoria_${baseStem}.md`);
+    const dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${baseStem}.md`);
+
+    const auditMd = generateTextLinearAuditViewMarkdown(
+      basename(resolvedDocx),
+      paragraphs,
+      cartography,
+      isMd
+    );
+    writeFileSync(auditViewPath, auditMd, "utf-8");
+
+    const textLines: IndexedLineEntry[] = paragraphs.map((p) => ({
+      coord: `[P${p.index}]`,
+      text: p.text,
+      line: p.index + 1,
+      isExplicitHeading: Boolean(p.style && p.style.startsWith("Heading")),
+    }));
+
+    const fakeExtraction: PdfExtractionResult = {
+      pageCount: Math.max(1, Math.ceil(paragraphs.length / 45)),
+      lineCount: paragraphs.length,
+      lines: textLines,
+    };
+
+    const dossieMd = generateHotspotsDossierMarkdown(
+      basename(resolvedDocx),
+      fakeExtraction,
+      cartography
+    );
+    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
+
+    const textResult: DocxInspectionResult = {
+      doc_type: isMd ? "markdown" : "text",
+      format: isMd ? "markdown" : "plain_text",
+      page_count: fakeExtraction.pageCount,
+      line_count: paragraphs.length,
+      audit_view_path: auditViewPath,
+      dossie_hotspots_path: dossieHotspotsPath,
+      cartography,
+      headers: [],
+      footers: [],
+      paragraphs: compact ? paragraphs.filter((p) => p.text.length > 0) : paragraphs,
+      tables: [],
+      toc_map,
+    };
+
+    await applyStructuralDiffIfRequested(
+      textResult,
+      resolvedDocx,
+      outputPath,
+      options.compareWithPath
+    );
+
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      writeFileSync(resolvedOut, JSON.stringify(textResult, null, 2), "utf-8");
+    }
+
+    return textResult;
+  }
+
+  if (!isZipBuffer(buffer)) {
+    throw new Error(
+      `Formato de arquivo não suportado ou corrompido: '${basename(
+        resolvedDocx
+      )}'. O docgov-engine aceita nativamente documentos .docx, .pdf, .xlsx, .csv, .md e .txt. Se este for um anexo original do processo, certifique-se de que o arquivo binário intacto está presente na pasta .user_uploaded ou inputs/.`
+    );
+  }
+
+  let zip: JSZip;
+  try {
+    zip = await JSZip.loadAsync(buffer);
+  } catch (err: any) {
+    throw new Error(
+      `Falha na descompressão do pacote OpenXML/ZIP '${basename(
+        resolvedDocx
+      )}': ${err?.message || "arquivo corrompido"}. Certifique-se de que o arquivo .docx original intacto está presente na pasta .user_uploaded ou inputs/.`
+    );
+  }
+
   const parser = new DOMParser();
 
   const headers: HeaderFooterParagraphInfo[] = [];
@@ -761,7 +962,9 @@ export async function inspectDocx(
   const docFile = zip.file("word/document.xml");
   if (!docFile) {
     throw new Error(
-      `Estrutura OpenXML inválida (word/document.xml ausente): ${resolvedDocx}`
+      `Estrutura OpenXML inválida ('word/document.xml' ausente no pacote ZIP): '${basename(
+        resolvedDocx
+      )}'. O arquivo parece ser um arquivo ZIP genérico e não um documento Microsoft Word (.docx) válido. Verifique os arquivos originais em .user_uploaded ou inputs/.`
     );
   }
 
@@ -1185,6 +1388,8 @@ export function formatInspectDocSyntheticResult(
             ", "
           )}). Leia visao_auditoria_*.md ou siga para 'generate_audit_docx'.`
         : "PDF inspecionado com Cartografia e Radar Z1..Z14. Leia visao_auditoria_*.md ou siga para 'build_docx_template' / 'generate_audit_docx'."
+      : inspection.doc_type === "markdown" || inspection.doc_type === "text"
+      ? "Texto/MD inspecionado com Cartografia e Radar Z1..Z14. Consulte visao_auditoria_*.md. Minutas binárias originais em .user_uploaded têm prioridade."
       : "Inspeção gravada com toc_map. Próximo passo: elabore slots_manifest.json e chame 'build_docx_template'.";
   if (
     inspection.template_match?.status === "EXACT" ||
