@@ -1,5 +1,5 @@
 import { writeFileSync, mkdirSync } from "node:fs";
-import { resolve, dirname } from "node:path";
+import { resolve, dirname, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
 import { generateEngineSpecMarkdown } from "../mcp/spec.ts";
 import { selfUpdate } from "../core/updater.ts";
@@ -17,7 +17,13 @@ import {
 import { buildDocxTemplate } from "../tools/build_template.ts";
 import { generateAuditDocx } from "../tools/audit.ts";
 import { processDocument } from "../tools/fill_template.ts";
-import type { BackgroundCopyInput } from "../types/index.ts";
+import {
+  generateTechnicalNoteDocx,
+  formatTechnicalNoteSyntheticResult,
+} from "../tools/technical_note.ts";
+import { computeStructuralDiff } from "../core/structural_diff.ts";
+import { safeReadJsonFile } from "../utils/json.ts";
+import type { BackgroundCopyInput, TechnicalNoteData } from "../types/index.ts";
 
 // ============================================================================
 // Modo CLI (Linha de Comando)
@@ -42,6 +48,8 @@ Uso:
   docgov-engine --build-template --source <bruto.docx> --manifest <slots_manifest.json> --out <template.docx> [--save-to-registry] [--template-id <id>]
   docgov-engine --inject --template <template.docx> --state <estado.json> --out <saida.docx> [--format <docx|pdf|both>] [--no-auto-inspect]
   docgov-engine --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
+  docgov-engine --diff-report --old <base.docx|.pdf> --new <revisado.docx|.pdf> --out <nota.docx> [--format <docx|pdf|both>] [--data <evolucao.json>]
+  docgov-engine --generate-technical-note --note-json <nota.json> --out <nota.docx> [--format <docx|pdf|both>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release
@@ -316,6 +324,178 @@ Uso:
 
     try {
       const res = await generateAuditDocx(auditJsonPath, outPath, {
+        outputFormat,
+      });
+      console.log(res.message);
+      if (res.pdf_path) {
+        console.log(`Documento PDF gerado: ${res.pdf_path}`);
+      }
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // 2c) Modo --diff-report
+  if (args.includes("--diff-report")) {
+    const oldIdx = args.indexOf("--old");
+    const newIdx = args.indexOf("--new");
+    const outIdx = args.indexOf("--out");
+    const dataIdx = args.indexOf("--data");
+    const flagIdx = args.indexOf("--diff-report");
+
+    let oldPath: string | undefined = oldIdx !== -1 ? args[oldIdx + 1] : undefined;
+    let newPath: string | undefined = newIdx !== -1 ? args[newIdx + 1] : undefined;
+    let outPath: string | undefined = outIdx !== -1 ? args[outIdx + 1] : undefined;
+    let dataPath: string | undefined = dataIdx !== -1 ? args[dataIdx + 1] : undefined;
+
+    // Argumentos posicionais: --diff-report <old> <new> <out>
+    if (!oldPath && args[flagIdx + 1] && !args[flagIdx + 1].startsWith("--")) {
+      oldPath = args[flagIdx + 1];
+      if (args[flagIdx + 2] && !args[flagIdx + 2].startsWith("--")) {
+        newPath = args[flagIdx + 2];
+        if (args[flagIdx + 3] && !args[flagIdx + 3].startsWith("--")) {
+          outPath = args[flagIdx + 3];
+        }
+      }
+    }
+
+    if (!oldPath || !newPath || !outPath) {
+      console.error(
+        "Erro: Parâmetros obrigatórios para --diff-report: --old <base>, --new <revisado> e --out <nota.docx>."
+      );
+      process.exit(1);
+    }
+
+    const formatIdx =
+      args.indexOf("--format") !== -1
+        ? args.indexOf("--format")
+        : args.indexOf("-f");
+    const explicitFormat =
+      formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
+        ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
+        : undefined;
+    const outputFormat =
+      explicitFormat || (outPath.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
+
+    try {
+      const resolvedOld = resolve(oldPath);
+      const resolvedNew = resolve(newPath);
+
+      const oldInspection = await inspectDoc(resolvedOld, undefined, true);
+      const newInspection = await inspectDoc(resolvedNew, undefined, true);
+      const diff = computeStructuralDiff(oldInspection, newInspection, resolvedOld, resolvedNew);
+
+      let noteData: TechnicalNoteData;
+
+      if (dataPath) {
+        const resolvedData = resolve(dataPath);
+        const raw = safeReadJsonFile(resolvedData);
+        noteData = {
+          ...raw,
+          delta_zonas: raw.delta_zonas || diff.zones_delta,
+          quadro_evolucao: raw.quadro_evolucao || [],
+        };
+      } else {
+        const relevantChanges = diff.changes.filter((c) => c.change_type !== "UNCHANGED");
+        const items = relevantChanges.map((c, idx) => ({
+          id: `EVO-${String(idx + 1).padStart(2, "0")}`,
+          coordenada: c.coord_new || c.coord_old || `P${idx + 1}`,
+          secao_titulo: c.section_title || "Disposições Gerais",
+          tipo_alteracao: (c.change_type === "ADDED"
+            ? "INCLUSAO"
+            : c.change_type === "REMOVED"
+            ? "SUPRESSAO"
+            : "MODIFICACAO") as any,
+          redacao_anterior: c.old_text,
+          redacao_nova: c.new_text,
+          diff_inline: c.inline_diff,
+          diff_chunks: c.diff_chunks,
+          justificativa_tecnica:
+            "Adequação e aprimoramento redacional da cláusula durante a instrução processual para atendimento ao interesse público.",
+          fundamentacao_juridica:
+            "Lei Federal nº 14.133/2021; Princípio do Planejamento e Padronização Documental.",
+        }));
+
+        noteData = {
+          document_type: "TECHNICAL_NOTE",
+          processo_id: "PROCESSO_ADMINISTRATIVO",
+          orgao_entidade: "ORGAO_CONTRATANTE",
+          artefato_auditado: basename(resolvedNew),
+          versao_anterior: basename(resolvedOld),
+          versao_nova: basename(resolvedNew),
+          resumo_executivo: `Nota Técnica Comparativa gerada automaticamente a partir da comparação entre ${basename(
+            resolvedOld
+          )} e ${basename(resolvedNew)}. Foram mapeadas ${diff.total_modified} alteração(ões), ${diff.total_added} inclusão(ões) e ${diff.total_removed} supressão(ões).`,
+          contagem: {
+            total_alteracoes: diff.total_modified + diff.total_added + diff.total_removed,
+            modificadas: diff.total_modified,
+            incluidas: diff.total_added,
+            suprimidas: diff.total_removed,
+            apontamentos_saneados: diff.zones_delta.filter((z) => z.status === "RESOLVED").length,
+          },
+          quadro_evolucao: items,
+          delta_zonas: diff.zones_delta,
+        };
+      }
+
+      const res = await generateTechnicalNoteDocx(noteData, outPath, {
+        outputFormat,
+      });
+      console.log(res.message);
+      if (res.pdf_path) {
+        console.log(`Documento PDF gerado: ${res.pdf_path}`);
+      }
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // 2d) Modo --generate-technical-note
+  if (args.includes("--generate-technical-note")) {
+    const noteJsonIdx = args.indexOf("--note-json");
+    const stateIdx = args.indexOf("--state");
+    const outIdx = args.indexOf("--out");
+    const flagIdx = args.indexOf("--generate-technical-note");
+
+    let noteJsonPath: string | undefined;
+    if (noteJsonIdx !== -1 && args[noteJsonIdx + 1]) {
+      noteJsonPath = args[noteJsonIdx + 1];
+    } else if (stateIdx !== -1 && args[stateIdx + 1]) {
+      noteJsonPath = args[stateIdx + 1];
+    } else if (
+      flagIdx !== -1 &&
+      args[flagIdx + 1] &&
+      !args[flagIdx + 1].startsWith("--")
+    ) {
+      noteJsonPath = args[flagIdx + 1];
+    }
+
+    const outPath = outIdx !== -1 ? args[outIdx + 1] : undefined;
+
+    if (!noteJsonPath || !outPath) {
+      console.error(
+        "Erro: Parâmetros obrigatórios para --generate-technical-note: --note-json <nota.json> e --out <nota.docx>."
+      );
+      process.exit(1);
+    }
+
+    const formatIdx =
+      args.indexOf("--format") !== -1
+        ? args.indexOf("--format")
+        : args.indexOf("-f");
+    const explicitFormat =
+      formatIdx !== -1 && ["docx", "pdf", "both"].includes(args[formatIdx + 1])
+        ? (args[formatIdx + 1] as "docx" | "pdf" | "both")
+        : undefined;
+    const outputFormat =
+      explicitFormat || (outPath.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
+
+    try {
+      const res = await generateTechnicalNoteDocx(noteJsonPath, outPath, {
         outputFormat,
       });
       console.log(res.message);

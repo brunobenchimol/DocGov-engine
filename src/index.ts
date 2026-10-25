@@ -26,12 +26,13 @@ export * from "./core/updater.ts";
 export * from "./core/budget_auditor.ts";
 export * from "./core/structural_diff.ts";
 
-// 6. Ferramentas do Pipeline (Bootstrap, Inspect, Build, Fill, Audit)
+// 6. Ferramentas do Pipeline (Bootstrap, Inspect, Build, Fill, Audit, Technical Note)
 export * from "./tools/inspect.ts";
 export * from "./tools/bootstrap.ts";
 export * from "./tools/build_template.ts";
 export * from "./tools/fill_template.ts";
 export * from "./tools/audit.ts";
+export * from "./tools/technical_note.ts";
 
 // 7. Servidor MCP e Especificação Técnica (--dump-spec)
 export * from "./mcp/spec.ts";
@@ -65,6 +66,8 @@ if (import.meta.main) {
     args.includes("--template") ||
     args.includes("--generate-audit-docx") ||
     args.includes("--generate-audit") ||
+    args.includes("--diff-report") ||
+    args.includes("--generate-technical-note") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||
