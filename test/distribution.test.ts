@@ -83,4 +83,26 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(content).toContain("gh release create");
     expect(content).toContain("Protocolo Observador");
   });
+
+  it("8. package.json deve expor scripts de build consolidado (build:all, build e dump:spec)", () => {
+    const pkgPath = resolve(process.cwd(), "package.json");
+    const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
+
+    expect(pkg.scripts["build:all"]).toContain("./scripts/build_all.ts");
+    expect(pkg.scripts["build"]).toBe("bun run build:all");
+    expect(pkg.scripts["dump:spec"]).toContain("--dump-spec");
+  });
+
+  it("9. scripts/build_all.ts deve existir e executar buildAll({ skipCompile: true }) sincronizando checksums e spec", async () => {
+    const scriptPath = resolve(process.cwd(), "scripts/build_all.ts");
+    expect(existsSync(scriptPath)).toBe(true);
+
+    const { buildAll } = await import("../scripts/build_all.ts");
+    const result = await buildAll({ skipCompile: true, silent: true });
+
+    expect(result.success).toBe(true);
+    expect(existsSync(result.sha256Path)).toBe(true);
+    expect(existsSync(result.specPath)).toBe(true);
+    expect(result.elapsedMs).toBeGreaterThan(0);
+  });
 });

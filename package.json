@@ -6,8 +6,11 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
+    "build": "bun run build:all",
+    "build:all": "bun run ./scripts/build_all.ts",
     "build:linux": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-engine",
-    "build:windows": "bun build ./src/index.ts --compile --target=bun-windows-x64 --minify --outfile ./bin/docgov-engine.exe"
+    "build:windows": "bun build ./src/index.ts --compile --target=bun-windows-x64 --minify --outfile ./bin/docgov-engine.exe",
+    "dump:spec": "bun run ./src/index.ts --dump-spec docs/especificacao_motor.md"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
