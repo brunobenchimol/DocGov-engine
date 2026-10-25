@@ -9,7 +9,7 @@ import {
   renameSync,
   statSync,
 } from "node:fs";
-import { resolve, relative, extname, basename } from "node:path";
+import { resolve, relative, extname, basename, join } from "node:path";
 import { spawn } from "node:child_process";
 import JSZip from "jszip";
 import {
@@ -108,6 +108,17 @@ export async function bootstrapCase(
   options: BootstrapCaseOptions = {}
 ): Promise<BootstrapCaseResult> {
   const resolvedCaseDir = resolve(caseDir);
+  const isGitRepoRoot = existsSync(join(resolvedCaseDir, ".git"));
+  const hasSourceCodeMarkers =
+    existsSync(join(resolvedCaseDir, "core", "skills")) ||
+    (existsSync(join(resolvedCaseDir, "src", "index.ts")) &&
+      existsSync(join(resolvedCaseDir, "package.json")));
+
+  if (isGitRepoRoot || hasSourceCodeMarkers) {
+    throw new Error(
+      `Tentativa de inicializar caso na raiz de repositório de desenvolvimento abortada por segurança: '${resolvedCaseDir}' contém marcadores de código-fonte/repositório Git (.git, core/skills). O 'caseDir' deve apontar para uma pasta de caso específica (ex.: 'cases/<nome_do_caso>').`
+    );
+  }
   const inputsDir = resolve(resolvedCaseDir, "inputs");
   const stateDir = resolve(resolvedCaseDir, "state");
   const templatesDir = resolve(resolvedCaseDir, "templates");
@@ -254,12 +265,47 @@ export async function bootstrapCase(
   }
 
   // 2b. Organização e movimentação limpa da raiz de cases/<slug>/ para inputs/ (Zero Duplicação v1.1.1)
-  const SYSTEM_ROOT_FILES = new Set([
+  const PROTECTED_ROOT_FILES = new Set([
+    "agents.md",
+    "readme.md",
+    "architecture.md",
+    "changelog.md",
+    "roadmap.md",
+    "license",
+    "license.md",
+    "license.txt",
+    "contributing.md",
+    "package.json",
+    "tsconfig.json",
+    "bun.lockb",
+    "package-lock.json",
+    "yarn.lock",
+    "pnpm-lock.yaml",
+    "skill_spec.md",
+    ".gitignore",
+    ".gitattributes",
+    ".env",
+    ".env.local",
     "context.json",
     "metadata.json",
-    "readme.md",
-    ".gitignore",
-    ".env",
+    "estado_caso.json",
+    "slots_manifest.json",
+    "relatorio_auditoria.json",
+  ]);
+
+  const CODE_OR_SCRIPT_EXTENSIONS = new Set([
+    ".ts",
+    ".js",
+    ".mjs",
+    ".cjs",
+    ".sh",
+    ".ps1",
+    ".bat",
+    ".cmd",
+    ".py",
+    ".cs",
+    ".csproj",
+    ".sln",
   ]);
 
   const DOCUMENT_EXTENSIONS = new Set([
@@ -282,7 +328,10 @@ export async function bootstrapCase(
   for (const entry of rootEntries) {
     if (!entry.isFile() || entry.name.startsWith("~$")) continue;
     const lowerName = entry.name.toLowerCase();
-    if (SYSTEM_ROOT_FILES.has(lowerName)) continue;
+    if (PROTECTED_ROOT_FILES.has(lowerName)) continue;
+
+    const currentExt = extname(entry.name).toLowerCase();
+    if (CODE_OR_SCRIPT_EXTENSIONS.has(currentExt)) continue;
 
     const rootFilePath = resolve(resolvedCaseDir, entry.name);
     let buf: Buffer;
@@ -292,7 +341,6 @@ export async function bootstrapCase(
       continue;
     }
 
-    const currentExt = extname(entry.name).toLowerCase();
     const detectedExt = detectFileExtensionFromBuffer(buf);
     const isDoc =
       DOCUMENT_EXTENSIONS.has(currentExt) ||
