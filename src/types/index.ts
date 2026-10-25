@@ -136,6 +136,8 @@ export interface PdfExtractionResult {
   pages: PdfPageInfo[];
   lines: PdfLineItem[];
   scanned_pages_detected?: number[];
+  ocr_applied?: boolean;
+  ocr_pages?: number[];
 }
 
 export interface OutlineHeadingItem {

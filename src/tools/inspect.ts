@@ -243,11 +243,19 @@ export function generatePdfLinearAuditViewMarkdown(
     extraction.scanned_pages_detected &&
     extraction.scanned_pages_detected.length > 0
   ) {
-    lines.push(
-      `> ⚠️ **ALERTA CRÍTICO: DETECTADA(S) PÁGINA(S) ESCANEADA(S) COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL:** Página(s) ${extraction.scanned_pages_detected.join(
-        ", "
-      )}.`
-    );
+    if (extraction.ocr_applied && extraction.ocr_pages && extraction.ocr_pages.length > 0) {
+      lines.push(
+        `> 🔍 **PIPELINE OCR HEADLESS APLICADO (Marco 5.3):** Texto recuperado com sucesso nas página(s) escaneada(s): ${extraction.ocr_pages.join(
+          ", "
+        )}.`
+      );
+    } else {
+      lines.push(
+        `> ⚠️ **ALERTA CRÍTICO: DETECTADA(S) PÁGINA(S) ESCANEADA(S) COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL:** Página(s) ${extraction.scanned_pages_detected.join(
+          ", "
+        )}.`
+      );
+    }
   }
   lines.push("");
 
@@ -682,6 +690,9 @@ export async function inspectDocx(
       dossie_hotspots_path: dossieHotspotsPath,
       ...(extraction.scanned_pages_detected
         ? { scanned_pages_detected: extraction.scanned_pages_detected }
+        : {}),
+      ...(extraction.ocr_applied
+        ? { ocr_applied: true, ocr_pages: extraction.ocr_pages }
         : {}),
       headers: [],
       footers: [],
@@ -1266,6 +1277,7 @@ export function formatInspectDocSyntheticResult(
     inspection.scanned_pages_detected.length > 0
       ? { scanned_pages: inspection.scanned_pages_detected }
       : {}),
+    ...(inspection.ocr_applied ? { ocr_applied: true } : {}),
     ...(summaryItems.length > 0 ? { toc_summary: summaryItems } : {}),
     next_step_hint: nextHint,
   });

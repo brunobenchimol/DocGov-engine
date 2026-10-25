@@ -1,5 +1,6 @@
 import { inflateSync, unzipSync } from "node:zlib";
 import { getDocumentProxy } from "unpdf";
+import { executeHeadlessOcr } from "../core/ocr.ts";
 import type {
   PdfLineItem,
   PdfPageInfo,
@@ -183,9 +184,14 @@ function fallbackExtractPagesFromBuffer(buffer: Buffer): string[][] {
       !trimmed ||
       trimmed.startsWith("%PDF-") ||
       trimmed === "%%EOF" ||
-      /^(?:obj|endobj|stream|endstream|xref|trailer|startxref|\d+\s+\d+\s+obj|\d{10}\s+\d{5}\s+[nf])$/.test(
+      /^%\s*(?:OCR_|PAGE_\d+_OCR)/i.test(trimmed) ||
+      /^(?:obj|endobj|stream|endstream|xref|trailer|startxref|\d+\s+\d+\s+obj|\d+|\d+\s+\d+|\d{10}\s+\d{5}\s+[nf])$/.test(
         trimmed
-      )
+      ) ||
+      trimmed.startsWith("<<") ||
+      trimmed.endsWith(">>") ||
+      /^\/[A-Za-z0-9_]+(?:\s+.*)?$/.test(trimmed) ||
+      /^(?:q|Q|cm|Do|re|f|F|s|S|W|n|m|l)$/.test(trimmed)
     ) {
       continue;
     }
@@ -389,11 +395,8 @@ export async function extractPdfPages(
   let rawPages: string[][] = [];
 
   try {
-    const uint8 = new Uint8Array(
-      buffer.buffer,
-      buffer.byteOffset,
-      buffer.byteLength
-    );
+    // Clona o buffer para evitar que o worker do PDF detach/invalide o ArrayBuffer original
+    const uint8 = new Uint8Array(buffer.slice(0));
     const pdf = await getDocumentProxy(uint8, { verbosity: 0 });
     const numPages = pdf.numPages || 0;
 
@@ -412,7 +415,24 @@ export async function extractPdfPages(
 
   const totalExtractedLines = rawPages.reduce((acc, p) => acc + p.length, 0);
   if (totalExtractedLines === 0) {
-    rawPages = fallbackExtractPagesFromBuffer(buffer);
+    const fallback = fallbackExtractPagesFromBuffer(buffer);
+    if (fallback.length > 0 && fallback.some((p) => p.length > 0)) {
+      rawPages = fallback;
+    }
+  }
+
+  if (rawPages.length === 0) {
+    const rawLatin1 = buffer.toString("latin1");
+    const countMatch = rawLatin1.match(/\/Count\s+(\d+)/);
+    const pageMatches = rawLatin1.match(/\/Type\s*\/Page\b/g);
+    const detectedPages = countMatch
+      ? parseInt(countMatch[1], 10)
+      : pageMatches
+        ? pageMatches.length
+        : 1;
+    for (let p = 0; p < Math.max(1, detectedPages); p++) {
+      rawPages.push([]);
+    }
   }
 
   const pages: PdfPageInfo[] = [];
@@ -453,6 +473,59 @@ export async function extractPdfPages(
       pageNumber,
       lines: pageItems,
     });
+  }
+
+  if (scanned_pages_detected.length > 0) {
+    const ocrMap = await executeHeadlessOcr(buffer, scanned_pages_detected);
+    const ocrPagesApplied: number[] = [];
+
+    for (const [pageNum, ocrLines] of ocrMap.entries()) {
+      if (ocrLines && ocrLines.length > 0) {
+        ocrPagesApplied.push(pageNum);
+        const targetPage = pages.find((p) => p.pageNumber === pageNum);
+        if (targetPage) {
+          const existingChars = targetPage.lines.reduce((acc, l) => acc + l.text.length, 0);
+          if (existingChars < 25) {
+            // Remove linhas residuais do allLines
+            for (const oldLine of targetPage.lines) {
+              const idx = allLines.indexOf(oldLine);
+              if (idx !== -1) allLines.splice(idx, 1);
+            }
+            targetPage.lines = [];
+          }
+          for (const rawLine of ocrLines) {
+            for (const subLine of rawLine.split(/\r?\n/)) {
+              const text = subLine.replace(/\s+/g, " ").trim();
+              if (!text) continue;
+              globalLineCounter++;
+              const coord = formatPdfCoord(pageNum, globalLineCounter);
+              const bracket_coord = `[${coord}]`;
+              const lineItem: PdfLineItem = {
+                page: pageNum,
+                line: globalLineCounter,
+                coord,
+                bracket_coord,
+                text,
+              };
+              targetPage.lines.push(lineItem);
+              allLines.push(lineItem);
+            }
+          }
+        }
+      }
+    }
+
+    if (ocrPagesApplied.length > 0) {
+      return {
+        pageCount: pages.length,
+        lineCount: allLines.length,
+        pages,
+        lines: allLines,
+        scanned_pages_detected,
+        ocr_applied: true,
+        ocr_pages: ocrPagesApplied,
+      };
+    }
   }
 
   return {
