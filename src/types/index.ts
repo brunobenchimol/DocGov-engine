@@ -551,7 +551,9 @@ export interface GenerateAuditDocxOptions {
 export type AuditDocumentType =
   | "AUDIT_REPORT"
   | "RISK_MATRIX"
-  | "COMPLIANCE_CHECKLIST";
+  | "COMPLIANCE_CHECKLIST"
+  | "TECHNICAL_NOTE"
+  | "EVOLUTION_REPORT";
 
 export interface RiskItem {
   id?: string;
@@ -580,6 +582,65 @@ export interface ComplianceChecklistItem {
   evidencia?: string;
   recomendacao?: string;
   [key: string]: any;
+}
+
+export type EvolutionChangeType = "MODIFICACAO" | "INCLUSAO" | "SUPRESSAO";
+
+export interface EvolutionClauseItem {
+  id: string; // Ex: "EVO-01"
+  slot_id?: string; // Ex: "P14" ou "T1.R2.C1"
+  coordenada?: string; // Ex: "[P14]"
+  secao_titulo: string; // Ex: "Cláusula 5ª — Do Prazo de Entrega e Garantia"
+  tipo_alteracao: EvolutionChangeType;
+  redacao_anterior?: string;
+  redacao_nova?: string;
+  diff_inline?: string;
+  diff_chunks?: GranularDiffChunk[];
+  justificativa_tecnica: string;
+  fundamentacao_juridica: string;
+  apontamento_origem_id?: string; // Ex: "AUD-02"
+  impacto_risco?: string;
+  [key: string]: any;
+}
+
+export interface TechnicalNoteData {
+  document_type?: "TECHNICAL_NOTE" | "EVOLUTION_REPORT";
+  processo_id: string;
+  orgao_entidade: string;
+  artefato_auditado: string;
+  versao_anterior?: string;
+  versao_nova?: string;
+  regime_juridico?: string;
+  data_emissao?: string;
+  autor_responsavel?: string;
+  resumo_executivo: string;
+  contagem?: {
+    total_alteracoes?: number;
+    modificadas?: number;
+    incluidas?: number;
+    suprimidas?: number;
+    apontamentos_saneados?: number;
+  };
+  quadro_evolucao: EvolutionClauseItem[];
+  delta_zonas?: ZoneDeltaReport[];
+  conclusao_encaminhamento?: string;
+  [key: string]: any;
+}
+
+export interface GenerateTechnicalNoteOptions {
+  outputFormat?: "docx" | "pdf" | "both";
+  pdfTimeoutMs?: number;
+}
+
+export interface GenerateTechnicalNoteSyntheticResult {
+  status: "success";
+  engine_version: string;
+  document_type: "TECHNICAL_NOTE";
+  outputPath: string;
+  pdf_path?: string;
+  total_changes: number;
+  message: string;
+  next_step_hint: string;
 }
 
 export interface GenerateAuditDocxSyntheticResult {
@@ -636,6 +697,12 @@ export interface AuditReportData {
   risk_matrix?: RiskItem[];
   checklist_conformidade?: ComplianceChecklistItem[];
   compliance_checklist?: ComplianceChecklistItem[];
+  versao_anterior?: string;
+  versao_nova?: string;
+  quadro_evolucao?: EvolutionClauseItem[];
+  clausulas_evolucao?: EvolutionClauseItem[];
+  delta_zonas?: ZoneDeltaReport[];
+  conclusao_encaminhamento?: string;
   [key: string]: any;
 }
 

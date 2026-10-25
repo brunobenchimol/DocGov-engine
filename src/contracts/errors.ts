@@ -2,6 +2,8 @@
 // Padrão Exact Copy-Paste Error (Fail-Safe Estrito v0.6.2)
 // ============================================================================
 
+import type { TechnicalNoteData, EvolutionClauseItem } from "../types/index.ts";
+
 export const EXACT_COPY_PASTE_SLOTS_MANIFEST_SNIPPET = `{
   "slots": [
     { "coord": "P3", "tag": "{{estudo.necessidade}}" },
@@ -156,4 +158,139 @@ export function createComplianceChecklistContractError(reason: string): string {
     `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
     EXACT_COPY_PASTE_COMPLIANCE_CHECKLIST_SNIPPET,
   ].join("\n");
+}
+
+export const EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET = `{
+  "document_type": "TECHNICAL_NOTE",
+  "processo_id": "08000.001234/2026-00",
+  "orgao_entidade": "ORGAO_CONTRATANTE",
+  "artefato_auditado": "Termo de Referência (TR)",
+  "versao_anterior": "Minuta Original v1.0",
+  "versao_nova": "Minuta Saneada v2.0",
+  "regime_juridico": "Lei Federal nº 14.133/2021",
+  "resumo_executivo": "A presente Nota Técnica demonstra as alterações saneadoras promovidas no Termo de Referência...",
+  "quadro_evolucao": [
+    {
+      "id": "EVO-01",
+      "slot_id": "P14",
+      "coordenada": "[P14]",
+      "secao_titulo": "Cláusula 5ª — Do Prazo de Entrega e Garantia",
+      "tipo_alteracao": "MODIFICACAO",
+      "redacao_anterior": "O prazo de entrega será impreterivelmente de 10 dias corridos...",
+      "redacao_nova": "O prazo de entrega será de até 30 (trinta) dias úteis nos termos do Art. 111...",
+      "justificativa_tecnica": "Adequação ao prazo de fabricação apurado na pesquisa de mercado...",
+      "fundamentacao_juridica": "Art. 18, inc. X e Art. 40, § 1º da Lei nº 14.133/2021; Acórdão TCU nº 1234/2023-Plenário",
+      "apontamento_origem_id": "AUD-02",
+      "impacto_risco": "Eliminação de risco de direcionamento e restrição indevida (Zona Z8)"
+    }
+  ],
+  "conclusao_encaminhamento": "Submete-se à Consultoria Jurídica com parecer favorável ao prosseguimento."
+}`;
+
+export function createTechnicalNoteContractError(reason: string): string {
+  return [
+    `Erro de validação na Nota Técnica Comparativa JSON: ${reason}`,
+    `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:`,
+    EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET,
+  ].join("\n");
+}
+
+export function validateTechnicalNoteData(raw: unknown): TechnicalNoteData {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    throw new Error(
+      createTechnicalNoteContractError("O arquivo JSON deve conter um objeto raiz válido.")
+    );
+  }
+
+  const obj = raw as Record<string, any>;
+
+  if (!obj.processo_id || typeof obj.processo_id !== "string" || !obj.processo_id.trim()) {
+    throw new Error(
+      createTechnicalNoteContractError("Campo obrigatório 'processo_id' ausente ou inválido.")
+    );
+  }
+
+  if (!obj.orgao_entidade || typeof obj.orgao_entidade !== "string" || !obj.orgao_entidade.trim()) {
+    throw new Error(
+      createTechnicalNoteContractError("Campo obrigatório 'orgao_entidade' ausente ou inválido.")
+    );
+  }
+
+  if (!obj.artefato_auditado || typeof obj.artefato_auditado !== "string" || !obj.artefato_auditado.trim()) {
+    throw new Error(
+      createTechnicalNoteContractError("Campo obrigatório 'artefato_auditado' ausente ou inválido.")
+    );
+  }
+
+  if (!obj.resumo_executivo || typeof obj.resumo_executivo !== "string" || !obj.resumo_executivo.trim()) {
+    throw new Error(
+      createTechnicalNoteContractError("Campo obrigatório 'resumo_executivo' ausente ou inválido.")
+    );
+  }
+
+  const items = obj.quadro_evolucao || obj.clausulas_evolucao;
+  if (!Array.isArray(items) || items.length === 0) {
+    throw new Error(
+      createTechnicalNoteContractError("Campo obrigatório 'quadro_evolucao' deve ser uma lista não vazia de alterações.")
+    );
+  }
+
+  const normalizedItems: EvolutionClauseItem[] = [];
+  for (let idx = 0; idx < items.length; idx++) {
+    const it = items[idx];
+    if (!it || typeof it !== "object" || Array.isArray(it)) {
+      throw new Error(
+        createTechnicalNoteContractError(`Item ${idx + 1} do 'quadro_evolucao' é inválido.`)
+      );
+    }
+
+    const id = String(it.id || `EVO-${String(idx + 1).padStart(2, "0")}`).trim();
+    const secao_titulo = String(it.secao_titulo || it.secao || it.titulo || `Cláusula ${idx + 1}`).trim();
+
+    let rawTipo = String(it.tipo_alteracao || it.tipo || "MODIFICACAO").toUpperCase().trim();
+    if (/inclus|adicion|inser/i.test(rawTipo)) rawTipo = "INCLUSAO";
+    else if (/supress|remov|exclu/i.test(rawTipo)) rawTipo = "SUPRESSAO";
+    else rawTipo = "MODIFICACAO";
+
+    const justificativa_tecnica = String(
+      it.justificativa_tecnica || it.justificativa || it.motivacao || ""
+    ).trim();
+    if (!justificativa_tecnica) {
+      throw new Error(
+        createTechnicalNoteContractError(
+          `Item '${id}' está sem 'justificativa_tecnica'. Toda alteração em processo licitatório exige motivação expressa.`
+        )
+      );
+    }
+
+    const fundamentacao_juridica = String(
+      it.fundamentacao_juridica || it.fundamentacao || it.base_legal || ""
+    ).trim();
+    if (!fundamentacao_juridica) {
+      throw new Error(
+        createTechnicalNoteContractError(
+          `Item '${id}' está sem 'fundamentacao_juridica'. Indique o artigo da Lei 14.133/2021 ou parecer/acórdão correlato.`
+        )
+      );
+    }
+
+    normalizedItems.push({
+      ...it,
+      id,
+      secao_titulo,
+      tipo_alteracao: rawTipo as any,
+      justificativa_tecnica,
+      fundamentacao_juridica,
+    });
+  }
+
+  return {
+    ...obj,
+    document_type: "TECHNICAL_NOTE",
+    processo_id: String(obj.processo_id).trim(),
+    orgao_entidade: String(obj.orgao_entidade).trim(),
+    artefato_auditado: String(obj.artefato_auditado).trim(),
+    resumo_executivo: String(obj.resumo_executivo).trim(),
+    quadro_evolucao: normalizedItems,
+  };
 }
