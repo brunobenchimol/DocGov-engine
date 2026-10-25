@@ -127,4 +127,18 @@ describe("Resiliência de Caminhos e Desacoplamento de CWD da IDE (Lei 6)", () =
     const res = resolveWorkspacePath("output/resultado.docx", custom);
     expect(res).toBe(join(custom, "output", "resultado.docx"));
   });
+
+  test("6. Deve preservar process.cwd() quando inputPath for '.' ou './' e CWD for legítimo", () => {
+    const cwd = process.cwd();
+    expect(resolveWorkspacePath(".")).toBe(resolve(cwd));
+    expect(resolveWorkspacePath("./")).toBe(resolve(cwd));
+    expect(resolveWorkspacePath(".\\")).toBe(resolve(cwd));
+  });
+
+  test("7. Deve resolver caminhos relativos locais sem prefixo 'cases/' contra process.cwd()", () => {
+    const cwd = process.cwd();
+    expect(resolveWorkspacePath("./uploads")).toBe(resolve(cwd, "uploads"));
+    expect(resolveWorkspacePath("uploads/arquivo.docx")).toBe(resolve(cwd, "uploads/arquivo.docx"));
+    expect(resolveWorkspacePath("minuta.docx")).toBe(resolve(cwd, "minuta.docx"));
+  });
 });

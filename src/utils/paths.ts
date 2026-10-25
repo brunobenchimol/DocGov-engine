@@ -149,6 +149,27 @@ export function resolveWorkspacePath(inputPath: string, customRoot?: string): st
   if (isPathAbsolute(inputPath)) {
     return normalize(inputPath);
   }
-  const root = customRoot || findWorkspaceRoot();
+
+  if (customRoot) {
+    return resolve(customRoot, inputPath);
+  }
+
+  const cwdIsIdeDir = /antigravity|programs|appdata|node_modules|\.cache/i.test(process.cwd());
+  const cleanRelative = inputPath.replace(/^\.[\\/]+/, "");
+
+  // 1. Se o input for explicitamente o diretório atual ('.' ou './' ou '.\')
+  if (inputPath === "." || cleanRelative === "") {
+    if (!cwdIsIdeDir) {
+      return resolve(process.cwd());
+    }
+  }
+
+  // 2. Se for relativo sem prefixo 'cases/' e o CWD não for a IDE (ex.: './uploads', 'inputs/doc.docx')
+  const hasCasesPrefix = /^cases([\\/]|$)/i.test(cleanRelative);
+  if (!hasCasesPrefix && !cwdIsIdeDir) {
+    return resolve(process.cwd(), inputPath);
+  }
+
+  const root = findWorkspaceRoot();
   return resolve(root, inputPath);
 }
