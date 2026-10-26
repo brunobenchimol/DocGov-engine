@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.2)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.3)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 

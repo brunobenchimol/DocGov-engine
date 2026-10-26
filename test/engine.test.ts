@@ -58,7 +58,7 @@ describe("Testes Unitários v1.0.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.2");
+    expect(synthetic.engine_version).toBe("1.3.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -115,7 +115,7 @@ describe("Testes Unitários v1.0.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.2");
+    expect(synthetic.engine_version).toBe("1.3.3");
     expect(synthetic.filePath).toBe("inputs/modelo_dfd.docx");
     expect(synthetic.docxPath).toBe("inputs/modelo_dfd.docx");
     expect(synthetic).toHaveProperty("engine_version");
@@ -144,7 +144,7 @@ describe("Testes Unitários v1.0.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.2");
+    expect(synthetic.engine_version).toBe("1.3.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -164,7 +164,7 @@ describe("Testes Unitários v1.0.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.2");
+    expect(synthetic.engine_version).toBe("1.3.3");
     expect(synthetic).toHaveProperty("engine_version");
 
     const json = JSON.stringify(synthetic, null, 2);
@@ -180,7 +180,7 @@ describe("Testes Unitários v1.0.0: engine_version e Teto Estrito MCP (< 1024 by
 
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.2");
+    expect(synthetic.engine_version).toBe("1.3.3");
     expect(synthetic).toHaveProperty("engine_version");
     expect(synthetic.next_step_hint).toContain("Ciclo de auditoria concluído");
 

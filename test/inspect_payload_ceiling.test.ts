@@ -38,7 +38,7 @@ describe("Testes Unitários v1.3.2: Otimização de Teto MCP em inspect_doc (< 9
         updated_at: "2026-03-20T14:30:00.000Z",
         age_days: 45,
         cache_date_status: "KNOWN",
-        engine_version: "1.3.2",
+        engine_version: "1.3.3",
         slots_count: 24,
       },
       toc_map: {

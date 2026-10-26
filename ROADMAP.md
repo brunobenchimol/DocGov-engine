@@ -95,6 +95,12 @@
   - Eliminação da concorrência redundante `docxPath`/`filePath` em `inspect_doc`, encurtamento protetivo de caminhos longos (`toShortDocPath`) e poda progressiva mantendo payload sintético estritamente abaixo de 900 bytes (Lei 2).
   - Orquestrador consolidado de build `bun run build:all` sincronizando binários, checksums SHA-256 e especificação técnica em um único comando.
 
+- [x] **6.5. Patch `v1.3.3` — Classificador Estrutural libmagic msooxml e Descompactação Automática de Pacotes no bootstrap_case:**
+  - Classificador determinístico de formatos inspirado na regra `msooxml` do Linux `file(1)` / `libmagic`, diferenciando com precisão containers ZIP de documentos Office (`.docx`, `.xlsx`, `.pptx`, `.odt`, `.ods`) de arquivos compactados de usuário comuns (`.zip`).
+  - Suporte completo a POSIX TAR (`.tar`) e GZIP (`.tar.gz`, `.tgz`), além de detecção amigável de formatos compactados proprietários (`.7z`, `.rar`).
+  - Descompactação automática e transparente em `bootstrap_case` para pacotes em `uploadsDir`, na raiz de `caseDir` e em `inputs/`, com proteção Anti-Zip Slip, achatamento de subpastas, filtragem de lixo de sistema (`__MACOSX`, `.DS_Store`, `Thumbs.db`) e guardrail de Zip Bomb.
+  - Relatório consolidado no `state/indice_mestre_caso.md` e guardrail fail-fast em `inspect_doc` orientando o uso de `bootstrap_case` para pacotes compactados.
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite

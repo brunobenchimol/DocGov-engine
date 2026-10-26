@@ -8,6 +8,24 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.3] - 2026-10-26
+
+### Adicionado
+- **Classificador Estrutural de Formatos inspirado no padrão Linux `file(1)` / `libmagic` (`src/utils/archives.ts`):**
+  - Implementada heurística canônica alinhada à regra `msooxml` do Linux `file`: em arquivos com magic bytes `PK\x03\x04`, inspeciona os nomes das entradas nos cabeçalhos locais para diferenciar deterministamente contêineres do Microsoft Office (`word/document.xml` -> `.docx`, `xl/workbook.xml` -> `.xlsx`, `ppt/presentation.xml` -> `.pptx`, `mimetype` ODF -> `.odt`/`.ods`) de arquivos compactados comuns (`zip`).
+  - Suporte completo a formatos compactados padrão POSIX TAR (`.tar`) via detecção do magic `ustar` no offset 257 e validação do checksum octal de cabeçalho de 512 bytes.
+  - Suporte a GZIP (`.tar.gz` / `.tgz`) via magic `\x1f\x8b` com descompressão segura via `node:zlib` e inspeção do fluxo TAR interno.
+  - Detecção precoce e amigável de arquivos compactados proprietários (`.7z`, `.rar`).
+- **Descompactação Automática e Ingestão Transparente em `bootstrap_case` (`src/tools/bootstrap.ts`):**
+  - Descompactação automática de pacotes compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`) fornecidos em `uploadsDir`, soltos na raiz de `caseDir` ou adicionados diretamente em `inputs/`, permitindo o envio de lote consolidado em uma única operação.
+  - **Defesa Anti-Zip Slip e Achatamento de Subpastas:** Sanitização rigorosa via `sanitizeArchiveEntryName` barrando sequências de escape (`../`) e achatando a hierarquia interna (ex.: `anexos/edital/tr.docx` -> `anexos_edital_tr.docx`), preservando o contexto das pastas originais.
+  - **Filtragem de Metadados e Lixo de Sistema:** Descarte automático e silencioso de arquivos de sistema (`__MACOSX`, `.DS_Store`, `._*`, `Thumbs.db`, `desktop.ini`, `~$*`).
+  - **Guardrail de Prevenção contra Zip Bomb:** Limites de segurança integrados bloqueando pacotes com mais de 500 arquivos ou extração superior a 500 MB descompactados.
+  - **Relatório no Índice Mestre (`state/indice_mestre_caso.md`):** Tabela executiva documentando cada pacote descompactado, formato original, contagem de arquivos e nomes gravados em `inputs/`.
+  - **Metadados MCP Sintéticos (< 900 bytes — Lei 2):** Inclusão de `unpacked_archives_count` e `extracted_files_count` na resposta JSON mantendo o tamanho estritamente abaixo do teto.
+- **Guardrail Instrutivo em `inspect_doc` para Pacotes Compactados (`src/tools/inspect.ts`):**
+  - Rejeição fail-fast precoce caso um arquivo `.zip`, `.tar` ou `.tar.gz` seja fornecido a `inspect_doc`, emitindo instrução orientando que a ferramenta opera exclusivamente em documentos individuais e direcionando o agente a utilizar `bootstrap_case`.
+
 ## [1.3.2] - 2026-10-25
 
 ### Corrigido
