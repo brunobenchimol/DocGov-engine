@@ -17,6 +17,10 @@ import {
   resolveTargetFileName,
 } from "../utils/naming.ts";
 import { isPdfBuffer } from "../utils/pdf.ts";
+import {
+  detectFileType,
+  extractArchiveBuffer,
+} from "../utils/archives.ts";
 import { inspectDocx, compactInspectionResult } from "./inspect.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
 import { ALL_IMPUGNATION_ZONE_IDS } from "../core/cartography.ts";
@@ -31,6 +35,7 @@ import type {
   BootstrapCaseResult,
   BootstrapCaseInspectedPdf,
   BootstrapCaseSyntheticResult,
+  UnpackedArchiveSummary,
 } from "../types/index.ts";
 
 // ============================================================================
@@ -38,6 +43,80 @@ import type {
 // ============================================================================
 
 export const activeBackgroundCopies = new Map<string, Promise<void>>();
+
+async function unpackAndIngestArchive(
+  archiveName: string,
+  buf: Buffer,
+  archiveType: "zip" | "tar" | "tar.gz",
+  inputsDir: string,
+  options: BootstrapCaseOptions,
+  copiedFiles: string[],
+  backgroundFiles: string[],
+  ingestedFiles: IngestedFileSummary[],
+  unpackedArchives: UnpackedArchiveSummary[]
+): Promise<void> {
+  const extracted = await extractArchiveBuffer(buf, archiveName);
+  const unpackedSummary: UnpackedArchiveSummary = {
+    archiveName,
+    archiveType,
+    extractedCount: extracted.length,
+    files: [],
+  };
+
+  for (const item of extracted) {
+    const resolved = await resolveTargetFileName(
+      item.fileName,
+      item.data,
+      options.fileRenameMap
+    );
+    let finalTarget = resolved.targetFileName;
+    let counter = 1;
+    const usedNames = new Set([
+      ...copiedFiles,
+      ...backgroundFiles,
+      ...ingestedFiles.map((f) => f.saved_as),
+    ]);
+    while (usedNames.has(finalTarget)) {
+      const ext = extname(finalTarget);
+      const stem = ext ? finalTarget.slice(0, -ext.length) : finalTarget;
+      finalTarget = `${stem}_${counter}${ext}`;
+      counter++;
+    }
+
+    const destPath = resolve(inputsDir, finalTarget);
+    writeFileSync(destPath, item.data);
+
+    const isDocx =
+      finalTarget.toLowerCase().endsWith(".docx") ||
+      detectFileExtensionFromBuffer(item.data) === ".docx";
+
+    if (isDocx) {
+      if (!copiedFiles.includes(finalTarget)) {
+        copiedFiles.push(finalTarget);
+      }
+    } else {
+      if (!backgroundFiles.includes(finalTarget)) {
+        backgroundFiles.push(finalTarget);
+      }
+    }
+
+    if (!ingestedFiles.some((f) => f.saved_as === finalTarget)) {
+      ingestedFiles.push({
+        original_name: item.fileName,
+        saved_as: finalTarget,
+        detected_type: resolved.detectedType,
+      });
+    }
+
+    unpackedSummary.files.push({
+      originalEntryName: item.fileName,
+      savedAs: finalTarget,
+      size: item.data.length,
+    });
+  }
+
+  unpackedArchives.push(unpackedSummary);
+}
 
 export async function executeBackgroundCopyTask(
   sourceDir: string,
@@ -132,7 +211,21 @@ export async function bootstrapCase(
   const copiedFiles: string[] = [];
   const backgroundFiles: string[] = [];
   const ingestedFiles: IngestedFileSummary[] = [];
+  const unpackedArchives: UnpackedArchiveSummary[] = [];
   const bgItems: BackgroundCopyFileItem[] = [];
+
+  const NON_ARCHIVE_EXTENSIONS = new Set([
+    ".docx",
+    ".pdf",
+    ".xlsx",
+    ".xls",
+    ".csv",
+    ".txt",
+    ".odt",
+    ".rtf",
+    ".doc",
+    ".md",
+  ]);
 
   const resolvedUploadsDir =
     uploadsDir && existsSync(uploadsDir) ? resolve(uploadsDir) : null;
@@ -147,6 +240,32 @@ export async function bootstrapCase(
       if (entry.isFile() && !entry.name.startsWith("~$")) {
         const srcPath = resolve(resolvedUploadsDir, entry.name);
         const buf = readFileSync(srcPath);
+
+        const isCandidateArchive = !NON_ARCHIVE_EXTENSIONS.has(
+          extname(entry.name).toLowerCase()
+        );
+        if (isCandidateArchive) {
+          const fileType = await detectFileType(buf, entry.name);
+          if (fileType.type === "unsupported_archive") {
+            throw new Error(
+              `Formato compactado proprietário (.7z/.rar) detectado em '${entry.name}'. Este formato não é suportado nativamente. Utilize arquivos padrão .zip, .tar ou .tar.gz para extração automática.`
+            );
+          }
+          if (fileType.isArchive) {
+            await unpackAndIngestArchive(
+              entry.name,
+              buf,
+              fileType.type as "zip" | "tar" | "tar.gz",
+              inputsDir,
+              options,
+              copiedFiles,
+              backgroundFiles,
+              ingestedFiles,
+              unpackedArchives
+            );
+            continue;
+          }
+        }
 
         const resolved = await resolveTargetFileName(
           entry.name,
@@ -341,6 +460,33 @@ export async function bootstrapCase(
       continue;
     }
 
+    const isCandidateArchive = !NON_ARCHIVE_EXTENSIONS.has(currentExt);
+    if (isCandidateArchive) {
+      const fileType = await detectFileType(buf, entry.name);
+      if (fileType.type === "unsupported_archive") {
+        throw new Error(
+          `Formato compactado proprietário (.7z/.rar) detectado em '${entry.name}'. Este formato não é suportado nativamente. Utilize arquivos padrão .zip, .tar ou .tar.gz para extração automática.`
+        );
+      }
+      if (fileType.isArchive) {
+        await unpackAndIngestArchive(
+          entry.name,
+          buf,
+          fileType.type as "zip" | "tar" | "tar.gz",
+          inputsDir,
+          options,
+          copiedFiles,
+          backgroundFiles,
+          ingestedFiles,
+          unpackedArchives
+        );
+        try {
+          unlinkSync(rootFilePath);
+        } catch {}
+        continue;
+      }
+    }
+
     const detectedExt = detectFileExtensionFromBuffer(buf);
     const isDoc =
       DOCUMENT_EXTENSIONS.has(currentExt) ||
@@ -403,6 +549,44 @@ export async function bootstrapCase(
         saved_as: finalTarget,
         detected_type: resolved.detectedType,
       });
+    }
+  }
+
+  // 2c. Descompactação automática de pacotes compactados presentes diretamente em inputs/ (v1.3.3)
+  const initialInputs = readdirSync(inputsDir, { withFileTypes: true }).sort(
+    (a, b) => a.name.localeCompare(b.name)
+  );
+  for (const entry of initialInputs) {
+    if (!entry.isFile() || entry.name.startsWith("~$")) continue;
+    if (NON_ARCHIVE_EXTENSIONS.has(extname(entry.name).toLowerCase())) continue;
+    const inputFilePath = resolve(inputsDir, entry.name);
+    let buf: Buffer;
+    try {
+      buf = readFileSync(inputFilePath);
+    } catch {
+      continue;
+    }
+    const fileType = await detectFileType(buf, entry.name);
+    if (fileType.type === "unsupported_archive") {
+      throw new Error(
+        `Formato compactado proprietário (.7z/.rar) detectado em '${entry.name}'. Este formato não é suportado nativamente. Utilize arquivos padrão .zip, .tar ou .tar.gz para extração automática.`
+      );
+    }
+    if (fileType.isArchive) {
+      await unpackAndIngestArchive(
+        entry.name,
+        buf,
+        fileType.type as "zip" | "tar" | "tar.gz",
+        inputsDir,
+        options,
+        copiedFiles,
+        backgroundFiles,
+        ingestedFiles,
+        unpackedArchives
+      );
+      try {
+        unlinkSync(inputFilePath);
+      } catch {}
     }
   }
 
@@ -709,11 +893,12 @@ export async function bootstrapCase(
   }
 
   let masterIndexPath: string | undefined;
-  if (masterIndexEntries.length > 0) {
+  if (masterIndexEntries.length > 0 || unpackedArchives.length > 0) {
     masterIndexPath = resolve(stateDir, "indice_mestre_caso.md");
     const masterMd = generateCaseMasterIndexMarkdown(
       resolvedCaseDir,
-      masterIndexEntries
+      masterIndexEntries,
+      unpackedArchives
     );
     writeFileSync(masterIndexPath, masterMd, "utf-8");
   }
@@ -727,6 +912,7 @@ export async function bootstrapCase(
     inspectedDocx,
     inspectedPdf,
     ingestedFiles,
+    ...(unpackedArchives.length > 0 ? { unpacked_archives: unpackedArchives } : {}),
     ...(failedInspections.length > 0 ? { failed_inspections: failedInspections } : {}),
     ...(otherFiles.length > 0 ? { other_files: otherFiles } : {}),
     ...(masterIndexPath ? { indice_mestre_path: masterIndexPath } : {}),
@@ -758,7 +944,8 @@ export interface MasterIndexEntry {
 
 export function generateCaseMasterIndexMarkdown(
   caseDir: string,
-  entries: MasterIndexEntry[]
+  entries: MasterIndexEntry[],
+  unpackedArchives?: UnpackedArchiveSummary[]
 ): string {
   const caseName = basename(caseDir);
   const lines: string[] = [];
@@ -814,6 +1001,24 @@ export function generateCaseMasterIndexMarkdown(
     );
   }
   lines.push("");
+
+  if (unpackedArchives && unpackedArchives.length > 0) {
+    lines.push("### 📦 Pacotes Compactados Descompactados Automaticamente");
+    lines.push("");
+    lines.push(
+      "| Pacote Original | Formato | Arquivos Extraídos | Arquivos Ingeridos em `inputs/` |"
+    );
+    lines.push(
+      "| :--- | :---: | :---: | :--- |"
+    );
+    for (const archive of unpackedArchives) {
+      const savedList = archive.files.map((f) => `\`${f.savedAs}\``).join(", ");
+      lines.push(
+        `| **${archive.archiveName}** | \`.${archive.archiveType}\` | ${archive.extractedCount} | ${savedList || "-"} |`
+      );
+    }
+    lines.push("");
+  }
 
   // 2. Matriz Cruzada das 14 Zonas de Impugnação (Z1..Z14)
   lines.push("## 2. Matriz Cruzada das 14 Zonas de Impugnação (Z1 a Z14)");
@@ -931,6 +1136,15 @@ export function formatBootstrapCaseSyntheticResult(
     engine_version: VERSION,
     caseDir: userCaseDir ? userCaseDir.replace(/\\/g, "/") : res.caseDir,
     ...(relMasterIndex ? { master_index_path: relMasterIndex } : {}),
+    ...(res.unpacked_archives && res.unpacked_archives.length > 0
+      ? {
+          unpacked_archives_count: res.unpacked_archives.length,
+          extracted_files_count: res.unpacked_archives.reduce(
+            (sum, a) => sum + a.extractedCount,
+            0
+          ),
+        }
+      : {}),
     ...(hasIngested && ingestedCount > 0
       ? {
           ingested_files: res.ingestedFiles!

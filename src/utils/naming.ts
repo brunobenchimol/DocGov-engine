@@ -1,5 +1,6 @@
 import { basename, extname } from "node:path";
 import JSZip from "jszip";
+import { detectFileTypeSync } from "./archives.ts";
 
 // ============================================================================
 // Autodescoberta e Auto-Batismo Semântico de Arquivos (v0.5.1)
@@ -7,23 +8,9 @@ import JSZip from "jszip";
 
 export function detectFileExtensionFromBuffer(buf: Buffer): string | null {
   if (!buf || buf.length < 4) return null;
-  // PK\x03\x04 -> .docx (Zip archive)
-  if (
-    buf[0] === 0x50 &&
-    buf[1] === 0x4b &&
-    buf[2] === 0x03 &&
-    buf[3] === 0x04
-  ) {
-    return ".docx";
-  }
-  // %PDF -> .pdf
-  if (
-    buf[0] === 0x25 &&
-    buf[1] === 0x50 &&
-    buf[2] === 0x44 &&
-    buf[3] === 0x46
-  ) {
-    return ".pdf";
+  const detection = detectFileTypeSync(buf);
+  if (detection.type !== "unknown" && detection.suggestedExtension) {
+    return detection.suggestedExtension;
   }
   return null;
 }

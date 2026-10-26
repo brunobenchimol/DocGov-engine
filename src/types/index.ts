@@ -412,6 +412,17 @@ export interface BootstrapCaseInspectedPdf {
   activeZonesCount: number;
 }
 
+export interface UnpackedArchiveSummary {
+  archiveName: string;
+  archiveType: "zip" | "tar" | "tar.gz";
+  extractedCount: number;
+  files: Array<{
+    originalEntryName: string;
+    savedAs: string;
+    size: number;
+  }>;
+}
+
 export interface BootstrapCaseResult {
   status: "success";
   caseDir: string;
@@ -421,6 +432,7 @@ export interface BootstrapCaseResult {
   inspectedDocx: BootstrapCaseInspectedDocx[];
   inspectedPdf?: BootstrapCaseInspectedPdf[];
   ingestedFiles?: IngestedFileSummary[];
+  unpacked_archives?: UnpackedArchiveSummary[];
   failed_inspections?: Array<{ fileName: string; type: string; error: string }>;
   other_files?: Array<{ fileName: string; extension: string; size: number }>;
   indice_mestre_path?: string;
@@ -444,6 +456,8 @@ export interface BootstrapCaseSyntheticResult {
   engine_version: string;
   caseDir: string;
   master_index_path?: string;
+  unpacked_archives_count?: number;
+  extracted_files_count?: number;
   ingested_files?: IngestedFileSyntheticItem[];
   docx_inspected: BootstrapCaseSyntheticDocx[];
   pdf_inspected?: Array<{
