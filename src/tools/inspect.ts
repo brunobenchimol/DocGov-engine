@@ -530,7 +530,11 @@ export async function inspectDocx(
   docxPath: string,
   outputPath?: string,
   compact: boolean = false,
-  options: { registryDir?: string; compareWithPath?: string } = {}
+  options: {
+    registryDir?: string;
+    compareWithPath?: string;
+    skipAuditArtifacts?: boolean;
+  } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolve(docxPath);
   if (!existsSync(resolvedDocx)) {
@@ -585,24 +589,26 @@ export async function inspectDocx(
       `auditoria_orcamentaria_${baseStem}.json`
     );
 
-    let auditMd = generateSpreadsheetLinearAuditViewMarkdown(
-      basename(resolvedDocx),
-      extraction
-    );
-    if (budgetAudit.has_budget_table) {
-      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-    }
-    writeFileSync(auditViewPath, auditMd, "utf-8");
+    if (!options.skipAuditArtifacts) {
+      let auditMd = generateSpreadsheetLinearAuditViewMarkdown(
+        basename(resolvedDocx),
+        extraction
+      );
+      if (budgetAudit.has_budget_table) {
+        auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+      }
+      writeFileSync(auditViewPath, auditMd, "utf-8");
 
-    let dossieMd = generateSpreadsheetHotspotsDossierMarkdown(
-      basename(resolvedDocx),
-      extraction
-    );
-    if (budgetAudit.has_budget_table) {
-      dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-      writeFileSync(budgetAuditPath, JSON.stringify(budgetAudit, null, 2), "utf-8");
+      let dossieMd = generateSpreadsheetHotspotsDossierMarkdown(
+        basename(resolvedDocx),
+        extraction
+      );
+      if (budgetAudit.has_budget_table) {
+        dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+        writeFileSync(budgetAuditPath, JSON.stringify(budgetAudit, null, 2), "utf-8");
+      }
+      writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
     }
-    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
 
     const toc_map: DocxTocMap = {
       sections: extraction.sheets.map((s) => ({
@@ -624,8 +630,10 @@ export async function inspectDocx(
       format: extraction.format,
       page_count: extraction.sheets.length,
       line_count: extraction.totalRows,
-      audit_view_path: auditViewPath,
-      dossie_hotspots_path: dossieHotspotsPath,
+      ...(options.skipAuditArtifacts ? {} : {
+        audit_view_path: auditViewPath,
+        dossie_hotspots_path: dossieHotspotsPath,
+      }),
       headers: [],
       footers: [],
       paragraphs: [],
@@ -663,83 +671,88 @@ export async function inspectDocx(
         cartography.impugnation_zones
       );
 
-      const budgetOutDir = outputPath
-        ? dirname(resolve(outputPath))
-        : dirname(resolvedDocx);
-      const budgetBase = outputPath
-        ? basename(resolve(outputPath), ".json").replace(
-            /^(?:estrutura_|inspecao_)/,
-            ""
-          )
-        : basename(resolvedDocx).replace(/\.pdf$/i, "");
-      const budgetAuditPath = resolve(
-        budgetOutDir,
-        `auditoria_orcamentaria_${budgetBase}.json`
-      );
-      if (!existsSync(budgetOutDir)) {
-        mkdirSync(budgetOutDir, { recursive: true });
+      if (!options.skipAuditArtifacts) {
+        const budgetOutDir = outputPath
+          ? dirname(resolve(outputPath))
+          : dirname(resolvedDocx);
+        const budgetBase = outputPath
+          ? basename(resolve(outputPath), ".json").replace(
+              /^(?:estrutura_|inspecao_)/,
+              ""
+            )
+          : basename(resolvedDocx).replace(/\.pdf$/i, "");
+        const budgetAuditPath = resolve(
+          budgetOutDir,
+          `auditoria_orcamentaria_${budgetBase}.json`
+        );
+        if (!existsSync(budgetOutDir)) {
+          mkdirSync(budgetOutDir, { recursive: true });
+        }
+        writeFileSync(
+          budgetAuditPath,
+          JSON.stringify(budgetAudit, null, 2),
+          "utf-8"
+        );
       }
-      writeFileSync(
-        budgetAuditPath,
-        JSON.stringify(budgetAudit, null, 2),
-        "utf-8"
+    }
+
+    let auditViewPath: string | undefined;
+    let dossieHotspotsPath: string | undefined;
+
+    if (!options.skipAuditArtifacts) {
+      if (outputPath) {
+        const resolvedOut = resolve(outputPath);
+        const outDir = dirname(resolvedOut);
+        const outBase = basename(resolvedOut, ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        );
+        auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
+      } else {
+        const docDir = dirname(resolvedDocx);
+        const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
+        auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+      }
+
+      let auditMd = generatePdfLinearAuditViewMarkdown(
+        basename(resolvedDocx),
+        extraction,
+        cartography
       );
-    }
+      if (budgetAudit.has_budget_table) {
+        auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+      }
+      const auditDir = dirname(auditViewPath);
+      if (!existsSync(auditDir)) {
+        mkdirSync(auditDir, { recursive: true });
+      }
+      writeFileSync(auditViewPath, auditMd, "utf-8");
 
-    let auditViewPath: string;
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      const outDir = dirname(resolvedOut);
-      const outBase = basename(resolvedOut, ".json").replace(
-        /^(?:estrutura_|inspecao_)/,
-        ""
+      // Geração do Dossiê Executivo de Hotspots (v0.9.0)
+      if (outputPath) {
+        const resolvedOut = resolve(outputPath);
+        const outDir = dirname(resolvedOut);
+        const outBase = basename(resolvedOut, ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        );
+        dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${outBase}.md`);
+      } else {
+        const docDir = dirname(resolvedDocx);
+        const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
+        dossieHotspotsPath = resolve(docDir, `dossie_hotspots_${docBase}.md`);
+      }
+
+      let dossieMd = generateHotspotsDossierMarkdown(
+        basename(resolvedDocx),
+        extraction,
+        cartography
       );
-      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
-    } else {
-      const docDir = dirname(resolvedDocx);
-      const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
-      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+      if (budgetAudit.has_budget_table) {
+        dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+      }
+      writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
     }
-
-    let auditMd = generatePdfLinearAuditViewMarkdown(
-      basename(resolvedDocx),
-      extraction,
-      cartography
-    );
-    if (budgetAudit.has_budget_table) {
-      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-    }
-    const auditDir = dirname(auditViewPath);
-    if (!existsSync(auditDir)) {
-      mkdirSync(auditDir, { recursive: true });
-    }
-    writeFileSync(auditViewPath, auditMd, "utf-8");
-
-    // Geração do Dossiê Executivo de Hotspots (v0.9.0)
-    let dossieHotspotsPath: string;
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      const outDir = dirname(resolvedOut);
-      const outBase = basename(resolvedOut, ".json").replace(
-        /^(?:estrutura_|inspecao_)/,
-        ""
-      );
-      dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${outBase}.md`);
-    } else {
-      const docDir = dirname(resolvedDocx);
-      const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
-      dossieHotspotsPath = resolve(docDir, `dossie_hotspots_${docBase}.md`);
-    }
-
-    let dossieMd = generateHotspotsDossierMarkdown(
-      basename(resolvedDocx),
-      extraction,
-      cartography
-    );
-    if (budgetAudit.has_budget_table) {
-      dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-    }
-    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
 
     const toc_map: DocxTocMap = {
       sections: cartography.outline_headings.map((h) => ({
@@ -764,8 +777,8 @@ export async function inspectDocx(
       page_signals: cartography.page_signals,
       impugnation_zones: cartography.impugnation_zones,
       toc_map,
-      audit_view_path: auditViewPath,
-      dossie_hotspots_path: dossieHotspotsPath,
+      ...(auditViewPath ? { audit_view_path: auditViewPath } : {}),
+      ...(dossieHotspotsPath ? { dossie_hotspots_path: dossieHotspotsPath } : {}),
       ...(extraction.scanned_pages_detected
         ? { scanned_pages_detected: extraction.scanned_pages_detected }
         : {}),
@@ -856,13 +869,15 @@ export async function inspectDocx(
     const auditViewPath = resolve(outDir, `visao_auditoria_${baseStem}.md`);
     const dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${baseStem}.md`);
 
-    const auditMd = generateTextLinearAuditViewMarkdown(
-      basename(resolvedDocx),
-      paragraphs,
-      cartography,
-      isMd
-    );
-    writeFileSync(auditViewPath, auditMd, "utf-8");
+    if (!options.skipAuditArtifacts) {
+      const auditMd = generateTextLinearAuditViewMarkdown(
+        basename(resolvedDocx),
+        paragraphs,
+        cartography,
+        isMd
+      );
+      writeFileSync(auditViewPath, auditMd, "utf-8");
+    }
 
     const textLines: IndexedLineEntry[] = paragraphs.map((p) => ({
       coord: `[P${p.index}]`,
@@ -877,20 +892,24 @@ export async function inspectDocx(
       lines: textLines,
     };
 
-    const dossieMd = generateHotspotsDossierMarkdown(
-      basename(resolvedDocx),
-      fakeExtraction,
-      cartography
-    );
-    writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
+    if (!options.skipAuditArtifacts) {
+      const dossieMd = generateHotspotsDossierMarkdown(
+        basename(resolvedDocx),
+        fakeExtraction,
+        cartography
+      );
+      writeFileSync(dossieHotspotsPath, dossieMd, "utf-8");
+    }
 
     const textResult: DocxInspectionResult = {
       doc_type: isMd ? "markdown" : "text",
       format: isMd ? "markdown" : "plain_text",
       page_count: fakeExtraction.pageCount,
       line_count: paragraphs.length,
-      audit_view_path: auditViewPath,
-      dossie_hotspots_path: dossieHotspotsPath,
+      ...(options.skipAuditArtifacts ? {} : {
+        audit_view_path: auditViewPath,
+        dossie_hotspots_path: dossieHotspotsPath,
+      }),
       cartography,
       headers: [],
       footers: [],
@@ -1129,27 +1148,29 @@ export async function inspectDocx(
       docxCartography.impugnation_zones
     );
 
-    const budgetOutDir = outputPath
-      ? dirname(resolve(outputPath))
-      : dirname(resolvedDocx);
-    const budgetBase = outputPath
-      ? basename(resolve(outputPath), ".json").replace(
-          /^(?:estrutura_|inspecao_)/,
-          ""
-        )
-      : basename(resolvedDocx, ".docx");
-    const budgetAuditPath = resolve(
-      budgetOutDir,
-      `auditoria_orcamentaria_${budgetBase}.json`
-    );
-    if (!existsSync(budgetOutDir)) {
-      mkdirSync(budgetOutDir, { recursive: true });
+    if (!options.skipAuditArtifacts) {
+      const budgetOutDir = outputPath
+        ? dirname(resolve(outputPath))
+        : dirname(resolvedDocx);
+      const budgetBase = outputPath
+        ? basename(resolve(outputPath), ".json").replace(
+            /^(?:estrutura_|inspecao_)/,
+            ""
+          )
+        : basename(resolvedDocx, ".docx");
+      const budgetAuditPath = resolve(
+        budgetOutDir,
+        `auditoria_orcamentaria_${budgetBase}.json`
+      );
+      if (!existsSync(budgetOutDir)) {
+        mkdirSync(budgetOutDir, { recursive: true });
+      }
+      writeFileSync(
+        budgetAuditPath,
+        JSON.stringify(budgetAudit, null, 2),
+        "utf-8"
+      );
     }
-    writeFileSync(
-      budgetAuditPath,
-      JSON.stringify(budgetAudit, null, 2),
-      "utf-8"
-    );
   }
 
   const rawResult: DocxInspectionResult = {
@@ -1170,34 +1191,36 @@ export async function inspectDocx(
   rawResult.structure_fingerprint = structure_fingerprint;
 
   // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 / v0.8.1 com Cartografia + Z1..Z14)
-  let auditViewPath: string;
-  if (outputPath) {
-    const resolvedOut = resolve(outputPath);
-    const outDir = dirname(resolvedOut);
-    const outBase = basename(resolvedOut, ".json").replace(
-      /^(?:estrutura_|inspecao_)/,
-      ""
-    );
-    auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
-  } else {
-    const docDir = dirname(resolvedDocx);
-    const docBase = basename(resolvedDocx, ".docx");
-    auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
-  }
+  if (!options.skipAuditArtifacts) {
+    let auditViewPath: string;
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      const outDir = dirname(resolvedOut);
+      const outBase = basename(resolvedOut, ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      );
+      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
+    } else {
+      const docDir = dirname(resolvedDocx);
+      const docBase = basename(resolvedDocx, ".docx");
+      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+    }
 
-  let auditMd = generateLinearAuditViewMarkdown(
-    basename(resolvedDocx),
-    rawResult
-  );
-  if (budgetAudit.has_budget_table) {
-    auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    let auditMd = generateLinearAuditViewMarkdown(
+      basename(resolvedDocx),
+      rawResult
+    );
+    if (budgetAudit.has_budget_table) {
+      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    }
+    const auditDir = dirname(auditViewPath);
+    if (!existsSync(auditDir)) {
+      mkdirSync(auditDir, { recursive: true });
+    }
+    writeFileSync(auditViewPath, auditMd, "utf-8");
+    rawResult.audit_view_path = auditViewPath;
   }
-  const auditDir = dirname(auditViewPath);
-  if (!existsSync(auditDir)) {
-    mkdirSync(auditDir, { recursive: true });
-  }
-  writeFileSync(auditViewPath, auditMd, "utf-8");
-  rawResult.audit_view_path = auditViewPath;
 
   // Matching 1-para-N contra o Cache Global de Templates (v0.6.0)
   const match = findBestTemplateMatch(

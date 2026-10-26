@@ -826,4 +826,65 @@ export interface StructuralDiffResult {
   diff_report_path?: string;
 }
 
+// ============================================================================
+// Conector Nativo PNCP (v1.3.4)
+// ============================================================================
+
+export interface PncpIdentifier {
+  cnpj: string;
+  ano: string;
+  sequencial: string;
+  canonicalRef: string; // "${cnpj}/${ano}/${sequencial}"
+}
+
+export interface FetchPncpOptions {
+  shortname?: string;
+  baseUrl?: string;
+  timeoutMs?: number;
+}
+
+export interface PncpDownloadedFileSummary {
+  sequencialDocumento?: number | string;
+  originalTitle: string;
+  savedAs: string;
+  detectedType: string;
+  size: number;
+  wasArchive: boolean;
+  extractedFiles?: string[];
+  headingsPreview?: string[];
+  sectionsCount?: number;
+}
+
+export interface FetchPncpResult {
+  status: "success";
+  pncpRef: string;
+  shortname: string;
+  caseDir: string;
+  targetDir: string;
+  metaPath: string;
+  indexPath: string;
+  contractMeta: Record<string, any>;
+  downloadedFiles: PncpDownloadedFileSummary[];
+  unpackedArchives: UnpackedArchiveSummary[];
+  filesDownloadedCount?: number;
+  inspectedCount: number;
+  failedInspections: Array<{ fileName: string; error: string }>;
+}
+
+export interface FetchPncpSyntheticResult {
+  status: "success";
+  engine_version: string;
+  pncp_ref: string;
+  target_dir: string;
+  meta_path: string;
+  index_path: string;
+  files_downloaded: number;
+  unpacked_archives_count: number;
+  extracted_files_count: number;
+  inspected_count: number;
+  inspection_errors_count?: number;
+  next_step_hint: string;
+}
+
+
 

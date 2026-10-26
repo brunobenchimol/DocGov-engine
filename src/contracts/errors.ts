@@ -294,3 +294,25 @@ export function validateTechnicalNoteData(raw: unknown): TechnicalNoteData {
     quadro_evolucao: normalizedItems,
   };
 }
+
+// ============================================================================
+// Contrato de Identificador PNCP (v1.3.4 — Exact Copy-Paste Error)
+// ============================================================================
+
+export const EXACT_COPY_PASTE_PNCP_ID_SNIPPET = `{
+  "caseDir": "cases/meu_caso_referencia",
+  "pncpIdOrUrl": "00394460000141-1-000015/2026",
+  "shortname": "orgao_referencia"
+}`;
+
+export function createPncpIdentifierContractError(invalidInput: string): Error {
+  return new Error(
+    `Identificador PNCP inválido: "${invalidInput}".\n` +
+      `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente a chamada utilizando estritamente um dos 3 formatos canônicos aceitos:\n` +
+      `  1. Número de Controle PNCP: "00394460000141-1-000015/2026"\n` +
+      `  2. URL do Portal/API PNCP:  "https://pncp.gov.br/app/editais/00394460000141/2026/15"\n` +
+      `  3. Tupla Simplificada:      "00394460000141/2026/15"\n\n` +
+      `Exemplo de payload canônico para fetch_pncp:\n${EXACT_COPY_PASTE_PNCP_ID_SNIPPET}`
+  );
+}
+
