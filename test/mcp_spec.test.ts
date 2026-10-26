@@ -25,7 +25,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
 
     // 2. Camada 2: ListTools enriquecido com pré/pós-condições, descriptions em todas as propriedades e annotations
     const tools = getMcpToolsDefinition();
-    expect(tools.length).toBe(6);
+    expect(tools.length).toBe(7);
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toEqual([
       "bootstrap_case",
@@ -34,6 +34,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
       "fill_docx_template",
       "generate_audit_docx",
       "generate_technical_note_docx",
+      "fetch_pncp",
     ]);
 
     for (const tool of tools) {
@@ -241,6 +242,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(output).toContain("--format <docx|pdf|both>");
     expect(output).toContain("--inject");
     expect(output).toContain("--generate-audit-docx");
+    expect(output).toContain("--fetch-pncp");
   });
 
   test("deve garantir integridade de todas as exportações públicas via barrel em src/index.ts (v0.9.0)", async () => {
@@ -260,6 +262,11 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.generateTechnicalNoteDocx).toBe("function");
     expect(typeof barrel.formatTechnicalNoteSyntheticResult).toBe("function");
     expect(typeof barrel.createTechnicalNoteDataFromDiff).toBe("function");
+    expect(typeof barrel.fetchPncpContract).toBe("function");
+    expect(typeof barrel.formatFetchPncpSyntheticResult).toBe("function");
+    expect(typeof barrel.parsePncpIdentifier).toBe("function");
+    expect(typeof barrel.detectFileType).toBe("function");
+    expect(typeof barrel.extractArchiveBuffer).toBe("function");
 
     // Servidor MCP e Especificação
     expect(typeof barrel.runMcpServer).toBe("function");

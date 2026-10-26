@@ -22,6 +22,10 @@ import {
   formatTechnicalNoteSyntheticResult,
   createTechnicalNoteDataFromDiff,
 } from "../tools/technical_note.ts";
+import {
+  fetchPncpContract,
+  formatFetchPncpSyntheticResult,
+} from "../tools/pncp.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import type { BackgroundCopyInput, TechnicalNoteData } from "../types/index.ts";
@@ -51,6 +55,7 @@ Uso:
   docgov-engine --generate-audit-docx --audit-json <auditoria.json> --out <parecer.docx> [--format <docx|pdf|both>]
   docgov-engine --diff-report --old <base.docx|.pdf> --new <revisado.docx|.pdf> --out <nota.docx> [--format <docx|pdf|both>] [--data <evolucao.json>]
   docgov-engine --generate-technical-note --note-json <nota.json> --out <nota.docx> [--format <docx|pdf|both>]
+  docgov-engine --fetch-pncp --case-dir <dir> --pncp <id_ou_url> [--shortname <nome>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release
@@ -183,6 +188,50 @@ Uso:
         fileRenameMap,
       });
       const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
+      console.log(JSON.stringify(synthetic, null, 2));
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // 0d) Modo --fetch-pncp
+  if (args.includes("--fetch-pncp")) {
+    const fetchIdx = args.indexOf("--fetch-pncp");
+    const caseDirIdx = args.indexOf("--case-dir");
+    const pncpIdx = args.indexOf("--pncp");
+    const shortnameIdx = args.indexOf("--shortname");
+
+    let caseDir: string | undefined;
+    if (caseDirIdx !== -1 && args[caseDirIdx + 1] && !args[caseDirIdx + 1].startsWith("--")) {
+      caseDir = args[caseDirIdx + 1];
+    }
+
+    let pncpIdOrUrl: string | undefined;
+    if (pncpIdx !== -1 && args[pncpIdx + 1] && !args[pncpIdx + 1].startsWith("--")) {
+      pncpIdOrUrl = args[pncpIdx + 1];
+    } else if (args[fetchIdx + 1] && !args[fetchIdx + 1].startsWith("--")) {
+      pncpIdOrUrl = args[fetchIdx + 1];
+    }
+
+    let shortname: string | undefined;
+    if (shortnameIdx !== -1 && args[shortnameIdx + 1] && !args[shortnameIdx + 1].startsWith("--")) {
+      shortname = args[shortnameIdx + 1];
+    }
+
+    if (!caseDir) {
+      console.error("Erro: Informe o diretório do caso usando --case-dir <dir>.");
+      process.exit(1);
+    }
+    if (!pncpIdOrUrl) {
+      console.error("Erro: Informe o identificador ou URL do PNCP usando --pncp <id_ou_url>.");
+      process.exit(1);
+    }
+
+    try {
+      const res = await fetchPncpContract(caseDir, pncpIdOrUrl, { shortname });
+      const synthetic = formatFetchPncpSyntheticResult(res);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);

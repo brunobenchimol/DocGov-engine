@@ -39,6 +39,10 @@ import {
   formatTechnicalNoteSyntheticResult,
   createTechnicalNoteDataFromDiff,
 } from "../tools/technical_note.ts";
+import {
+  fetchPncpContract,
+  formatFetchPncpSyntheticResult,
+} from "../tools/pncp.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
@@ -298,6 +302,39 @@ export function getMcpToolsDefinition() {
             enum: ["docx", "pdf", "both"],
             description:
               "Formato de saída da nota técnica: 'docx' (apenas Word, padrão), 'pdf' (converte para PDF via pipeline híbrido Word COM/Pure-JS) ou 'both' (mantém o .docx e gera também o .pdf correspondente).",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "fetch_pncp",
+      description:
+        "Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta 'inputs/pncp_<shortname>/', descompactação in-place transparente (.zip, .tar, .tar.gz) e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
+        "- Quando usar (Pré-condição): Quando o usuário fornecer ou autorizar a busca de um identificador PNCP (número de controle em edital '00394460000141-1-000015/2026', URL do portal/API ou tupla '00394460000141/2026/15') para obter insumos e modelos de referência externa sem misturá-los com as minutas sob auditoria do caso.\n" +
+        "- Pós-condição & Próximo Passo: Arquivos disponíveis em 'inputs/pncp_<shortname>/', metadados salvos em 'state/pncp_<shortname>_meta.json' e catálogo de referência em 'state/indice_pncp_<shortname>.md'. Consulte o catálogo para orientar a leitura seletiva.",
+      inputSchema: {
+        type: "object",
+        required: ["caseDir", "pncpIdOrUrl"],
+        properties: {
+          caseDir: {
+            type: "string",
+            description:
+              "Diretório do caso de trabalho (ex.: 'cases/caso_01' ou '.').",
+          },
+          pncpIdOrUrl: {
+            type: "string",
+            description:
+              "Identificador oficial do PNCP: Número de controle ('00394460000141-1-000015/2026'), URL do portal/API ou tupla ('00394460000141/2026/15').",
+          },
+          shortname: {
+            type: "string",
+            description:
+              "Apelido curto e semântico opcional para a subpasta isolada em inputs/pncp_<shortname>/ (ex.: 'mgi_nuvem'). Se omitido, utiliza CNPJ_ANO_SEQUENCIAL.",
           },
         },
       },
@@ -587,6 +624,40 @@ export async function runMcpServer() {
         }
 
         const synthetic = formatTechnicalNoteSyntheticResult(result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
+        };
+      }
+
+      if (toolName === "fetch_pncp") {
+        const { caseDir, pncpIdOrUrl, shortname } = request.params
+          .arguments as {
+          caseDir: string;
+          pncpIdOrUrl: string;
+          shortname?: string;
+        };
+
+        if (!caseDir) {
+          throw new Error(
+            "Parâmetro obrigatório 'caseDir' não fornecido para fetch_pncp."
+          );
+        }
+        if (!pncpIdOrUrl) {
+          throw new Error(
+            "Parâmetro obrigatório 'pncpIdOrUrl' não fornecido para fetch_pncp."
+          );
+        }
+
+        const resolvedCaseDir = resolveWorkspacePath(caseDir);
+        const result = await fetchPncpContract(resolvedCaseDir, pncpIdOrUrl, {
+          shortname,
+        });
+        const synthetic = formatFetchPncpSyntheticResult(result);
         return {
           content: [
             {

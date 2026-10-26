@@ -247,4 +247,88 @@ describe("Testes Unitários v1.3.4: Conector Nativo PNCP (fetch_pncp)", () => {
       server.stop();
     }
   });
+
+  // --------------------------------------------------------------------------
+  // 4. Integração CLI (--fetch-pncp) e Servidor MCP (getMcpToolsDefinition)
+  // --------------------------------------------------------------------------
+  test("7. CLI: docgov-engine --fetch-pncp deve executar corretamente via runCli", async () => {
+    let capturedLog = "";
+    const origLog = console.log;
+    console.log = (msg?: any) => {
+      capturedLog += String(msg ?? "") + "\n";
+    };
+
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname.endsWith("/compras/2026/15")) {
+          return new Response(
+            JSON.stringify({
+              numeroControlePNCP: "00394460000141-1-000015/2026",
+              orgaoEntidade: { razaoSocial: "ORGAO_CONTRATANTE" },
+            }),
+            { headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (u.pathname.endsWith("/arquivos")) {
+          return new Response(JSON.stringify([]), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    const cliCaseDir = resolve(tempDir, "caso_cli_pncp");
+    const origEnv = process.env.DOCGOV_PNCP_BASE_URL;
+    process.env.DOCGOV_PNCP_BASE_URL = `http://127.0.0.1:${server.port}`;
+
+    try {
+      const { runCli } = await import("../src/cli/index.ts");
+      await runCli([
+        "--fetch-pncp",
+        "--case-dir",
+        cliCaseDir,
+        "--pncp",
+        "00394460000141/2026/15",
+        "--shortname",
+        "cli_ref",
+      ]);
+
+      const parsed = JSON.parse(capturedLog);
+      expect(parsed.status).toBe("success");
+      expect(parsed.pncp_ref).toBe("00394460000141/2026/15");
+      expect(parsed.target_dir).toContain("pncp_cli_ref");
+      expect(existsSync(resolve(cliCaseDir, "inputs", "pncp_cli_ref"))).toBe(true);
+      expect(existsSync(resolve(cliCaseDir, "state", "pncp_cli_ref_meta.json"))).toBe(true);
+      expect(existsSync(resolve(cliCaseDir, "state", "indice_pncp_cli_ref.md"))).toBe(true);
+    } finally {
+      console.log = origLog;
+      if (origEnv !== undefined) {
+        process.env.DOCGOV_PNCP_BASE_URL = origEnv;
+      } else {
+        delete process.env.DOCGOV_PNCP_BASE_URL;
+      }
+      server.stop();
+    }
+  });
+
+  test("8. MCP: ferramenta fetch_pncp deve estar registrada com schema e annotations válidos", async () => {
+    const { getMcpToolsDefinition } = await import("../src/mcp/server.ts");
+    const tools = getMcpToolsDefinition();
+
+    const pncpTool = tools.find((t) => t.name === "fetch_pncp");
+    expect(pncpTool).toBeDefined();
+    expect(pncpTool!.description).toContain("Quando usar");
+    expect(pncpTool!.description).toContain("Próximo Passo");
+    expect(pncpTool!.inputSchema.required).toEqual(["caseDir", "pncpIdOrUrl"]);
+    expect(pncpTool!.inputSchema.properties.caseDir).toBeDefined();
+    expect(pncpTool!.inputSchema.properties.pncpIdOrUrl).toBeDefined();
+    expect(pncpTool!.inputSchema.properties.shortname).toBeDefined();
+
+    expect(pncpTool!.annotations?.readOnlyHint).toBe(false);
+    expect(pncpTool!.annotations?.destructiveHint).toBe(false);
+    expect(pncpTool!.annotations?.idempotentHint).toBe(true);
+  });
 });
