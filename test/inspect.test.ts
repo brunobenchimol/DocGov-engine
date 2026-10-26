@@ -241,4 +241,21 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
     const jsonStr = JSON.stringify(synthetic, null, 2);
     expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(900);
   });
+
+  test("deve emitir erro fail-fast explicativo se o agente passar um arquivo .zip ou .tar em inspect_doc (v1.3.3)", async () => {
+    const zipPath = resolve(tempDir, "pacote_teste.zip");
+    const zip = new (await import("jszip")).default();
+    zip.file("arquivo1.txt", "conteudo 1");
+    zip.file("arquivo2.txt", "conteudo 2");
+    const zipBuf = await zip.generateAsync({ type: "nodebuffer" });
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(zipPath, zipBuf);
+
+    expect(inspectDocx(zipPath)).rejects.toThrow(
+      "é um pacote compactado"
+    );
+    expect(inspectDocx(zipPath)).rejects.toThrow(
+      "utilize 'bootstrap_case'"
+    );
+  });
 });

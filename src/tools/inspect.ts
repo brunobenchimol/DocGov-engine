@@ -26,6 +26,7 @@ import {
   extractCacheTemporalMetadata,
 } from "../core/registry.ts";
 import { isPdfBuffer, extractPdfPages } from "../utils/pdf.ts";
+import { detectFileTypeSync } from "../utils/archives.ts";
 import {
   buildPdfCartography,
   buildDocxCartography,
@@ -537,6 +538,16 @@ export async function inspectDocx(
   }
 
   const buffer = readFileSync(resolvedDocx);
+
+  const fileType = detectFileTypeSync(buffer, resolvedDocx);
+  if (fileType.isArchive) {
+    throw new Error(
+      `O arquivo '${basename(
+        resolvedDocx
+      )}' é um pacote compactado (${fileType.description}). A ferramenta 'inspect_doc' opera exclusivamente em documentos individuais (.docx, .pdf, .xlsx, .csv, .md, .txt). Para descompactar e inspecionar automaticamente múltiplos arquivos de um pacote, utilize 'bootstrap_case'.`
+    );
+  }
+
   const lowerPath = resolvedDocx.toLowerCase();
   const isSpreadsheet =
     lowerPath.endsWith(".xlsx") ||
