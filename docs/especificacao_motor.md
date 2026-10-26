@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.3.3)
+# Especificação Técnica do Motor docgov-engine (v1.3.4)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.3`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.4`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -176,6 +176,22 @@ Gera Nota Técnica Comparativa de Evolução Documental ('Antes vs. Depois', Mar
     }
   ],
   "conclusao_encaminhamento": "Submete-se à Consultoria Jurídica com parecer favorável ao prosseguimento."
+}
+```
+
+### 2.7. fetch_pncp
+Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta `inputs/pncp_<shortname>/`, descompactação in-place transparente (`.zip`, `.tar`, `.tar.gz`) via libmagic e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
+- **Isolamento Físico Estrito:** Todos os arquivos externos baixados e seus membros extraídos residem exclusivamente em `inputs/pncp_<shortname>/`, sem nunca se misturarem com os documentos originais do usuário na raiz de `inputs/`.
+- **Catalogação de Referência sem Auditoria:** Realiza extração estrutural leve de tópicos/seções em memória sem poluir `state/` com dossiês de auditoria ou Radar das 14 Zonas, gerando exclusivamente `state/pncp_<shortname>_meta.json` e `state/indice_pncp_<shortname>.md`.
+- **Parsing Universal de Identificadores (3 Formatos):** Suporta número de controle em edital (`00394460000141-1-000015/2026`), URLs do portal/API web e tupla simplificada (`00394460000141/2026/15`).
+- **Validação Fail-Fast e Exact Copy-Paste Error:** Identificadores inválidos interrompem a execução imediatamente com mensagem canônica pronta para copiar e colar.
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve `status`, `engine_version`, `pncp_ref`, `target_dir`, `meta_path`, `index_path`, `files_downloaded`, `unpacked_archives_count`, `extracted_files_count`, `inspected_count` e `next_step_hint`.
+- **Exemplo Canônico de Chamada para `fetch_pncp`:**
+```json
+{
+  "caseDir": "cases/meu_caso_referencia",
+  "pncpIdOrUrl": "00394460000141-1-000015/2026",
+  "shortname": "orgao_referencia"
 }
 ```
 

@@ -8,6 +8,22 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.4] - 2026-10-26
+
+### Adicionado
+- **Conector Nativo PNCP (`fetch_pncp` — 7ª Ferramenta MCP e CLI `--fetch-pncp`):**
+  - Ingestão determinística e sem consumo de tokens de metadados e todos os arquivos públicos de contratações de referência no Portal Nacional de Contratações Públicas (PNCP) para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
+  - **Parsing Universal de Identificadores (`parsePncpIdentifier`):** Suporte automático e tolerante aos 3 formatos padrão utilizados no Brasil:
+    1. Número de controle em editais (ex.: `00394460000141-1-000015/2026`);
+    2. URLs web do portal ou endpoints REST da API (`/app/editais/`, `/app/compras/`, `/api/pncp/v1/`, `/api/consulta/v1/`);
+    3. Tupla simplificada `CNPJ/ANO/SEQUENCIAL` (ex.: `00394460000141/2026/15`).
+  - **Isolamento Físico Estrito (`cases/<slug>/inputs/pncp_<shortname>/`):** Todos os documentos e anexos externos baixados residem exclusivamente dentro de uma subpasta dedicada, garantindo isolamento total e impedindo contaminação com minutas do caso sob auditoria.
+  - **Descompactação Automática Integrada (`libmagic msooxml`):** Pacotes `.zip`, `.tar`, `.tar.gz` ou `.tgz` baixados são descompactados in-place com defesa Anti-Zip Slip, achatamento seguro de subpastas e descarte de arquivos espúrios (`__MACOSX`, `.DS_Store`).
+  - **Catalogação Estrutural Leve de Benchmarking:** Extração de tópicos e seções em memória sem poluição de arquivos de auditoria em `state/` (sem `visao_auditoria_`, sem `dossie_hotspots_` e sem Radar das 14 Zonas), gerando exclusivamente o catálogo executivo `state/indice_pncp_<shortname>.md` e o manifesto de metadados `state/pncp_<shortname>_meta.json`.
+  - **Padrão Exact Copy-Paste Error (Lei 3):** Validação fail-fast de identificadores PNCP com snippet pronto para copiar e colar em caso de formato inválido.
+  - **Teto Estrito de Payload MCP (< 900 bytes — Lei 2):** Resposta sintética concisa informando contadores de arquivos baixados, descompactados e inspecionados com referências aos caminhos gerados.
+  - **Flag `skipAuditArtifacts` em `inspectDocx`:** Permite inspeção de arquivos sob demanda sem gerar relatórios de auditoria em disco.
+
 ## [1.3.3] - 2026-10-26
 
 ### Adicionado

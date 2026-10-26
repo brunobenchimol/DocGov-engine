@@ -101,6 +101,14 @@
   - Descompactação automática e transparente em `bootstrap_case` para pacotes em `uploadsDir`, na raiz de `caseDir` e em `inputs/`, com proteção Anti-Zip Slip, achatamento de subpastas, filtragem de lixo de sistema (`__MACOSX`, `.DS_Store`, `Thumbs.db`) e guardrail de Zip Bomb.
   - Relatório consolidado no `state/indice_mestre_caso.md` e guardrail fail-fast em `inspect_doc` orientando o uso de `bootstrap_case` para pacotes compactados.
 
+- [x] **6.6. Patch `v1.3.4` — Conector Nativo PNCP (`fetch_pncp`) com Isolamento em Subpasta e Catalogação de Referência:**
+  - 7ª Ferramenta MCP e CLI `--fetch-pncp` para ingestão determinística e sem consumo de tokens de minutas e arquivos públicos de contratações do PNCP.
+  - Parsing universal e tolerante de identificadores PNCP nos 3 formatos (Número de controle, URLs web/REST e tupla CNPJ/ANO/SEQUENCIAL) com fail-fast e Exact Copy-Paste Error (Lei 3).
+  - Isolamento físico estrito em subpasta dedicada (`cases/<slug>/inputs/pncp_<shortname>/`) prevenindo contaminação com minutas do caso sob auditoria.
+  - Descompactação automática de arquivos compactados baixados via classificador `libmagic msooxml`.
+  - Catalogação estrutural em memória para benchmarking/pesquisa de mercado com supressão de arquivos de auditoria em `state/` (sem Radar 14 zonas e sem dossiês externos por padrão), gerando `state/indice_pncp_<shortname>.md` e `state/pncp_<shortname>_meta.json`.
+  - Flag `skipAuditArtifacts` em `inspectDocx` e payload sintético conciso estritamente abaixo do teto MCP (< 900 bytes — Lei 2).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
