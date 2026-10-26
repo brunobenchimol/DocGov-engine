@@ -220,6 +220,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("2.4. fill_docx_template");
     expect(spec).toContain("2.5. generate_audit_docx");
     expect(spec).toContain("2.6. generate_technical_note_docx");
+    expect(spec).toContain("2.7. fetch_pncp");
 
     expect(spec).toContain("ORGAO_CONTRATANTE");
     expect(spec).toContain("slots");

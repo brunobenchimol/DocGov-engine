@@ -84,7 +84,21 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.0` (Geração 2 — Marco 6: Diff Semântico e Nota Técnica) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.4` (Geração 3 — Conector Nativo PNCP) e Marcos Anteriores
+
+A versão **`v1.3.4`** conclui o escopo de ingestão da **Geração 3 (`1.3.x`)**, trazendo a 7ª ferramenta MCP oficial e o comando CLI de captura e catalogação isolada de contratações públicas de referência do Portal Nacional de Contratações Públicas:
+
+### Novidades da `v1.3.4` — Conector Nativo PNCP (`fetch_pncp` e `--fetch-pncp`):
+1. **Conector Nativo PNCP (7ª Ferramenta MCP e CLI `--fetch-pncp`):**
+   - Ingestão determinística e sem consumo de tokens de metadados e todos os arquivos públicos de contratações de referência no Portal Nacional de Contratações Públicas (PNCP) para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
+   - **Isolamento Físico Estrito:** Todos os arquivos externos baixados residem exclusivamente na subpasta `cases/<slug>/inputs/pncp_<shortname>/`, sem nunca se misturarem com os documentos originais do caso na raiz de `inputs/`.
+   - **Descompactação Automática Integrada:** Pacotes `.zip`, `.tar`, `.tar.gz` ou `.tgz` baixados do PNCP são descompactados in-place via classificador estrutural `libmagic msooxml` com defesa Anti-Zip Slip e descarte de lixo de sistema (`__MACOSX`, `.DS_Store`).
+   - **Catálogo de Referência Dedicado:** Catalogação estrutural leve em memória e geração exclusiva de `state/indice_pncp_<shortname>.md` e `state/pncp_<shortname>_meta.json`, mantendo `state/` limpo de falsos achados de auditoria externa.
+   - **Payload Sintético MCP (< 900 bytes — Lei 2):** Retorno conciso com confirmação de download, caminhos isolados e contadores.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.0` (Geração 2 — Marco 6: Diff Semântico e Nota Técnica) e Marcos Anteriores
 
 A versão **`v1.3.0`** consolida o **Marco 6 do ROADMAP**, trazendo capacidades avançadas de rastreabilidade de alterações contratuais e governança formal de evolução de minutas:
 

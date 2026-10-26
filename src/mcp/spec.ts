@@ -6,6 +6,7 @@ import {
   EXACT_COPY_PASTE_RISK_MATRIX_SNIPPET,
   EXACT_COPY_PASTE_COMPLIANCE_CHECKLIST_SNIPPET,
   EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET,
+  EXACT_COPY_PASTE_PNCP_ID_SNIPPET,
 } from "../contracts/errors.ts";
 
 // ============================================================================
@@ -94,6 +95,18 @@ Gera Nota Técnica Comparativa de Evolução Documental ('Antes vs. Depois', Mar
 - **Contrato Canônico de \`nota_tecnica.json\`:**
 \`\`\`json
 ${EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET}
+\`\`\`
+
+### 2.7. fetch_pncp
+Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta \`inputs/pncp_<shortname>/\`, descompactação in-place transparente (\`.zip\`, \`.tar\`, \`.tar.gz\`) via libmagic e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
+- **Isolamento Físico Estrito:** Todos os arquivos externos baixados e seus membros extraídos residem exclusivamente em \`inputs/pncp_<shortname>/\`, sem nunca se misturarem com os documentos originais do usuário na raiz de \`inputs/\`.
+- **Catalogação de Referência sem Auditoria:** Realiza extração estrutural leve de tópicos/seções em memória sem poluir \`state/\` com dossiês de auditoria ou Radar das 14 Zonas, gerando exclusivamente \`state/pncp_<shortname>_meta.json\` e \`state/indice_pncp_<shortname>.md\`.
+- **Parsing Universal de Identificadores (3 Formatos):** Suporta número de controle em edital (\`00394460000141-1-000015/2026\`), URLs do portal/API web e tupla simplificada (\`00394460000141/2026/15\`).
+- **Validação Fail-Fast e Exact Copy-Paste Error:** Identificadores inválidos interrompem a execução imediatamente com mensagem canônica pronta para copiar e colar.
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve \`status\`, \`engine_version\`, \`pncp_ref\`, \`target_dir\`, \`meta_path\`, \`index_path\`, \`files_downloaded\`, \`unpacked_archives_count\`, \`extracted_files_count\`, \`inspected_count\` e \`next_step_hint\`.
+- **Exemplo Canônico de Chamada para \`fetch_pncp\`:**
+\`\`\`json
+${EXACT_COPY_PASTE_PNCP_ID_SNIPPET}
 \`\`\`
 
 ---
