@@ -116,6 +116,13 @@
   - Resolvedor nativo de redirects HTTP (`resolvePncpRedirectUrl`) em `fetch_pncp` e `search_pncp` para extração automática de identificadores de links opacos do Google Grounding (`vertexaisearch.cloud.google.com/grounding-api-redirect/...`).
   - Padrão Exact Copy-Paste Error (`createPncpSearchContractError`) e payload sintético otimizado com poda progressiva (< 900 bytes — Lei 2).
 
+- [x] **6.8. Patch `v1.3.6` — Correção Estrutural de Engenharia Tabular e Template Matching (`ENG-01` a `ENG-05`):**
+  - Fim da fusão horizontal de colunas em `loop_table_rows` (19 para 38 colunas) isolando tags em linhas `<w:tr>` dedicadas e preservando `<w:vMerge/>` em `C0`.
+  - Alinhamento de coordenadas físicas `<w:tc>` vs. virtuais de `gridSpan` em `toc_map.form_fields` e fallback automático em `replace_table_cells`.
+  - Fail-fast estrito contra excesso de `cell_tags` com auto-alinhamento se `C0` for `vMerge`.
+  - Normalização de `vMerge` e `gridSpan` no fingerprint estrutural e relato do candidato de maior similaridade em `status: "NEW"`.
+  - Exibição de `template_match` e `form_fields` no Bloco 1 da `visao_auditoria_*.md` e execução bottom-up em `build_docx_template`.
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite

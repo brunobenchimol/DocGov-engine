@@ -8,7 +8,25 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
-## [1.3.5] - 2026-10-27
+## [1.3.6] - 2026-10-27
+
+### Corrigido
+- **Fim da Fusão Horizontal de Colunas em `loop_table_rows` (`ENG-01`):**
+  - Isolamento estrito de loops iterativos de tabela: as tags delimitadoras `{{FOR item IN ...}}` e `{{END-FOR item}}` são agora injetadas em elementos `<w:tr>` dedicados em volta da `template_row_index` em vez de cruzar o cabeçalho (`header_row_index`) ou ocupar células da mesma linha.
+  - Elimina a mutação indevida que duplicava a contagem de colunas de 19 para 38 células físicas.
+  - Preserva intactas as propriedades OpenXML de células verticais mescladas (`<w:vMerge w:val="continue"/>`) na primeira célula (`C0`).
+- **Alinhamento de Coordenadas Físicas vs. Virtuais (`<w:tc>` vs `gridSpan` — `ENG-02`):**
+  - Identificação e exposição de `physicalCellIndex` e `virtualColIndex` em `TableCellInfo`, garantindo que referências em `toc_map.form_fields` apontem para a célula física real do OpenXML pronta para copiar e colar em `slots_manifest.json`.
+  - Fallback automático e transparente em `replace_table_cells` (`resolvePhysicalTableCell`), mapeando índices virtuais de colunas afetadas por `gridSpan` para a célula física correta caso o usuário forneça a coordenada visual da tabela.
+  - Fail-Fast Estrito com Exact Copy-Paste Error (`ENG-02c`): rejeição imediata se `cell_tags.length` exceder o total de células físicas da linha em `loop_table_rows`, com auto-alinhamento inteligente se `C0` for uma célula mesclada com `vMerge`.
+- **Normalização de `vMerge` e `gridSpan` no Cálculo de Fingerprint Estrutural (`ENG-03`):**
+  - `computeStructureFingerprint` desconsidera células de continuação vertical (`rowSpan: "continue"`) e placeholders de mesclagem horizontal (`isSpanPlaceholder`), evitando inflação artificial da contagem de colunas e deduplicando campos de formulário idênticos (`seenLabels`).
+  - `computeStructuralSimilarity` opera sobre conjuntos únicos de rótulos e tolera variações de colunas decorrentes de `gridSpan` quando os cabeçalhos de tabela possuem alta similaridade ($\ge 0.5$).
+  - `findBestTemplateMatch` retorna o candidato de maior similaridade mesmo em status `NEW` (`< 75%`), permitindo ao usuário e agente identificar no Gate 1 o quão próximo está o template existente mais relevante.
+- **Exposição de `template_match` e `form_fields` Físicos na Visão Linear de Auditoria (`ENG-04`):**
+  - Inclusão no Bloco 1 da `visao_auditoria_*.md` do status de compatibilidade com o cache global (`template_match`) e da tabela detalhada de `Campos de Formulário Mapeados (toc_map.form_fields)` com a Coordenada Física de Alvo pronta para uso.
+- **Ordem Bottom-Up Estrita na Construção de Templates (`ENG-05`):**
+  - Execução preliminar de `replace_table_cells` antes de qualquer manipulação de linhas, seguida de substituições e loops em ordem decrescente de índice (`descending`), evitando deslocamentos espúrios de coordenadas.
 
 ### Adicionado
 - **Busca Textual Multi-Query no PNCP (`search_pncp` — 8ª Ferramenta MCP e CLI `--search-pncp`):**

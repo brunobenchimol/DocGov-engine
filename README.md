@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.5)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.6)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,28 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.5` (Geração 3 — Busca PNCP & Redirect Resolver) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.6` (Geração 3 — Engenharia Tabular e Template Matching) e Marcos Anteriores
+
+A versão **`v1.3.6`** resolve 5 atritos estruturais (`ENG-01` a `ENG-05`) na manipulação de tabelas OpenXML complexas com células mescladas (`vMerge` e `gridSpan`), garantindo fidelidade geométrica e paridade entre coordenadas físicas e virtuais:
+
+### Novidades da `v1.3.6` — Engenharia Tabular e Template Matching (`ENG-01` a `ENG-05`):
+1. **Fim da Fusão Horizontal de Colunas em `loop_table_rows` (`ENG-01`):**
+   - Injeção das tags delimitadoras `{{FOR item IN ...}}` e `{{END-FOR item}}` em linhas `<w:tr>` dedicadas isoladas da linha de dados, eliminando a duplicação indevida de colunas (19 para 38 células físicas) e preservando intactas as propriedades de `<w:vMerge/>` em `C0`.
+2. **Alinhamento de Coordenadas Físicas vs. Virtuais (`<w:tc>` vs `gridSpan` — `ENG-02`):**
+   - Exposição de `physicalCellIndex` e `virtualColIndex` em `TableCellInfo`, permitindo que os agentes copiem diretamente a coordenada física real exibida no Bloco 1 da `visao_auditoria_*.md` para o `slots_manifest.json`.
+   - Fallback automático e transparente em `replace_table_cells` (`resolvePhysicalTableCell`), convertendo índices virtuais de colunas mescladas por `gridSpan` para a célula física correta caso o usuário forneça a coordenada visual.
+   - Fail-Fast Estrito com Exact Copy-Paste Error (`ENG-02c`) quando `cell_tags.length` ultrapassa a contagem física da linha, com auto-alinhamento inteligente se `C0` for `vMerge`.
+3. **Normalização de `vMerge` e `gridSpan` no Cálculo de Fingerprint Estrutural (`ENG-03`):**
+   - Descarte de placeholders (`isSpanPlaceholder`) e continuação vertical (`rowSpan: "continue"`) na contagem de colunas e deduplicação de campos de formulário idênticos.
+   - Comparação tolerante de tabelas quando os cabeçalhos coincidem ($\ge 0.5$) e retorno do candidato de maior similaridade mesmo em status `NEW` (`< 75%`).
+4. **Exposição de `template_match` e `form_fields` Físicos na Visão Linear de Auditoria (`ENG-04`):**
+   - O Bloco 1 da `visao_auditoria_*.md` agora inclui o resumo do matching contra o registro global e a tabela de campos de formulário mapeados com coordenadas físicas de alvo prontas para uso.
+5. **Ordem Bottom-Up Estrita na Construção de Templates (`ENG-05`):**
+   - Substituições e loops executados em ordem decrescente de índice, prevenindo desvios espúrios de coordenadas no documento.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.5` (Geração 3 — Busca PNCP & Redirect Resolver) e Marcos Anteriores
 
 A versão **`v1.3.5`** expande o conector PNCP com a **8ª ferramenta MCP oficial (`search_pncp`)** e o resolvedor automático de URLs de redirecionamento:
 
