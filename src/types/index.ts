@@ -886,5 +886,62 @@ export interface FetchPncpSyntheticResult {
   next_step_hint: string;
 }
 
+export interface SearchPncpOptions {
+  status?: "recebendo_proposta" | "encerradas" | "todas";
+  uf?: string;
+  modalidade?: string;
+  limit?: number;
+  baseUrl?: string;
+  timeoutMs?: number;
+}
+
+export interface PncpSearchCandidate {
+  pncp_id: string; // "${orgao_cnpj}/${ano}/${numero_sequencial}"
+  numero_controle_pncp?: string;
+  orgao_nome: string;
+  orgao_cnpj: string;
+  unidade_nome?: string;
+  uf?: string;
+  municipio_nome?: string;
+  titulo: string;
+  objeto: string;
+  modalidade: string;
+  valor_global?: number | null;
+  data_publicacao?: string;
+  situacao_nome?: string;
+  pncp_url: string;
+  matched_query?: string;
+}
+
+export interface SearchPncpResult {
+  status: "success";
+  caseDir: string;
+  queriesExecuted: string[];
+  resultsCount: number;
+  totalAccumulatedCount: number;
+  candidates: PncpSearchCandidate[];
+  resultsJsonPath: string;
+  resultsMdPath: string;
+}
+
+export interface SearchPncpSyntheticCandidate {
+  pncp_id: string;
+  orgao_uf: string;
+  modalidade: string;
+  objeto_resumo: string;
+}
+
+export interface SearchPncpSyntheticResult {
+  status: "success";
+  engine_version: string;
+  queries_executed: string[];
+  results_count: number;
+  total_accumulated: number;
+  results_md_path: string;
+  results_json_path: string;
+  top_candidates: SearchPncpSyntheticCandidate[];
+  next_step_hint: string;
+}
+
 
 

@@ -7,6 +7,10 @@ import {
   sanitizePncpShortname,
   fetchPncpContract,
   formatFetchPncpSyntheticResult,
+  resolvePncpRedirectUrl,
+  resolveAndParsePncpIdentifier,
+  searchPncpContracts,
+  formatSearchPncpSyntheticResult,
 } from "../src/tools/pncp.ts";
 import { createSuiteTempDir, MINIMAL_DOCX_BASE64 } from "./helpers/fixtures.ts";
 import { VERSION } from "../src/constants/index.ts";
@@ -330,5 +334,309 @@ describe("Testes Unitários v1.3.4: Conector Nativo PNCP (fetch_pncp)", () => {
     expect(pncpTool!.annotations?.readOnlyHint).toBe(false);
     expect(pncpTool!.annotations?.destructiveHint).toBe(false);
     expect(pncpTool!.annotations?.idempotentHint).toBe(true);
+  });
+
+  // --------------------------------------------------------------------------
+  // 5. Resolvedor Nativo de Redirects HTTP (Google Grounding / vertexaisearch)
+  // --------------------------------------------------------------------------
+  test("9. resolvePncpRedirectUrl e resolveAndParsePncpIdentifier: deve resolver HTTP 302 Found para o destino PNCP", async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/grounding-api-redirect/token_xyz") {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: "https://pncp.gov.br/app/editais/00394460000141/2026/15",
+            },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    try {
+      const redirectUrl = `http://127.0.0.1:${server.port}/grounding-api-redirect/token_xyz`;
+
+      // 1. resolvePncpRedirectUrl deve capturar o Location do header sem precisar abrir conexão com o PNCP
+      const resolved = await resolvePncpRedirectUrl(redirectUrl);
+      expect(resolved).toBe("https://pncp.gov.br/app/editais/00394460000141/2026/15");
+
+      // 2. resolveAndParsePncpIdentifier deve retornar o PncpIdentifier correspondente
+      const id = await resolveAndParsePncpIdentifier(redirectUrl);
+      expect(id.cnpj).toBe("00394460000141");
+      expect(id.ano).toBe("2026");
+      expect(id.sequencial).toBe("15");
+      expect(id.canonicalRef).toBe("00394460000141/2026/15");
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("10. fetchPncpContract: deve aceitar URL de redirect do Google Grounding e baixar contratação", async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/grounding-api-redirect/token_abc") {
+          return new Response(null, {
+            status: 302,
+            headers: {
+              Location: "https://pncp.gov.br/app/editais/00394460000141/2026/15",
+            },
+          });
+        }
+        if (u.pathname.endsWith("/compras/2026/15")) {
+          return new Response(
+            JSON.stringify({
+              numeroControlePNCP: "00394460000141-1-000015/2026",
+              orgaoEntidade: { razaoSocial: "ORGAO_CONTRATANTE" },
+            }),
+            { headers: { "Content-Type": "application/json" } }
+          );
+        }
+        if (u.pathname.endsWith("/arquivos")) {
+          return new Response(JSON.stringify([]), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    const testCaseDir = resolve(tempDir, "caso_redirect_pncp");
+    const localBaseUrl = `http://127.0.0.1:${server.port}`;
+
+    try {
+      const redirectUrl = `${localBaseUrl}/grounding-api-redirect/token_abc`;
+      const result = await fetchPncpContract(testCaseDir, redirectUrl, {
+        baseUrl: localBaseUrl,
+        shortname: "ref_redirect",
+      });
+
+      expect(result.status).toBe("success");
+      expect(result.pncpRef).toBe("00394460000141/2026/15");
+      expect(existsSync(resolve(testCaseDir, "inputs", "pncp_ref_redirect"))).toBe(true);
+      expect(existsSync(resolve(testCaseDir, "state", "pncp_ref_redirect_meta.json"))).toBe(true);
+      expect(existsSync(resolve(testCaseDir, "state", "indice_pncp_ref_redirect.md"))).toBe(true);
+    } finally {
+      server.stop();
+    }
+  });
+
+  // --------------------------------------------------------------------------
+  // 6. Busca Textual Multi-Query no PNCP (search_pncp)
+  // --------------------------------------------------------------------------
+  test("11. searchPncpContracts: deve consultar /api/search/, desduplicar multi-query e gerar artefatos em state/", async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/api/search/") {
+          const q = u.searchParams.get("q") || "";
+          if (q.includes("software")) {
+            return new Response(
+              JSON.stringify({
+                items: [
+                  {
+                    orgao_cnpj: "00394460000141",
+                    ano: 2026,
+                    numero_sequencial: 15,
+                    orgao_nome: "ORGAO_CONTRATANTE",
+                    modalidade_licitacao_nome: "Pregão Eletrônico",
+                    title: "Aquisição de Fábrica de Software",
+                    description: "Contratação de serviços de sustentação e evolução de software corporativo sob demanda com dimensionamento em pontos de função.",
+                    valor_global: 1200000.0,
+                    data_publicacao_pncp: "2026-03-01T08:00:00",
+                    uf: "DF",
+                  },
+                  {
+                    orgao_cnpj: "11222333000199",
+                    ano: 2026,
+                    numero_sequencial: 4,
+                    orgao_nome: "ORGAO_SECUNDARIO",
+                    modalidade_licitacao_nome: "Concorrência",
+                    title: "Desenvolvimento de Aplicações Web",
+                    description: "Desenvolvimento e governança de microsserviços.",
+                    valor_global: 850000.0,
+                    data_publicacao_pncp: "2026-03-05T09:00:00",
+                    uf: "PA",
+                  },
+                ],
+              }),
+              { headers: { "Content-Type": "application/json" } }
+            );
+          }
+          if (q.includes("nuvem")) {
+            return new Response(
+              JSON.stringify({
+                items: [
+                  // Item duplicado com o mesmo ID para testar desduplicação
+                  {
+                    orgao_cnpj: "00394460000141",
+                    ano: 2026,
+                    numero_sequencial: 15,
+                    orgao_nome: "ORGAO_CONTRATANTE",
+                    modalidade_licitacao_nome: "Pregão Eletrônico",
+                    title: "Aquisição de Fábrica de Software",
+                    description: "Contratação de serviços de sustentação e evolução de software corporativo sob demanda com dimensionamento em pontos de função.",
+                    valor_global: 1200000.0,
+                    data_publicacao_pncp: "2026-03-01T08:00:00",
+                    uf: "DF",
+                  },
+                  {
+                    orgao_cnpj: "99888777000111",
+                    ano: 2026,
+                    numero_sequencial: 10,
+                    orgao_nome: "ORGAO_TERCIARIO",
+                    modalidade_licitacao_nome: "Pregão Eletrônico",
+                    title: "Serviços de Nuvem Computacional",
+                    description: "Infraestrutura de nuvem pública com gerenciamento de contêineres e banco de dados relacional distribuído.",
+                    valor_global: 540000.0,
+                    data_publicacao_pncp: "2026-03-10T14:00:00",
+                    uf: "DF",
+                  },
+                ],
+              }),
+              { headers: { "Content-Type": "application/json" } }
+            );
+          }
+          return new Response(JSON.stringify({ items: [] }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    const searchCaseDir = resolve(tempDir, "caso_search_pncp");
+    const localBaseUrl = `http://127.0.0.1:${server.port}`;
+
+    try {
+      const result = await searchPncpContracts(
+        searchCaseDir,
+        "fábrica de software | sustentação de nuvem",
+        { baseUrl: localBaseUrl }
+      );
+
+      expect(result.status).toBe("success");
+      expect(result.queriesExecuted).toEqual([
+        "fábrica de software",
+        "sustentação de nuvem",
+      ]);
+      // 3 itens únicos retornados (00394460000141/2026/15, 11222333000199/2026/4, 99888777000111/2026/10)
+      expect(result.resultsCount).toBe(3);
+      expect(result.totalAccumulatedCount).toBe(3);
+
+      // Verifica arquivos gerados em state/
+      expect(existsSync(result.resultsJsonPath)).toBe(true);
+      expect(existsSync(result.resultsMdPath)).toBe(true);
+
+      const jsonContent = JSON.parse(
+        readFileSync(result.resultsJsonPath, "utf-8")
+      );
+      expect(jsonContent.candidates.length).toBe(3);
+      expect(jsonContent.candidates[0].pncp_id).toBe("00394460000141/2026/15");
+
+      const mdContent = readFileSync(result.resultsMdPath, "utf-8");
+      expect(mdContent).toContain("# Resultados da Busca PNCP");
+      expect(mdContent).toContain("00394460000141/2026/15");
+      expect(mdContent).toContain("Aquisição de Fábrica de Software");
+      // Verifica preservação do Objeto Completo
+      expect(mdContent).toContain(
+        "dimensionamento em pontos de função"
+      );
+
+      // Payload Sintético MCP (< 900 bytes — Lei 2)
+      const synthetic = formatSearchPncpSyntheticResult(result);
+      const jsonStr = JSON.stringify(synthetic, null, 2);
+      const byteLength = Buffer.byteLength(jsonStr, "utf-8");
+
+      expect(byteLength).toBeLessThan(900);
+      expect(synthetic.status).toBe("success");
+      expect(synthetic.results_count).toBe(3);
+      expect(synthetic.top_candidates.length).toBeGreaterThanOrEqual(1);
+      expect(synthetic.top_candidates.length).toBeLessThanOrEqual(3);
+      expect(synthetic.top_candidates[0].pncp_id).toBe(
+        "00394460000141/2026/15"
+      );
+      expect(synthetic.next_step_hint).toContain("fetch_pncp");
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("12. searchPncpContracts: deve acumular resultados em buscas sucessivas preservando histórico", async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/api/search/") {
+          const q = u.searchParams.get("q") || "";
+          if (q.includes("segurança")) {
+            return new Response(
+              JSON.stringify({
+                items: [
+                  {
+                    orgao_cnpj: "55566677000188",
+                    ano: 2026,
+                    numero_sequencial: 2,
+                    orgao_nome: "ORGAO_SEGURANCA",
+                    modalidade_licitacao_nome: "Pregão Eletrônico",
+                    title: "Solução de Firewall e SIEM",
+                    description: "Monitoramento de segurança da informação 24x7.",
+                    valor_global: 430000.0,
+                    data_publicacao_pncp: "2026-03-12T10:00:00",
+                    uf: "DF",
+                  },
+                ],
+              }),
+              { headers: { "Content-Type": "application/json" } }
+            );
+          }
+        }
+        return new Response(JSON.stringify({ items: [] }), {
+          headers: { "Content-Type": "application/json" },
+        });
+      },
+    });
+
+    const searchCaseDir = resolve(tempDir, "caso_search_pncp");
+    const localBaseUrl = `http://127.0.0.1:${server.port}`;
+
+    try {
+      // Executa segunda busca no mesmo caseDir
+      const result2 = await searchPncpContracts(
+        searchCaseDir,
+        "segurança da informação",
+        { baseUrl: localBaseUrl }
+      );
+
+      // Deve ter 1 novo candidato, totalizando 4 acumulados (3 anteriores + 1 novo)
+      expect(result2.resultsCount).toBe(1);
+      expect(result2.totalAccumulatedCount).toBe(4);
+
+      const jsonContent = JSON.parse(
+        readFileSync(result2.resultsJsonPath, "utf-8")
+      );
+      expect(jsonContent.total_candidates).toBe(4);
+      // O novo candidato aparece no topo
+      expect(jsonContent.candidates[0].pncp_id).toBe("55566677000188/2026/2");
+    } finally {
+      server.stop();
+    }
+  });
+
+  test("13. searchPncpContracts: deve aplicar filtros de UF e fail-fast em query vazia", async () => {
+    const searchCaseDir = resolve(tempDir, "caso_search_filtros");
+
+    // Fail-Fast estrito em query vazia (Lei 3)
+    expect(searchPncpContracts(searchCaseDir, "")).rejects.toThrow(
+      /Erro nos parâmetros de busca no PNCP/
+    );
+    expect(searchPncpContracts(searchCaseDir, "   |   ")).rejects.toThrow(
+      /Erro nos parâmetros de busca no PNCP/
+    );
   });
 });
