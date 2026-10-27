@@ -258,4 +258,108 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
       "utilize 'bootstrap_case'"
     );
   });
+
+  test("v1.3.6: deve indexar tabelas estritamente por células físicas <w:tc> (sem placeholders fantasmas), anotar span e vMerge na visão linear e expor template_match + form_fields no Bloco 1 (ENG-02a & ENG-04)", async () => {
+    const docxPath = resolve(tempDir, "sample_physical_cells_gridspan.docx");
+    const zip = new (await import("jszip")).default();
+
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    // Tabela com linha 0: C0 com gridSpan=3 ("Processo Administrativo:"), C1 ("2026/001")
+    // Linha 1: C0 com vMerge restart ("Itens da Demanda"), C1 ("Item 1"), C2 ("10 un")
+    // Linha 2: C0 com vMerge continue, C1 ("Item 2"), C2 ("20 un")
+    zip.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>ESTUDO TÉCNICO PRELIMINAR - ORGAO_CONTRATANTE</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:gridSpan w:val="3"/></w:tcPr>
+          <w:p><w:r><w:t>Processo Administrativo:</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc>
+          <w:p><w:r><w:t>2026/001</w:t></w:r></w:p>
+        </w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:vMerge w:val="restart"/></w:tcPr>
+          <w:p><w:r><w:t>Itens da Demanda:</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>Item 1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>10 un</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:vMerge w:val="continue"/></w:tcPr>
+          <w:p><w:r><w:t></w:t></w:r></w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>Item 2</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>20 un</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+    );
+
+    const docxBuf = await zip.generateAsync({ type: "nodebuffer" });
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(docxPath, docxBuf);
+
+    const res = await inspectDocx(docxPath);
+    expect(res.tables.length).toBe(1);
+    const tbl = res.tables[0];
+
+    // Linha 0 possui 2 células físicas reais (<w:tc>) e placeholders na grade lógica
+    const physRow0 = tbl.rows[0].cells.filter((c) => !c.isSpanPlaceholder);
+    expect(physRow0.length).toBe(2);
+    expect(physRow0[0].physicalCellIndex).toBe(0);
+    expect(physRow0[0].colSpan).toBe(3);
+    expect(physRow0[1].physicalCellIndex).toBe(1);
+    expect(physRow0[1].virtualColIndex).toBe(3);
+
+    // Linha 1 e Linha 2 possuem 3 células físicas reais
+    expect(tbl.rows[1].cells.length).toBe(3);
+    expect(tbl.rows[1].cells[0].rowSpan).toBe("restart");
+    expect(tbl.rows[2].cells.length).toBe(3);
+    expect(tbl.rows[2].cells[0].rowSpan).toBe("continue");
+
+    // Form fields não devem duplicar o rótulo da linha 2 com vMerge continue
+    const demandLabels = res.toc_map?.form_fields.filter((f) =>
+      f.title.includes("Itens da Demanda")
+    );
+    expect(demandLabels?.length).toBe(1);
+
+    // Visão linear de auditoria gerada
+    expect(res.audit_view_path).toBeDefined();
+    const md = readFileSync(res.audit_view_path!, "utf-8");
+
+    // Bloco 1 deve expor template_match e toc_map.form_fields
+    expect(md).toContain("### Diagnóstico de Cache de Template (template_match)");
+    expect(md).toContain("### Campos de Formulário e Coordenadas Físicas Sugeridas (toc_map.form_fields)");
+    expect(md).toContain("Processo Administrativo");
+
+    // Bloco 2 deve expor coordenadas físicas reais com (span=3) e [vMerge]
+    expect(md).toContain("[T0.R0.C0] Processo Administrativo: (span=3)");
+    expect(md).toContain("[T0.R0.C1] 2026/001");
+    expect(md).toContain("[T0.R2.C0]");
+    expect(md).toContain("[vMerge]");
+  });
 });

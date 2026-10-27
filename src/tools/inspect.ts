@@ -126,8 +126,11 @@ export function buildTocMap(
   for (const tbl of tables) {
     for (let rIdx = 0; rIdx < tbl.rows.length; rIdx++) {
       const row = tbl.rows[rIdx];
-      for (let cIdx = 0; cIdx < row.cells.length; cIdx++) {
-        const cell = row.cells[cIdx];
+      const physicalCells = row.cells.filter((c) => !c.isSpanPlaceholder);
+      for (let cIdx = 0; cIdx < physicalCells.length; cIdx++) {
+        const cell = physicalCells[cIdx];
+        // Células mescladas verticalmente como continuação não devem ser novos form_fields
+        if (cell.rowSpan === "continue") continue;
         const txt = cell.text.trim();
         if (!txt || txt.length > 250) continue;
 
@@ -137,30 +140,35 @@ export function buildTocMap(
         const isNumberedPrompt =
           /^\d+(\.\d+)*\s+[A-ZÀ-Ú]/i.test(txt) && txt.length <= 100;
         const isTwoColKey =
-          row.cells.length === 2 &&
+          physicalCells.length === 2 &&
           cIdx === 0 &&
           txt.length <= 100 &&
           !txt.includes("\n");
 
         if (isQuestion || isLabel || isNumberedPrompt || isTwoColKey) {
           let suggestedTarget: string | undefined;
+          const currentPhysIdx = cell.physicalCellIndex ?? cell.cellIndex;
 
-          // Se houver célula adjacente à direita na mesma linha
-          if (cIdx + 1 < row.cells.length) {
-            suggestedTarget = `T${tbl.index}.R${row.rowIndex}.C${row.cells[cIdx + 1].cellIndex}`;
+          // Se houver célula física adjacente à direita na mesma linha
+          if (cIdx + 1 < physicalCells.length) {
+            const nextCell = physicalCells[cIdx + 1];
+            const nextPhysIdx = nextCell.physicalCellIndex ?? nextCell.cellIndex;
+            suggestedTarget = `T${tbl.index}.R${row.rowIndex}.C${nextPhysIdx}`;
           } else if (rIdx + 1 < tbl.rows.length) {
             // Se for coluna única, o alvo costuma ser a linha imediatamente abaixo
             const nextRow = tbl.rows[rIdx + 1];
+            const nextPhysicalCells = nextRow.cells.filter((c) => !c.isSpanPlaceholder);
             const targetCell =
-              nextRow.cells.find((c) => c.cellIndex === cell.cellIndex) ??
-              nextRow.cells[0];
+              nextPhysicalCells.find((c) => (c.physicalCellIndex ?? c.cellIndex) === currentPhysIdx) ??
+              nextPhysicalCells[0];
             if (targetCell) {
-              suggestedTarget = `T${tbl.index}.R${nextRow.rowIndex}.C${targetCell.cellIndex}`;
+              const targetPhysIdx = targetCell.physicalCellIndex ?? targetCell.cellIndex;
+              suggestedTarget = `T${tbl.index}.R${nextRow.rowIndex}.C${targetPhysIdx}`;
             }
           }
 
           form_fields.push({
-            coord: `T${tbl.index}.R${row.rowIndex}.C${cell.cellIndex}`,
+            coord: `T${tbl.index}.R${row.rowIndex}.C${currentPhysIdx}`,
             title: txt.length > 120 ? `${txt.slice(0, 117)}...` : txt,
             ...(suggestedTarget ? { suggested_target_slot: suggestedTarget } : {}),
           });
@@ -330,6 +338,46 @@ export function generateLinearAuditViewMarkdown(
 
   lines.push(...renderCartographyMarkdownBlock(cartography));
 
+  // Subseções de Template Match e Form Fields (ENG-04)
+  if (inspection.template_match) {
+    const tm = inspection.template_match;
+    lines.push("### Diagnóstico de Cache de Template (template_match)");
+    lines.push(
+      `- **Status:** \`${tm.status}\` (${Math.round(
+        tm.similarity * 100
+      )}% de similaridade)`
+    );
+    if (tm.template_id) {
+      lines.push(`- **Template Base:** \`${tm.template_id}\``);
+    }
+    if (tm.adapted_manifest_path) {
+      lines.push(
+        `- **Manifesto Adaptado:** \`${toShortDocPath(tm.adapted_manifest_path)}\``
+      );
+    }
+    if (tm.shift_summary) {
+      lines.push(`- **Reancoragem:** ${tm.shift_summary}`);
+    }
+    lines.push(`- **Mensagem:** ${tm.message || "Template processado."}`);
+    lines.push("");
+  }
+
+  if (
+    inspection.toc_map?.form_fields &&
+    inspection.toc_map.form_fields.length > 0
+  ) {
+    lines.push(
+      "### Campos de Formulário e Coordenadas Físicas Sugeridas (toc_map.form_fields)"
+    );
+    for (const ff of inspection.toc_map.form_fields) {
+      const target = ff.suggested_target_slot
+        ? ` -> Coordenada alvo física: \`${ff.suggested_target_slot}\``
+        : "";
+      lines.push(`- [\`${ff.coord}\`] ${ff.title}${target}`);
+    }
+    lines.push("");
+  }
+
   // Bloco 2: Conteúdo Integral do Documento (.docx)
   lines.push("## Bloco 2: Conteúdo Integral Estruturado");
   lines.push("");
@@ -388,24 +436,35 @@ export function generateLinearAuditViewMarkdown(
       );
 
       for (const r of tbl.rows) {
-        const nonEmptyCells = r.cells.filter((c) => c.text.trim() !== "");
+        const physicalCells = r.cells.filter((c) => !c.isSpanPlaceholder);
+        const nonEmptyCells = physicalCells.filter((c) => c.text.trim() !== "");
         if (nonEmptyCells.length === 0) continue;
 
-        if (r.cells.length === 2) {
-          const c0 = r.cells[0];
-          const c1 = r.cells[1];
+        if (physicalCells.length === 2) {
+          const c0 = physicalCells[0];
+          const c1 = physicalCells[1];
           const t0 = c0.text.trim().replace(/\r?\n/g, " ");
           const t1 = c1.text.trim().replace(/\r?\n/g, " ");
+          const span0 =
+            c0.colSpan && c0.colSpan > 1 ? ` (span=${c0.colSpan})` : "";
+          const span1 =
+            c1.colSpan && c1.colSpan > 1 ? ` (span=${c1.colSpan})` : "";
+          const vm0 = c0.rowSpan === "continue" ? " [vMerge]" : "";
+          const vm1 = c1.rowSpan === "continue" ? " [vMerge]" : "";
+          const idx0 = c0.physicalCellIndex ?? c0.cellIndex;
+          const idx1 = c1.physicalCellIndex ?? c1.cellIndex;
           lines.push(
-            `- [T${tbl.index}.R${r.rowIndex}.C${c0.cellIndex}] ${t0} -> [T${tbl.index}.R${r.rowIndex}.C${c1.cellIndex}] ${t1 || "[vazio]"}`
+            `- [T${tbl.index}.R${r.rowIndex}.C${idx0}] ${t0}${span0}${vm0} -> [T${tbl.index}.R${r.rowIndex}.C${idx1}] ${t1 || "[vazio]"}${span1}${vm1}`
           );
         } else {
-          const rowParts = r.cells.map(
-            (c) =>
-              `[T${tbl.index}.R${r.rowIndex}.C${
-                c.cellIndex
-              }] ${c.text.trim().replace(/\r?\n/g, " ") || "[vazio]"}`
-          );
+          const rowParts = physicalCells.map((c) => {
+            const spanStr =
+              c.colSpan && c.colSpan > 1 ? ` (span=${c.colSpan})` : "";
+            const vmStr = c.rowSpan === "continue" ? " [vMerge]" : "";
+            const txt = c.text.trim().replace(/\r?\n/g, " ") || "[vazio]";
+            const cIdx = c.physicalCellIndex ?? c.cellIndex;
+            return `[T${tbl.index}.R${r.rowIndex}.C${cIdx}] ${txt}${spanStr}${vmStr}`;
+          });
           lines.push(`- [T${tbl.index}.R${r.rowIndex}] ${rowParts.join(" | ")}`);
         }
       }
@@ -1048,41 +1107,46 @@ export async function inspectDocx(
     const rows: TableRowInfo[] = trList.map((tr, rowIndex) => {
       const tcList = getDirectChildElements(tr, "w:tc");
       const cells: TableCellInfo[] = [];
-      let currentCol = 0;
+      let currentVirtualCol = 0;
 
-      for (const tc of tcList) {
+      for (let physicalIdx = 0; physicalIdx < tcList.length; physicalIdx++) {
+        const tc = tcList[physicalIdx];
         const span = extractCellGridSpan(tc);
         const vMerge = extractCellVMerge(tc);
         let text = extractCellText(tc);
 
         if (vMerge === "restart") {
-          activeVMerges.set(currentCol, text);
+          activeVMerges.set(currentVirtualCol, text);
         } else if (vMerge === "continue") {
-          if (!text.trim() && activeVMerges.has(currentCol)) {
-            text = activeVMerges.get(currentCol) || "";
+          if (!text.trim() && activeVMerges.has(currentVirtualCol)) {
+            text = activeVMerges.get(currentVirtualCol) || "";
           }
         } else {
-          activeVMerges.delete(currentCol);
+          activeVMerges.delete(currentVirtualCol);
         }
 
         cells.push({
-          cellIndex: currentCol,
+          cellIndex: currentVirtualCol,
+          physicalCellIndex: physicalIdx,
+          virtualColIndex: currentVirtualCol,
           text,
           ...(span > 1 ? { colSpan: span } : {}),
           ...(vMerge ? { rowSpan: vMerge } : {}),
         });
 
         // Se span > 1 (gridSpan), preenche colunas lógicas intermediárias com células vazias
-        // para manter alinhamento estrito das colunas subsequentes
+        // para manter alinhamento estrito das colunas subsequentes na grade do budget_auditor
         for (let s = 1; s < span; s++) {
           cells.push({
-            cellIndex: currentCol + s,
+            cellIndex: currentVirtualCol + s,
+            physicalCellIndex: physicalIdx,
+            virtualColIndex: currentVirtualCol + s,
             text: "",
             isSpanPlaceholder: true,
           });
         }
 
-        currentCol += span;
+        currentVirtualCol += span;
       }
 
       return {
@@ -1190,38 +1254,6 @@ export async function inspectDocx(
   const structure_fingerprint = computeStructureFingerprint(rawResult);
   rawResult.structure_fingerprint = structure_fingerprint;
 
-  // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 / v0.8.1 com Cartografia + Z1..Z14)
-  if (!options.skipAuditArtifacts) {
-    let auditViewPath: string;
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      const outDir = dirname(resolvedOut);
-      const outBase = basename(resolvedOut, ".json").replace(
-        /^(?:estrutura_|inspecao_)/,
-        ""
-      );
-      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
-    } else {
-      const docDir = dirname(resolvedDocx);
-      const docBase = basename(resolvedDocx, ".docx");
-      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
-    }
-
-    let auditMd = generateLinearAuditViewMarkdown(
-      basename(resolvedDocx),
-      rawResult
-    );
-    if (budgetAudit.has_budget_table) {
-      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-    }
-    const auditDir = dirname(auditViewPath);
-    if (!existsSync(auditDir)) {
-      mkdirSync(auditDir, { recursive: true });
-    }
-    writeFileSync(auditViewPath, auditMd, "utf-8");
-    rawResult.audit_view_path = auditViewPath;
-  }
-
   // Matching 1-para-N contra o Cache Global de Templates (v0.6.0)
   const match = findBestTemplateMatch(
     structure_fingerprint,
@@ -1305,6 +1337,38 @@ export async function inspectDocx(
     };
   }
   rawResult.template_match = template_match;
+
+  // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 / v0.8.1 com Cartografia + Z1..Z14)
+  if (!options.skipAuditArtifacts) {
+    let auditViewPath: string;
+    if (outputPath) {
+      const resolvedOut = resolve(outputPath);
+      const outDir = dirname(resolvedOut);
+      const outBase = basename(resolvedOut, ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      );
+      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
+    } else {
+      const docDir = dirname(resolvedDocx);
+      const docBase = basename(resolvedDocx, ".docx");
+      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
+    }
+
+    let auditMd = generateLinearAuditViewMarkdown(
+      basename(resolvedDocx),
+      rawResult
+    );
+    if (budgetAudit.has_budget_table) {
+      auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
+    }
+    const auditDir = dirname(auditViewPath);
+    if (!existsSync(auditDir)) {
+      mkdirSync(auditDir, { recursive: true });
+    }
+    writeFileSync(auditViewPath, auditMd, "utf-8");
+    rawResult.audit_view_path = auditViewPath;
+  }
 
   await applyStructuralDiffIfRequested(
     rawResult,

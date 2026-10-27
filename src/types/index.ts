@@ -25,6 +25,8 @@ export interface BodyParagraphInfo {
 
 export interface TableCellInfo {
   cellIndex: number;
+  physicalCellIndex?: number;
+  virtualColIndex?: number;
   text: string;
   colSpan?: number;
   rowSpan?: string;
