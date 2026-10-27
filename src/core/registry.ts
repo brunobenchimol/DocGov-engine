@@ -39,11 +39,13 @@ export function computeStructureFingerprint(
   const tables: TableFingerprint[] = (inspection.tables || []).map((tbl) => {
     let maxCols = 0;
     for (const r of tbl.rows) {
-      if (r.cells.length > maxCols) maxCols = r.cells.length;
+      const physicalCells = r.cells.filter((c) => !c.isSpanPlaceholder);
+      if (physicalCells.length > maxCols) maxCols = physicalCells.length;
     }
     const firstRow = tbl.rows[0];
     const headers = firstRow
       ? firstRow.cells
+          .filter((c) => !c.isSpanPlaceholder && c.rowSpan !== "continue")
           .map((c) => normalizeStructuralText(c.text))
           .filter((t) => t.length > 0)
       : [];
@@ -68,9 +70,14 @@ export function computeStructureFingerprint(
 
   const form_fields: FormFieldFingerprint[] = [];
   if (inspection.toc_map?.form_fields) {
+    const seenLabels = new Set<string>();
     for (const f of inspection.toc_map.form_fields) {
       const norm = normalizeStructuralText(f.title);
-      if (norm) {
+      // Evitar duplicações decorrentes de vMerge/gridSpan na mesma tabela
+      const tableKey = f.coord.split(".")[0];
+      const dedupKey = `${tableKey}:${norm}`;
+      if (norm && !seenLabels.has(dedupKey)) {
+        seenLabels.add(dedupKey);
         form_fields.push({
           coord: f.coord,
           label_normalized: norm,
@@ -154,6 +161,14 @@ export function computeStructuralSimilarity(
     const maxLen = Math.max(fpA.tables.length, fpB.tables.length);
     for (const tB of fpB.tables) {
       const matchA = fpA.tables.find((tA) => {
+        // Se houver coincidência substancial de cabeçalhos, tolera divergência de colunas por gridSpan
+        if (tB.headers.length > 0 && tA.headers.length > 0) {
+          const overlap = tB.headers.filter((h) => tA.headers.includes(h)).length;
+          const hRatio = (2 * overlap) / (tA.headers.length + tB.headers.length);
+          if (hRatio >= 0.5) {
+            return true;
+          }
+        }
         if (tA.cols === tB.cols && tB.cols > 0) {
           if (tB.headers.length > 0 && tA.headers.length > 0) {
             const hOverlap = tB.headers.filter((h) =>
@@ -411,9 +426,10 @@ export function findBestTemplateMatch(
   if (templates.length === 0) {
     return { similarity: 0 };
   }
-  let bestEntry: TemplateRegistryEntry | undefined;
-  let bestSim = 0;
-  for (const t of templates) {
+  let bestEntry: TemplateRegistryEntry = templates[0];
+  let bestSim = computeStructuralSimilarity(incomingFp, templates[0].structure_fingerprint);
+  for (let i = 1; i < templates.length; i++) {
+    const t = templates[i];
     const sim = computeStructuralSimilarity(incomingFp, t.structure_fingerprint);
     if (sim > bestSim) {
       bestSim = sim;
