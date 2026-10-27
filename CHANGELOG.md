@@ -8,6 +8,21 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.5] - 2026-10-27
+
+### Adicionado
+- **Busca Textual Multi-Query no PNCP (`search_pncp` — 8ª Ferramenta MCP e CLI `--search-pncp`):**
+  - Descoberta automatizada e de alta velocidade de contratações de referência na API oficial pública `/api/search/` do Portal Nacional de Contratações Públicas.
+  - **Suporte Multi-Query em Paralelo:** Permite fornecer termos combinados separados por pipe `|` (ex.: `"fábrica de software | sustentação de sistemas"`), executando as consultas em paralelo via `Promise.all` com desduplicação automática pelo trio canônico `CNPJ/ANO/SEQUENCIAL`.
+  - **Filtros Estruturados:** Suporte opcional a parâmetros `status` (`"todas" | "recebendo_proposta" | "encerradas"`), `uf` (sigla estadual) e `modalidade` (ex.: `"Pregão"`, `"Concorrência"`).
+  - **Acumulação Inteligente no Caso:** Preserva e mescla candidatos de buscas sucessivas no arquivo `cases/<slug>/state/pncp_search_results.json` mantendo os mais recentes no topo.
+  - **Painel Executivo Markdown com Objeto Integral:** Gravação de `state/pncp_search_results.md` com tabela consolidada exibindo ID PNCP, Órgão, Modalidade, Valor Estimado, Data e o **Objeto Completo** (sem truncamento) para que o agente ou auditor selecione contratações compatíveis com segurança.
+  - **Padrão Exact Copy-Paste Error (Lei 3):** Validação fail-fast precoce para parâmetros de busca vazios com snippet pronto para copiar e colar (`createPncpSearchContractError`).
+  - **Teto Estrito de Payload MCP com Poda Progressiva (< 900 bytes — Lei 2):** Resposta sintética otimizada contendo contadores, caminhos e até 3 top candidatos, aplicando poda preventiva automática em caso de caminhos extensos para assegurar que a resposta permaneça estritamente abaixo de 880 bytes.
+- **Resolvedor Nativo de Redirects HTTP (`resolvePncpRedirectUrl`):**
+  - Resolução automática e transparente de URLs de redirecionamento opacas do Google Grounding (`https://vertexaisearch.cloud.google.com/grounding-api-redirect/...`) e encurtadores em `fetch_pncp` e `search_pncp`.
+  - Mecanismo baseado em `redirect: "manual"` com inspeção do cabeçalho `Location` que retorna imediatamente a URL canônica do PNCP sem a necessidade de abrir conexões de rede externas adicionais, viabilizando testes 100% determinísticos e offline.
+
 ## [1.3.4] - 2026-10-26
 
 ### Adicionado

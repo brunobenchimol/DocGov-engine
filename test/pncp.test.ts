@@ -15,7 +15,7 @@ import {
 import { createSuiteTempDir, MINIMAL_DOCX_BASE64 } from "./helpers/fixtures.ts";
 import { VERSION } from "../src/constants/index.ts";
 
-describe("Testes Unitários v1.3.4: Conector Nativo PNCP (fetch_pncp)", () => {
+describe("Testes Unitários v1.3.5: Conector Nativo PNCP e Busca Textual (fetch_pncp e search_pncp)", () => {
   const { tempDir, cleanup } = createSuiteTempDir("pncp_tests");
 
   afterAll(() => {

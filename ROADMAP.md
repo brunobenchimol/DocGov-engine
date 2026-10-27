@@ -109,6 +109,13 @@
   - Catalogação estrutural em memória para benchmarking/pesquisa de mercado com supressão de arquivos de auditoria em `state/` (sem Radar 14 zonas e sem dossiês externos por padrão), gerando `state/indice_pncp_<shortname>.md` e `state/pncp_<shortname>_meta.json`.
   - Flag `skipAuditArtifacts` em `inspectDocx` e payload sintético conciso estritamente abaixo do teto MCP (< 900 bytes — Lei 2).
 
+- [x] **6.7. Patch `v1.3.5` — Busca Textual Multi-Query no PNCP (`search_pncp`) e Resolvedor de Redirects:**
+  - 8ª Ferramenta MCP e CLI `--search-pncp` para descoberta de editais e contratações de referência na API pública `/api/search/` do PNCP.
+  - Suporte nativo a multi-query paralela (`"termo1 | termo2"`), desduplicação automática por `CNPJ/ANO/SEQUENCIAL`, filtros de `status`, `uf` e `modalidade`.
+  - Acumulação transparente no caso em `state/pncp_search_results.json` e painel legível em `state/pncp_search_results.md` com o Objeto Completo de cada certame.
+  - Resolvedor nativo de redirects HTTP (`resolvePncpRedirectUrl`) em `fetch_pncp` e `search_pncp` para extração automática de identificadores de links opacos do Google Grounding (`vertexaisearch.cloud.google.com/grounding-api-redirect/...`).
+  - Padrão Exact Copy-Paste Error (`createPncpSearchContractError`) e payload sintético otimizado com poda progressiva (< 900 bytes — Lei 2).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
