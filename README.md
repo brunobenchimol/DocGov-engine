@@ -84,9 +84,24 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.4` (Geração 3 — Conector Nativo PNCP) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.5` (Geração 3 — Busca PNCP & Redirect Resolver) e Marcos Anteriores
 
-A versão **`v1.3.4`** conclui o escopo de ingestão da **Geração 3 (`1.3.x`)**, trazendo a 7ª ferramenta MCP oficial e o comando CLI de captura e catalogação isolada de contratações públicas de referência do Portal Nacional de Contratações Públicas:
+A versão **`v1.3.5`** expande o conector PNCP com a **8ª ferramenta MCP oficial (`search_pncp`)** e o resolvedor automático de URLs de redirecionamento:
+
+### Novidades da `v1.3.5` — Busca Multi-Query PNCP e Redirect Resolver (`search_pncp` e `--search-pncp`):
+1. **Busca Textual Multi-Query no PNCP (8ª Ferramenta MCP e CLI `--search-pncp`):**
+   - Descoberta instantânea de contratações de referência a partir de termos de busca, objetos ou órgãos na API oficial `/api/search/` do PNCP.
+   - **Multi-Query em Paralelo:** Permite fornecer termos combinados separados por pipe `|` (ex.: `"fábrica de software | sustentação de sistemas"`), executando as consultas em paralelo com desduplicação automática por `CNPJ/ANO/SEQUENCIAL`.
+   - **Acumulação Inteligente e Tabela com Objeto Completo:** Preserva buscas anteriores da mesma sessão em `state/pncp_search_results.json` e gera tabela Markdown executiva em `state/pncp_search_results.md` com o **Objeto Integral** de cada edital para análise precisa de compatibilidade.
+   - **Payload Sintético MCP (< 900 bytes — Lei 2):** Retorno compacto contendo caminhos estruturados, contagens e top candidatos com `next_step_hint` direcionando ao `fetch_pncp`.
+2. **Resolvedor Nativo de Redirects do Google Grounding (`resolvePncpRedirectUrl`):**
+   - Resolução transparente de URLs de redirecionamento opacas (`https://vertexaisearch.cloud.google.com/grounding-api-redirect/...`) geradas pelo Google Grounding (`search_web`), inspecionando o cabeçalho `Location` com `redirect: "manual"` e extraindo diretamente o identificador canônico `CNPJ/ANO/SEQUENCIAL`.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.4` (Geração 3 — Conector Nativo PNCP) e Marcos Anteriores
+
+A versão **`v1.3.4`** trouxe a 7ª ferramenta MCP oficial e o comando CLI de captura e catalogação isolada de contratações públicas de referência do Portal Nacional de Contratações Públicas:
 
 ### Novidades da `v1.3.4` — Conector Nativo PNCP (`fetch_pncp` e `--fetch-pncp`):
 1. **Conector Nativo PNCP (7ª Ferramenta MCP e CLI `--fetch-pncp`):**

@@ -7,6 +7,7 @@ import {
   EXACT_COPY_PASTE_COMPLIANCE_CHECKLIST_SNIPPET,
   EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET,
   EXACT_COPY_PASTE_PNCP_ID_SNIPPET,
+  EXACT_COPY_PASTE_PNCP_SEARCH_SNIPPET,
 } from "../contracts/errors.ts";
 
 // ============================================================================
@@ -101,12 +102,24 @@ ${EXACT_COPY_PASTE_TECHNICAL_NOTE_SNIPPET}
 Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta \`inputs/pncp_<shortname>/\`, descompactação in-place transparente (\`.zip\`, \`.tar\`, \`.tar.gz\`) via libmagic e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
 - **Isolamento Físico Estrito:** Todos os arquivos externos baixados e seus membros extraídos residem exclusivamente em \`inputs/pncp_<shortname>/\`, sem nunca se misturarem com os documentos originais do usuário na raiz de \`inputs/\`.
 - **Catalogação de Referência sem Auditoria:** Realiza extração estrutural leve de tópicos/seções em memória sem poluir \`state/\` com dossiês de auditoria ou Radar das 14 Zonas, gerando exclusivamente \`state/pncp_<shortname>_meta.json\` e \`state/indice_pncp_<shortname>.md\`.
-- **Parsing Universal de Identificadores (3 Formatos):** Suporta número de controle em edital (\`00394460000141-1-000015/2026\`), URLs do portal/API web e tupla simplificada (\`00394460000141/2026/15\`).
+- **Parsing Universal de Identificadores (3 Formatos + Redirects):** Suporta número de controle em edital (\`00394460000141-1-000015/2026\`), URLs do portal/API web, tupla simplificada (\`00394460000141/2026/15\`) e resolução nativa de URLs de redirecionamento do Google Grounding (\`vertexaisearch.cloud.google.com/grounding-api-redirect/...\`).
 - **Validação Fail-Fast e Exact Copy-Paste Error:** Identificadores inválidos interrompem a execução imediatamente com mensagem canônica pronta para copiar e colar.
 - **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve \`status\`, \`engine_version\`, \`pncp_ref\`, \`target_dir\`, \`meta_path\`, \`index_path\`, \`files_downloaded\`, \`unpacked_archives_count\`, \`extracted_files_count\`, \`inspected_count\` e \`next_step_hint\`.
 - **Exemplo Canônico de Chamada para \`fetch_pncp\`:**
 \`\`\`json
 ${EXACT_COPY_PASTE_PNCP_ID_SNIPPET}
+\`\`\`
+
+### 2.8. search_pncp
+Realiza busca textual multi-query no endpoint oficial \`/api/search/\` do Portal Nacional de Contratações Públicas (PNCP) para descoberta de editais, termos de referência e contratações públicas de referência para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).
+- **Multi-Query em Paralelo:** Permite fornecer termos múltiplos separados por pipe \`|\` (ex.: \`"fábrica de software | sustentação de sistemas"\`), executando as consultas simultaneamente via \`Promise.all\`.
+- **Desduplicação Automática e Acumulação no Caso:** Normaliza e desduplica candidatos por \`CNPJ/ANO/SEQUENCIAL\` (\`pncp_id\`), acumulando os resultados em \`cases/<slug>/state/pncp_search_results.json\` e \`state/pncp_search_results.md\` sem perder buscas anteriores da mesma sessão.
+- **Tabela Markdown com Objeto Integral:** O artefato \`state/pncp_search_results.md\` preserva o objeto completo de cada contratação sem truncamento, permitindo avaliação precisa de aderência sem estourar o contexto da LLM.
+- **Suporte a URLs de Redirecionamento:** Aceita links de busca opacos do Google Grounding (\`vertexaisearch.cloud.google.com/grounding-api-redirect/...\`), resolvendo-os para inclusão imediata como candidato estruturado.
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve \`status\`, \`engine_version\`, \`queries_executed\`, \`results_count\`, \`total_accumulated\`, \`results_md_path\`, \`results_json_path\`, \`top_candidates\` e \`next_step_hint\`.
+- **Exemplo Canônico de Chamada para \`search_pncp\`:**
+\`\`\`json
+${EXACT_COPY_PASTE_PNCP_SEARCH_SNIPPET}
 \`\`\`
 
 ---
