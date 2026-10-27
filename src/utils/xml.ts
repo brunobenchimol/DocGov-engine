@@ -176,6 +176,34 @@ export function extractCellVMerge(tc: Element): "restart" | "continue" | null {
   return "continue";
 }
 
+/**
+ * Resolve o elemento <w:tc> físico correspondente a um índice de célula solicitado.
+ * Se o índice estiver dentro da contagem de células físicas, retorna cells[requestedIndex].
+ * Caso o índice exceda o número de <w:tc> físicos (deslocamento virtual por <w:gridSpan>),
+ * calcula o span acumulado de cada célula física e mapeia para a célula correspondente.
+ */
+export function resolvePhysicalTableCell(
+  cells: Element[],
+  requestedIndex: number
+): Element | undefined {
+  if (!cells || cells.length === 0 || requestedIndex < 0) return undefined;
+  if (requestedIndex < cells.length) {
+    return cells[requestedIndex];
+  }
+
+  let currentVirtual = 0;
+  for (let i = 0; i < cells.length; i++) {
+    const tc = cells[i];
+    const span = extractCellGridSpan(tc);
+    if (requestedIndex >= currentVirtual && requestedIndex < currentVirtual + span) {
+      return tc;
+    }
+    currentVirtual += span;
+  }
+
+  return undefined;
+}
+
 export function sanitizeTemplateTagExpression(tag: string): string {
   if (!tag) return "";
   let current = tag;

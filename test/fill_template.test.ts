@@ -159,7 +159,8 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     expect(tplInspection.footers[0].text).toBe(
       "Processo Administrativo nº {{metadados.numero_processo}}"
     );
-    expect(tplInspection.tables[1].rows.length).toBe(2);
+    // O template construído contém o cabeçalho, as linhas delimitadoras de loop (FOR/END-FOR) e a linha template
+    expect(tplInspection.tables[1].rows.length).toBe(4);
 
     // 3. Preencher o template construído com dados reais
     const e2eState = {

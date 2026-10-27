@@ -12,7 +12,8 @@ import {
   findBodyParagraphProperties,
   setParagraphSingleRunText,
   setTableCellSingleParagraphText,
-  appendTextRunToTableCell,
+  resolvePhysicalTableCell,
+  extractCellVMerge,
   applyInlineReplacementsToXmlDoc,
   ensureContentTypesOverride,
   normalizeTag,
@@ -106,9 +107,38 @@ export async function buildDocxTemplate(
     })
   );
 
-  // 2.1. replace_paragraphs
+  // 2.1. replace_table_cells (aplicado primeiro para evitar interferência de remoção de linhas)
+  if (manifest.replace_table_cells && manifest.replace_table_cells.length > 0) {
+    for (const rule of manifest.replace_table_cells) {
+      const { table_index, row_index, cell_index, tag } = rule;
+      const tSnap = originalBodyTables[table_index];
+      if (!tSnap) {
+        throw new Error(`Tabela de índice ${table_index} não encontrada`);
+      }
+      const rSnap = tSnap.rows[row_index];
+      if (!rSnap) {
+        throw new Error(
+          `Linha ${row_index} não encontrada na tabela ${table_index}`
+        );
+      }
+      const tc = resolvePhysicalTableCell(rSnap.cells, cell_index);
+      if (!tc) {
+        throw new Error(
+          `Célula ${cell_index} não encontrada na linha ${row_index} da tabela ${table_index} (a linha possui ${rSnap.cells.length} células físicas)`
+        );
+      }
+
+      setTableCellSingleParagraphText(docXml, tc, normalizeTag(tag));
+      breakdown.replace_table_cells++;
+    }
+  }
+
+  // 2.2. replace_paragraphs (ordem decrescente de start_p)
   if (manifest.replace_paragraphs && manifest.replace_paragraphs.length > 0) {
-    for (const rule of manifest.replace_paragraphs) {
+    const sortedReplaceP = [...manifest.replace_paragraphs].sort(
+      (a, b) => b.start_p - a.start_p
+    );
+    for (const rule of sortedReplaceP) {
       const { start_p, end_p, tag } = rule;
       if (start_p < 0 || start_p >= originalBodyParagraphs.length) {
         throw new Error(
@@ -142,9 +172,12 @@ export async function buildDocxTemplate(
     }
   }
 
-  // 2.1b. loop_paragraphs
+  // 2.3. loop_paragraphs (ordem decrescente de start_p)
   if (manifest.loop_paragraphs && manifest.loop_paragraphs.length > 0) {
-    for (const rule of manifest.loop_paragraphs) {
+    const sortedLoopP = [...manifest.loop_paragraphs].sort(
+      (a, b) => b.start_p - a.start_p
+    );
+    for (const rule of sortedLoopP) {
       const { start_p, end_p, for_open_tag, for_close_tag, item_tag } = rule;
       if (start_p < 0 || start_p >= originalBodyParagraphs.length) {
         throw new Error(
@@ -202,35 +235,14 @@ export async function buildDocxTemplate(
     }
   }
 
-  // 2.2. replace_table_cells
-  if (manifest.replace_table_cells && manifest.replace_table_cells.length > 0) {
-    for (const rule of manifest.replace_table_cells) {
-      const { table_index, row_index, cell_index, tag } = rule;
-      const tSnap = originalBodyTables[table_index];
-      if (!tSnap) {
-        throw new Error(`Tabela de índice ${table_index} não encontrada`);
-      }
-      const rSnap = tSnap.rows[row_index];
-      if (!rSnap) {
-        throw new Error(
-          `Linha ${row_index} não encontrada na tabela ${table_index}`
-        );
-      }
-      const tc = rSnap.cells[cell_index];
-      if (!tc) {
-        throw new Error(
-          `Célula ${cell_index} não encontrada na linha ${row_index} da tabela ${table_index}`
-        );
-      }
-
-      setTableCellSingleParagraphText(docXml, tc, normalizeTag(tag));
-      breakdown.replace_table_cells++;
-    }
-  }
-
-  // 2.3. loop_table_rows
+  // 2.4. loop_table_rows (ordem decrescente de remoção/template — Bottom-Up)
   if (manifest.loop_table_rows && manifest.loop_table_rows.length > 0) {
-    for (const rule of manifest.loop_table_rows) {
+    const sortedLoopRows = [...manifest.loop_table_rows].sort(
+      (a, b) =>
+        (b.remove_from_row ?? b.template_row_index) -
+        (a.remove_from_row ?? a.template_row_index)
+    );
+    for (const rule of sortedLoopRows) {
       const {
         table_index,
         header_row_index,
@@ -259,6 +271,32 @@ export async function buildDocxTemplate(
         );
       }
 
+      // Auto-alinhamento se C0 tem vMerge e o manifesto enviou exatamente as tags das colunas de dados
+      let effectiveCellTags = [...cell_tags];
+      const c0HasVMerge =
+        templateRow.cells.length > 1 &&
+        extractCellVMerge(templateRow.cells[0]) !== null;
+
+      if (
+        c0HasVMerge &&
+        cell_tags.length === templateRow.cells.length - 1 &&
+        cell_tags[0] !== ""
+      ) {
+        effectiveCellTags = ["", ...cell_tags];
+      }
+
+      // Validação Fail-Fast estrita de contagem de colunas físicas (ENG-02c)
+      if (effectiveCellTags.length > templateRow.cells.length) {
+        const cellSummary = templateRow.cells
+          .map((tc, idx) => `C${idx}`)
+          .join(", ");
+        throw new Error(
+          createSlotsManifestContractError(
+            `Regra 'loop_table_rows' na tabela ${table_index}: foram fornecidas ${effectiveCellTags.length} tag(s) em 'cell_tags', porém a linha de template ${template_row_index} possui apenas ${templateRow.cells.length} célula(s) física(s) (<w:tc>: ${cellSummary}). Ajuste o array 'cell_tags' para corresponder exatamente à contagem física de células da linha.`
+          )
+        );
+      }
+
       // Extrai o nome da variável iteradora do FOR (ex.: "r" em "{{FOR r IN gestao_riscos}}")
       const normalizedOpenTag = normalizeTag(for_open_tag).replace(
         /\bFOR\s+\$([a-zA-Z_]\w*)\s+IN\b/i,
@@ -273,15 +311,22 @@ export async function buildDocxTemplate(
       );
       const iteratorVar = forVarMatch ? forVarMatch[1] : null;
 
-      // Anexa for_open_tag na última célula de header_row_index
-      const lastHeaderCell = headerRow.cells[headerRow.cells.length - 1];
-      appendTextRunToTableCell(docXml, lastHeaderCell, normalizedOpenTag);
+      // Injeta for_open_tag em linha <w:tr> dedicada imediatamente antes de templateRow
+      // e for_close_tag em linha <w:tr> dedicada imediatamente após templateRow.
+      // Este é o padrão canônico do docx-templates para repetição de linhas de tabela (<w:tr>),
+      // eliminando completamente a fusão horizontal de colunas e repetindo a linha inteira!
+      const forTr = docXml.createElement("w:tr");
+      const forTc = docXml.createElement("w:tc");
+      setTableCellSingleParagraphText(docXml, forTc, normalizedOpenTag);
+      forTr.appendChild(forTc);
+      tSnap.tbl.insertBefore(forTr, templateRow.tr);
 
-      // Preenche cada célula de template_row_index com cell_tags e anexa for_close_tag na última célula
-      const lastCellIdx = templateRow.cells.length - 1;
-      for (let cIdx = 0; cIdx <= lastCellIdx; cIdx++) {
+      // Preenche cada célula física de templateRow com as tags correspondentes
+      for (let cIdx = 0; cIdx < templateRow.cells.length; cIdx++) {
         const tc = templateRow.cells[cIdx];
-        let cellTag = cell_tags[cIdx] ? normalizeTag(cell_tags[cIdx]) : "";
+        let cellTag = effectiveCellTags[cIdx]
+          ? normalizeTag(effectiveCellTags[cIdx])
+          : "";
         if (iteratorVar && cellTag) {
           const varRegex = new RegExp(
             `(\\{\\{\\s*(?:INS\\s+|\\=\\s*)?)${iteratorVar}\\b`,
@@ -289,17 +334,19 @@ export async function buildDocxTemplate(
           );
           cellTag = cellTag.replace(varRegex, `$1$${iteratorVar}`);
         }
-        const finalCellContent =
-          cIdx === lastCellIdx
-            ? `${cellTag}${normalizedCloseTag}`
-            : cellTag;
-        setTableCellSingleParagraphText(docXml, tc, finalCellContent);
+        setTableCellSingleParagraphText(docXml, tc, cellTag);
       }
 
-      // Remove as linhas antigas de remove_from_row até remove_to_row
+      const endForTr = docXml.createElement("w:tr");
+      const endForTc = docXml.createElement("w:tc");
+      setTableCellSingleParagraphText(docXml, endForTc, normalizedCloseTag);
+      endForTr.appendChild(endForTc);
+      tSnap.tbl.insertBefore(endForTr, templateRow.tr.nextSibling);
+
+      // Remove as linhas antigas de remove_from_row até remove_to_row em ordem decrescente (Bottom-Up)
       if (remove_from_row !== undefined && remove_to_row !== undefined) {
         const maxRow = Math.min(remove_to_row, tSnap.rows.length - 1);
-        for (let rIdx = remove_from_row; rIdx <= maxRow; rIdx++) {
+        for (let rIdx = maxRow; rIdx >= remove_from_row; rIdx--) {
           if (rIdx === header_row_index || rIdx === template_row_index) {
             continue;
           }
