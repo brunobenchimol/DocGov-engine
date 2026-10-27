@@ -72,6 +72,7 @@ if (import.meta.main) {
     args.includes("--diff-report") ||
     args.includes("--generate-technical-note") ||
     args.includes("--fetch-pncp") ||
+    args.includes("--search-pncp") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||

@@ -25,6 +25,8 @@ import {
 import {
   fetchPncpContract,
   formatFetchPncpSyntheticResult,
+  searchPncpContracts,
+  formatSearchPncpSyntheticResult,
 } from "../tools/pncp.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
@@ -56,6 +58,7 @@ Uso:
   docgov-engine --diff-report --old <base.docx|.pdf> --new <revisado.docx|.pdf> --out <nota.docx> [--format <docx|pdf|both>] [--data <evolucao.json>]
   docgov-engine --generate-technical-note --note-json <nota.json> --out <nota.docx> [--format <docx|pdf|both>]
   docgov-engine --fetch-pncp --case-dir <dir> --pncp <id_ou_url> [--shortname <nome>]
+  docgov-engine --search-pncp --case-dir <dir> --query <termos> [--status <todas|recebendo_proposta|encerradas>] [--uf <UF>] [--modalidade <termo>] [--limit <1..20>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release
@@ -232,6 +235,82 @@ Uso:
     try {
       const res = await fetchPncpContract(caseDir, pncpIdOrUrl, { shortname });
       const synthetic = formatFetchPncpSyntheticResult(res);
+      console.log(JSON.stringify(synthetic, null, 2));
+    } catch (err: any) {
+      console.error(`Erro: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // 0e) Modo --search-pncp
+  if (args.includes("--search-pncp")) {
+    const searchIdx = args.indexOf("--search-pncp");
+    const caseDirIdx = args.indexOf("--case-dir");
+    const queryIdx = args.indexOf("--query");
+    const statusIdx = args.indexOf("--status");
+    const ufIdx = args.indexOf("--uf");
+    const modalidadeIdx = args.indexOf("--modalidade");
+    const limitIdx = args.indexOf("--limit");
+
+    let caseDir: string | undefined;
+    if (
+      caseDirIdx !== -1 &&
+      args[caseDirIdx + 1] &&
+      !args[caseDirIdx + 1].startsWith("--")
+    ) {
+      caseDir = args[caseDirIdx + 1];
+    }
+
+    let query: string | undefined;
+    if (
+      queryIdx !== -1 &&
+      args[queryIdx + 1] &&
+      !args[queryIdx + 1].startsWith("--")
+    ) {
+      query = args[queryIdx + 1];
+    } else if (args[searchIdx + 1] && !args[searchIdx + 1].startsWith("--")) {
+      query = args[searchIdx + 1];
+    }
+
+    const status =
+      statusIdx !== -1 &&
+      args[statusIdx + 1] &&
+      !args[statusIdx + 1].startsWith("--")
+        ? (args[statusIdx + 1] as any)
+        : undefined;
+    const uf =
+      ufIdx !== -1 && args[ufIdx + 1] && !args[ufIdx + 1].startsWith("--")
+        ? args[ufIdx + 1]
+        : undefined;
+    const modalidade =
+      modalidadeIdx !== -1 &&
+      args[modalidadeIdx + 1] &&
+      !args[modalidadeIdx + 1].startsWith("--")
+        ? args[modalidadeIdx + 1]
+        : undefined;
+    const limit =
+      limitIdx !== -1 && args[limitIdx + 1] && !args[limitIdx + 1].startsWith("--")
+        ? Number(args[limitIdx + 1])
+        : undefined;
+
+    if (!caseDir) {
+      console.error("Erro: Informe o diretório do caso usando --case-dir <dir>.");
+      process.exit(1);
+    }
+    if (!query) {
+      console.error("Erro: Informe os termos de busca usando --query <termos>.");
+      process.exit(1);
+    }
+
+    try {
+      const res = await searchPncpContracts(caseDir, query, {
+        status,
+        uf,
+        modalidade,
+        limit,
+      });
+      const synthetic = formatSearchPncpSyntheticResult(res);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);

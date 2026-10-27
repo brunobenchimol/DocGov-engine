@@ -42,6 +42,8 @@ import {
 import {
   fetchPncpContract,
   formatFetchPncpSyntheticResult,
+  searchPncpContracts,
+  formatSearchPncpSyntheticResult,
 } from "../tools/pncp.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
@@ -315,7 +317,7 @@ export function getMcpToolsDefinition() {
       name: "fetch_pncp",
       description:
         "Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta 'inputs/pncp_<shortname>/', descompactação in-place transparente (.zip, .tar, .tar.gz) e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
-        "- Quando usar (Pré-condição): Quando o usuário fornecer ou autorizar a busca de um identificador PNCP (número de controle em edital '00394460000141-1-000015/2026', URL do portal/API ou tupla '00394460000141/2026/15') para obter insumos e modelos de referência externa sem misturá-los com as minutas sob auditoria do caso.\n" +
+        "- Quando usar (Pré-condição): Quando o usuário ou agente fornecer um identificador PNCP (número de controle em edital '00394460000141-1-000015/2026', URL do portal/API, tupla '00394460000141/2026/15' ou link de redirecionamento opaco do Google Grounding vertexaisearch.cloud.google.com/grounding-api-redirect/...) para obter insumos e modelos de referência externa sem misturá-los com as minutas sob auditoria do caso.\n" +
         "- Pós-condição & Próximo Passo: Arquivos disponíveis em 'inputs/pncp_<shortname>/', metadados salvos em 'state/pncp_<shortname>_meta.json' e catálogo de referência em 'state/indice_pncp_<shortname>.md'. Consulte o catálogo para orientar a leitura seletiva.",
       inputSchema: {
         type: "object",
@@ -329,12 +331,61 @@ export function getMcpToolsDefinition() {
           pncpIdOrUrl: {
             type: "string",
             description:
-              "Identificador oficial do PNCP: Número de controle ('00394460000141-1-000015/2026'), URL do portal/API ou tupla ('00394460000141/2026/15').",
+              "Identificador oficial do PNCP: Número de controle ('00394460000141-1-000015/2026'), URL do portal/API, tupla ('00394460000141/2026/15') ou URL de redirecionador Google Grounding.",
           },
           shortname: {
             type: "string",
             description:
               "Apelido curto e semântico opcional para a subpasta isolada em inputs/pncp_<shortname>/ (ex.: 'mgi_nuvem'). Se omitido, utiliza CNPJ_ANO_SEQUENCIAL.",
+          },
+        },
+      },
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+      },
+    },
+    {
+      name: "search_pncp",
+      description:
+        "Realiza busca textual multi-query no endpoint oficial /api/search/ do PNCP (Portal Nacional de Contratações Públicas) para localização de editais, termos de referência e contratações públicas de referência para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
+        "- Quando usar (Pré-condição): Quando o agente precisar descobrir contratações similares a partir de termos de busca, objetos ou nomes de órgãos, suportando consultas combinadas separadas por pipe '|' (ex.: 'fábrica de software | sustentação de sistemas') ou links de redirecionamento do Google Grounding (vertexaisearch.cloud.google.com/grounding-api-redirect/...). Executa as consultas em paralelo, desduplica resultados por CNPJ/ANO/SEQUENCIAL e acumula com buscas anteriores da sessão.\n" +
+        "- Pós-condição & Próximo Passo: Salva os candidatos completos em 'state/pncp_search_results.json' e a tabela consolidada com Objeto Integral em 'state/pncp_search_results.md'. Próximo passo: selecione o 'pncp_id' mais aderente e chame 'fetch_pncp' para baixar os arquivos para a subpasta isolada.",
+      inputSchema: {
+        type: "object",
+        required: ["caseDir", "query"],
+        properties: {
+          caseDir: {
+            type: "string",
+            description:
+              "Diretório do caso de trabalho (ex.: 'cases/caso_01' ou '.').",
+          },
+          query: {
+            type: "string",
+            description:
+              "Termos de busca textual (aceita termos únicos, múltiplos termos separados por '|' ex: 'fábrica software | nuvem', ou URL de redirect do Google Grounding).",
+          },
+          status: {
+            type: "string",
+            enum: ["todas", "recebendo_proposta", "encerradas"],
+            description:
+              "Filtro de situação da contratação no PNCP (padrão: 'todas').",
+          },
+          uf: {
+            type: "string",
+            description:
+              "Filtro de sigla de Unidade Federativa (ex.: 'PA', 'DF', 'SP').",
+          },
+          modalidade: {
+            type: "string",
+            description:
+              "Filtro textual de modalidade de licitação (ex.: 'Pregão', 'Concorrência', 'Dispensa').",
+          },
+          limit: {
+            type: "number",
+            description:
+              "Quantidade máxima de resultados por consulta (padrão: 10, máx: 20).",
           },
         },
       },
@@ -658,6 +709,46 @@ export async function runMcpServer() {
           shortname,
         });
         const synthetic = formatFetchPncpSyntheticResult(result);
+        return {
+          content: [
+            {
+              type: "text",
+              text: JSON.stringify(synthetic, null, 2),
+            },
+          ],
+        };
+      }
+
+      if (toolName === "search_pncp") {
+        const { caseDir, query, status, uf, modalidade, limit } = request
+          .params.arguments as {
+          caseDir: string;
+          query: string | string[];
+          status?: "todas" | "recebendo_proposta" | "encerradas";
+          uf?: string;
+          modalidade?: string;
+          limit?: number;
+        };
+
+        if (!caseDir) {
+          throw new Error(
+            "Parâmetro obrigatório 'caseDir' não fornecido para search_pncp."
+          );
+        }
+        if (!query) {
+          throw new Error(
+            "Parâmetro obrigatório 'query' não fornecido para search_pncp."
+          );
+        }
+
+        const resolvedCaseDir = resolveWorkspacePath(caseDir);
+        const result = await searchPncpContracts(resolvedCaseDir, query, {
+          status,
+          uf,
+          modalidade,
+          limit,
+        });
+        const synthetic = formatSearchPncpSyntheticResult(result);
         return {
           content: [
             {

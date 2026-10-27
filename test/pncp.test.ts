@@ -639,4 +639,99 @@ describe("Testes Unitários v1.3.4: Conector Nativo PNCP (fetch_pncp)", () => {
       /Erro nos parâmetros de busca no PNCP/
     );
   });
+
+  test("14. CLI: docgov-engine --search-pncp deve executar corretamente via runCli", async () => {
+    let capturedLog = "";
+    const origLog = console.log;
+    console.log = (msg?: any) => {
+      capturedLog += String(msg ?? "") + "\n";
+    };
+
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const u = new URL(req.url);
+        if (u.pathname === "/api/search/") {
+          return new Response(
+            JSON.stringify({
+              items: [
+                {
+                  orgao_cnpj: "00394460000141",
+                  ano: 2026,
+                  numero_sequencial: 15,
+                  orgao_nome: "ORGAO_CONTRATANTE",
+                  modalidade_licitacao_nome: "Pregão Eletrônico",
+                  title: "Aquisição de Fábrica de Software",
+                  description: "Sustentação de sistemas.",
+                  valor_global: 500000.0,
+                  uf: "DF",
+                },
+              ],
+            }),
+            { headers: { "Content-Type": "application/json" } }
+          );
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    const cliCaseDir = resolve(tempDir, "caso_cli_search_pncp");
+    const origEnv = process.env.DOCGOV_PNCP_BASE_URL;
+    process.env.DOCGOV_PNCP_BASE_URL = `http://127.0.0.1:${server.port}`;
+
+    try {
+      const { runCli } = await import("../src/cli/index.ts");
+      await runCli([
+        "--search-pncp",
+        "--case-dir",
+        cliCaseDir,
+        "--query",
+        "fábrica de software",
+        "--uf",
+        "DF",
+      ]);
+
+      const parsed = JSON.parse(capturedLog);
+      expect(parsed.status).toBe("success");
+      expect(parsed.results_count).toBe(1);
+      expect(parsed.top_candidates[0].pncp_id).toBe("00394460000141/2026/15");
+      expect(
+        existsSync(resolve(cliCaseDir, "state", "pncp_search_results.json"))
+      ).toBe(true);
+      expect(
+        existsSync(resolve(cliCaseDir, "state", "pncp_search_results.md"))
+      ).toBe(true);
+    } finally {
+      console.log = origLog;
+      if (origEnv !== undefined) {
+        process.env.DOCGOV_PNCP_BASE_URL = origEnv;
+      } else {
+        delete process.env.DOCGOV_PNCP_BASE_URL;
+      }
+      server.stop();
+    }
+  });
+
+  test("15. MCP: ferramenta search_pncp deve estar registrada nas 8 ferramentas do servidor MCP", async () => {
+    const { getMcpToolsDefinition } = await import("../src/mcp/server.ts");
+    const tools = getMcpToolsDefinition();
+
+    expect(tools.length).toBe(8);
+
+    const searchTool = tools.find((t) => t.name === "search_pncp");
+    expect(searchTool).toBeDefined();
+    expect(searchTool!.description).toContain("Quando usar");
+    expect(searchTool!.description).toContain("Próximo Passo");
+    expect(searchTool!.inputSchema.required).toEqual(["caseDir", "query"]);
+    expect(searchTool!.inputSchema.properties.caseDir).toBeDefined();
+    expect(searchTool!.inputSchema.properties.query).toBeDefined();
+    expect(searchTool!.inputSchema.properties.status).toBeDefined();
+    expect(searchTool!.inputSchema.properties.uf).toBeDefined();
+    expect(searchTool!.inputSchema.properties.modalidade).toBeDefined();
+    expect(searchTool!.inputSchema.properties.limit).toBeDefined();
+
+    expect(searchTool!.annotations?.readOnlyHint).toBe(false);
+    expect(searchTool!.annotations?.destructiveHint).toBe(false);
+    expect(searchTool!.annotations?.idempotentHint).toBe(true);
+  });
 });
