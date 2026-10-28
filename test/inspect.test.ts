@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, basename } from "node:path";
 import {
   inspectDocx,
   compactInspectionResult,
@@ -361,5 +361,149 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
     expect(md).toContain("[T0.R0.C1] 2026/001");
     expect(md).toContain("[T0.R2.C0]");
     expect(md).toContain("[vMerge]");
+  });
+
+  test("v1.3.7: deve detectar subtabelas de itens numerados, checkboxes com coordenadas físicas e alertas pós-compilação anti-contaminação de doador sem falso-positivo em contratações mistas (ENG-07b, ENG-08 & ENG-09)", async () => {
+    const JSZip = (await import("jszip")).default;
+    const { writeFileSync } = await import("node:fs");
+
+    // 1. Documento de Software Puro contaminado por termos de Hardware doador, "Item não aplicável" e checkboxes contraditórios
+    // Usamos também nome com caracteres NFD para testar ENG-09 no inspectDocx!
+    const nfdFileName = "Relato\u0301rio_Contaminac\u0327a\u0303o_Software.docx";
+    const nfcFileName = nfdFileName.normalize("NFC");
+    const nfdDocxPath = resolve(tempDir, nfdFileName);
+    const nfcLookupPath = resolve(tempDir, nfcFileName);
+
+    const zip1 = new JSZip();
+    zip1.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip1.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    zip1.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1.1 Objeto: Subscrição de licenças de software Red Hat OpenShift, treinamento oficial e suporte técnico especializado para o ORGAO_CONTRATANTE.</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Critério de sustentabilidade herdado indevidamente: Conformidade com diretiva RoHS (ausência de mercúrio, chumbo e cádmio) e Portaria nº 170 do INMETRO, além de discos NVMe e memória DDR5 oriundos da ARP 90015/2024.</w:t></w:r></w:p>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Item</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Descrição</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Qtd</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>1</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Subscrição Red Hat OpenShift Container Platform</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>10</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>2</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Treinamento Oficial Red Hat</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>2</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>3</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Item não aplicável ao escopo</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>0</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>4</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Item não aplicável</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>0</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>6.3 Há necessidade de transição contratual?</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>☒ Sim</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>☒ Não</w:t></w:r></w:p></w:tc>
+      </w:tr>
+    </w:tbl>
+  </w:body>
+</w:document>`
+    );
+
+    writeFileSync(nfdDocxPath, await zip1.generateAsync({ type: "nodebuffer" }));
+
+    // ENG-09: Chamando inspectDocx passando o caminho em NFC mesmo quando o arquivo foi gravado com string NFD
+    const res1 = await inspectDocx(nfcLookupPath);
+
+    // ENG-07b: Subtabela de itens R1..R4 detectada + Checkboxes detectados
+    expect(res1.detected_subtables).toBeDefined();
+    expect(res1.detected_subtables!.length).toBe(1);
+    expect(res1.detected_subtables![0].start_row).toBe(1);
+    expect(res1.detected_subtables![0].end_row).toBe(4);
+    expect(res1.detected_subtables![0].item_count).toBe(4);
+
+    expect(res1.detected_checkboxes).toBeDefined();
+    expect(res1.detected_checkboxes!.length).toBe(1);
+    expect(res1.detected_checkboxes![0].options.length).toBe(2);
+    expect(res1.detected_checkboxes![0].options[0].coord).toBe("T0.R5.C1");
+    expect(res1.detected_checkboxes![0].options[1].coord).toBe("T0.R5.C2");
+
+    // ENG-08: Alertas de integridade pós-compilação disparados
+    expect(res1.post_compile_alerts).toBeDefined();
+    const codes1 = res1.post_compile_alerts!.map((a) => a.code);
+    expect(codes1).toContain("UNREMOVED_ITEM_WORKAROUND");
+    expect(codes1).toContain("CONTRADICTORY_CHECKBOXES");
+    expect(codes1).toContain("HARDWARE_DONOR_CONTAMINATION");
+
+    const auditMd1 = readFileSync(res1.audit_view_path!, "utf-8");
+    expect(auditMd1).toContain(
+      "## ⚠️ ALERTAS DE INTEGRIDADE PÓS-COMPILAÇÃO (AÇÃO OBRIGATÓRIA DO AUDITOR)"
+    );
+    expect(auditMd1).toContain("### Subtabelas de Itens e Checkboxes Detectados");
+    expect(auditMd1).toContain("remove_table_rows");
+    expect(basename(res1.audit_view_path!)).toBe(
+      basename(res1.audit_view_path!).normalize("NFC")
+    );
+
+    // 2. Contratação Mista Legítima (Hardware HCI + Software) -> NÃO deve disparar falso-positivo HARDWARE_DONOR_CONTAMINATION
+    const mixedDocxPath = resolve(tempDir, "Contratacao_Mista_HCI_Hardware_Software.docx");
+    const zip2 = new JSZip();
+    zip2.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`
+    );
+    zip2.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    zip2.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>1.1 Objeto: Aquisição de appliances de infraestrutura hiperconvergente (HCI) e servidores físicos em rack com subscrição de software de virtualização e suporte técnico.</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Os equipamentos deverão possuir discos NVMe, memória DDR5, interfaces SFP+, conformidade RoHS e certificação INMETRO.</w:t></w:r></w:p>
+  </w:body>
+</w:document>`
+    );
+    writeFileSync(mixedDocxPath, await zip2.generateAsync({ type: "nodebuffer" }));
+
+    const res2 = await inspectDocx(mixedDocxPath);
+    const hwAlerts2 = (res2.post_compile_alerts || []).filter(
+      (a) => a.code === "HARDWARE_DONOR_CONTAMINATION"
+    );
+    expect(hwAlerts2.length).toBe(0);
   });
 });

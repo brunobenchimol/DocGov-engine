@@ -590,7 +590,26 @@ export async function bootstrapCase(
     }
   }
 
-  // 3. Inspeciona todos os arquivos .docx e .pdf encontrados em inputs/ (com Isolamento try/catch v1.1.1)
+  // 3. Normaliza nomes NFD -> NFC em inputs/ e inspeciona todos os arquivos .docx e .pdf (v1.1.1 / ENG-09)
+  const rawInputEntries = readdirSync(inputsDir, { withFileTypes: true }).sort(
+    (a, b) => a.name.localeCompare(b.name)
+  );
+  for (const entry of rawInputEntries) {
+    if (!entry.isFile() || entry.name.startsWith("~$")) continue;
+    const nfcName = entry.name.normalize("NFC");
+    if (entry.name !== nfcName) {
+      const oldPath = resolve(inputsDir, entry.name);
+      const newPath = resolve(inputsDir, nfcName);
+      try {
+        if (!existsSync(newPath)) {
+          renameSync(oldPath, newPath);
+        }
+      } catch {
+        // Sistemas APFS/HFS+ que tratam NFD/NFC como mesmo inode mantêm o arquivo acessível
+      }
+    }
+  }
+
   const inputEntries = readdirSync(inputsDir, { withFileTypes: true }).sort(
     (a, b) => a.name.localeCompare(b.name)
   );
@@ -601,16 +620,17 @@ export async function bootstrapCase(
 
   for (const entry of inputEntries) {
     if (!entry.isFile() || entry.name.startsWith("~$")) continue;
+    const normalizedEntryName = entry.name.normalize("NFC");
 
-    if (entry.name.toLowerCase().endsWith(".docx")) {
+    if (normalizedEntryName.toLowerCase().endsWith(".docx")) {
       try {
         const docxPath = resolve(inputsDir, entry.name);
-        const base = entry.name.replace(/\.docx$/i, "");
+        const base = normalizedEntryName.replace(/\.docx$/i, "").normalize("NFC");
         const structurePath = resolve(stateDir, `estrutura_${base}.json`);
         const full = await inspectDocx(docxPath, structurePath);
         const compact = compactInspectionResult(full);
         inspectedDocx.push({
-          fileName: entry.name,
+          fileName: normalizedEntryName,
           docxPath,
           structurePath,
           tablesCount: compact.tables.length,
@@ -624,23 +644,25 @@ export async function bootstrapCase(
           /\\/g,
           "/"
         );
-        const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+        const match = ingestedFiles.find(
+          (f) => f.saved_as.normalize("NFC") === normalizedEntryName
+        );
         if (match) {
           match.structure_json = relStructure;
         }
       } catch (err: any) {
         failedInspections.push({
-          fileName: entry.name,
+          fileName: normalizedEntryName,
           type: "docx",
           error: err?.message || "Falha desconhecida na extração de DOCX",
         });
       }
-    } else if (entry.name.toLowerCase().endsWith(".pdf")) {
+    } else if (normalizedEntryName.toLowerCase().endsWith(".pdf")) {
       try {
         const pdfPath = resolve(inputsDir, entry.name);
         const buf = readFileSync(pdfPath);
         if (isPdfBuffer(buf)) {
-          const base = entry.name.replace(/\.pdf$/i, "");
+          const base = normalizedEntryName.replace(/\.pdf$/i, "").normalize("NFC");
           const structurePath = resolve(stateDir, `estrutura_${base}.json`);
           const full = await inspectDocx(pdfPath, structurePath, true);
           const activeZonesCount = Object.values(
@@ -648,7 +670,7 @@ export async function bootstrapCase(
           ).filter((arr) => Array.isArray(arr) && arr.length > 0).length;
 
           inspectedPdf.push({
-            fileName: entry.name,
+            fileName: normalizedEntryName,
             pdfPath,
             structurePath,
             ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
@@ -669,32 +691,34 @@ export async function bootstrapCase(
             /\\/g,
             "/"
           );
-          const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+          const match = ingestedFiles.find(
+            (f) => f.saved_as.normalize("NFC") === normalizedEntryName
+          );
           if (match) {
             match.structure_json = relStructure;
           }
-        } else if (!backgroundFiles.includes(entry.name)) {
+        } else if (!backgroundFiles.includes(normalizedEntryName) && !backgroundFiles.includes(entry.name)) {
           failedInspections.push({
-            fileName: entry.name,
+            fileName: normalizedEntryName,
             type: "pdf",
             error: "Arquivo não contém assinatura válida (%PDF-)",
           });
         }
       } catch (err: any) {
         failedInspections.push({
-          fileName: entry.name,
+          fileName: normalizedEntryName,
           type: "pdf",
           error: err?.message || "Falha desconhecida na extração de PDF",
         });
       }
     } else if (
-      entry.name.toLowerCase().endsWith(".xlsx") ||
-      entry.name.toLowerCase().endsWith(".xls") ||
-      entry.name.toLowerCase().endsWith(".csv")
+      normalizedEntryName.toLowerCase().endsWith(".xlsx") ||
+      normalizedEntryName.toLowerCase().endsWith(".xls") ||
+      normalizedEntryName.toLowerCase().endsWith(".csv")
     ) {
       const sheetPath = resolve(inputsDir, entry.name);
       let isValidSheet = false;
-      if (entry.name.toLowerCase().endsWith(".csv")) {
+      if (normalizedEntryName.toLowerCase().endsWith(".csv")) {
         try {
           const content = readFileSync(sheetPath, "utf-8");
           isValidSheet = content.includes(";") || content.includes(",");
@@ -718,13 +742,13 @@ export async function bootstrapCase(
 
       if (isValidSheet) {
         try {
-          const ext = extname(entry.name);
-          const base = entry.name.slice(0, -ext.length);
+          const ext = extname(normalizedEntryName);
+          const base = normalizedEntryName.slice(0, -ext.length).normalize("NFC");
           const structurePath = resolve(stateDir, `estrutura_${base}.json`);
           const full = await inspectDocx(sheetPath, structurePath);
           const compact = compactInspectionResult(full);
           inspectedDocx.push({
-            fileName: entry.name,
+            fileName: normalizedEntryName,
             docxPath: sheetPath,
             structurePath,
             tablesCount: compact.tables.length,
@@ -737,14 +761,16 @@ export async function bootstrapCase(
             /\\/g,
             "/"
           );
-          const match = ingestedFiles.find((f) => f.saved_as === entry.name);
+          const match = ingestedFiles.find(
+            (f) => f.saved_as.normalize("NFC") === normalizedEntryName
+          );
           if (match) {
             match.structure_json = relStructure;
           }
         } catch (err: any) {
           failedInspections.push({
-            fileName: entry.name,
-            type: extname(entry.name).toLowerCase().replace(/^\./, ""),
+            fileName: normalizedEntryName,
+            type: extname(normalizedEntryName).toLowerCase().replace(/^\./, ""),
             error: err?.message || "Falha na inspeção de planilha",
           });
         }

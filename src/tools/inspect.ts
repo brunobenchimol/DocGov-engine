@@ -51,9 +51,12 @@ import {
   generateSpreadsheetHotspotsDossierMarkdown,
 } from "../parsers/spreadsheet.ts";
 import { VERSION } from "../constants/index.ts";
+import { resolveExistingPathNfc } from "../utils/paths.ts";
 import type {
   BodyParagraphInfo,
   TableInfo,
+  TableRowInfo,
+  TableCellInfo,
   DocxTocMap,
   TocParagraphItem,
   TocFormCellItem,
@@ -65,6 +68,9 @@ import type {
   InspectDocxSyntheticResult,
   PdfExtractionResult,
   DocumentCartography,
+  DetectedItemSubtable,
+  DetectedCheckboxGroup,
+  PostCompileIntegrityAlert,
 } from "../types/index.ts";
 
 // ============================================================================
@@ -219,6 +225,15 @@ export function compactInspectionResult(
       ? { impugnation_zones: full.impugnation_zones }
       : {}),
     ...(full.toc_map ? { toc_map: full.toc_map } : {}),
+    ...(full.detected_subtables && full.detected_subtables.length > 0
+      ? { detected_subtables: full.detected_subtables }
+      : {}),
+    ...(full.detected_checkboxes && full.detected_checkboxes.length > 0
+      ? { detected_checkboxes: full.detected_checkboxes }
+      : {}),
+    ...(full.post_compile_alerts && full.post_compile_alerts.length > 0
+      ? { post_compile_alerts: full.post_compile_alerts }
+      : {}),
     ...(full.structure_fingerprint
       ? { structure_fingerprint: full.structure_fingerprint }
       : {}),
@@ -237,6 +252,488 @@ export function compactInspectionResult(
         .filter((r) => r.cells.length > 0),
     })),
   };
+}
+
+// ============================================================================
+// Detector de Subtabelas de Itens, Checkboxes e Scanner Anti-Contaminação (ENG-07b / ENG-08)
+// ============================================================================
+
+export function detectTableSubtablesAndCheckboxes(tables: TableInfo[]): {
+  subtables: DetectedItemSubtable[];
+  checkboxes: DetectedCheckboxGroup[];
+} {
+  const subtables: DetectedItemSubtable[] = [];
+  const checkboxes: DetectedCheckboxGroup[] = [];
+
+  for (const tbl of tables) {
+    // 1. Detecção de Subtabelas de Itens Numerados Sequencialmente (1, 2, 3... N)
+    let currentStartRow = -1;
+    let currentEndRow = -1;
+    let currentHeaderRow: number | undefined;
+    let currentLabel = "";
+    let currentCount = 0;
+    let lastItemNumber = 0;
+
+    const flushSubtable = () => {
+      if (currentCount >= 2 && currentStartRow >= 0 && currentEndRow >= currentStartRow) {
+        subtables.push({
+          table_index: tbl.index,
+          label: currentLabel || `Subtabela de Itens (T${tbl.index})`,
+          ...(currentHeaderRow !== undefined ? { header_row: currentHeaderRow } : {}),
+          start_row: currentStartRow,
+          end_row: currentEndRow,
+          item_count: currentCount,
+          sample_coords: [
+            `T${tbl.index}.R${currentStartRow}`,
+            `T${tbl.index}.R${currentEndRow}`,
+          ],
+        });
+      }
+      currentStartRow = -1;
+      currentEndRow = -1;
+      currentHeaderRow = undefined;
+      currentLabel = "";
+      currentCount = 0;
+      lastItemNumber = 0;
+    };
+
+    for (let rIdx = 0; rIdx < tbl.rows.length; rIdx++) {
+      const row = tbl.rows[rIdx];
+      const physicalCells = row.cells.filter((c) => !c.isSpanPlaceholder);
+      if (physicalCells.length < 2) {
+        flushSubtable();
+        continue;
+      }
+
+      // Verifica se alguma das primeiras 2 células ativas (ou a célula logo após um vMerge lateral) é um índice numérico de item
+      let detectedItemNum: number | null = null;
+      let labelCandidate = "";
+
+      for (let cIdx = 0; cIdx < Math.min(physicalCells.length, 3); cIdx++) {
+        const cell = physicalCells[cIdx];
+        const txt = cell.text.trim().replace(/\r?\n/g, " ");
+        if (cIdx === 0 && (cell.rowSpan === "restart" || cell.rowSpan === "continue") && txt && !/^(?:item\s*)?0*\d{1,3}[\.\)]?$/i.test(txt)) {
+          labelCandidate = txt;
+          continue;
+        }
+        const m = txt.match(/^(?:item\s*)?0*(\d{1,3})[\.\)]?$/i);
+        if (m) {
+          const num = parseInt(m[1], 10);
+          if (num >= 1 && num <= 500) {
+            detectedItemNum = num;
+            break;
+          }
+        }
+      }
+
+      if (detectedItemNum !== null) {
+        if (currentCount === 0) {
+          // Início de nova sequência (preferencialmente começando em 1)
+          if (detectedItemNum === 1 || (rIdx > 0 && /item|descri[çc][ãa]o|especifica[çc][ãa]o|unid|qtd|quant/i.test(tbl.rows[rIdx - 1].cells.map((c) => c.text).join(" ")))) {
+            currentStartRow = row.rowIndex;
+            currentEndRow = row.rowIndex;
+            currentCount = 1;
+            lastItemNumber = detectedItemNum;
+            if (rIdx > 0) {
+              const prevRowText = tbl.rows[rIdx - 1].cells
+                .filter((c) => !c.isSpanPlaceholder)
+                .map((c) => c.text.trim())
+                .join(" ");
+              if (/item|descri[çc][ãa]o|especifica[çc][ãa]o|unid|qtd|quant|catmat|catser|sku/i.test(prevRowText)) {
+                currentHeaderRow = tbl.rows[rIdx - 1].rowIndex;
+              }
+            }
+            if (labelCandidate) {
+              currentLabel = labelCandidate;
+            } else if (currentHeaderRow !== undefined) {
+              const hdrCells = tbl.rows[rIdx - 1].cells.filter((c) => !c.isSpanPlaceholder);
+              if (hdrCells[0] && (hdrCells[0].rowSpan === "restart" || hdrCells[0].rowSpan === "continue") && hdrCells[0].text.trim()) {
+                currentLabel = hdrCells[0].text.trim().replace(/\r?\n/g, " ");
+              }
+            }
+          }
+        } else if (detectedItemNum === lastItemNumber + 1) {
+          currentEndRow = row.rowIndex;
+          currentCount++;
+          lastItemNumber = detectedItemNum;
+          if (!currentLabel && labelCandidate) {
+            currentLabel = labelCandidate;
+          }
+        } else if (detectedItemNum === 1) {
+          flushSubtable();
+          currentStartRow = row.rowIndex;
+          currentEndRow = row.rowIndex;
+          currentCount = 1;
+          lastItemNumber = 1;
+          if (labelCandidate) currentLabel = labelCandidate;
+        } else {
+          flushSubtable();
+        }
+      } else {
+        // Verifica se é uma linha de item residual onde o usuário/agente escreveu "Item não aplicável" mantendo a mesma estrutura de colunas da subtabela ativa
+        const rowTextJoined = physicalCells.map((c) => c.text.trim()).join(" ");
+        if (
+          currentCount >= 1 &&
+          /item\s+n[ãa]o\s+aplic[áa]vel|n[ãa]o\s+aplic[áa]vel\s+ao\s+escopo/i.test(rowTextJoined)
+        ) {
+          currentEndRow = row.rowIndex;
+          currentCount++;
+          lastItemNumber++;
+        } else {
+          flushSubtable();
+        }
+      }
+    }
+    flushSubtable();
+
+    // 2. Detecção de Checkboxes (☒ / ☐ / [X] / [ ]) com Coordenadas Físicas
+    const checkboxTokenRegex =
+      /(?:([☒☑✓✔])|([☐◻□])|\[\s*([xX✓✔])\s*\]|\[\s*()\s*\]|\(\s*([xX✓✔])\s*\)|\(\s*()\s*\))\s*(Sim|N[ãa]o|[A-Za-zÀ-ÿ0-9][^☒☐☑\[\(\r\n]{0,40})/gi;
+
+    type RawCheckboxCellHit = {
+      rowIndex: number;
+      physicalCellIndex: number;
+      coord: string;
+      promptCandidate: string;
+      options: Array<{
+        label: string;
+        coord: string;
+        checked: boolean;
+        raw_text: string;
+      }>;
+    };
+
+    const hits: RawCheckboxCellHit[] = [];
+
+    for (let rIdx = 0; rIdx < tbl.rows.length; rIdx++) {
+      const row = tbl.rows[rIdx];
+      const physicalCells = row.cells.filter((c) => !c.isSpanPlaceholder);
+      let rowPromptCandidate = "";
+
+      for (const c of physicalCells) {
+        const t = c.text.trim().replace(/\r?\n/g, " ");
+        if (
+          t &&
+          !/[☒☑☐◻□]|\[\s*[xX ]?\s*\]/.test(t) &&
+          t.length >= 4 &&
+          !rowPromptCandidate
+        ) {
+          rowPromptCandidate = t;
+        }
+      }
+
+      for (const cell of physicalCells) {
+        if (cell.rowSpan === "continue") continue;
+        const rawText = cell.text.trim();
+        if (!rawText) continue;
+
+        const physIdx = cell.physicalCellIndex ?? cell.cellIndex;
+        const coord = `T${tbl.index}.R${row.rowIndex}.C${physIdx}`;
+        const cellOptions: RawCheckboxCellHit["options"] = [];
+
+        let match: RegExpExecArray | null;
+        checkboxTokenRegex.lastIndex = 0;
+        while ((match = checkboxTokenRegex.exec(rawText)) !== null) {
+          const isChecked = Boolean(match[1] || match[3] || match[5]);
+          const labelRaw = (match[7] || "").trim().replace(/[.;,:]+$/, "");
+          if (!labelRaw) continue;
+          cellOptions.push({
+            label: labelRaw,
+            coord,
+            checked: isChecked,
+            raw_text: match[0].trim(),
+          });
+        }
+
+        if (cellOptions.length > 0) {
+          hits.push({
+            rowIndex: row.rowIndex,
+            physicalCellIndex: physIdx,
+            coord,
+            promptCandidate:
+              rowPromptCandidate || `T${tbl.index}.R${row.rowIndex}`,
+            options: cellOptions,
+          });
+        }
+      }
+    }
+
+    // Agrupa hits que pertençam à mesma pergunta (mesma linha ou linhas adjacentes Sim/Não)
+    let hIdx = 0;
+    while (hIdx < hits.length) {
+      const curr = hits[hIdx];
+      const combinedOptions = [...curr.options];
+      let prompt = curr.promptCandidate;
+
+      // Se este hit tem apenas 1 opção (ex.: "Sim") e o próximo hit está na mesma linha ou na linha imediatamente seguinte com "Não"
+      while (hIdx + 1 < hits.length) {
+        const next = hits[hIdx + 1];
+        const sameRow = next.rowIndex === curr.rowIndex;
+        const adjRow =
+          next.rowIndex === curr.rowIndex + 1 &&
+          curr.options.length === 1 &&
+          next.options.length === 1 &&
+          /^(?:sim|n[ãa]o)$/i.test(curr.options[0].label) &&
+          /^(?:sim|n[ãa]o)$/i.test(next.options[0].label);
+
+        if (sameRow || adjRow) {
+          combinedOptions.push(...next.options);
+          if (
+            (!prompt || prompt.startsWith(`T${tbl.index}.R`)) &&
+            next.promptCandidate &&
+            !next.promptCandidate.startsWith(`T${tbl.index}.R`)
+          ) {
+            prompt = next.promptCandidate;
+          }
+          hIdx++;
+        } else {
+          break;
+        }
+      }
+
+      checkboxes.push({
+        table_index: tbl.index,
+        prompt: prompt.length > 120 ? `${prompt.slice(0, 117)}...` : prompt,
+        options: combinedOptions,
+      });
+      hIdx++;
+    }
+  }
+
+  return { subtables, checkboxes };
+}
+
+export function scanPostCompileIntegrityAlerts(
+  inspection: DocxInspectionResult
+): PostCompileIntegrityAlert[] {
+  const alerts: PostCompileIntegrityAlert[] = [];
+
+  // 1. Detecção de "Item não aplicável" / workarounds de linhas excedentes não removidas (ENG-07 / ENG-08)
+  const workaroundRegex =
+    /\b(?:item\s+n[ãa]o\s+aplic[áa]vel|n[ãa]o\s+aplic[áa]vel\s+ao\s+escopo|item\s+suprimido|linha\s+n[ãa]o\s+utilizada)\b/i;
+
+  for (const tbl of inspection.tables || []) {
+    const affectedRows: number[] = [];
+    const affectedCoords: string[] = [];
+    for (const r of tbl.rows) {
+      const physicalCells = r.cells.filter((c) => !c.isSpanPlaceholder);
+      for (const c of physicalCells) {
+        if (c.rowSpan === "continue") continue;
+        if (workaroundRegex.test(c.text)) {
+          affectedRows.push(r.rowIndex);
+          affectedCoords.push(
+            `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`
+          );
+          break;
+        }
+      }
+    }
+    if (affectedRows.length > 0) {
+      const minRow = Math.min(...affectedRows);
+      const maxRow = Math.max(...affectedRows);
+      alerts.push({
+        code: "UNREMOVED_ITEM_WORKAROUND",
+        severity: "CRITICAL",
+        coords: affectedCoords.slice(0, 8),
+        message: `Detectadas ${affectedRows.length} linha(s) de tabela preenchidas com workaround textual ("Item não aplicável") em T${tbl.index}.R${minRow}..R${maxRow} em vez de exclusão física da linha.`,
+        remediation_hint: `Adicione "remove_table_rows": [{ "table_index": ${tbl.index}, "from_row": ${minRow}, "to_row": ${maxRow} }] no slots_manifest.json e regere o template com build_docx_template.`,
+      });
+    }
+  }
+
+  // 2. Detecção de tabelas Markdown residuais não convertidas (| :--- |)
+  const rawMdCoords: string[] = [];
+  const rawMdSeparatorRegex = /\|\s*:?-{3,}:?\s*\|/;
+  for (const p of inspection.paragraphs || []) {
+    if (rawMdSeparatorRegex.test(p.text)) {
+      rawMdCoords.push(`P${p.index}`);
+    }
+  }
+  for (const tbl of inspection.tables || []) {
+    for (const r of tbl.rows) {
+      for (const c of r.cells.filter((cell) => !cell.isSpanPlaceholder)) {
+        if (c.rowSpan === "continue") continue;
+        if (rawMdSeparatorRegex.test(c.text)) {
+          rawMdCoords.push(
+            `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`
+          );
+        }
+      }
+    }
+  }
+  if (rawMdCoords.length > 0) {
+    alerts.push({
+      code: "RAW_MARKDOWN_TABLE",
+      severity: "CRITICAL",
+      coords: rawMdCoords.slice(0, 8),
+      message: `Detectada sintaxe de tabela Markdown crua ('| :--- |') não convertida em OpenXML <w:tbl> nas coordenadas: ${rawMdCoords.slice(0, 5).join(", ")}.`,
+      remediation_hint: `Garanta que a tabela Markdown possua linha de cabeçalho e linha separadora '| :--- | :--- |' contíguas e reprocesse via fill_docx_template.`,
+    });
+  }
+
+  // 3. Detecção de Checkboxes Contraditórios (☒ Sim e ☒ Não marcados juntos, ou ambos ☐ em documento compilado)
+  const allDocText = [
+    ...(inspection.paragraphs || []).map((p) => p.text),
+    ...(inspection.tables || []).flatMap((t) =>
+      t.rows.flatMap((r) =>
+        r.cells.filter((c) => !c.isSpanPlaceholder).map((c) => c.text)
+      )
+    ),
+  ].join("\n");
+  const hasUncompiledTags = /\{\{[A-Z0-9_]+\}\}/.test(allDocText);
+
+  const checkboxes =
+    inspection.detected_checkboxes ??
+    detectTableSubtablesAndCheckboxes(inspection.tables || []).checkboxes;
+
+  for (const group of checkboxes) {
+    const simOpt = group.options.find((o) => /^sim$/i.test(o.label));
+    const naoOpt = group.options.find((o) => /^n[ãa]o$/i.test(o.label));
+    if (simOpt && naoOpt) {
+      if (simOpt.checked && naoOpt.checked) {
+        alerts.push({
+          code: "CONTRADICTORY_CHECKBOXES",
+          severity: "CRITICAL",
+          coords: Array.from(new Set([simOpt.coord, naoOpt.coord])),
+          message: `Checkboxes contraditórios marcados simultaneamente (☒ Sim e ☒ Não) para '${group.prompt}' (${simOpt.coord} e ${naoOpt.coord}).`,
+          remediation_hint: `Mapeie ambas as coordenadas físicas (${simOpt.coord} e ${naoOpt.coord}) no slots_manifest.json e desmarque a opção incorreta com '☐'.`,
+        });
+      } else if (!simOpt.checked && !naoOpt.checked && !hasUncompiledTags) {
+        alerts.push({
+          code: "CONTRADICTORY_CHECKBOXES",
+          severity: "HIGH",
+          coords: Array.from(new Set([simOpt.coord, naoOpt.coord])),
+          message: `Grupo de checkboxes (☐ Sim / ☐ Não) sem nenhuma opção assinalada para '${group.prompt}' (${simOpt.coord} e ${naoOpt.coord}).`,
+          remediation_hint: `Assinale '☒ Sim' ou '☒ Não' na coordenada física correspondente (${simOpt.coord} ou ${naoOpt.coord}).`,
+        });
+      }
+    }
+  }
+
+  // 4. Detecção de Contaminação Semântica de Doador de Hardware (ENG-08 com Refinamento de 2 Pontas)
+  // Coleta o texto do Objeto principal (parágrafos de Objeto ou linhas iniciais T0.R0..R12 da tabela resumo)
+  const objectSegments: string[] = [];
+  for (let i = 0; i < (inspection.paragraphs || []).length; i++) {
+    const p = inspection.paragraphs[i];
+    if (/objeto|descri[çc][ãa]o\s+da\s+solu[çc][ãa]o|especifica[çc][ãa]o\s+do\s+objeto/i.test(p.text)) {
+      objectSegments.push(p.text);
+      if (i + 1 < inspection.paragraphs.length) {
+        objectSegments.push(inspection.paragraphs[i + 1].text);
+      }
+    }
+  }
+  if ((inspection.tables || []).length > 0) {
+    const t0 = inspection.tables[0];
+    for (const r of t0.rows.slice(0, 12)) {
+      const rowTxt = r.cells
+        .filter((c) => !c.isSpanPlaceholder && c.rowSpan !== "continue")
+        .map((c) => c.text.trim())
+        .join(" ");
+      if (
+        /1\.1\b|objeto|natureza|descri[çc][ãa]o|subscri[çc][ãa]o|licenciamento|software|equipamento|appliance|servidor/i.test(
+          rowTxt
+        )
+      ) {
+        objectSegments.push(rowTxt);
+      }
+    }
+  }
+
+  const objectCorpus =
+    objectSegments.length > 0
+      ? objectSegments.join(" ")
+      : (inspection.paragraphs || [])
+          .slice(0, 10)
+          .map((p) => p.text)
+          .join(" ");
+
+  const hasSoftwareServiceObject =
+    /\b(?:subscri[çc][ãa]o|subscri[çc][õo]es|licen[çc]a|licenciamento|software|saas|paas|red\s*hat|openshift|ansible|rhel|treinamento|capacita[çc][ãa]o|suporte\s+t[ée]cnico|consultoria|ust|uns)\b/i.test(
+      objectCorpus
+    );
+  const hasHardwareInObject =
+    /\b(?:servidor(?:es)?\s+f[ií]sico|appliance(?:s)?|equipamento(?:s)?\s+de\s+inform[áa]tica|switch(?:es)?|storage\s+f[ií]sico|rack|chassi|blade|hci|hiperconverg[êe]n|nutanix|exagrid|fonte\s+redundante|gabinete)\b/i.test(
+      objectCorpus
+    );
+
+  const isPureSoftwareServiceObject =
+    hasSoftwareServiceObject && !hasHardwareInObject;
+
+  const hardwareDonorTermsRegex =
+    /\b(?:RoHS|merc[úu]rio|chumbo|c[áa]dmio|Portaria\s+n[º°]?\s*170|INMETRO|ANATEL|NVMe|DDR4|DDR5|SFP\+|escassez\s+global\s+de\s+chips|Next\s+Business\s+Day|Nvidia\s+RTX)\b/i;
+
+  const isRedHatDoc = /\b(?:Red\s*Hat|OpenShift|RHEL|Ansible)\b/i.test(allDocText);
+  const specificDonorLeakRegex = isRedHatDoc
+    ? /(?:ARP\s*(?:N[º°]?\s*)?90015\/2024|R\$\s*68\.776\.988,00|\bPAN-OS\b|\bCollector\b)/i
+    : /(?:ARP\s*(?:N[º°]?\s*)?90015\/2024|R\$\s*68\.776\.988,00)/i;
+
+  const contaminatedCoords: string[] = [];
+  const matchedTerms = new Set<string>();
+
+  const inspectSegmentForContamination = (coord: string, text: string) => {
+    if (!text) return;
+    if (isPureSoftwareServiceObject) {
+      const mHw = text.match(hardwareDonorTermsRegex);
+      if (mHw) {
+        contaminatedCoords.push(coord);
+        matchedTerms.add(mHw[0]);
+      }
+    }
+    const mLeak = text.match(specificDonorLeakRegex);
+    if (mLeak) {
+      if (!contaminatedCoords.includes(coord)) contaminatedCoords.push(coord);
+      matchedTerms.add(mLeak[0]);
+    }
+  };
+
+  for (const p of inspection.paragraphs || []) {
+    inspectSegmentForContamination(`P${p.index}`, p.text);
+  }
+  for (const tbl of inspection.tables || []) {
+    for (const r of tbl.rows) {
+      for (const c of r.cells.filter((cell) => !cell.isSpanPlaceholder)) {
+        if (c.rowSpan === "continue") continue;
+        inspectSegmentForContamination(
+          `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`,
+          c.text
+        );
+      }
+    }
+  }
+
+  // Ponta (b) adicional: contradição interna direta ("possui equipamentos/bens de informática (hardware)" vs "natureza estritamente intangível")
+  const hasHardwareAffirmation =
+    /possui\s+(?:equipamentos|bens\s+de\s+inform[áa]tica)\s*\(?hardware\)?|aquisi[çc][ãa]o\s+de\s+equipamentos\s*\(?hardware\)?/i.test(
+      allDocText
+    );
+  const hasStrictIntangibleAffirmation =
+    /natureza\s+estritamente\s+intang[ií]vel|exclusivamente\s+de\s+software\s+e\s+servi[çc]os\s+intang[ií]veis/i.test(
+      allDocText
+    );
+
+  if (hasHardwareAffirmation && hasStrictIntangibleAffirmation) {
+    matchedTerms.add(
+      "Contradição interna: afirmação de 'hardware/equipamentos' coexistindo com 'natureza estritamente intangível'"
+    );
+  }
+
+  if (contaminatedCoords.length > 0 || (hasHardwareAffirmation && hasStrictIntangibleAffirmation)) {
+    alerts.push({
+      code: "HARDWARE_DONOR_CONTAMINATION",
+      severity: "CRITICAL",
+      coords: contaminatedCoords.slice(0, 10),
+      message: `Detectado vazamento de vocabulário de minuta doadora de Hardware/Ata externa em contratação de Software/Serviços (${Array.from(
+        matchedTerms
+      )
+        .slice(0, 6)
+        .join(", ")}) nas coordenadas: ${
+        contaminatedCoords.slice(0, 6).join(", ") || "corpo do documento"
+      }.`,
+      remediation_hint: `Mapeie todas as células/parágrafos residuais listados acima no slots_manifest.json e substitua o texto herdado do modelo doador pelo conteúdo aderente ao objeto da contratação.`,
+    });
+  }
+
+  return alerts;
 }
 
 export function generatePdfLinearAuditViewMarkdown(
@@ -314,11 +811,40 @@ export function generateLinearAuditViewMarkdown(
   inspection: DocxInspectionResult
 ): string {
   const lines: string[] = [];
-  lines.push(`# Visão Linear de Auditoria: ${docName}`);
+  lines.push(`# Visão Linear de Auditoria: ${docName.normalize("NFC")}`);
   lines.push(
     `> Espelho estrutural gerado por docgov-docx v${VERSION} para leitura integral em turno único.`
   );
   lines.push("");
+
+  // Alertas de Integridade Pós-Compilação e Anti-Contaminação de Doador (ENG-08)
+  const postCompileAlerts =
+    inspection.post_compile_alerts ??
+    scanPostCompileIntegrityAlerts(inspection);
+
+  if (postCompileAlerts.length > 0) {
+    lines.push(
+      "## ⚠️ ALERTAS DE INTEGRIDADE PÓS-COMPILAÇÃO (AÇÃO OBRIGATÓRIA DO AUDITOR)"
+    );
+    lines.push(
+      "> O scanner determinístico de integridade detectou anomalias estruturais ou contaminação de vocabulário de minuta doadora que exigem correção imediata:"
+    );
+    lines.push("");
+    for (const alert of postCompileAlerts) {
+      lines.push(
+        `- **[${alert.severity} | \`${alert.code}\`]** ${alert.message}`
+      );
+      if (alert.coords.length > 0) {
+        lines.push(
+          `  - **Coordenadas Afetadas:** ${alert.coords
+            .map((c) => `\`${c}\``)
+            .join(", ")}`
+        );
+      }
+      lines.push(`  - **Ação Corretiva:** ${alert.remediation_hint}`);
+    }
+    lines.push("");
+  }
 
   // Bloco 1: Mapa Cartográfico Estrutural + Radar das 14 Zonas de Impugnação
   const cartography: DocumentCartography =
@@ -374,6 +900,40 @@ export function generateLinearAuditViewMarkdown(
         ? ` -> Coordenada alvo física: \`${ff.suggested_target_slot}\``
         : "";
       lines.push(`- [\`${ff.coord}\`] ${ff.title}${target}`);
+    }
+    lines.push("");
+  }
+
+  // Subtabelas de Itens e Checkboxes Detectados (ENG-07b)
+  const detectedSubtables =
+    inspection.detected_subtables ??
+    detectTableSubtablesAndCheckboxes(inspection.tables || []).subtables;
+  const detectedCheckboxes =
+    inspection.detected_checkboxes ??
+    detectTableSubtablesAndCheckboxes(inspection.tables || []).checkboxes;
+
+  if (detectedSubtables.length > 0 || detectedCheckboxes.length > 0) {
+    lines.push("### Subtabelas de Itens e Checkboxes Detectados");
+    for (const sub of detectedSubtables) {
+      const hdrStr =
+        sub.header_row !== undefined ? ` (Cabeçalho: R${sub.header_row})` : "";
+      lines.push(
+        `- **[Subtabela \`T${sub.table_index}\` | \`R${sub.start_row}..R${sub.end_row}\`]** ${sub.label}${hdrStr} — **${sub.item_count} itens numerados**.`
+      );
+      lines.push(
+        `  - 💡 *Poda de Linhas Excedentes:* Se a contratação possuir menos de ${sub.item_count} itens, **NUNCA** preencha as linhas restantes com "Item não aplicável". Remova as linhas excedentes no \`slots_manifest.json\` usando: \`"remove_table_rows": [{ "table_index": ${sub.table_index}, "from_row": <primeira_linha_excedente>, "to_row": ${sub.end_row} }]\`.`
+      );
+    }
+    for (const cb of detectedCheckboxes) {
+      const optsSummary = cb.options
+        .map(
+          (o) =>
+            `${o.checked ? "☒" : "☐"} ${o.label} (\`${o.coord}\`)`
+        )
+        .join(" | ");
+      lines.push(
+        `- **[Checkboxes \`T${cb.table_index}\`]** ${cb.prompt} -> ${optsSummary}`
+      );
     }
     lines.push("");
   }
@@ -595,7 +1155,7 @@ export async function inspectDocx(
     skipAuditArtifacts?: boolean;
   } = {}
 ): Promise<DocxInspectionResult> {
-  const resolvedDocx = resolve(docxPath);
+  const resolvedDocx = resolveExistingPathNfc(resolve(docxPath));
   if (!existsSync(resolvedDocx)) {
     throw new Error(`Arquivo não encontrado: ${resolvedDocx}`);
   }
@@ -1237,18 +1797,31 @@ export async function inspectDocx(
     }
   }
 
+  const detectedTabular = detectTableSubtablesAndCheckboxes(tables);
+
   const rawResult: DocxInspectionResult = {
     doc_type: "docx",
     outline_headings: docxCartography.outline_headings,
     page_signals: docxCartography.page_signals,
     impugnation_zones: docxCartography.impugnation_zones,
     toc_map,
+    ...(detectedTabular.subtables.length > 0
+      ? { detected_subtables: detectedTabular.subtables }
+      : {}),
+    ...(detectedTabular.checkboxes.length > 0
+      ? { detected_checkboxes: detectedTabular.checkboxes }
+      : {}),
     headers,
     footers,
     paragraphs,
     tables,
     ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
   };
+
+  const postCompileAlerts = scanPostCompileIntegrityAlerts(rawResult);
+  if (postCompileAlerts.length > 0) {
+    rawResult.post_compile_alerts = postCompileAlerts;
+  }
 
   // Cálculo da Impressão Digital Estrutural (v0.6.0)
   const structure_fingerprint = computeStructureFingerprint(rawResult);
@@ -1344,19 +1917,18 @@ export async function inspectDocx(
     if (outputPath) {
       const resolvedOut = resolve(outputPath);
       const outDir = dirname(resolvedOut);
-      const outBase = basename(resolvedOut, ".json").replace(
-        /^(?:estrutura_|inspecao_)/,
-        ""
-      );
+      const outBase = basename(resolvedOut, ".json")
+        .replace(/^(?:estrutura_|inspecao_)/, "")
+        .normalize("NFC");
       auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
     } else {
       const docDir = dirname(resolvedDocx);
-      const docBase = basename(resolvedDocx, ".docx");
+      const docBase = basename(resolvedDocx, ".docx").normalize("NFC");
       auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
     }
 
     let auditMd = generateLinearAuditViewMarkdown(
-      basename(resolvedDocx),
+      basename(resolvedDocx).normalize("NFC"),
       rawResult
     );
     if (budgetAudit.has_budget_table) {
@@ -1385,7 +1957,11 @@ export async function inspectDocx(
     if (!existsSync(outDir)) {
       mkdirSync(outDir, { recursive: true });
     }
-    writeFileSync(resolvedOut, JSON.stringify(finalResult, null, 2), "utf-8");
+    const nfcOutPath = resolve(
+      outDir,
+      basename(resolvedOut).normalize("NFC")
+    );
+    writeFileSync(nfcOutPath, JSON.stringify(finalResult, null, 2), "utf-8");
   }
 
   return finalResult;

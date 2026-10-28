@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll } from "bun:test";
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
-import { resolve } from "node:path";
+import { resolve, basename } from "node:path";
 import {
   bootstrapCase,
   formatBootstrapCaseSyntheticResult,
@@ -309,5 +309,37 @@ describe("Testes Unitários: bootstrap_case (Estrutura, Magic Bytes, Salvaguarda
     expect(byteLength).toBeLessThan(1024);
     expect(synthetic.inspection_errors_count).toBe(2);
     expect(synthetic.next_step_hint).toContain("2 ressalva(s)");
+  });
+
+  test("deve normalizar nomes de arquivos com acentuação decomposta (NFD -> NFC) na extração de pacotes ZIP e nos artefatos em state/ (ENG-09)", async () => {
+    const caseDir = resolve(tempDir, "caso_nfc_normalizacao");
+    const uploadsDir = resolve(tempDir, "uploads_nfc");
+    mkdirSync(uploadsDir, { recursive: true });
+
+    const sampleDocxPath = resolve(tempDir, "sample_for_nfc_zip.docx");
+    await createSampleRawDocx(sampleDocxPath);
+    const docxBuf = readFileSync(sampleDocxPath);
+
+    const JSZip = (await import("jszip")).default;
+    const outerZip = new JSZip();
+    // Nome em NFD: "ContrATAÇÃO_Técnica.docx"
+    const nfdEntryName = "Contratac\u0327a\u0303o_Te\u0301cnica.docx";
+    outerZip.file(nfdEntryName, docxBuf);
+    writeFileSync(
+      resolve(uploadsDir, "pacote_nfd.zip"),
+      await outerZip.generateAsync({ type: "nodebuffer" })
+    );
+
+    const res = await bootstrapCase(caseDir, uploadsDir);
+    expect(res.status).toBe("success");
+    expect(res.inspectedDocx.length).toBe(1);
+
+    const savedFileName = res.inspectedDocx[0].fileName;
+    expect(savedFileName).toBe(savedFileName.normalize("NFC"));
+    expect(savedFileName).toBe("Contratação_Técnica.docx");
+
+    const structureBase = basename(res.inspectedDocx[0].structurePath);
+    expect(structureBase).toBe(structureBase.normalize("NFC"));
+    expect(structureBase).toBe("estrutura_Contratação_Técnica.json");
   });
 });

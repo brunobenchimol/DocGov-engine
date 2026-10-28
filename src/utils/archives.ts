@@ -566,7 +566,7 @@ export function sanitizeArchiveEntryName(rawPath: string): string {
 
   // Achatamento de subpastas: "anexos/edital/termo.docx" -> "anexos_edital_termo.docx"
   const flattened = parts.join("_").replace(/[<>:"|?*\x00-\x1F]/g, "_");
-  return flattened;
+  return flattened.normalize("NFC");
 }
 
 // ----------------------------------------------------------------------------

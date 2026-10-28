@@ -1,5 +1,5 @@
-import { existsSync } from "node:fs";
-import { resolve, dirname, normalize, isAbsolute, join } from "node:path";
+import { existsSync, readdirSync } from "node:fs";
+import { resolve, dirname, basename, normalize, isAbsolute, join } from "node:path";
 
 let cachedWorkspaceRoot: string | null = null;
 
@@ -139,19 +139,43 @@ export function resetWorkspaceRootCache(): void {
 }
 
 /**
+ * Resolve resiliência entre Unicode NFC (Windows/Linux) e NFD (macOS APFS/HFS+).
+ * Se o caminho exato não existir no disco, procura no diretório pai um arquivo
+ * cujo nome normalizado em NFC seja idêntico ao alvo normalizado em NFC.
+ */
+export function resolveExistingPathNfc(candidatePath: string): string {
+  if (!candidatePath) return candidatePath;
+  if (existsSync(candidatePath)) return candidatePath;
+  try {
+    const dir = dirname(candidatePath);
+    if (!existsSync(dir)) return candidatePath;
+    const targetNfc = basename(candidatePath).normalize("NFC");
+    const entries = readdirSync(dir);
+    for (const entry of entries) {
+      if (entry.normalize("NFC") === targetNfc) {
+        return join(dir, entry);
+      }
+    }
+  } catch {
+    // Fallback seguro para o caminho original
+  }
+  return candidatePath;
+}
+
+/**
  * Resolve qualquer caminho fornecido pelo agente ou cliente MCP:
- * - Se for absoluto, normaliza e retorna diretamente;
+ * - Se for absoluto, normaliza e retorna diretamente (com fallback NFC/NFD);
  * - Se for relativo, resolve contra a raiz do workspace detectada
  *   (e nunca contra pastas de instalação da IDE como AppData\Local\Programs\antigravity).
  */
 export function resolveWorkspacePath(inputPath: string, customRoot?: string): string {
   if (!inputPath) return inputPath;
   if (isPathAbsolute(inputPath)) {
-    return normalize(inputPath);
+    return resolveExistingPathNfc(normalize(inputPath));
   }
 
   if (customRoot) {
-    return resolve(customRoot, inputPath);
+    return resolveExistingPathNfc(resolve(customRoot, inputPath));
   }
 
   const cwdIsIdeDir = /antigravity|programs|appdata|node_modules|\.cache/i.test(process.cwd());
@@ -167,9 +191,9 @@ export function resolveWorkspacePath(inputPath: string, customRoot?: string): st
   // 2. Se for relativo sem prefixo 'cases/' e o CWD não for a IDE (ex.: './uploads', 'inputs/doc.docx')
   const hasCasesPrefix = /^cases([\\/]|$)/i.test(cleanRelative);
   if (!hasCasesPrefix && !cwdIsIdeDir) {
-    return resolve(process.cwd(), inputPath);
+    return resolveExistingPathNfc(resolve(process.cwd(), inputPath));
   }
 
   const root = findWorkspaceRoot();
-  return resolve(root, inputPath);
+  return resolveExistingPathNfc(resolve(root, inputPath));
 }

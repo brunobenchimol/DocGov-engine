@@ -46,7 +46,7 @@ export function isOpaqueFileName(fileName: string): boolean {
 }
 
 export function sanitizeFileName(name: string): string {
-  return name.replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
+  return name.normalize("NFC").replace(/[<>:"/\\|?*\x00-\x1F]/g, "_").trim();
 }
 
 export function extractHash4(
@@ -213,7 +213,8 @@ export async function resolveTargetFileName(
   fileBuffer: Buffer,
   fileRenameMap?: Record<string, string>
 ): Promise<{ targetFileName: string; detectedType: string; isOpaque: boolean }> {
-  let currentExt = extname(originalFileName).toLowerCase();
+  const normalizedOriginal = originalFileName.normalize("NFC");
+  let currentExt = extname(normalizedOriginal).toLowerCase();
   const magicExt = detectFileExtensionFromBuffer(fileBuffer);
 
   if (!currentExt && magicExt) {
@@ -222,19 +223,36 @@ export async function resolveTargetFileName(
 
   // 1. Prioridade 1: fileRenameMap
   if (fileRenameMap) {
-    let mapped = fileRenameMap[originalFileName];
-    if (!mapped && originalFileName.includes(".")) {
-      const stem = originalFileName.substring(
+    let mapped = fileRenameMap[originalFileName] ?? fileRenameMap[normalizedOriginal];
+    if (!mapped) {
+      for (const [k, v] of Object.entries(fileRenameMap)) {
+        if (k.normalize("NFC") === normalizedOriginal) {
+          mapped = v;
+          break;
+        }
+      }
+    }
+    if (!mapped && normalizedOriginal.includes(".")) {
+      const stem = normalizedOriginal.substring(
         0,
-        originalFileName.lastIndexOf(".")
+        normalizedOriginal.lastIndexOf(".")
       );
       mapped = fileRenameMap[stem];
+      if (!mapped) {
+        for (const [k, v] of Object.entries(fileRenameMap)) {
+          if (k.normalize("NFC") === stem) {
+            mapped = v;
+            break;
+          }
+        }
+      }
     }
     if (mapped) {
       let target = sanitizeFileName(mapped);
       if (!extname(target) && currentExt) {
         target += currentExt;
       }
+      target = target.normalize("NFC");
       const typeInfo = extractSemanticTypeAndOrgan(target);
       return {
         targetFileName: target,
@@ -251,12 +269,13 @@ export async function resolveTargetFileName(
   }
 
   // 2. Prioridade 2: Preservação de Nomes Legíveis
-  const isOpaque = isOpaqueFileName(originalFileName);
+  const isOpaque = isOpaqueFileName(normalizedOriginal);
   if (!isOpaque) {
-    let target = originalFileName;
+    let target = normalizedOriginal;
     if (!extname(target) && currentExt) {
       target += currentExt;
     }
+    target = target.normalize("NFC");
     const typeInfo = extractSemanticTypeAndOrgan(target);
     return {
       targetFileName: target,
@@ -281,7 +300,7 @@ export async function resolveTargetFileName(
 
   const detectedType =
     semInfo.docType || (currentExt === ".docx" ? "DOC" : "ANEXO");
-  const hash4 = extractHash4(originalFileName, fileBuffer);
+  const hash4 = extractHash4(normalizedOriginal, fileBuffer);
 
   let targetStem = detectedType;
   if (semInfo.organ) {
@@ -289,7 +308,7 @@ export async function resolveTargetFileName(
   }
   targetStem += `_${hash4}`;
 
-  const targetFileName = `${targetStem}${currentExt || ".bin"}`;
+  const targetFileName = `${targetStem}${currentExt || ".bin"}`.normalize("NFC");
   return {
     targetFileName,
     detectedType,
