@@ -118,9 +118,11 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.3.6 e novos recursos v1.3.6 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.3.6");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.6");
+  test("deve expor versão 1.3.7 e novos recursos v1.3.7 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.3.7");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.7");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Conversor de Tabelas Markdown para OpenXML <w:tbl>");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("remove_table_rows");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Busca Textual Multi-Query no PNCP & Resolvedor Nativo de Redirects");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Conector Nativo PNCP & Catalogação Isolada de Referência");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Classificador Estrutural libmagic msooxml");
@@ -199,9 +201,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.6)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.7)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.6)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.7)");
+    expect(spec).toContain("remove_table_rows");
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diff Semântico Granular em Nível de Token");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
@@ -331,6 +334,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.validateTechnicalNoteData).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.3.6");
+    expect(barrel.VERSION).toBe("1.3.7");
   });
 });

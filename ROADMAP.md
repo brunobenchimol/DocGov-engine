@@ -123,6 +123,13 @@
   - Normalização de `vMerge` e `gridSpan` no fingerprint estrutural e relato do candidato de maior similaridade em `status: "NEW"`.
   - Exibição de `template_match` e `form_fields` no Bloco 1 da `visao_auditoria_*.md` e execução bottom-up em `build_docx_template`.
 
+- [x] **6.9. Patch `v1.3.7` — Conversor de Tabelas Markdown para OpenXML `<w:tbl>`, Operador `remove_table_rows`, Scanner Anti-Contaminação e Normalização NFC (`ENG-06` a `ENG-09`):**
+  - Conversão nativa automática de tabelas Markdown (`| Col1 | Col2 |\n| :--- | :--- |`) em elementos OpenXML `<w:tbl>` reais em `fill_docx_template` com `<w:tblGrid>`, bordas corporativas, cabeçalho sombreado, alinhamentos por coluna e `<w:p/>` final em células `<w:tc>`.
+  - Operador declarativo `remove_table_rows` em `slots_manifest.json` executado em ordem Bottom-Up com preservação e promoção automática de `<w:vMerge w:val="restart"/>`.
+  - Detecção automática de subtabelas de itens numerados (`1..N`) e grupos de checkboxes (`☒ Sim` / `☐ Não`) com coordenadas físicas no Bloco 1 da `visao_auditoria_*.md`.
+  - Scanner pós-compilação (`scanPostCompileIntegrityAlerts`) alertando sobre workarounds `"Item não aplicável"`, tabelas Markdown residuais, checkboxes contraditórios e contaminação semântica de doador de Hardware em contratações puras de Software/Serviços (sem falsos-positivos em contratações mistas).
+  - Normalização universal Unicode `NFC` e lookup resiliente `NFC/NFD` (`resolveExistingPathNfc`) em `bootstrap_case`, `inspect_doc` e utilitários de arquivos.
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite

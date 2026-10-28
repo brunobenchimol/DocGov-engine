@@ -8,6 +8,26 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.7] - 2026-10-27
+
+### Adicionado
+- **Conversor Nativo de Tabelas Markdown para OpenXML `<w:tbl>` (`ENG-06`):**
+  - Detecção automática em `fill_docx_template` de blocos de tabelas em sintaxe Markdown (`| Col1 | Col2 |\n| :--- | :--- |\n| val1 | val2 |`), tanto dentro de valores multilinha (`\n`) injetados em parágrafos ou células quanto em sequências de parágrafos `<w:p>` irmãos consecutivos.
+  - Conversão determinística para elementos OpenXML `<w:tbl>` reais, com `<w:tblPr>` (`w:tblW w:type="pct" w:w="5000"`), bordas corporativas suaves (`CBD5E1`), `<w:tblGrid>` calculado proporcionalmente à largura das colunas, cabeçalho `<w:tblHeader/>` sombreado (`F1F5F9`) em negrito, alinhamentos por coluna (`:---` left, `:---:` center, `---:` right), negrito seletivo (`**...**`) dentro das células e conformidade estrita com a regra ECMA-376 garantindo `<w:p/>` final quando a tabela é injetada dentro de uma célula `<w:tc>`.
+- **Operador Direto `remove_table_rows` e Detector de Subtabelas e Checkboxes (`ENG-07`):**
+  - Novo operador declarativo `"remove_table_rows": [{ "table_index": 0, "from_row": 27, "to_row": 44 }]` no `slots_manifest.json` (`build_docx_template`), executado em ordem Bottom-Up logo após `replace_table_cells`.
+  - Proteção automática de mesclagens verticais (`<w:vMerge/>`): preserva células `restart` ou promove automaticamente a próxima linha sobrevivente (`continue` $\rightarrow$ `restart` com transferência do rótulo textual) caso a linha inicial do bloco mesclado esteja na faixa removida.
+  - Detector automático `detectTableSubtablesAndCheckboxes` em `inspect_doc`, expondo `detected_subtables` e `detected_checkboxes` no JSON estrutural e renderizando a seção `### Subtabelas de Itens e Checkboxes Detectados` no Bloco 1 da `visao_auditoria_*.md` com instruções de poda limpa e coordenadas físicas exatas de cada opção `☒`/`☐`.
+- **Scanner Pós-Compilação Anti-Contaminação de Doador (`ENG-08`):**
+  - Scanner determinístico `scanPostCompileIntegrityAlerts` integrado ao `inspect_doc` (e à auto-inspeção do `fill_docx_template`), estampando o bloco de destaque `## ⚠️ ALERTAS DE INTEGRIDADE PÓS-COMPILAÇÃO (AÇÃO OBRIGATÓRIA DO AUDITOR)` no topo do Bloco 1 da `visao_auditoria_*.md` quando detectadas anomalias:
+    1. `UNREMOVED_ITEM_WORKAROUND`: linhas preenchidas com `"Item não aplicável"` em vez de exclusão física via `remove_table_rows`;
+    2. `RAW_MARKDOWN_TABLE`: separadores de tabela Markdown (`| :--- |`) não convertidos;
+    3. `CONTRADICTORY_CHECKBOXES`: opções `☒ Sim` e `☒ Não` marcadas simultaneamente para a mesma pergunta (ou ambas desmarcadas `☐` em documento compilado);
+    4. `HARDWARE_DONOR_CONTAMINATION`: heurística de duas pontas que detecta vazamento de vocabulário físico de hardware (`RoHS`, `mercúrio`, `chumbo`, `cádmio`, `Portaria nº 170`, `INMETRO`, `ANATEL`, `NVMe`, `DDR4`, `DDR5`, `SFP+`, `escassez global de chips`, `Next Business Day`, `Nvidia RTX`) em contratações cujo Objeto principal é exclusivamente Software/Serviços, ou vazamento de artefatos/atas doadoras (`ARP 90015/2024`, `R$ 68.776.988,00`, `PAN-OS`/`Collector` em documento Red Hat) e contradições internas diretas, evitando falsos-positivos em contratações mistas legítimas de Hardware+Software.
+- **Normalização Universal Unicode `NFC` e Lookup Resiliente `NFC/NFD` (`ENG-09`):**
+  - Aplicação sistemática de `.normalize("NFC")` na extração de pacotes (`.zip`, `.tar.gz`), sanitização e resolução de nomes (`sanitizeArchiveEntryName`, `sanitizeFileName`, `resolveTargetFileName`), ingestão em `inputs/` no `bootstrap_case` e geração de artefatos em `state/` (`estrutura_*.json`, `visao_auditoria_*.md`).
+  - Função `resolveExistingPathNfc` integrada a `resolveWorkspacePath` e `inspectDocx` para localizar arquivos no disco mesmo quando há divergência entre `NFD` (macOS APFS/HFS+) e `NFC` (Windows/Linux).
+
 ## [1.3.6] - 2026-10-27
 
 ### Corrigido

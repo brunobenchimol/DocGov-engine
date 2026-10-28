@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.3.6)
+# Especificação Técnica do Motor docgov-engine (v1.3.7)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.6`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.7`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -23,6 +23,7 @@ Documento normativo e especificação canônica do motor standalone `docgov-engi
 15. **Blindagem de Governança, Paths Locais & Teto MCP (v1.3.2 — Leis 2, 6 e 8):** Guardrail de segurança ativa no `bootstrap_case` prevenindo inicialização acidental na raiz de repositórios Git, denylist estrita preservando todos os arquivos de governança (`AGENTS.md`, `README.md`, `CHANGELOG.md`, etc.) e código-fonte (`.ts`, `.py`, etc.), resolução de `.` e caminhos relativos locais respeitando `process.cwd()` sem desvio ascendente espúrio, e eliminação de duplicação de caminhos em `inspect_doc` garantindo payload sintético estritamente abaixo de 900 bytes.
 16. **Classificador Estrutural libmagic msooxml & Descompactação Transparente (v1.3.3 — Leis 2, 4 e 6):** Identificação determinística de formatos inspirada no padrão Linux file(1) / libmagic (distinção nativa de containers ZIP para Word DOCX, Excel XLSX, PPTX e ODF vs arquivos compactados comuns), descompactação automática transparente de pacotes (.zip, .tar, .tar.gz, .tgz) em bootstrap_case com defesa Anti-Zip Slip, achatamento de subpastas, filtragem de lixo de sistema (__MACOSX, .DS_Store, Thumbs.db) e guardrail fail-fast amigável em inspect_doc orientando uso de bootstrap_case para pacotes múltiplos.
 17. **Engenharia Tabular, Paridade Físico-Virtual e Template Matching (v1.3.6 — Leis 2, 3 e 4):** Fim da fusão horizontal de colunas em `loop_table_rows` (injetando tags delimitadoras fora da linha de dados, garantindo repetição estrita de linhas sem multiplicar colunas), alinhamento de coordenadas físicas (<w:tc>) vs virtuais (gridSpan) em `replace_table_cells` e `toc_map.form_fields`, auto-alinhamento de `cell_tags` quando C0 for `vMerge`, fail-fast estrito contra excesso de `cell_tags`, normalização de `vMerge` e `gridSpan` no fingerprint estrutural, ordenação de substituições bottom-up e exibição transparente de `template_match` e `form_fields` na visão de auditoria linear.
+18. **Conversor Nativo de Tabelas Markdown para OpenXML `<w:tbl>`, Operador `remove_table_rows`, Scanner Anti-Contaminação e Normalização Unicode NFC (v1.3.7 — Leis 2, 3, 4 e 6):** Conversão automática de tabelas Markdown (`| Col1 | Col2 |\n| :--- | :--- |`) injetadas em variáveis de texto ou parágrafos adjacentes para elementos OpenXML `<w:tbl>` reais (com `<w:tblGrid>`, bordas corporativas `CBD5E1`, cabeçalho sombreado `F1F5F9`, alinhamentos por coluna e conformidade ECMA-376 de `<w:p/>` final em células); operador direto `remove_table_rows` em `slots_manifest.json` para poda bottom-up de linhas excedentes preservando/promovendo `<w:vMerge w:val="restart"/>`; detecção automática de subtabelas de itens numerados e grupos de checkboxes (`☒ Sim` / `☐ Não`) com coordenadas físicas na `visao_auditoria_*.md`; scanner pós-compilação (`post_compile_alerts`) detectando workarounds `"Item não aplicável"`, tabelas Markdown não convertidas, checkboxes contraditórios e contaminação de vocabulário de doador de Hardware em objetos puros de Software/Serviços (sem falsos-positivos em contratações mistas de Hardware+Software); e normalização universal Unicode `NFC` com resolução resiliente `NFC/NFD` no filesystem.
 
 ---
 
@@ -85,6 +86,9 @@ Transforma documento Word (.docx) bruto em template parametrizado com tags `{{..
       "for_close_tag": "{{END-FOR item}}",
       "cell_tags": ["{{$item.numero}}", "{{$item.descricao}}", "{{$item.valor}}"]
     }
+  ],
+  "remove_table_rows": [
+    { "table_index": 0, "from_row": 27, "to_row": 44 }
   ],
   "replace_inline": [
     { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }

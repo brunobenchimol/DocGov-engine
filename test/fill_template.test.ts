@@ -524,7 +524,7 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     const synthetic = formatFillDocxTemplateSyntheticResult(result);
     expect(synthetic.status).toBe("success");
     expect(synthetic.engine_version).toBe(VERSION);
-    expect(synthetic.engine_version).toBe("1.3.6");
+    expect(synthetic.engine_version).toBe("1.3.7");
     expect(synthetic.outputPath).toContain("ETP_Final.docx");
     expect(synthetic.inspection_path).toContain("inspecao_ETP_Final.json");
     expect(synthetic.visao_auditoria_path).toContain("visao_auditoria_ETP_Final.md");
@@ -553,7 +553,7 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     const syntheticNoInspect = formatFillDocxTemplateSyntheticResult(resultNoInspect);
     expect(syntheticNoInspect.status).toBe("success");
     expect(syntheticNoInspect.engine_version).toBe(VERSION);
-    expect(syntheticNoInspect.engine_version).toBe("1.3.6");
+    expect(syntheticNoInspect.engine_version).toBe("1.3.7");
     expect(syntheticNoInspect.inspection_path).toBeUndefined();
     expect(syntheticNoInspect.visao_auditoria_path).toBeUndefined();
     expect(Buffer.byteLength(JSON.stringify(syntheticNoInspect), "utf-8")).toBeLessThan(1024);

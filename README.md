@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.6)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.7)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,24 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.6` (Geração 3 — Engenharia Tabular e Template Matching) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.7` (Geração 3 — Tabelas Markdown para OpenXML, `remove_table_rows`, Scanner Anti-Contaminação e NFC) e Marcos Anteriores
+
+A versão **`v1.3.7`** entrega 4 recursos determinísticos (`ENG-06` a `ENG-09`) para geração de tabelas de alta complexidade, poda limpa de subtabelas em modelos monolíticos, detecção automática de contaminação de minutas doadoras e resiliência multiplataforma Unicode `NFC`:
+
+### Novidades da `v1.3.7` (`ENG-06` a `ENG-09`):
+1. **Conversor Nativo de Tabelas Markdown para OpenXML `<w:tbl>` (`ENG-06`):**
+   - `fill_docx_template` detecta automaticamente blocos de tabelas Markdown (`| Col1 | Col2 |\n| :--- | :--- |\n| val1 | val2 |`) tanto dentro de strings multilinha quanto entre parágrafos `<w:p>` adjacentes e os converte nativamente em elementos OpenXML `<w:tbl>` reais, com `<w:tblGrid>` proporcional, bordas corporativas (`CBD5E1`), cabeçalho sombreado (`F1F5F9`) em negrito, alinhamentos por coluna (`:---`, `:---:`, `---:`), negrito seletivo e parágrafo final `<w:p/>` obrigatório em `<w:tc>` (ECMA-376).
+2. **Operador Direto `remove_table_rows` e Detector de Subtabelas/Checkboxes (`ENG-07`):**
+   - Suporte ao operador `"remove_table_rows": [{ "table_index": 0, "from_row": 27, "to_row": 44 }]` no `slots_manifest.json`, executado em ordem Bottom-Up com preservação e promoção automática de `<w:vMerge w:val="restart"/>`.
+   - `inspect_doc` detecta automaticamente subtabelas de itens numerados (`1..N`) e grupos de checkboxes (`☒ Sim` / `☐ Não`) com coordenadas físicas exatas, exibindo orientações de poda limpa no Bloco 1 da `visao_auditoria_*.md`.
+3. **Scanner Pós-Compilação Anti-Contaminação de Doador (`ENG-08`):**
+   - Estampa `## ⚠️ ALERTAS DE INTEGRIDADE PÓS-COMPILAÇÃO (AÇÃO OBRIGATÓRIA DO AUDITOR)` no topo do Bloco 1 da `visao_auditoria_*.md` ao detectar workarounds `"Item não aplicável"`, tabelas Markdown residuais não convertidas, checkboxes contraditórios (`☒ Sim` e `☒ Não` simultâneos) ou vazamento de vocabulário de minuta doadora de Hardware (`RoHS`, `INMETRO`, `ANATEL`, `NVMe`, `DDR5`, `ARP 90015/2024`) em contratações puras de Software/Serviços (sem falsos-positivos em contratações mistas legítimas de Hardware+Software).
+4. **Normalização Universal Unicode `NFC` e Lookup Resiliente `NFC/NFD` (`ENG-09`):**
+   - Normalização `.normalize("NFC")` em todos os nomes de arquivos extraídos de `.zip`/`.tar.gz`, copiados para `inputs/` e gerados em `state/`, combinada com resolução resiliente `resolveExistingPathNfc` que localiza arquivos em disco independentemente de a codificação do filesystem ser `NFD` (macOS) ou `NFC` (Windows/Linux).
+
+---
+
+## 2.1. Destaques da Versão `v1.3.6` (Geração 3 — Engenharia Tabular e Template Matching) e Marcos Anteriores
 
 A versão **`v1.3.6`** resolve 5 atritos estruturais (`ENG-01` a `ENG-05`) na manipulação de tabelas OpenXML complexas com células mescladas (`vMerge` e `gridSpan`), garantindo fidelidade geométrica e paridade entre coordenadas físicas e virtuais:
 
