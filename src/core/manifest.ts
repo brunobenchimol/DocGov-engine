@@ -19,6 +19,7 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
     loop_paragraphs: [],
     replace_table_cells: [],
     loop_table_rows: [],
+    remove_table_rows: [],
     replace_inline: [],
   };
 
@@ -33,6 +34,7 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
     "loop_paragraphs",
     "replace_table_cells",
     "loop_table_rows",
+    "remove_table_rows",
     "replace_inline",
     "_shift_summary",
     "comment",
@@ -90,6 +92,17 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
 
   const ALLOWED_REPLACE_INLINE_KEYS = new Set(["find", "replace"]);
 
+  const ALLOWED_REMOVE_TABLE_ROWS_KEYS = new Set([
+    "table_index",
+    "table",
+    "from_row",
+    "to_row",
+    "remove_from_row",
+    "remove_to_row",
+    "start_row",
+    "end_row",
+  ]);
+
   const ALLOWED_LOOP_PARA_KEYS = new Set([
     "start_p",
     "end_p",
@@ -127,6 +140,10 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
     "paragraph",
     "header_row_index",
     "template_row_index",
+    "from_row",
+    "to_row",
+    "start_row",
+    "end_row",
     "remove_from_row",
     "remove_to_row",
     "cell_tags",
@@ -274,6 +291,44 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
       return;
     }
 
+    // Se for remove_table_rows (ENG-07a)
+    if (
+      rawT !== undefined &&
+      (rule.from_row !== undefined ||
+        rule.start_row !== undefined ||
+        (rule.remove_from_row !== undefined &&
+          rule.header_row_index === undefined &&
+          !rule.for_open_tag))
+    ) {
+      const fromRow = Number(
+        rule.from_row ?? rule.remove_from_row ?? rule.start_row
+      );
+      const toRow = Number(
+        rule.to_row ?? rule.remove_to_row ?? rule.end_row ?? fromRow
+      );
+      const tblIdx = Number(rawT);
+      if (
+        !Number.isInteger(tblIdx) ||
+        tblIdx < 0 ||
+        !Number.isInteger(fromRow) ||
+        fromRow < 0 ||
+        !Number.isInteger(toRow) ||
+        toRow < fromRow
+      ) {
+        throw new Error(
+          createSlotsManifestContractError(
+            `Intervalo inválido em 'remove_table_rows' (${context}): table_index=${rawT}, from_row=${fromRow}, to_row=${toRow}. Deve satisfazer 0 <= from_row <= to_row.`
+          )
+        );
+      }
+      result.remove_table_rows!.push({
+        table_index: tblIdx,
+        from_row: fromRow,
+        to_row: toRow,
+      });
+      return;
+    }
+
     // Se for replace_table_cells
     if (rawT !== undefined && rawR !== undefined && rawC !== undefined) {
       result.replace_table_cells!.push({
@@ -373,6 +428,16 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
         processRule(item, "loop_table_rows");
       }
     }
+    if (Array.isArray(rawManifest.remove_table_rows)) {
+      for (const item of rawManifest.remove_table_rows) {
+        validateRuleKeys(
+          item,
+          ALLOWED_REMOVE_TABLE_ROWS_KEYS,
+          "remove_table_rows"
+        );
+        processRule(item, "remove_table_rows");
+      }
+    }
     if (Array.isArray(rawManifest.replace_inline)) {
       for (const item of rawManifest.replace_inline) {
         validateRuleKeys(item, ALLOWED_REPLACE_INLINE_KEYS, "replace_inline");
@@ -391,6 +456,8 @@ export function normalizeSlotsManifest(rawManifest: any): SlotsManifest {
     cleaned.replace_table_cells = result.replace_table_cells;
   if (result.loop_table_rows!.length > 0)
     cleaned.loop_table_rows = result.loop_table_rows;
+  if (result.remove_table_rows!.length > 0)
+    cleaned.remove_table_rows = result.remove_table_rows;
   if (result.replace_inline!.length > 0)
     cleaned.replace_inline = result.replace_inline;
 
@@ -404,6 +471,7 @@ export function countManifestRules(manifest: SlotsManifest): number {
   if (manifest.loop_paragraphs) count += manifest.loop_paragraphs.length;
   if (manifest.replace_table_cells) count += manifest.replace_table_cells.length;
   if (manifest.loop_table_rows) count += manifest.loop_table_rows.length;
+  if (manifest.remove_table_rows) count += manifest.remove_table_rows.length;
   if (manifest.replace_inline) count += manifest.replace_inline.length;
   return count;
 }

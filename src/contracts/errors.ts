@@ -47,6 +47,9 @@ export const EXACT_COPY_PASTE_CANONICAL_SLOTS_MANIFEST_SNIPPET = `{
       "cell_tags": ["{{$item.numero}}", "{{$item.descricao}}", "{{$item.valor}}"]
     }
   ],
+  "remove_table_rows": [
+    { "table_index": 0, "from_row": 27, "to_row": 44 }
+  ],
   "replace_inline": [
     { "find": "Texto Antigo Fixo", "replace": "{{metadados.orgao}}" }
   ]

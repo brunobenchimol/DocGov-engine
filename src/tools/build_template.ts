@@ -8,6 +8,7 @@ import { createSlotsManifestContractError } from "../contracts/errors.ts";
 import {
   getAllElements,
   getDirectChildElements,
+  extractParagraphText,
   findBodyRunProperties,
   findBodyParagraphProperties,
   setParagraphSingleRunText,
@@ -360,7 +361,91 @@ export async function buildDocxTemplate(
     }
   }
 
-  // 2.4. replace_inline (em word/document.xml, word/header*.xml e word/footer*.xml)
+  // 2.5. remove_table_rows (ENG-07a — executado em ordem decrescente de from_row, Bottom-Up)
+  if (manifest.remove_table_rows && manifest.remove_table_rows.length > 0) {
+    const sortedRemoveRows = [...manifest.remove_table_rows].sort(
+      (a, b) => b.from_row - a.from_row
+    );
+    for (const rule of sortedRemoveRows) {
+      const { table_index, from_row, to_row } = rule;
+      const tSnap = originalBodyTables[table_index];
+      if (!tSnap) {
+        throw new Error(
+          `Tabela de índice ${table_index} não encontrada para 'remove_table_rows'`
+        );
+      }
+      if (from_row < 0 || from_row >= tSnap.rows.length) {
+        throw new Error(
+          `Linha inicial 'from_row' (${from_row}) fora do intervalo da tabela ${table_index} (0..${tSnap.rows.length - 1})`
+        );
+      }
+
+      const maxRow = Math.min(to_row, tSnap.rows.length - 1);
+
+      // Proteção de <w:vMerge/>: se o intervalo removido continha uma célula com w:val="restart"
+      // e a linha imediatamente posterior (maxRow + 1) tem w:vMerge continue, promove maxRow + 1 para restart!
+      if (maxRow + 1 < tSnap.rows.length) {
+        const nextRow = tSnap.rows[maxRow + 1];
+        if (nextRow && nextRow.cells.length > 0) {
+          const nextC0VMerge = extractCellVMerge(nextRow.cells[0]);
+          if (nextC0VMerge === "continue") {
+            let restartCellInRemoved: Element | null = null;
+            for (let rIdx = from_row; rIdx <= maxRow; rIdx++) {
+              const cand = tSnap.rows[rIdx];
+              if (
+                cand &&
+                cand.cells.length > 0 &&
+                extractCellVMerge(cand.cells[0]) === "restart"
+              ) {
+                restartCellInRemoved = cand.cells[0];
+                break;
+              }
+            }
+            if (restartCellInRemoved) {
+              const tcPrList = getDirectChildElements(nextRow.cells[0], "w:tcPr");
+              if (tcPrList.length > 0) {
+                const vmList = getDirectChildElements(tcPrList[0], "w:vMerge");
+                if (vmList.length > 0) {
+                  vmList[0].setAttribute("w:val", "restart");
+                }
+              }
+              const nextText = getAllElements(nextRow.cells[0], "w:p")
+                .map(extractParagraphText)
+                .join("\n")
+                .trim();
+              if (!nextText) {
+                const origLabel = getAllElements(restartCellInRemoved, "w:p")
+                  .map(extractParagraphText)
+                  .join("\n")
+                  .trim();
+                if (origLabel) {
+                  setTableCellSingleParagraphText(
+                    docXml,
+                    nextRow.cells[0],
+                    origLabel
+                  );
+                }
+              }
+            }
+          }
+        }
+      }
+
+      let removedInRule = 0;
+      for (let rIdx = maxRow; rIdx >= from_row; rIdx--) {
+        const rowToRemove = tSnap.rows[rIdx]?.tr;
+        if (rowToRemove && rowToRemove.parentNode === tSnap.tbl) {
+          tSnap.tbl.removeChild(rowToRemove);
+          removedInRule++;
+        }
+      }
+      if (removedInRule > 0) {
+        breakdown.remove_table_rows = (breakdown.remove_table_rows ?? 0) + 1;
+      }
+    }
+  }
+
+  // 2.6. replace_inline (em word/document.xml, word/header*.xml e word/footer*.xml)
   if (manifest.replace_inline && manifest.replace_inline.length > 0) {
     const docInlineCount = applyInlineReplacementsToXmlDoc(
       docXml,
@@ -395,6 +480,7 @@ export async function buildDocxTemplate(
     breakdown.loop_paragraphs +
     breakdown.replace_table_cells +
     breakdown.loop_table_rows +
+    (breakdown.remove_table_rows ?? 0) +
     breakdown.replace_inline;
 
   if (applied_slots_count === 0) {

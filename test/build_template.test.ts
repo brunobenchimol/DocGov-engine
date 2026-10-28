@@ -15,6 +15,7 @@ import {
   VERSION,
 } from "../src/index.ts";
 import {
+  MINIMAL_DOCX_BASE64,
   createSampleRawDocx,
   createSuiteTempDir,
 } from "./helpers/fixtures.ts";
@@ -686,5 +687,102 @@ describe("Testes Unitários: build_docx_template (Coordenadas Compactas, Fail-Fa
     );
     expect(alignRes.success).toBe(true);
     expect(alignRes.applied_slots_count).toBe(1);
+  });
+
+  test("ENG-07a: remove_table_rows deve remover linhas excedentes em ordem Bottom-Up após replace_table_cells preservando <w:vMerge/>", async () => {
+    const rawDocx = resolve(tempDir, "eng07a_raw.docx");
+    const manifestJson = resolve(tempDir, "eng07a_manifest.json");
+    const outDocx = resolve(tempDir, "eng07a_tpl.docx");
+
+    // Cria tabela monolítica com 2 subtabelas de itens (R1..R5 e R7..R10) e C0 com vMerge
+    const JSZip = (await import("jszip")).default;
+    const zip = await JSZip.loadAsync(Buffer.from(MINIMAL_DOCX_BASE64, "base64"));
+
+    const buildItemRowXml = (itemNum: number, isRestart: boolean, groupLabel: string, desc: string) => `
+      <w:tr>
+        <w:tc>
+          <w:tcPr><w:vMerge${isRestart ? ' w:val="restart"' : ""}/></w:tcPr>
+          <w:p><w:r><w:t>${isRestart ? groupLabel : ""}</w:t></w:r></w:p>
+        </w:tc>
+        <w:tc><w:p><w:r><w:t>${itemNum}</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>${desc}</w:t></w:r></w:p></w:tc>
+      </w:tr>`;
+
+    const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:tbl>
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Seção</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Item</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Descrição</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      ${buildItemRowXml(1, true, "1.1 Quadro Resumo", "Item Doador 1")}
+      ${buildItemRowXml(2, false, "", "Item Doador 2")}
+      ${buildItemRowXml(3, false, "", "Item Doador 3")}
+      ${buildItemRowXml(4, false, "", "Item Doador 4 Excedente")}
+      ${buildItemRowXml(5, false, "", "Item Doador 5 Excedente")}
+      <w:tr>
+        <w:tc><w:p><w:r><w:t>Seção 2</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Item</w:t></w:r></w:p></w:tc>
+        <w:tc><w:p><w:r><w:t>Especificação</w:t></w:r></w:p></w:tc>
+      </w:tr>
+      ${buildItemRowXml(1, true, "2.1 Bens e Serviços", "Espec Doador 1")}
+      ${buildItemRowXml(2, false, "", "Espec Doador 2")}
+      ${buildItemRowXml(3, false, "", "Espec Doador 3 Excedente")}
+      ${buildItemRowXml(4, false, "", "Espec Doador 4 Excedente")}
+    </w:tbl>
+  </w:body>
+</w:document>`;
+
+    zip.file("word/document.xml", docXml);
+    writeFileSync(rawDocx, await zip.generateAsync({ type: "nodebuffer" }));
+
+    // Preenche itens 1 e 2 da Subtabela 1 (R1, R2) e Subtabela 2 (R7, R8) usando coordenadas originais
+    // e remove as linhas excedentes R3..R5 e R9..R10!
+    writeFileSync(
+      manifestJson,
+      JSON.stringify(
+        {
+          replace_table_cells: [
+            { table_index: 0, row_index: 1, cell_index: 2, tag: "{{sub1.item1}}" },
+            { table_index: 0, row_index: 2, cell_index: 2, tag: "{{sub1.item2}}" },
+            { table_index: 0, row_index: 7, cell_index: 2, tag: "{{sub2.item1}}" },
+            { table_index: 0, row_index: 8, cell_index: 2, tag: "{{sub2.item2}}" },
+          ],
+          remove_table_rows: [
+            { table_index: 0, from_row: 3, to_row: 5 },
+            { table_index: 0, from_row: 9, to_row: 10 },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    const buildRes = await buildDocxTemplate(rawDocx, manifestJson, outDocx);
+    expect(buildRes.success).toBe(true);
+    expect(buildRes.breakdown.replace_table_cells).toBe(4);
+    expect(buildRes.breakdown.remove_table_rows).toBe(2);
+
+    const insp = await inspectDocx(outDocx);
+    expect(insp.tables.length).toBe(1);
+    const tbl = insp.tables[0];
+    // Original tinha 11 linhas (R0..R10); removeu 3 da Subtabela 1 + 2 da Subtabela 2 = restam 6 linhas!
+    expect(tbl.rows.length).toBe(6);
+
+    // Verifica que os slots foram injetados nas linhas corretas e o vMerge restart foi preservado
+    expect(tbl.rows[1].cells[0].rowSpan).toBe("restart");
+    expect(tbl.rows[1].cells[0].text).toBe("1.1 Quadro Resumo");
+    expect(tbl.rows[1].cells[2].text).toBe("{{sub1.item1}}");
+    expect(tbl.rows[2].cells[0].rowSpan).toBe("continue");
+    expect(tbl.rows[2].cells[2].text).toBe("{{sub1.item2}}");
+
+    expect(tbl.rows[4].cells[0].rowSpan).toBe("restart");
+    expect(tbl.rows[4].cells[0].text).toBe("2.1 Bens e Serviços");
+    expect(tbl.rows[4].cells[2].text).toBe("{{sub2.item1}}");
+    expect(tbl.rows[5].cells[0].rowSpan).toBe("continue");
+    expect(tbl.rows[5].cells[2].text).toBe("{{sub2.item2}}");
   });
 });

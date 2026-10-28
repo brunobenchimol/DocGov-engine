@@ -189,6 +189,36 @@ export interface DocumentCartography {
   impugnation_zones: ImpugnationZonesMap;
 }
 
+export interface DetectedItemSubtable {
+  table_index: number;
+  header_row?: number;
+  from_row: number;
+  to_row: number;
+  item_count: number;
+  number_col_index: number;
+}
+
+export interface DetectedCheckboxGroup {
+  coord: string;
+  table_index: number;
+  start_row: number;
+  end_row: number;
+  prompt: string;
+  options_summary: string;
+}
+
+export interface PostCompileIntegrityAlert {
+  category:
+    | "UNREMOVED_ITEM_WORKAROUND"
+    | "RAW_MARKDOWN_TABLE"
+    | "CONTRADICTORY_CHECKBOXES"
+    | "HARDWARE_DONOR_CONTAMINATION";
+  severity: "CRITICAL" | "HIGH";
+  coord: string;
+  excerpt: string;
+  recommendation: string;
+}
+
 export interface DocxInspectionResult {
   doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet" | "markdown" | "text";
   format?: string;
@@ -211,6 +241,9 @@ export interface DocxInspectionResult {
   tables: TableInfo[];
   budget_audit?: BudgetAuditReport;
   diff_result?: StructuralDiffResult;
+  detected_subtables?: DetectedItemSubtable[];
+  detected_checkboxes?: DetectedCheckboxGroup[];
+  post_compile_alerts?: PostCompileIntegrityAlert[];
 }
 
 export interface ReplaceParagraphRule {
@@ -250,6 +283,12 @@ export interface ReplaceInlineRule {
   replace: string;
 }
 
+export interface RemoveTableRowsRule {
+  table_index: number;
+  from_row: number;
+  to_row: number;
+}
+
 export interface CompactSlotRule {
   coord?: string;
   tag?: string;
@@ -269,6 +308,10 @@ export interface CompactSlotRule {
   for_close_tag?: string;
   item_tag?: string;
   cell_tags?: string[];
+  from_row?: number;
+  to_row?: number;
+  start_row?: number;
+  end_row?: number;
   remove_from_row?: number;
   remove_to_row?: number;
   header_row_index?: number;
@@ -284,6 +327,7 @@ export interface SlotsManifest {
   loop_paragraphs?: LoopParagraphsRule[];
   replace_table_cells?: ReplaceTableCellRule[];
   loop_table_rows?: LoopTableRowsRule[];
+  remove_table_rows?: RemoveTableRowsRule[];
   replace_inline?: ReplaceInlineRule[];
   [key: string]: any;
 }
@@ -293,6 +337,7 @@ export interface BuildDocxTemplateBreakdown {
   loop_paragraphs: number;
   replace_table_cells: number;
   loop_table_rows: number;
+  remove_table_rows?: number;
   replace_inline: number;
 }
 
