@@ -826,4 +826,102 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     }
     expect(threwInvalid).toBe(true);
   }, 30000);
+
+  test("ENG-06: fill_docx_template deve converter tabelas Markdown (| Col1 | Col2 |) em elementos <w:tbl> reais do OpenXML com <w:tblGrid>, bordas CBD5E1, cabeçalho F1F5F9 e alinhamentos", async () => {
+    const rawDocx = resolve(tempDir, "eng06_raw.docx");
+    const tplDocx = resolve(tempDir, "eng06_tpl.docx");
+    const manifestJson = resolve(tempDir, "eng06_manifest.json");
+    const stateJson = resolve(tempDir, "eng06_state.json");
+    const outDocx = resolve(tempDir, "eng06_final.docx");
+
+    await createSampleRawDocx(rawDocx);
+
+    writeFileSync(
+      manifestJson,
+      JSON.stringify(
+        {
+          replace_paragraphs: [
+            { start_p: 3, end_p: 4, tag: "{{estudo.catalogo_uns}}" },
+          ],
+          replace_table_cells: [
+            { table_index: 0, row_index: 0, cell_index: 1, tag: "{{metadados.tabela_interna}}" },
+          ],
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    const buildRes = await buildDocxTemplate(rawDocx, manifestJson, tplDocx);
+    expect(buildRes.success).toBe(true);
+
+    const markdownWithTable = [
+      "Abaixo apresenta-se a Tabela de Conversão de Catálogo:",
+      "| Código SKU | Descrição do Item | Métrica | Fator UNS |",
+      "| :--- | :--- | :---: | ---: |",
+      "| SKU-001 | **Subscrição Enterprise** Nível 1 | Anual | 1,50 |",
+      "| SKU-002 | Suporte Técnico Especializado | Mensal | 2,75 |",
+      "Observação final após a tabela convertida.",
+    ].join("\n");
+
+    const nestedMarkdownTable = [
+      "| Perfil | UST |",
+      "| :--- | ---: |",
+      "| Arquiteto | 120 |",
+    ].join("\n");
+
+    writeFileSync(
+      stateJson,
+      JSON.stringify(
+        {
+          estudo: {
+            catalogo_uns: markdownWithTable,
+          },
+          metadados: {
+            tabela_interna: nestedMarkdownTable,
+          },
+        },
+        null,
+        2
+      ),
+      "utf-8"
+    );
+
+    const fillRes = await processDocument(tplDocx, stateJson, outDocx, {
+      autoInspect: false,
+    });
+    expect(fillRes.success).toBe(true);
+
+    const zip = await JSZip.loadAsync(readFileSync(outDocx));
+    const docXmlStr = await zip.file("word/document.xml")!.async("string");
+
+    // 1. Não deve restar nenhuma linha separadora de tabela Markdown crua (| :--- |)
+    expect(docXmlStr).not.toContain(":---");
+    expect(docXmlStr).not.toContain("---:");
+    expect(docXmlStr).not.toContain(":---:");
+
+    // 2. Deve conter elementos <w:tblGrid>, bordas CBD5E1 e sombreado F1F5F9 no cabeçalho
+    expect(docXmlStr).toContain("w:color=\"CBD5E1\"");
+    expect(docXmlStr).toContain("w:fill=\"F1F5F9\"");
+    expect(docXmlStr).toContain("<w:tblHeader/>");
+    expect(docXmlStr).toContain("w:val=\"center\"");
+    expect(docXmlStr).toContain("w:val=\"right\"");
+
+    // 3. Conformidade ECMA-376: toda célula <w:tc> que recebeu tabela aninhada termina obrigatoriamente com <w:p>
+    expect(docXmlStr).not.toContain("</w:tbl></w:tc>");
+
+    // 4. Inspeção do documento gerado deve enxergar a nova tabela no <w:body> (eram 2 tabelas no modelo, agora são 3!)
+    const finalInsp = await inspectDocx(outDocx);
+    expect(finalInsp.tables.length).toBe(3);
+
+    const convertedTbl = finalInsp.tables.find(
+      (t) => t.rows.length === 3 && t.rows[0].cells[0]?.text.includes("Código SKU")
+    );
+    expect(convertedTbl).toBeDefined();
+    expect(convertedTbl!.rows[1].cells[0].text).toBe("SKU-001");
+    expect(convertedTbl!.rows[1].cells[1].text).toBe("Subscrição Enterprise Nível 1");
+    expect(convertedTbl!.rows[1].cells[3].text).toBe("1,50");
+    expect(convertedTbl!.rows[2].cells[0].text).toBe("SKU-002");
+  });
 });
