@@ -144,6 +144,44 @@ export function buildTocMap(
         const txt = cell.text.trim();
         if (!txt || txt.length > 250) continue;
 
+        const isCheckboxText =
+          txt.length <= 35 &&
+          /^(?:[☐☑☒\u2610\u2611\u2612]|\[[\sxX]\]|\(x\)|\(\s*\)|sim\b|n[ãa]o\b|optante\b|n[ãa]o\s+optante\b|exclusiv[ao]\b|ampla\s+concorr[êe]ncia\b)/i.test(
+            txt
+          );
+
+        if (
+          isCheckboxText &&
+          (cell.colSpan ?? 1) <= 2 &&
+          cIdx + 1 < physicalCells.length
+        ) {
+          const nextCell = physicalCells[cIdx + 1];
+          if (
+            (nextCell.colSpan ?? 1) >= 3 ||
+            physicalCells.length <= 3 ||
+            cIdx === 1
+          ) {
+            const currentPhysIdx = cell.physicalCellIndex ?? cell.cellIndex;
+            const nextPhysIdx = nextCell.physicalCellIndex ?? nextCell.cellIndex;
+            const targetCoord = `T${tbl.index}.R${row.rowIndex}.C${nextPhysIdx}`;
+
+            form_fields.push({
+              coord: `T${tbl.index}.R${row.rowIndex}.C${currentPhysIdx}`,
+              title: `[Checkbox Curto] ${txt}`,
+              suggested_target_slot: targetCoord,
+            });
+
+            form_fields.push({
+              coord: targetCoord,
+              title: `[Texto Discursivo / Especificar] ${
+                nextCell.text.trim().slice(0, 50) || "(vazio)"
+              }`,
+            });
+            cIdx++;
+            continue;
+          }
+        }
+
         const isQuestion = txt.endsWith("?") || txt.includes("?");
         const isLabel =
           txt.endsWith(":") && txt.length <= 100 && !txt.includes("\n");
@@ -735,6 +773,95 @@ export function scanPostCompileIntegrityAlerts(
       }.`,
       remediation_hint: `Mapeie todas as células/parágrafos residuais listados acima no slots_manifest.json e substitua o texto herdado do modelo doador pelo conteúdo aderente ao objeto da contratação.`,
     });
+  }
+
+  // 5. Detecção de Contaminação Parcial em Linhas de Itens (ENG-13: PARTIAL_ITEM_ROW_CONTAMINATION)
+  const itemRowContaminatedCoords: string[] = [];
+  const itemRowMatchedTerms = new Set<string>();
+  const hardwareUnitRegex = /\b(?:servidor(?:es)?|GB|TB|Rack|chassi|blade|gabinete)\b/i;
+  const softwareItemRegex = /\b(?:UNS|UST|Subscri[çc][ãa]o|Licen[çc]a|Software|RHEL|OpenShift|Ansible)\b/i;
+
+  for (const tbl of inspection.tables || []) {
+    for (const r of tbl.rows) {
+      const physicalCells = r.cells.filter(
+        (c) => !c.isSpanPlaceholder && c.rowSpan !== "continue"
+      );
+      if (physicalCells.length < 3) continue;
+
+      const hasSoftware = physicalCells.some((c) => softwareItemRegex.test(c.text));
+      if (!hasSoftware) continue;
+
+      for (const c of physicalCells) {
+        if (c.text.trim().length <= 25 && hardwareUnitRegex.test(c.text)) {
+          const m = c.text.match(hardwareUnitRegex);
+          if (m) {
+            itemRowContaminatedCoords.push(
+              `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`
+            );
+            itemRowMatchedTerms.add(m[0]);
+          }
+        }
+      }
+    }
+  }
+
+  if (itemRowContaminatedCoords.length > 0) {
+    alerts.push({
+      code: "PARTIAL_ITEM_ROW_CONTAMINATION",
+      severity: "HIGH",
+      coords: itemRowContaminatedCoords.slice(0, 10),
+      message: `Detectada contaminação parcial em linha de item: células de unidade/métrica contêm resíduo de hardware (${Array.from(
+        itemRowMatchedTerms
+      ).join(", ")}) em item de software/serviço nas coordenadas: ${itemRowContaminatedCoords
+        .slice(0, 6)
+        .join(", ")}.`,
+      remediation_hint: `Substitua a unidade de hardware do doador pela métrica de software contratada (ex.: UNS, UST, Subscrição, Mês) no slots_manifest.json.`,
+    });
+  }
+
+  // 6. Detecção de Linhas de Total Geral Zeradas ou Indefinidas (ENG-13: UNCALCULATED_TOTAL_ROW)
+  for (const tbl of inspection.tables || []) {
+    let hasNonZeroItems = false;
+    let totalRowCoord: string | undefined;
+
+    for (const r of tbl.rows) {
+      const rowText = r.cells
+        .filter((c) => !c.isSpanPlaceholder && c.rowSpan !== "continue")
+        .map((c) => c.text.trim())
+        .join(" ");
+
+      const isTotalRow = /\b(?:TOTAL\s+GERAL|VALOR\s+TOTAL(?:\s+GERAL)?|TOTAL\s+GLOBAL)\b/i.test(
+        rowText
+      );
+
+      if (isTotalRow) {
+        const isZeroOrUndefined =
+          /R\$\s*0(?:,00)?\b|\b0,00\b|\[A\s+DEFINIR\]|\bA\s+DEFINIR\b/i.test(
+            rowText
+          );
+        if (isZeroOrUndefined) {
+          totalRowCoord = `T${tbl.index}.R${r.rowIndex}`;
+        }
+      } else {
+        if (
+          /R\$\s*[1-9]\d*(?:[.,]\d{2})?|\b(?:UNS|UST|Subscri[çc][ãa]o)\b/i.test(
+            rowText
+          )
+        ) {
+          hasNonZeroItems = true;
+        }
+      }
+    }
+
+    if (totalRowCoord && hasNonZeroItems) {
+      alerts.push({
+        code: "UNCALCULATED_TOTAL_ROW",
+        severity: "HIGH",
+        coords: [totalRowCoord],
+        message: `Linha de total ${totalRowCoord} está zerada ou indefinida (R$ 0,00 / [A DEFINIR]), divergindo do somatório dos itens da tabela.`,
+        remediation_hint: `Calcule o somatório total dos itens no estado_caso.json ou slots_manifest.json para que a linha de Total Geral reflita o valor real da contratação.`,
+      });
+    }
   }
 
   return alerts;

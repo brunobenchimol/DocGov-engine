@@ -15,6 +15,8 @@ import {
   setTableCellSingleParagraphText,
   resolvePhysicalTableCell,
   extractCellVMerge,
+  extractCellGridSpan,
+  extractCellText,
   applyInlineReplacementsToXmlDoc,
   ensureContentTypesOverride,
   normalizeTag,
@@ -141,7 +143,48 @@ export async function buildDocxTemplate(
         );
       }
 
-      setTableCellSingleParagraphText(docXml, tc, normalizeTag(tag));
+      // ENG-11b (Fase 1): Auto-redirecionamento geométrico de checkbox C_k -> C_{k+1}
+      const tcText = extractCellText(tc).trim();
+      const tcColSpan = extractCellGridSpan(tc);
+      const isCheckboxText =
+        tcText.length <= 35 &&
+        /^(?:[☐☑☒\u2610\u2611\u2612]|\[[\sxX]\]|\(x\)|\(\s*\)|sim\b|n[ãa]o\b|optante\b|n[ãa]o\s+optante\b|exclusiv[ao]\b|ampla\s+concorr[êe]ncia\b)/i.test(
+          tcText
+        );
+      const isBooleanTag = /check|flag|opcao|sim_nao|habilitado|ativo|status/i.test(
+        tag
+      );
+
+      const tcIdxInRow = rSnap.cells.indexOf(tc);
+      const nextTc =
+        tcIdxInRow >= 0 && tcIdxInRow + 1 < rSnap.cells.length
+          ? rSnap.cells[tcIdxInRow + 1]
+          : null;
+      const nextIsMapped = nextTc
+        ? manifest.replace_table_cells.some(
+            (other) =>
+              other !== rule &&
+              other.table_index === table_index &&
+              other.row_index === row_index &&
+              (other.cell_index === tcIdxInRow + 1 ||
+                resolvePhysicalTableCell(rSnap.cells, other.cell_index) ===
+                  nextTc)
+          )
+        : false;
+
+      if (
+        isCheckboxText &&
+        tcColSpan <= 2 &&
+        !isBooleanTag &&
+        nextTc &&
+        !nextIsMapped &&
+        (extractCellGridSpan(nextTc) >= 3 || rSnap.cells.length <= 3)
+      ) {
+        setTableCellSingleParagraphText(docXml, tc, "☒ Sim.");
+        setTableCellSingleParagraphText(docXml, nextTc, normalizeTag(tag));
+      } else {
+        setTableCellSingleParagraphText(docXml, tc, normalizeTag(tag));
+      }
       breakdown.replace_table_cells++;
     }
   }

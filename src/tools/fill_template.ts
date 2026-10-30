@@ -32,6 +32,10 @@ import {
   stripBoldFromPPr,
   addBoldToRPr,
   isInsideTableCell,
+  setTableCellSingleParagraphText,
+  extractCellText,
+  extractCellGridSpan,
+  extractCellVMerge,
   NumberingManager,
   ensureNumberingPart,
   sanitizeTemplateTagExpression,
@@ -991,6 +995,66 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
   // Segunda passagem: converte tabelas Markdown formadas por parágrafos <w:p> irmãos consecutivos
   if (convertSiblingParagraphMarkdownTables(xmlDoc)) {
     modified = true;
+  }
+
+  // Terceira passagem: auto-redirecionamento geométrico de checkbox C_k -> C_{k+1} (ENG-11b)
+  if (autoRedirectGeometricCheckboxCells(xmlDoc)) {
+    modified = true;
+  }
+
+  return modified;
+}
+
+export function autoRedirectGeometricCheckboxCells(xmlDoc: Document): boolean {
+  let modified = false;
+  const tables = getAllElements(xmlDoc, "w:tbl");
+
+  for (const tbl of tables) {
+    const rows = getDirectChildElements(tbl, "w:tr");
+    for (const tr of rows) {
+      const cells = getDirectChildElements(tr, "w:tc");
+      if (cells.length < 2) continue;
+
+      for (let i = 0; i < cells.length - 1; i++) {
+        const cK = cells[i];
+        const cNext = cells[i + 1];
+
+        const vMergeK = extractCellVMerge(cK);
+        if (vMergeK === "continue") continue;
+
+        const kColSpan = extractCellGridSpan(cK);
+        if (kColSpan > 2) continue;
+
+        const textK = extractCellText(cK).trim();
+        if (textK.length <= 45) continue;
+
+        const nextColSpan = extractCellGridSpan(cNext);
+        if (nextColSpan < 3 && cells.length > 3) continue;
+
+        const textNext = extractCellText(cNext).trim();
+        const isNextShortBoilerplate =
+          textNext.length <= 35 &&
+          /^(?:especificar|justificar|observa[çc][ãa]o|descri[çc][ãa]o|indicar|se\s+sim|n[ãa]o\s+se\s+aplica|caso\s+afirmativo|\s*)[.:\s\-—]*$/i.test(
+            textNext
+          );
+
+        if (isNextShortBoilerplate) {
+          const pListK = getDirectChildElements(cK, "w:p");
+          if (pListK.length > 0) {
+            const pListNext = getDirectChildElements(cNext, "w:p");
+            for (const pNext of pListNext) {
+              cNext.removeChild(pNext);
+            }
+            for (const p of pListK) {
+              cNext.appendChild(p);
+            }
+            setTableCellSingleParagraphText(xmlDoc, cK, "☒ Sim.");
+            ensureTableCellEndsWithParagraph(xmlDoc, cNext);
+            modified = true;
+          }
+        }
+      }
+    }
   }
 
   return modified;
