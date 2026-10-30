@@ -47,7 +47,11 @@ import {
 } from "../tools/pncp.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
-import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  resolveWorkspacePath,
+  isValidDocGovCaseScope,
+  getEphemeralInspectDir,
+} from "../utils/paths.ts";
 
 // ============================================================================
 // Modo Servidor MCP (stdio)
@@ -71,6 +75,7 @@ export function getMcpToolsDefinition() {
       description:
         "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/), descompacta e ingere automaticamente pacotes compactados (.zip, .tar, .tar.gz, .tgz) presentes em uploadsDir, na raiz do caso ou em inputs/ (com classificação libmagic msooxml, defesa Anti-Zip Slip e achatamento seguro), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx, .pdf (com pipeline OCR headless em páginas escaneadas) e planilhas nativas .xlsx/.csv em inputs/, submetendo-as ao budget_auditor matemático, detectando páginas escaneadas como imagem ('scanned_pages_detected'), salvando mapas estruturais em state/estrutura_<nome>.json, visões lineares em state/visao_auditoria_<nome>.md com Cartografia Estrutural (outline_headings, page_signals) e Radar das 14 Zonas de Impugnação (Z1..Z14), dossiês cirúrgicos em state/dossie_hotspots_<nome>.md e consolidando o Índice Cartográfico Mestre Unificado em state/indice_mestre_caso.md.\n" +
         "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de arquivos ou manipulação arbitrária do SO devem utilizar comandos e ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Pastas criadas, pacotes descompactados, arquivos batizados e documentos .docx/.pdf inspecionados. Próximo passo recomendado: ler 'state/indice_mestre_caso.md' ou 'state/visao_auditoria_<nome>.md', inspecionar detalhes adicionais com 'inspect_doc' ou criar o 'slots_manifest.json' e chamar 'build_docx_template'.",
       inputSchema: {
         type: "object",
@@ -107,6 +112,7 @@ export function getMcpToolsDefinition() {
       description:
         "Realiza a engenharia reversa estrutural completa de documentos individuais Word (.docx), PDF (.pdf com agrupamento Y e colunas), planilhas Excel (.xlsx com indexação exata por r='A1'), CSV (.csv) ou textos/markdown (.md/.txt), com guardrail fail-fast que rejeita pacotes compactados (.zip, .tar) orientando o uso de 'bootstrap_case', com fusão multi-página, resolução de células multilinha, pipeline OCR headless automático em páginas escaneadas ('scanned_pages_detected' com 'ocr_applied: true') e auditoria orçamentária determinística integrada (Z10/Z12), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z14), detectando páginas escaneadas como imagem ('scanned_pages_detected'), gerando o dossiê executivo de pontos quentes ('dossie_hotspots_<nome>.md' com contexto expandido ±12 linhas), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z14 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB, margem de segurança < 920 bytes).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para inspecionar um documento individual .docx, .pdf, .xlsx, .csv ou .md específico, descobrir os índices exatos ou reaproveitar templates do cache global, OU após 'fill_docx_template' sobre o arquivo gerado em output/.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Se chamado fora de um caso DocGov ('cases/<slug>/'), os artefatos de saída serão isolados na pasta efêmera segura do sistema (%TEMP%/docgov_ephemeral_inspect/) sem poluir o diretório do usuário.\n" +
         "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural com toc_map/cartografia, o markdown 'visao_auditoria_<nome>.md' e o dossiê 'dossie_hotspots_<nome>.md'. Se template_match for EXACT ou MODIFIED, informe a data do cache ao usuário no Gate 1 e chame 'build_docx_template'; se NEW ou PDF, leia o dossiê de hotspots, a visão de auditoria ou elabore o slots_manifest.json.",
       inputSchema: {
         type: "object",
@@ -150,6 +156,7 @@ export function getMcpToolsDefinition() {
       description:
         "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas). Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', operador declarativo 'remove_table_rows' para poda bottom-up de linhas excedentes preservando <w:vMerge/>, aliases ('col_index', 'paragraph_index'), validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.2 / v1.3.7).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_doc' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de manipulação de documentos ou templates externos devem utilizar ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
       inputSchema: {
         type: "object",
@@ -193,6 +200,7 @@ export function getMcpToolsDefinition() {
       description:
         "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão nativa automática de tabelas Markdown ('| Col1 | Col2 |\\n| :--- | :--- |') para elementos OpenXML <w:tbl> reais (com <w:tblGrid>, bordas corporativas, cabeçalho sombreado e alinhamento por coluna, v1.3.7), conversão de quebras \\n em parágrafos reais, negrito seletivo (**texto**) e expansão recursiva de listas multinível via Motor Híbrido v0.7.0 (word/numbering.xml + <w:numPr> com startOverride fora de tabelas e Hanging Indent com <w:tab/> dentro de tabelas).\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de preenchimento ou conversão de arquivos devem utilizar ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).",
       inputSchema: {
         type: "object",
@@ -237,6 +245,7 @@ export function getMcpToolsDefinition() {
       description:
         "Gera um Relatório de Auditoria Técnico-Jurídica, Matriz de Gerenciamento de Riscos (Art. 18, X e Art. 22 Lei 14.133/2021) ou Checklist de Conformidade Normativa (TCU/AGU/MGI) em formato Word (.docx) e PDF em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast estrita (padrão Exact Copy-Paste Error v0.6.2), sanitização automática de crases Markdown, coordenadas e códigos de enum, e transcrição integral de trechos probatórios (trechos_documento) em blocos de citação recuados.\n" +
         "- Quando usar (Pré-condição): Deve ser chamada após a auditoria do documento gerado e consolidação do arquivo 'relatorio_auditoria.json'.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de criação de relatórios ou arquivos arbitrários devem utilizar ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Gera o documento .docx executivo do parecer de auditoria em outputPath. Conclui formalmente o ciclo de auditoria do processo.",
       inputSchema: {
         type: "object",
@@ -274,6 +283,7 @@ export function getMcpToolsDefinition() {
         "  1) Direto via JSON: forneça 'noteJsonPath' e 'outputPath';\n" +
         "  2) Comparativo via arquivos: forneça 'oldPath' e 'newPath' (.docx, .pdf ou .json de estrutura) + 'outputPath' (e opcionalmente 'noteJsonPath' para enriquecer com justificativas elaboradas pelo agente).\n" +
         "- Quando usar (Pré-condição): Após alterações substantivas em minutas ou artefatos instrutórios (TR, ETP, Edital) para justificar a evolução aos órgãos de controle (TCU, AGU, Controle Interno).\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de comparação de arquivos ou diff arbitrário fora de processos devem utilizar ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Gera a Nota Técnica executiva em outputPath (.docx e opcionalmente .pdf). Conclui o ciclo de justificação e governança de alterações.",
       inputSchema: {
         type: "object",
@@ -318,6 +328,7 @@ export function getMcpToolsDefinition() {
       description:
         "Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta 'inputs/pncp_<shortname>/', descompactação in-place transparente (.zip, .tar, .tar.gz) e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
         "- Quando usar (Pré-condição): Quando o usuário ou agente fornecer um identificador PNCP (número de controle em edital '00394460000141-1-000015/2026', URL do portal/API, tupla '00394460000141/2026/15' ou link de redirecionamento opaco do Google Grounding vertexaisearch.cloud.google.com/grounding-api-redirect/...) para obter insumos e modelos de referência externa sem misturá-los com as minutas sob auditoria do caso.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita à instrução e benchmarking de contratações do ecossistema DocGov. Downloads arbitrários de arquivos para outras finalidades devem utilizar ferramentas padrão do sistema operacional.\n" +
         "- Pós-condição & Próximo Passo: Arquivos disponíveis em 'inputs/pncp_<shortname>/', metadados salvos em 'state/pncp_<shortname>_meta.json' e catálogo de referência em 'state/indice_pncp_<shortname>.md'. Consulte o catálogo para orientar a leitura seletiva.",
       inputSchema: {
         type: "object",
@@ -351,6 +362,7 @@ export function getMcpToolsDefinition() {
       description:
         "Realiza busca textual multi-query no endpoint oficial /api/search/ do PNCP (Portal Nacional de Contratações Públicas) para localização de editais, termos de referência e contratações públicas de referência para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
         "- Quando usar (Pré-condição): Quando o agente precisar descobrir contratações similares a partir de termos de busca, objetos ou nomes de órgãos, suportando consultas combinadas separadas por pipe '|' (ex.: 'fábrica de software | sustentação de sistemas') ou links de redirecionamento do Google Grounding (vertexaisearch.cloud.google.com/grounding-api-redirect/...). Executa as consultas em paralelo, desduplica resultados por CNPJ/ANO/SEQUENCIAL e acumula com buscas anteriores da sessão.\n" +
+        "- Quando NÃO usar (Fora de Escopo): Se caseDir for omitido ou apontar para fora de 'cases/<slug>/', os resultados da busca serão acumulados no cache efêmero da sessão (%TEMP%/docgov_ephemeral_inspect/) sem persistir arquivos na pasta local do usuário.\n" +
         "- Pós-condição & Próximo Passo: Salva os candidatos completos em 'state/pncp_search_results.json' e a tabela consolidada com Objeto Integral em 'state/pncp_search_results.md'. Próximo passo: selecione o 'pncp_id' mais aderente e chame 'fetch_pncp' para baixar os arquivos para a subpasta isolada.",
       inputSchema: {
         type: "object",
@@ -483,23 +495,31 @@ export async function runMcpServer() {
           /\.(?:docx|pdf|xlsx|xls|csv|md|markdown|txt|text)$/i,
           ""
         );
+        const inScope =
+          isValidDocGovCaseScope(resolvedDoc) ||
+          Boolean(args.outputPath && isValidDocGovCaseScope(args.outputPath));
         const effectiveOutputPath = args.outputPath
           ? resolveWorkspacePath(args.outputPath)
-          : resolve(dirname(resolvedDoc), `estrutura_${docStem}.json`);
+          : (inScope
+              ? resolve(dirname(resolvedDoc), `estrutura_${docStem}.json`)
+              : resolve(getEphemeralInspectDir(), `estrutura_${docStem}.json`));
+        const finalOutputPath = inScope
+          ? effectiveOutputPath
+          : resolve(getEphemeralInspectDir(), basename(effectiveOutputPath));
         const resolvedCompare = args.compareWithPath
           ? resolveWorkspacePath(args.compareWithPath)
           : undefined;
 
         const inspection = await inspectDoc(
           resolvedDoc,
-          effectiveOutputPath,
+          finalOutputPath,
           args.compact !== false,
           { compareWithPath: resolvedCompare }
         );
 
         const synthetic = formatInspectDocSyntheticResult(
           rawPath,
-          effectiveOutputPath,
+          finalOutputPath,
           inspection
         );
 

@@ -12,7 +12,12 @@ import {
   createPncpIdentifierContractError,
   createPncpSearchContractError,
 } from "../contracts/errors.ts";
-import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  resolveWorkspacePath,
+  isValidDocGovCaseScope,
+  assertDocGovCaseScope,
+  getEphemeralInspectDir,
+} from "../utils/paths.ts";
 import { detectFileType, extractArchiveBuffer } from "../utils/archives.ts";
 import { inspectDoc, toShortDocPath } from "./inspect.ts";
 import type {
@@ -306,6 +311,7 @@ export async function fetchPncpContract(
   options: FetchPncpOptions = {}
 ): Promise<FetchPncpResult> {
   const resolvedCaseDir = resolveWorkspacePath(caseDir);
+  assertDocGovCaseScope(resolvedCaseDir, "fetch_pncp");
   const id = await resolveAndParsePncpIdentifier(pncpIdOrUrl, options.timeoutMs);
   const shortname = sanitizePncpShortname(options.shortname, id);
 
@@ -749,7 +755,10 @@ export async function searchPncpContracts(
   }
 
   const resolvedCaseDir = resolveWorkspacePath(caseDir);
-  const stateDir = resolve(resolvedCaseDir, "state");
+  const inScope = isValidDocGovCaseScope(resolvedCaseDir);
+  const stateDir = inScope
+    ? resolve(resolvedCaseDir, "state")
+    : getEphemeralInspectDir();
   mkdirSync(stateDir, { recursive: true });
 
   // 1. Normalização de queries (suporta array ou string com separador '|')

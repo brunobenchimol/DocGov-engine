@@ -51,7 +51,11 @@ import {
   generateSpreadsheetHotspotsDossierMarkdown,
 } from "../parsers/spreadsheet.ts";
 import { VERSION } from "../constants/index.ts";
-import { resolveExistingPathNfc } from "../utils/paths.ts";
+import {
+  resolveExistingPathNfc,
+  isValidDocGovCaseScope,
+  getEphemeralInspectDir,
+} from "../utils/paths.ts";
 import type {
   BodyParagraphInfo,
   TableInfo,
@@ -1171,6 +1175,10 @@ export async function inspectDocx(
     );
   }
 
+  const inScope =
+    isValidDocGovCaseScope(resolvedDocx) ||
+    Boolean(outputPath && isValidDocGovCaseScope(outputPath));
+
   const lowerPath = resolvedDocx.toLowerCase();
   const isSpreadsheet =
     lowerPath.endsWith(".xlsx") ||
@@ -1193,9 +1201,16 @@ export async function inspectDocx(
         )
       : basename(resolvedDocx).replace(/\.(?:xlsx|xls|csv)$/i, "");
 
-    const outDir = outputPath
-      ? dirname(resolve(outputPath))
-      : dirname(resolvedDocx);
+    const outDir = inScope
+      ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
+      : getEphemeralInspectDir();
+
+    const targetOutputPath = inScope
+      ? (outputPath ? resolve(outputPath) : undefined)
+      : resolve(
+          outDir,
+          outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
+        );
 
     if (!existsSync(outDir)) {
       mkdirSync(outDir, { recursive: true });
@@ -1261,9 +1276,8 @@ export async function inspectDocx(
       budget_audit: budgetAudit,
     };
 
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      writeFileSync(resolvedOut, JSON.stringify(result, null, 2), "utf-8");
+    if (targetOutputPath) {
+      writeFileSync(targetOutputPath, JSON.stringify(result, null, 2), "utf-8");
     }
 
     return result;
@@ -1282,6 +1296,28 @@ export async function inspectDocx(
     const extraction = await extractPdfPages(buffer);
     const cartography = buildPdfCartography(extraction);
 
+    const baseStem = outputPath
+      ? basename(resolve(outputPath), ".json").replace(
+          /^(?:estrutura_|inspecao_)/,
+          ""
+        )
+      : basename(resolvedDocx).replace(/\.pdf$/i, "");
+
+    const outDir = inScope
+      ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
+      : getEphemeralInspectDir();
+
+    const targetOutputPath = inScope
+      ? (outputPath ? resolve(outputPath) : undefined)
+      : resolve(
+          outDir,
+          outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
+        );
+
+    if (!existsSync(outDir)) {
+      mkdirSync(outDir, { recursive: true });
+    }
+
     // Auditoria Matemática Orçamentária (v1.1.0)
     const budgetAudit = auditDocumentBudget({ pdfLines: extraction.lines });
     if (budgetAudit.has_budget_table) {
@@ -1291,22 +1327,10 @@ export async function inspectDocx(
       );
 
       if (!options.skipAuditArtifacts) {
-        const budgetOutDir = outputPath
-          ? dirname(resolve(outputPath))
-          : dirname(resolvedDocx);
-        const budgetBase = outputPath
-          ? basename(resolve(outputPath), ".json").replace(
-              /^(?:estrutura_|inspecao_)/,
-              ""
-            )
-          : basename(resolvedDocx).replace(/\.pdf$/i, "");
         const budgetAuditPath = resolve(
-          budgetOutDir,
-          `auditoria_orcamentaria_${budgetBase}.json`
+          outDir,
+          `auditoria_orcamentaria_${baseStem}.json`
         );
-        if (!existsSync(budgetOutDir)) {
-          mkdirSync(budgetOutDir, { recursive: true });
-        }
         writeFileSync(
           budgetAuditPath,
           JSON.stringify(budgetAudit, null, 2),
@@ -1319,19 +1343,7 @@ export async function inspectDocx(
     let dossieHotspotsPath: string | undefined;
 
     if (!options.skipAuditArtifacts) {
-      if (outputPath) {
-        const resolvedOut = resolve(outputPath);
-        const outDir = dirname(resolvedOut);
-        const outBase = basename(resolvedOut, ".json").replace(
-          /^(?:estrutura_|inspecao_)/,
-          ""
-        );
-        auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
-      } else {
-        const docDir = dirname(resolvedDocx);
-        const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
-        auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
-      }
+      auditViewPath = resolve(outDir, `visao_auditoria_${baseStem}.md`);
 
       let auditMd = generatePdfLinearAuditViewMarkdown(
         basename(resolvedDocx),
@@ -1341,26 +1353,10 @@ export async function inspectDocx(
       if (budgetAudit.has_budget_table) {
         auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
       }
-      const auditDir = dirname(auditViewPath);
-      if (!existsSync(auditDir)) {
-        mkdirSync(auditDir, { recursive: true });
-      }
       writeFileSync(auditViewPath, auditMd, "utf-8");
 
       // Geração do Dossiê Executivo de Hotspots (v0.9.0)
-      if (outputPath) {
-        const resolvedOut = resolve(outputPath);
-        const outDir = dirname(resolvedOut);
-        const outBase = basename(resolvedOut, ".json").replace(
-          /^(?:estrutura_|inspecao_)/,
-          ""
-        );
-        dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${outBase}.md`);
-      } else {
-        const docDir = dirname(resolvedDocx);
-        const docBase = basename(resolvedDocx).replace(/\.pdf$/i, "");
-        dossieHotspotsPath = resolve(docDir, `dossie_hotspots_${docBase}.md`);
-      }
+      dossieHotspotsPath = resolve(outDir, `dossie_hotspots_${baseStem}.md`);
 
       let dossieMd = generateHotspotsDossierMarkdown(
         basename(resolvedDocx),
@@ -1418,13 +1414,8 @@ export async function inspectDocx(
       options.compareWithPath
     );
 
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      const outDir = dirname(resolvedOut);
-      if (!existsSync(outDir)) {
-        mkdirSync(outDir, { recursive: true });
-      }
-      writeFileSync(resolvedOut, JSON.stringify(pdfResult, null, 2), "utf-8");
+    if (targetOutputPath) {
+      writeFileSync(targetOutputPath, JSON.stringify(pdfResult, null, 2), "utf-8");
     }
 
     return pdfResult;
@@ -1477,9 +1468,16 @@ export async function inspectDocx(
         )
       : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
 
-    const outDir = outputPath
-      ? dirname(resolve(outputPath))
-      : dirname(resolvedDocx);
+    const outDir = inScope
+      ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
+      : getEphemeralInspectDir();
+
+    const targetOutputPath = inScope
+      ? (outputPath ? resolve(outputPath) : undefined)
+      : resolve(
+          outDir,
+          outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
+        );
 
     if (!existsSync(outDir)) {
       mkdirSync(outDir, { recursive: true });
@@ -1544,9 +1542,8 @@ export async function inspectDocx(
       options.compareWithPath
     );
 
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      writeFileSync(resolvedOut, JSON.stringify(textResult, null, 2), "utf-8");
+    if (targetOutputPath) {
+      writeFileSync(targetOutputPath, JSON.stringify(textResult, null, 2), "utf-8");
     }
 
     return textResult;
@@ -1766,6 +1763,28 @@ export async function inspectDocx(
     docxTables: tables,
     docxParagraphs: paragraphs,
   });
+  const baseStem = outputPath
+    ? basename(resolve(outputPath), ".json").replace(
+        /^(?:estrutura_|inspecao_)/,
+        ""
+      )
+    : basename(resolvedDocx, ".docx");
+
+  const outDir = inScope
+    ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
+    : getEphemeralInspectDir();
+
+  const targetOutputPath = inScope
+    ? (outputPath ? resolve(outputPath) : undefined)
+    : resolve(
+        outDir,
+        outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
+      );
+
+  if (!existsSync(outDir)) {
+    mkdirSync(outDir, { recursive: true });
+  }
+
   if (budgetAudit.has_budget_table) {
     injectBudgetAuditIntoImpugnationZones(
       budgetAudit,
@@ -1773,22 +1792,10 @@ export async function inspectDocx(
     );
 
     if (!options.skipAuditArtifacts) {
-      const budgetOutDir = outputPath
-        ? dirname(resolve(outputPath))
-        : dirname(resolvedDocx);
-      const budgetBase = outputPath
-        ? basename(resolve(outputPath), ".json").replace(
-            /^(?:estrutura_|inspecao_)/,
-            ""
-          )
-        : basename(resolvedDocx, ".docx");
       const budgetAuditPath = resolve(
-        budgetOutDir,
-        `auditoria_orcamentaria_${budgetBase}.json`
+        outDir,
+        `auditoria_orcamentaria_${baseStem}.json`
       );
-      if (!existsSync(budgetOutDir)) {
-        mkdirSync(budgetOutDir, { recursive: true });
-      }
       writeFileSync(
         budgetAuditPath,
         JSON.stringify(budgetAudit, null, 2),
@@ -1860,13 +1867,7 @@ export async function inspectDocx(
         structure_fingerprint,
         rawResult
       );
-      const outStateDir = outputPath
-        ? dirname(resolve(outputPath))
-        : dirname(resolvedDocx);
-      const adaptedPath = resolve(outStateDir, "adapted_slots_manifest.json");
-      if (!existsSync(outStateDir)) {
-        mkdirSync(outStateDir, { recursive: true });
-      }
+      const adaptedPath = resolve(outDir, "adapted_slots_manifest.json");
       writeFileSync(adaptedPath, JSON.stringify(adapted, null, 2), "utf-8");
 
       template_match = {
@@ -1913,19 +1914,10 @@ export async function inspectDocx(
 
   // Geração da Visão Linear Compacta de Auditoria (v0.6.0 / v0.8.0 / v0.8.1 com Cartografia + Z1..Z14)
   if (!options.skipAuditArtifacts) {
-    let auditViewPath: string;
-    if (outputPath) {
-      const resolvedOut = resolve(outputPath);
-      const outDir = dirname(resolvedOut);
-      const outBase = basename(resolvedOut, ".json")
-        .replace(/^(?:estrutura_|inspecao_)/, "")
-        .normalize("NFC");
-      auditViewPath = resolve(outDir, `visao_auditoria_${outBase}.md`);
-    } else {
-      const docDir = dirname(resolvedDocx);
-      const docBase = basename(resolvedDocx, ".docx").normalize("NFC");
-      auditViewPath = resolve(docDir, `visao_auditoria_${docBase}.md`);
-    }
+    const auditViewPath = resolve(
+      outDir,
+      `visao_auditoria_${baseStem.normalize("NFC")}.md`
+    );
 
     let auditMd = generateLinearAuditViewMarkdown(
       basename(resolvedDocx).normalize("NFC"),
@@ -1933,10 +1925,6 @@ export async function inspectDocx(
     );
     if (budgetAudit.has_budget_table) {
       auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
-    }
-    const auditDir = dirname(auditViewPath);
-    if (!existsSync(auditDir)) {
-      mkdirSync(auditDir, { recursive: true });
     }
     writeFileSync(auditViewPath, auditMd, "utf-8");
     rawResult.audit_view_path = auditViewPath;
@@ -1951,15 +1939,10 @@ export async function inspectDocx(
 
   const finalResult = compact ? compactInspectionResult(rawResult) : rawResult;
 
-  if (outputPath) {
-    const resolvedOut = resolve(outputPath);
-    const outDir = dirname(resolvedOut);
-    if (!existsSync(outDir)) {
-      mkdirSync(outDir, { recursive: true });
-    }
+  if (targetOutputPath) {
     const nfcOutPath = resolve(
       outDir,
-      basename(resolvedOut).normalize("NFC")
+      basename(targetOutputPath).normalize("NFC")
     );
     writeFileSync(nfcOutPath, JSON.stringify(finalResult, null, 2), "utf-8");
   }
@@ -2028,11 +2011,11 @@ export function formatInspectDocSyntheticResult(
   }
 
   const relAuditPath = inspection.audit_view_path
-    ? relative(process.cwd(), inspection.audit_view_path).replace(/\\/g, "/")
+    ? toShortDocPath(inspection.audit_view_path)
     : undefined;
 
   const relDossiePath = inspection.dossie_hotspots_path
-    ? relative(process.cwd(), inspection.dossie_hotspots_path).replace(/\\/g, "/")
+    ? toShortDocPath(inspection.dossie_hotspots_path)
     : undefined;
 
   const conciseMatch: TemplateMatchResult | undefined = inspection.template_match
@@ -2044,10 +2027,9 @@ export function formatInspectDocSyntheticResult(
           : {}),
         ...(inspection.template_match.adapted_manifest_path
           ? {
-              adapted_manifest_path: relative(
-                process.cwd(),
+              adapted_manifest_path: toShortDocPath(
                 inspection.template_match.adapted_manifest_path
-              ).replace(/\\/g, "/"),
+              ),
             }
           : {}),
         ...(inspection.template_match.created_at !== undefined

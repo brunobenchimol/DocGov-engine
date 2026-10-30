@@ -6,7 +6,7 @@ import { DOMParser } from "@xmldom/xmldom";
 import { sanitizeXmlString, inspectDocx } from "../src/index.ts";
 
 describe("Testes Unitários v1.1.1: Sanitização Universal de XML BOM e Whitespaces Iniciais", () => {
-  const tempDir = resolve(__dirname, "..", "temp_test_xml_sanitizer");
+  const tempDir = resolve(__dirname, "..", "docgov_test_xml_sanitizer");
 
   beforeAll(() => {
     mkdirSync(tempDir, { recursive: true });

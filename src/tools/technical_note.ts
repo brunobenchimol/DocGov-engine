@@ -13,6 +13,10 @@ import { sanitizeXmlString } from "../utils/xml.ts";
 import { generateGranularInlineDiff } from "../core/structural_diff.ts";
 import { cleanHumanText } from "./audit.ts";
 import { VERSION } from "../constants/index.ts";
+import {
+  assertDocGovCaseScope,
+  isValidDocGovCaseScope,
+} from "../utils/paths.ts";
 import type {
   TechnicalNoteData,
   EvolutionClauseItem,
@@ -379,6 +383,15 @@ export async function generateTechnicalNoteDocx(
 }> {
   let noteData: TechnicalNoteData;
 
+  const resolvedOutput = resolve(outputPath);
+  const inScope =
+    isValidDocGovCaseScope(resolvedOutput) ||
+    (typeof noteDataOrPath === "string" &&
+      isValidDocGovCaseScope(resolve(noteDataOrPath)));
+  if (!inScope) {
+    assertDocGovCaseScope(resolvedOutput, "generate_technical_note_docx");
+  }
+
   if (typeof noteDataOrPath === "string") {
     const resolvedPath = resolve(noteDataOrPath);
     if (!existsSync(resolvedPath)) {
@@ -389,8 +402,6 @@ export async function generateTechnicalNoteDocx(
   } else {
     noteData = validateTechnicalNoteData(noteDataOrPath);
   }
-
-  const resolvedOutput = resolve(outputPath);
   const outputFormat =
     options?.outputFormat ||
     (resolvedOutput.toLowerCase().endsWith(".pdf") ? "pdf" : "docx");

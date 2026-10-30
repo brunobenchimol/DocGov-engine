@@ -26,6 +26,10 @@ import {
   saveTemplateToRegistry,
 } from "../core/registry.ts";
 import { VERSION } from "../constants/index.ts";
+import {
+  assertDocGovCaseScope,
+  isValidDocGovCaseScope,
+} from "../utils/paths.ts";
 import type {
   SlotsManifest,
   BuildDocxTemplateBreakdown,
@@ -47,6 +51,14 @@ export async function buildDocxTemplate(
   const resolvedSource = resolve(sourcePath);
   const resolvedManifest = resolve(manifestPath);
   const resolvedOutput = resolve(outputPath);
+
+  const inScope =
+    isValidDocGovCaseScope(resolvedSource) ||
+    isValidDocGovCaseScope(resolvedOutput) ||
+    isValidDocGovCaseScope(resolvedManifest);
+  if (!inScope) {
+    assertDocGovCaseScope(resolvedSource, "build_docx_template");
+  }
 
   if (!existsSync(resolvedSource)) {
     throw new Error(`Documento bruto não encontrado: ${resolvedSource}`);

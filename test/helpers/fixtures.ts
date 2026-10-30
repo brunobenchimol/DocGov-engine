@@ -229,7 +229,7 @@ export function createSuiteTempDir(suiteName: string): {
   tempDir: string;
   cleanup: () => void;
 } {
-  const tempDir = resolve(`./temp_test_${suiteName}`);
+  const tempDir = resolve(`./docgov_test_${suiteName}`);
   if (!existsSync(tempDir)) {
     mkdirSync(tempDir, { recursive: true });
   }

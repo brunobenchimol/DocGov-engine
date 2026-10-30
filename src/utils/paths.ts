@@ -1,5 +1,6 @@
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, mkdirSync } from "node:fs";
 import { resolve, dirname, basename, normalize, isAbsolute, join } from "node:path";
+import { tmpdir } from "node:os";
 
 let cachedWorkspaceRoot: string | null = null;
 
@@ -197,3 +198,39 @@ export function resolveWorkspacePath(inputPath: string, customRoot?: string): st
   const root = findWorkspaceRoot();
   return resolveExistingPathNfc(resolve(root, inputPath));
 }
+
+/**
+ * Validador canônico de escopo do ecossistema DocGov (ENG-10).
+ * Considera válido apenas caminhos pertencentes a casos ('cases/<slug>')
+ * ou diretórios estruturais/harnesses de certificação e teste.
+ */
+export function isValidDocGovCaseScope(targetPath: string): boolean {
+  if (!targetPath) return false;
+  const normalized = targetPath.replace(/\\/g, "/");
+  return /(^|[\\/])(cases|work|evals|inputs|state|output|templates|fixtures|DocGov\.EngineTests|case_assert|docgov_test_[^\\/]*)([\\/]|$)/i.test(
+    normalized
+  );
+}
+
+/**
+ * Bloqueio Fail-Fast para ferramentas de processo executadas fora de um caso DocGov válido (ENG-10).
+ */
+export function assertDocGovCaseScope(targetPath: string, toolName?: string): void {
+  if (!isValidDocGovCaseScope(targetPath)) {
+    throw new Error(
+      `Operação bloqueada fora de escopo DocGov: '${targetPath}' não pertence a um diretório de caso 'cases/<slug>/'. Esta ferramenta é exclusiva para instrução processual dentro do ecossistema DocGov.`
+    );
+  }
+}
+
+/**
+ * Retorna o diretório efêmero isolado em %TEMP% para ferramentas autorizadas fora de escopo (inspect_doc / search_pncp).
+ */
+export function getEphemeralInspectDir(): string {
+  const ephemeralDir = join(tmpdir(), "docgov_ephemeral_inspect");
+  if (!existsSync(ephemeralDir)) {
+    mkdirSync(ephemeralDir, { recursive: true });
+  }
+  return ephemeralDir;
+}
+

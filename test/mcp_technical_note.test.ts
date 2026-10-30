@@ -10,7 +10,7 @@ import {
 } from "../src/index.ts";
 import type { TechnicalNoteData } from "../src/types/index.ts";
 
-const TEST_DIR = resolve("./test_tmp_mcp_note");
+const TEST_DIR = resolve("./docgov_test_mcp_note");
 
 async function createMockDocx(
   filePath: string,

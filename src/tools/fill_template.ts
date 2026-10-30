@@ -12,6 +12,10 @@ import {
   safeUnlink,
 } from "../utils/pdf_exporter.ts";
 import { VERSION } from "../constants/index.ts";
+import {
+  assertDocGovCaseScope,
+  isValidDocGovCaseScope,
+} from "../utils/paths.ts";
 import type {
   ProcessDocumentOptions,
   ProcessDocumentResult,
@@ -1049,6 +1053,14 @@ export async function processDocument(
   const resolvedTemplate = resolve(templatePath);
   const resolvedState = resolve(statePath);
   const resolvedOutput = resolve(outputPath);
+
+  const inScope =
+    isValidDocGovCaseScope(resolvedTemplate) ||
+    isValidDocGovCaseScope(resolvedOutput) ||
+    isValidDocGovCaseScope(resolvedState);
+  if (!inScope) {
+    assertDocGovCaseScope(resolvedTemplate, "fill_docx_template");
+  }
 
   if (!existsSync(resolvedTemplate)) {
     throw new Error(`Template não encontrado: ${resolvedTemplate}`);

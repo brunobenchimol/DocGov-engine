@@ -16,6 +16,10 @@ import {
 import { sanitizeXmlString } from "../utils/xml.ts";
 import { generateTechnicalNoteDocx } from "./technical_note.ts";
 import { VERSION } from "../constants/index.ts";
+import {
+  assertDocGovCaseScope,
+  isValidDocGovCaseScope,
+} from "../utils/paths.ts";
 import type {
   AuditReportData,
   AuditFinding,
@@ -466,6 +470,13 @@ export async function generateAuditDocx(
 }> {
   const resolvedAuditJson = resolve(auditJsonPath);
   const resolvedOutput = resolve(outputPath);
+
+  const inScope =
+    isValidDocGovCaseScope(resolvedAuditJson) ||
+    isValidDocGovCaseScope(resolvedOutput);
+  if (!inScope) {
+    assertDocGovCaseScope(resolvedAuditJson, "generate_audit_docx");
+  }
 
   const outputFormat = options?.outputFormat || "docx";
   if (!["docx", "pdf", "both"].includes(outputFormat)) {

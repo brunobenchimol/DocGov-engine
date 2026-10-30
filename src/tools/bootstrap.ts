@@ -25,6 +25,7 @@ import { inspectDocx, compactInspectionResult } from "./inspect.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
 import { ALL_IMPUGNATION_ZONE_IDS } from "../core/cartography.ts";
 import { VERSION } from "../constants/index.ts";
+import { assertDocGovCaseScope } from "../utils/paths.ts";
 import type {
   BackgroundCopyFileItem,
   BackgroundCopyInput,
@@ -187,6 +188,8 @@ export async function bootstrapCase(
   options: BootstrapCaseOptions = {}
 ): Promise<BootstrapCaseResult> {
   const resolvedCaseDir = resolve(caseDir);
+  assertDocGovCaseScope(resolvedCaseDir, "bootstrap_case");
+
   const isGitRepoRoot = existsSync(join(resolvedCaseDir, ".git"));
   const hasSourceCodeMarkers =
     existsSync(join(resolvedCaseDir, "core", "skills")) ||
