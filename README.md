@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.7)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.9)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,35 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.7` (Geração 3 — Tabelas Markdown para OpenXML, `remove_table_rows`, Scanner Anti-Contaminação e NFC) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.9` (Geração 3 — Reancoragem de Prefixos Multinível, Injeção Literal e Scanner de Anomalias) e Marcos Anteriores
+
+A versão **`v1.3.9`** entrega a solução estrutural definitiva para numeração multinível de cláusulas e seções (`ENG-14`) e expande os alertas de integridade pós-compilação (`ENG-15`):
+
+### Novidades da `v1.3.9` (`ENG-14` e `ENG-15`):
+1. **Parent Section Prefix Resolver & Reancoragem Contextual (`ENG-14a`):**
+   - Rastreamento contextual do prefixo da seção pai ativa (`activeSectionPrefix`) ao longo de todo o `<w:body>` em `fill_docx_template`, resolvendo tanto títulos literais quanto numerados via `word/numbering.xml`.
+   - Reancoragem automática de prefixos relativos gerados pelo LLM (`1.1.`, `1.2.` ou `1.1.1.`) para o prefixo pai real (ex.: Seção `4.4` $\rightarrow$ `4.4.1.`, `4.4.2.`; Seção `5.1` $\rightarrow$ `5.1.1.`; Seção `5.2` $\rightarrow$ `5.2.1.`; Seção `6` $\rightarrow$ `6.1.`).
+   - Prevenção de colisão com subseções irmãs existentes no template: converte itens potencialmente conflitantes (ex.: introdução da Seção `2` contendo subseções fixas `2.1` e `2.2`) em Bullet estilizado (`• `) com recuo deslocado *Hanging Indent*.
+2. **Injeção Literal Determinística sem `<w:numPr>` Órfão (`ENG-14b`):**
+   - Separação estrita: listas simples de 1 nível (`single_decimal`: `1.`, `2.`, `3.`) fora de tabelas utilizam `word/numbering.xml` com sequenciamento estrito.
+   - Cláusulas multi-decimais (`multi_decimal`: `X.Y.`, `X.Y.Z.`) utilizam injeção literal no primeiro run `<w:r><w:t>` seguido de `<w:r><w:tab/></w:r>`, com recuo *Hanging Indent* (`<w:ind w:left w:hanging>` e `<w:tabs><w:tab w:val="left"/>`), `<w:spacing w:after="120"/>` e **eliminação incondicional de nós `<w:numPr>`**, erradicando o bug do Word que reiniciava para `1.1` ou `1.1.1`.
+3. **Scanners Pós-Compilação de Reset e SLAs Conflitantes (`ENG-15`):**
+   - Alerta `MULTILEVEL_NUMBERING_RESET` ao detectar parágrafos sob seções $\ge 2$ iniciando em `1.1.` ou `1.1.1.`.
+   - Alerta `DUPLICATE_CONFLICTING_SLA_TABLES` ao detectar tabelas distintas no mesmo documento com prazos divergentes de Severidade 1 / Crítica herdadas do modelo doador.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.8` (Geração 3 — Guardrail de Escopo DocGov com %TEMP%, Redirecionamento C1->C2, Heading Guard e Detector de Órfãos)
+
+A versão **`v1.3.8`** entregou 4 guardrails essenciais (`ENG-10` a `ENG-13`) para isolamento de arquivos temporários, manipulação de checkboxes em tabelas e saneamento de cabeçalhos:
+1. **Guardrail de Escopo DocGov com Isolamento Efêmero em %TEMP% (`ENG-10`):** Bloqueio fail-fast nas 6 ferramentas de processo executadas fora de `cases/<slug>/` e isolamento automático de `inspect_doc` e `search_pncp` em pasta temporária segura (`%TEMP%/docgov_ephemeral_inspect/`).
+2. **Anotações Semânticas e Auto-Redirecionamento Geométrico `C1 -> C2` (`ENG-11`):** Redirecionamento de tags de checkbox para células vizinhas de dados e marcação de `☒ Sim.` em células de checkbox.
+3. **Heading Guard e Saneamento de `<w:numPr>` em `replace_paragraphs` (`ENG-12`):** Preservação de cabeçalhos de seção ao aplicar substituições em blocos de texto e descarte de nós `<w:numPr>` herdados indevidamente.
+4. **Detector de Células Órfãs e Linhas Zeradas em Subtabelas (`ENG-13`):** Scanners pós-compilação `PARTIAL_ITEM_ROW_CONTAMINATION` e `UNCALCULATED_TOTAL_ROW`.
+
+---
+
+## 2.2. Destaques da Versão `v1.3.7` (Geração 3 — Tabelas Markdown para OpenXML, `remove_table_rows`, Scanner Anti-Contaminação e NFC)
 
 A versão **`v1.3.7`** entrega 4 recursos determinísticos (`ENG-06` a `ENG-09`) para geração de tabelas de alta complexidade, poda limpa de subtabelas em modelos monolíticos, detecção automática de contaminação de minutas doadoras e resiliência multiplataforma Unicode `NFC`:
 

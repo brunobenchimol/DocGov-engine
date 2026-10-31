@@ -139,6 +139,12 @@
   - Saneamento de `<w:numPr>` herdado, descarte de linhas vazias, espaçamento vertical `<w:spacing w:after="120"/>` e sequenciamento contínuo em listas decimais simples consecutivas (1. -> 2. -> 3.).
   - Scanner pós-compilação detectando contaminação parcial de unidades físicas em linhas de software (`PARTIAL_ITEM_ROW_CONTAMINATION`) e linhas de total desatualizadas ou zeradas (`UNCALCULATED_TOTAL_ROW`).
 
+- [x] **6.11. Patch `v1.3.9` — Reancoragem de Prefixos Multinível, Injeção Literal e Scanner de Anomalias (`ENG-14` e `ENG-15`):**
+  - Parent Section Prefix Resolver (`ENG-14a`): rastreamento contextual do prefixo da seção ativa (`activeSectionPrefix`) no `<w:body>` resolvendo títulos literais e via numbering.xml, com reancoragem automática de itens multinível relativos (1.1, 1.2, 1.1.1) para seções 4.4, 5.1, 5.2, 6, etc.
+  - Prevenção determinística de colisão com subseções irmãs: mapeamento de títulos fixos existentes no template (`existingSectionPrefixes`) convertendo itens conflitantes em Bullet '• ' estilizado com hanging indent (ex.: introdução da Seção 2).
+  - Injeção literal determinística com Hanging Indent (`ENG-14b`): cláusulas multi-decimais utilizam injeção literal no primeiro run `<w:t>` com `<w:tab/>`, `<w:spacing w:after="120"/>` e recuo estático, eliminando nós `<w:numPr>` órfãos e erradicando o reset do Word para 1.1/1.1.1.
+  - Scanners de anomalia pós-compilação (`ENG-15`): `MULTILEVEL_NUMBERING_RESET` (alertando sobre itens 1.1 sob seções >= 2) e `DUPLICATE_CONFLICTING_SLA_TABLES` (alertando sobre tabelas distintas de SLA de chamados com prazos divergentes para Severidade 1 herdadas do modelo doador).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)

@@ -8,6 +8,20 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.9] - 2026-10-31
+
+### Adicionado
+- **Parent Section Prefix Resolver & Reancoragem Contextual Multinível (`ENG-14a`):**
+  - Rastreamento dinâmico da seção ativa (`activeSectionPrefix`) no `<w:body>` resolvendo títulos estruturais literais (`2. JUSTIFICATIVA`, `4.4 CRITÉRIOS...`, `5.1 MODELO...`, `5.2 MATRIZ...`, `6. GESTÃO...`) e cabeçalhos nativos do Word via `numberingResolver` (`createNumberingResolver`).
+  - Reancoragem automática de itens multinível relativos (`1.1.`, `1.2.`, `1.1.1.`) gerados pelo LLM para o prefixo da seção pai real: na Seção `4.4` $\rightarrow$ `4.4.1.`, `4.4.2.`; na Seção `5.1` $\rightarrow$ `5.1.1.`, `5.1.2.`; na Seção `5.2` $\rightarrow$ `5.2.1.`; na Seção `6` $\rightarrow$ `6.1.`, `6.2.`.
+  - Mapeamento prévio de títulos fixos do template (`existingSectionPrefixes`) e prevenção determinística de colisão com subseções irmãs: na introdução da Seção 2, itens numerados que colidiriam com `2.1` fixo são convertidos automaticamente em Bullet estilizado (`• `) com negrito e hanging indent, eliminando duplicações na árvore do documento.
+- **Injeção Literal Determinística sem `<w:numPr>` Órfão (`ENG-14b`):**
+  - Separação limpa entre listas simples de 1 nível (`single_decimal`: `1.`, `2.`, `3.`) e listas multinível (`multi_decimal`).
+  - Cláusulas multi-decimais (`X.Y.`, `X.Y.Z.`) utilizam injeção literal com número reancorado no primeiro run `<w:t>`, tabulação nativa `<w:r><w:tab/></w:r>`, recuo estático *Hanging Indent* (`<w:ind w:left w:hanging>` e `<w:tabs><w:tab w:val="left"/>`), espaçamento vertical pós-parágrafo `<w:spacing w:after="120"/>` e eliminação incondicional de nós `<w:numPr>`, erradicando o bug em que o Word reiniciava a numeração para `1.1` ou `1.1.1`.
+- **Scanner Pós-Compilação de Anomalias de Numeração e SLA (`ENG-15`):**
+  - Alerta `MULTILEVEL_NUMBERING_RESET`: Detecta parágrafos iniciando em `1.1.` ou `1.1.1.` sob seções de nível superior $\ge 2$ (ex.: Seção 2, 4, 5, 6), sinalizando desancoragem ou reset indesejado sem falsos-positivos na Seção 1 (`DO OBJETO`).
+  - Alerta `DUPLICATE_CONFLICTING_SLA_TABLES`: Detecta tabelas distintas de SLA / Chamados no mesmo documento com prazos divergentes para Severidade 1 / Crítica (ex.: Tabela de Hardware do doador com 4 horas vs Tabela de Software com 1 hora), instruindo a harmonização de prazos ou remoção de linhas residuais via `remove_table_rows`.
+
 ## [1.3.8] - 2026-10-30
 
 ### Adicionado
