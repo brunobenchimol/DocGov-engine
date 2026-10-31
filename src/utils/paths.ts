@@ -207,7 +207,7 @@ export function resolveWorkspacePath(inputPath: string, customRoot?: string): st
 export function isValidDocGovCaseScope(targetPath: string): boolean {
   if (!targetPath) return false;
   const normalized = targetPath.replace(/\\/g, "/");
-  return /(^|[\\/])(cases|work|evals|inputs|state|output|templates|fixtures|DocGov\.EngineTests|case_assert|docgov_test_[^\\/]*)([\\/]|$)/i.test(
+  return /(^|[\\/])(cases|work|evals|inputs|state|output|templates|fixtures|smoke_test|DocGov\.EngineTests|case_assert|docgov_test_[^\\/]*)([\\/]|$)/i.test(
     normalized
   );
 }
