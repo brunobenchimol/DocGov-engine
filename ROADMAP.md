@@ -150,6 +150,13 @@
   - Teto físico estrito de 500 linhas por arquivo em 100% dos arquivos TypeScript de `src/`, com re-exports retrocompatíveis nas raízes de ferramentas.
   - Instituição da **Lei 9 de Governança no Estatuto (`AGENTS.md`)**: Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens (inspeção cirúrgica com `read_file` delimitado e testes direcionados).
 
+- [x] **6.13. Patch `v1.3.11` — Herança Nativa de `<w:numPr>`, Fim do Bug de Pré-Varredura e Scanner Top-Down (`ENG-16`):**
+  - Herança prioritária de `<w:numPr>` (`numId`, `ilvl`) na árvore de numeração nativa do template doador, preservando o sequenciamento contínuo das 19 seções do Word e impedindo reset espúrio para 1.
+  - Limpeza de prefixos literais duplicados em `<w:t>` ao herdar numeração nativa, com preservação de subtítulos intermediários em negrito sem nó `<w:numPr>`.
+  - Separação mandatória entre `preScanResolver` e `numberingResolver` eliminando a contaminação de contadores entre passadas (`10.2.2.` e `10.3.1.1.` na Seção 5).
+  - Filtro em `extractSectionHeadingPrefix` garantindo que apenas títulos autênticos atualizem o prefixo de seção pai, e escopo de contador monotônico por parágrafo-slot (`sectionChildCounters`).
+  - Scanner de integridade pós-compilação detectando `SECTION_PREFIX_MISMATCH` e números duplicados de cláusula, e refinamento de `UNCALCULATED_TOTAL_ROW` para estimativas sob orçamento sigiloso (RILC Art. 19).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)

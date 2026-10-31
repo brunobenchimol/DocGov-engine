@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.10)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.11)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,27 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.10` (Geração 3 — Decomposição Modular, Lei 9 e Economia de Tokens) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.11` (Geração 3 — Herança Nativa de numPr, Fim do Bug de Pré-Varredura e Scanner Top-Down) e Marcos Anteriores
+
+A versão **`v1.3.11`** resolve em definitivo anomalias de numeração em templates complexos com árvore multinível nativa do Word (`ENG-16`), separa o estado do resolvedor de pré-varredura e refina o scanner pós-compilação:
+
+### Novidades da `v1.3.11` (`ENG-16`):
+1. **Herança Nativa de `<w:numPr>` na Árvore de Numeração do Word:**
+   - Quando o parágrafo-slot do template já pertence a uma lista multinível nativa do Word (`ilvl >= 1` registrado em `word/numbering.xml`), herda o mesmo `numId` e ajusta `ilvl = Math.min(templateIlvl + deltaLevel, 8)`.
+   - Limpa o prefixo numérico literal do texto injetado (`<w:t>`) para evitar numeração duplicada, deixando o Word controlar a renderização nativa da lista.
+   - Parágrafos de subtítulo intermediário em negrito sem numeração são preservados como texto corrido com `<w:spacing w:after="120"/>` sem `<w:numPr>`.
+2. **Isolamento de Estado do `preScanResolver` & Contador Top-Down Monotônico:**
+   - Separação estrita entre a instância de pré-varredura da Passada 1 (`preScanResolver`) e a Passada 2 de injeção (`numberingResolver`), eliminando mutação compartilhada que causava anomalias como `10.2.2.` e `10.3.1.1.` na Seção 5.
+   - `extractSectionHeadingPrefix`: ignora parágrafos de cláusula comum com numPrefix que não sejam títulos reais, evitando mutação acidental da seção pai ativa.
+   - `sectionChildCounters`: contador monotônico por parágrafo-slot no caminho literal (`ENG-14a/b`), impedindo números repetidos ou herdados de seções anteriores.
+3. **Scanner Pós-Compilação de Inconsistência de Seção & Refinamento Orçamentário:**
+   - Novo alerta `SECTION_PREFIX_MISMATCH` em `scanPostCompileIntegrityAlerts` detectando itens cuja numeração discrepe drasticamente do prefixo pai (ex.: `10.2.x` sob Seção 5).
+   - Detecção de `DUPLICATE_CLAUSE_NUMBER` para cláusulas irmãs com numeração repetida.
+   - Refinamento de `UNCALCULATED_TOTAL_ROW`: permite itens com valor unitário e total zerado quando a contratação opera sob orçamento sigiloso / aguardando fechamento formal de cotações (RILC Art. 19).
+
+---
+
+## 2.1. Destaques da Versão `v1.3.10` (Geração 3 — Decomposição Modular, Lei 9 e Economia de Tokens) e Marcos Anteriores
 
 A versão **`v1.3.10`** realiza uma **Refatoração Estrutural Pura (Zero Alteração Funcional)** eliminando arquivos monolíticos no motor, instituindo o teto físico estrito de $\le 500$ linhas por arquivo e a **Lei 9 de Modularidade e Economia de Tokens**:
 

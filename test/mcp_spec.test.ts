@@ -118,9 +118,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.3.10 e novos recursos v1.3.10 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.3.10");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.10");
+  test("deve expor versão 1.3.11 e novos recursos v1.3.11 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.3.11");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.11");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Herança Nativa de <w:numPr>");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Modularidade Estrita, Decomposição em Submódulos e Economia de Tokens");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Parent Section Prefix Resolver");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("MULTILEVEL_NUMBERING_RESET");
@@ -205,9 +206,10 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.10)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.11)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.10)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.11)");
+    expect(spec).toContain("Herança Nativa de <w:numPr>");
     expect(spec).toContain("Modularidade Estrita, Decomposição em Submódulos e Economia de Tokens");
     expect(spec).toContain("Reancoragem Contextual Multinível");
     expect(spec).toContain("Guardrail de Escopo DocGov");
@@ -341,6 +343,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.validateTechnicalNoteData).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.3.10");
+    expect(barrel.VERSION).toBe("1.3.11");
   });
 });

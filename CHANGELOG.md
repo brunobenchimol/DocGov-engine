@@ -8,7 +8,25 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
-## [1.3.10] - 2026-10-31
+## [1.3.11] - 2026-10-31
+
+### Adicionado
+- **Herança Nativa de `<w:numPr>` na Árvore de Numeração do Word (`ENG-16` / Regra Prioritária A):**
+  - Quando o parágrafo-slot do template já pertence a uma lista multinível nativa do Word (`ilvl >= 1` registrado em `word/numbering.xml`), o motor herda diretamente o `<w:numId>` e ajusta o nível relativo `targetIlvl = Math.min(templateIlvl + deltaLevel, 8)`.
+  - Limpeza automática de prefixos literais duplicados nos runs de texto (`<w:t>`), delegando a renderização visual da numeração à árvore nativa do Word sem duplicar números no documento final.
+  - Subtítulos intermediários em negrito sem numeração são preservados como parágrafos limpos sem nós `<w:numPr>`, mantendo espaçamento vertical `<w:spacing w:after="120"/>`.
+- **Scanner Pós-Compilação de Inconsistência de Seção e Cláusulas Duplicadas (`ENG-16`):**
+  - Alerta `SECTION_PREFIX_MISMATCH`: Identifica parágrafos de cláusula cujo prefixo numérico divirja da seção pai ativa (ex.: `10.2.x` sob a Seção 5).
+  - Alerta `DUPLICATE_CLAUSE_NUMBER`: Sinaliza cláusulas irmãs com numeração idêntica no mesmo nível hierárquico.
+
+### Modificado
+- **Isolamento de Estado do Resolvedor de Pré-Varredura e Contador Top-Down Monotônico (`ENG-16`):**
+  - Separação mandatória entre `preScanResolver` (Passada 1 de mapeamento de títulos) e `numberingResolver` (Passada 2 de injeção), erradicando a contaminação de estado que causava anomalias como `10.2.2.` e `10.3.1.1.` na Seção 5.
+  - Filtro estrito em `extractSectionHeadingPrefix`: apenas títulos reais com formatação/estilo de cabeçalho ou caixa alta atualizam o prefixo pai ativo, ignorando cláusulas ordinárias do corpo.
+  - Escopo do contador monotônico `sectionChildCounters` isolado por parágrafo-slot no caminho de fallback literal (`ENG-14a/b`), impedindo herança indevida de contadores entre seções ou tabelas.
+  - Refinamento em `UNCALCULATED_TOTAL_ROW`: suprime falsos-positivos quando itens possuem preço unitário de referência mas o valor total permanece zerado por se tratar de orçamento sigiloso aguardando formalização de propostas (RILC Art. 19).
+- **Sincronização de SemVer e Self-Discovery (Lei 4):**
+  - Atualização do número de versão para `1.3.11` em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts`, `docs/especificacao_motor.md` e 9 arquivos de teste.
 
 ### Adicionado
 - **Consagração da Lei 9 de Engenharia no Estatuto (`AGENTS.md`):**
