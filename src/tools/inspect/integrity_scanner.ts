@@ -50,18 +50,13 @@ export function scanPostCompileIntegrityAlerts(
   const rawMdCoords: string[] = [];
   const rawMdSeparatorRegex = /\|\s*:?-{3,}:?\s*\|/;
   for (const p of inspection.paragraphs || []) {
-    if (rawMdSeparatorRegex.test(p.text)) {
-      rawMdCoords.push(`P${p.index}`);
-    }
+    if (rawMdSeparatorRegex.test(p.text)) rawMdCoords.push(`P${p.index}`);
   }
   for (const tbl of inspection.tables || []) {
     for (const r of tbl.rows) {
-      for (const c of r.cells.filter((cell) => !cell.isSpanPlaceholder)) {
-        if (c.rowSpan === "continue") continue;
+      for (const c of r.cells.filter((cell) => !cell.isSpanPlaceholder && cell.rowSpan !== "continue")) {
         if (rawMdSeparatorRegex.test(c.text)) {
-          rawMdCoords.push(
-            `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`
-          );
+          rawMdCoords.push(`T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`);
         }
       }
     }
@@ -80,9 +75,7 @@ export function scanPostCompileIntegrityAlerts(
   const allDocText = [
     ...(inspection.paragraphs || []).map((p) => p.text),
     ...(inspection.tables || []).flatMap((t) =>
-      t.rows.flatMap((r) =>
-        r.cells.filter((c) => !c.isSpanPlaceholder).map((c) => c.text)
-      )
+      t.rows.flatMap((r) => r.cells.filter((c) => !c.isSpanPlaceholder).map((c) => c.text))
     ),
   ].join("\n");
   const hasUncompiledTags = /\{\{[A-Z0-9_]+\}\}/.test(allDocText);
@@ -95,11 +88,12 @@ export function scanPostCompileIntegrityAlerts(
     const simOpt = group.options.find((o) => /^sim$/i.test(o.label));
     const naoOpt = group.options.find((o) => /^n[ãa]o$/i.test(o.label));
     if (simOpt && naoOpt) {
+      const coords = Array.from(new Set([simOpt.coord, naoOpt.coord]));
       if (simOpt.checked && naoOpt.checked) {
         alerts.push({
           code: "CONTRADICTORY_CHECKBOXES",
           severity: "CRITICAL",
-          coords: Array.from(new Set([simOpt.coord, naoOpt.coord])),
+          coords,
           message: `Checkboxes contraditórios marcados simultaneamente (☒ Sim e ☒ Não) para '${group.prompt}' (${simOpt.coord} e ${naoOpt.coord}).`,
           remediation_hint: `Mapeie ambas as coordenadas físicas (${simOpt.coord} e ${naoOpt.coord}) no slots_manifest.json e desmarque a opção incorreta com '☐'.`,
         });
@@ -107,7 +101,7 @@ export function scanPostCompileIntegrityAlerts(
         alerts.push({
           code: "CONTRADICTORY_CHECKBOXES",
           severity: "HIGH",
-          coords: Array.from(new Set([simOpt.coord, naoOpt.coord])),
+          coords,
           message: `Grupo de checkboxes (☐ Sim / ☐ Não) sem nenhuma opção assinalada para '${group.prompt}' (${simOpt.coord} e ${naoOpt.coord}).`,
           remediation_hint: `Assinale '☒ Sim' ou '☒ Não' na coordenada física correspondente (${simOpt.coord} ou ${naoOpt.coord}).`,
         });
@@ -215,9 +209,7 @@ export function scanPostCompileIntegrityAlerts(
     );
 
   if (hasHardwareAffirmation && hasStrictIntangibleAffirmation) {
-    matchedTerms.add(
-      "Contradição interna: afirmação de 'hardware/equipamentos' coexistindo com 'natureza estritamente intangível'"
-    );
+    matchedTerms.add("Contradição interna: afirmação de 'hardware/equipamentos' coexistindo com 'natureza estritamente intangível'");
   }
 
   if (contaminatedCoords.length > 0 || (hasHardwareAffirmation && hasStrictIntangibleAffirmation)) {
@@ -225,13 +217,7 @@ export function scanPostCompileIntegrityAlerts(
       code: "HARDWARE_DONOR_CONTAMINATION",
       severity: "CRITICAL",
       coords: contaminatedCoords.slice(0, 10),
-      message: `Detectado vazamento de vocabulário de minuta doadora de Hardware/Ata externa em contratação de Software/Serviços (${Array.from(
-        matchedTerms
-      )
-        .slice(0, 6)
-        .join(", ")}) nas coordenadas: ${
-        contaminatedCoords.slice(0, 6).join(", ") || "corpo do documento"
-      }.`,
+      message: `Detectado vazamento de vocabulário de minuta doadora de Hardware/Ata externa em contratação de Software/Serviços (${Array.from(matchedTerms).slice(0, 6).join(", ")}) nas coordenadas: ${contaminatedCoords.slice(0, 6).join(", ") || "corpo do documento"}.`,
       remediation_hint: `Mapeie todas as células/parágrafos residuais listados acima no slots_manifest.json e substitua o texto herdado do modelo doador pelo conteúdo aderente ao objeto da contratação.`,
     });
   }
@@ -244,21 +230,15 @@ export function scanPostCompileIntegrityAlerts(
 
   for (const tbl of inspection.tables || []) {
     for (const r of tbl.rows) {
-      const physicalCells = r.cells.filter(
-        (c) => !c.isSpanPlaceholder && c.rowSpan !== "continue"
-      );
+      const physicalCells = r.cells.filter((c) => !c.isSpanPlaceholder && c.rowSpan !== "continue");
       if (physicalCells.length < 3) continue;
-
-      const hasSoftware = physicalCells.some((c) => softwareItemRegex.test(c.text));
-      if (!hasSoftware) continue;
+      if (!physicalCells.some((c) => softwareItemRegex.test(c.text))) continue;
 
       for (const c of physicalCells) {
         if (c.text.trim().length <= 25 && hardwareUnitRegex.test(c.text)) {
           const m = c.text.match(hardwareUnitRegex);
           if (m) {
-            itemRowContaminatedCoords.push(
-              `T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`
-            );
+            itemRowContaminatedCoords.push(`T${tbl.index}.R${r.rowIndex}.C${c.physicalCellIndex ?? c.cellIndex}`);
             itemRowMatchedTerms.add(m[0]);
           }
         }
@@ -271,17 +251,15 @@ export function scanPostCompileIntegrityAlerts(
       code: "PARTIAL_ITEM_ROW_CONTAMINATION",
       severity: "HIGH",
       coords: itemRowContaminatedCoords.slice(0, 10),
-      message: `Detectada contaminação parcial em linha de item: células de unidade/métrica contêm resíduo de hardware (${Array.from(
-        itemRowMatchedTerms
-      ).join(", ")}) em item de software/serviço nas coordenadas: ${itemRowContaminatedCoords
-        .slice(0, 6)
-        .join(", ")}.`,
+      message: `Detectada contaminação parcial em linha de item: células de unidade/métrica contêm resíduo de hardware (${Array.from(itemRowMatchedTerms).join(", ")}) em item de software/serviço nas coordenadas: ${itemRowContaminatedCoords.slice(0, 6).join(", ")}.`,
       remediation_hint: `Substitua a unidade de hardware do doador pela métrica de software contratada (ex.: UNS, UST, Subscrição, Mês) no slots_manifest.json.`,
     });
   }
 
   // 6. Detecção de Linhas de Total Geral Zeradas ou Indefinidas (ENG-13: UNCALCULATED_TOTAL_ROW)
   for (const tbl of inspection.tables || []) {
+    let hasItemWithCalculatedTotal = false;
+    let hasItemWithUnitaryOnly = false;
     let hasNonZeroItems = false;
     let totalRowCoord: string | undefined;
 
@@ -304,7 +282,22 @@ export function scanPostCompileIntegrityAlerts(
           totalRowCoord = `T${tbl.index}.R${r.rowIndex}`;
         }
       } else {
-        if (
+        const nonZeroMoney = Array.from(
+          rowText.matchAll(/R\$\s*([1-9]\d*(?:[.,]\d{2})?)/gi)
+        );
+        const hasZeroMoney = /R\$\s*0(?:,00)?\b|\b0,00\b/i.test(rowText);
+
+        if (nonZeroMoney.length >= 2) {
+          hasItemWithCalculatedTotal = true;
+          hasNonZeroItems = true;
+        } else if (nonZeroMoney.length === 1) {
+          hasNonZeroItems = true;
+          if (hasZeroMoney) {
+            hasItemWithUnitaryOnly = true;
+          } else {
+            hasItemWithCalculatedTotal = true;
+          }
+        } else if (
           /R\$\s*[1-9]\d*(?:[.,]\d{2})?|\b(?:UNS|UST|Subscri[çc][ãa]o)\b/i.test(
             rowText
           )
@@ -314,7 +307,12 @@ export function scanPostCompileIntegrityAlerts(
       }
     }
 
-    if (totalRowCoord && hasNonZeroItems) {
+    const shouldTriggerUncalculatedTotal =
+      totalRowCoord !== undefined &&
+      (hasItemWithCalculatedTotal ||
+        (!hasItemWithUnitaryOnly && hasNonZeroItems));
+
+    if (shouldTriggerUncalculatedTotal && totalRowCoord) {
       alerts.push({
         code: "UNCALCULATED_TOTAL_ROW",
         severity: "HIGH",
@@ -325,9 +323,13 @@ export function scanPostCompileIntegrityAlerts(
     }
   }
 
-  // 7. Detecção de Anomalia de Reset de Numeração Multinível (ENG-15: MULTILEVEL_NUMBERING_RESET)
+  // 7. Detecção de Anomalia de Reset de Numeração Multinível (ENG-15 e ENG-16: MULTILEVEL_NUMBERING_RESET)
   const resetCoords: string[] = [];
+  const mismatchCoords: string[] = [];
+  const duplicateCoords: string[] = [];
   let currentActiveSectionNum: number | null = null;
+  let lastSectionHeadingPrefix: string | null = null;
+  let seenClauseNumbersInSection = new Set<string>();
 
   for (const p of inspection.paragraphs || []) {
     const text = p.text.trim();
@@ -337,7 +339,8 @@ export function scanPostCompileIntegrityAlerts(
       /^(\d+(?:\.\d+)*)(?:\.|\s*[-–—:]|\s+)\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s\-_/–—,.:;()'"ºª§]{2,})/
     );
     if (sectionMatch) {
-      const secNum = parseInt(sectionMatch[1].split(".")[0], 10);
+      const fullSecPrefix = sectionMatch[1];
+      const secNum = parseInt(fullSecPrefix.split(".")[0], 10);
       const title = sectionMatch[2].trim();
       if (
         title === title.toUpperCase() ||
@@ -345,14 +348,37 @@ export function scanPostCompileIntegrityAlerts(
           title
         )
       ) {
+        if (lastSectionHeadingPrefix === fullSecPrefix) {
+          duplicateCoords.push(`P${p.index} (Seção ${fullSecPrefix} duplicada)`);
+        }
         currentActiveSectionNum = secNum;
+        lastSectionHeadingPrefix = fullSecPrefix;
+        seenClauseNumbersInSection = new Set<string>();
         continue;
       }
     }
 
-    if (currentActiveSectionNum !== null && currentActiveSectionNum >= 2) {
-      if (/^\s*(?:\*\*)?1\.1(?:\.1)?[\.\-\)\s]/i.test(text)) {
-        resetCoords.push(`P${p.index}`);
+    if (currentActiveSectionNum !== null) {
+      const clauseMatch = text.match(/^\s*(?:\*\*)?(\d+(?:\.\d+)+)[\.\-\)\s]/);
+      if (clauseMatch) {
+        const clauseNum = clauseMatch[1];
+        const clauseRoot = parseInt(clauseNum.split(".")[0], 10);
+
+        if (currentActiveSectionNum >= 2 && clauseRoot === 1) {
+          resetCoords.push(`P${p.index}`);
+        } else if (clauseRoot !== currentActiveSectionNum && clauseRoot !== 1) {
+          mismatchCoords.push(
+            `P${p.index} (${clauseNum} sob Seção ${currentActiveSectionNum})`
+          );
+        }
+
+        if (seenClauseNumbersInSection.has(clauseNum)) {
+          duplicateCoords.push(
+            `P${p.index} (${clauseNum} duplicado na Seção ${currentActiveSectionNum})`
+          );
+        } else {
+          seenClauseNumbersInSection.add(clauseNum);
+        }
       }
     }
   }
@@ -366,6 +392,30 @@ export function scanPostCompileIntegrityAlerts(
         .slice(0, 6)
         .join(", ")}.`,
       remediation_hint: `Reancorar numeração relativa com o prefixo da seção ativa ou aplicar hanging indent literal.`,
+    });
+  }
+
+  if (mismatchCoords.length > 0) {
+    alerts.push({
+      code: "SECTION_PREFIX_MISMATCH",
+      severity: "HIGH",
+      coords: mismatchCoords.slice(0, 8),
+      message: `Detectada invasão de prefixo de outra seção: subcláusula(s) com numeração externa nas coordenadas: ${mismatchCoords
+        .slice(0, 6)
+        .join(", ")}.`,
+      remediation_hint: `Verifique se o contador de seções foi corrompido ou se o template deve herdar <w:numPr> da árvore do documento.`,
+    });
+  }
+
+  if (duplicateCoords.length > 0) {
+    alerts.push({
+      code: "DUPLICATE_CLAUSE_NUMBER",
+      severity: "HIGH",
+      coords: duplicateCoords.slice(0, 8),
+      message: `Detectada numeração de cláusula duplicada na mesma seção nas coordenadas: ${duplicateCoords
+        .slice(0, 6)
+        .join(", ")}.`,
+      remediation_hint: `Harmonizar contadores sequenciais de cláusulas para evitar repetição de numeração na mesma seção.`,
     });
   }
 
@@ -388,35 +438,22 @@ export function scanPostCompileIntegrityAlerts(
         .map((c) => c.text.trim())
         .join(" ");
 
-      if (
-        /\b(?:severidade|sla|tempo\s+de\s+(?:resposta|solu[çc][ãa]o|atendimento)|chamado(?:s)?)\b/i.test(
-          rowText
-        )
-      ) {
+      if (/\b(?:severidade|sla|tempo\s+de\s+(?:resposta|solu[çc][ãa]o|atendimento)|chamado(?:s)?)\b/i.test(rowText)) {
         isSlaTable = true;
       }
 
-      if (
-        /\b(?:severidade\s*1|cr[ií]tic[ao]|urgente|n[ií]vel\s*1)\b/i.test(rowText)
-      ) {
-        const timeMatch = rowText.match(
-          /\b(\d+)\s*(?:horas?|h\b|minutos?|min\b)/i
-        );
+      if (/\b(?:severidade\s*1|cr[ií]tic[ao]|urgente|n[ií]vel\s*1)\b/i.test(rowText)) {
+        const timeMatch = rowText.match(/\b(\d+)\s*(?:horas?|h\b|minutos?|min\b)/i);
         if (timeMatch && !foundSev1Text) {
           foundSev1Text = timeMatch[0];
           const val = parseInt(timeMatch[1], 10);
-          const isMin = /min/i.test(timeMatch[0]);
-          foundSev1Hours = isMin ? val / 60 : val;
+          foundSev1Hours = /min/i.test(timeMatch[0]) ? val / 60 : val;
         }
       }
     }
 
     if (isSlaTable && foundSev1Text && foundSev1Hours !== null) {
-      detectedSlaTables.push({
-        tableIndex: tbl.index,
-        severity1Text: foundSev1Text,
-        hours: foundSev1Hours,
-      });
+      detectedSlaTables.push({ tableIndex: tbl.index, severity1Text: foundSev1Text, hours: foundSev1Hours });
     }
   }
 
