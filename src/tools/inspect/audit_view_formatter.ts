@@ -1,3 +1,4 @@
+import { relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import {
   buildDocxCartography,

@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.9)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.10)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,26 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.9` (Geração 3 — Reancoragem de Prefixos Multinível, Injeção Literal e Scanner de Anomalias) e Marcos Anteriores
+## 2. Destaques da Versão `v1.3.10` (Geração 3 — Decomposição Modular, Lei 9 e Economia de Tokens) e Marcos Anteriores
+
+A versão **`v1.3.10`** realiza uma **Refatoração Estrutural Pura (Zero Alteração Funcional)** eliminando arquivos monolíticos no motor, instituindo o teto físico estrito de $\le 500$ linhas por arquivo e a **Lei 9 de Modularidade e Economia de Tokens**:
+
+### Novidades da `v1.3.10` (Refatoração Modular e Lei 9):
+1. **Decomposição Modular de `fill_template.ts` ($\le 450$ linhas):**
+   - Extração do conversor de tabelas Markdown e operadores de tabela para `src/tools/openxml/markdown_table_converter.ts` ($\le 395$ linhas).
+   - Extração do processador de listas multinível, reancoragem contextual (`ENG-14a`) e injeção literal (`ENG-14b`) para `src/tools/openxml/list_numbering_processor.ts` ($\le 475$ linhas).
+   - Redução do orquestrador central `src/tools/fill_template.ts` para $\le 435$ linhas, mantendo 100% dos re-exports públicos intactos.
+2. **Decomposição Modular de `inspect.ts` ($\le 450$ linhas):**
+   - Extração do scanner de integridade pós-compilação e 8 detectores determinísticos para `src/tools/inspect/integrity_scanner.ts` ($\le 435$ linhas).
+   - Extração da formatação de visões lineares de auditoria (`visao_auditoria_*.md`) e `buildTocMap` para `src/tools/inspect/audit_view_formatter.ts` ($\le 435$ linhas).
+   - Extração dos utilitários de subtabelas, checkboxes e pipelines não-DOCX para `src/tools/inspect/document_pipelines.ts` ($\le 450$ linhas) e `src/tools/inspect/non_docx_pipeline.ts` ($\le 360$ linhas).
+   - Redução de `src/tools/inspect.ts` para $\le 435$ linhas, preservando paridade de tipos e interfaces públicas.
+3. **Instituição da Lei 9 de Engenharia do Motor:**
+   - Teto físico inegociável de $\le 500$ linhas por arquivo `.ts` em `src/`, leitura fatiada direcionada (*target-lines only*) e execução cirúrgica de testes em micro-commits intermediários para máxima economia de tokens e prevenção de regressões por sobrecarga de contexto.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.9` (Geração 3 — Reancoragem de Prefixos Multinível, Injeção Literal e Scanner de Anomalias) e Marcos Anteriores
 
 A versão **`v1.3.9`** entrega a solução estrutural definitiva para numeração multinível de cláusulas e seções (`ENG-14`) e expande os alertas de integridade pós-compilação (`ENG-15`):
 

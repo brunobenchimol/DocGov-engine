@@ -8,6 +8,29 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.10] - 2026-10-31
+
+### Adicionado
+- **Consagração da Lei 9 de Engenharia no Estatuto (`AGENTS.md`):**
+  - *Lei 9: Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens:* Nenhum arquivo `.ts` em `src/` deve ultrapassar 500 linhas de código (margem preventiva de 450 linhas).
+  - Instituição do protocolo de leitura e testes cirúrgicos para IA: inspeção com filtros direcionados de linhas (`read_file` com `StartLine`/`EndLine`) e execução restrita de testes do módulo em micro-commits (`bun test test/<feature>.test.ts`), reservando a suíte integral para o release final.
+  - Atualização do Definition of Done (DoD item 9) garantindo verificação estrita de contagem física de linhas em todo commit.
+
+### Modificado
+- **Refatoração Estrutural Pura e Decomposição de Monólitos em Submódulos Coesos (Zero Alteração Funcional):**
+  - **Submódulo `src/tools/openxml/` (decomposição de `fill_template.ts`):**
+    - `src/tools/openxml/markdown_table_converter.ts` (391 linhas): Extração pura do parser de tabelas Markdown, construtor OpenXML `<w:tbl>` (`buildOpenXmlTableFromMarkdown`), substituidor de parágrafos irmãos e auto-redirecionamento geométrico de células de checkbox.
+    - `src/tools/openxml/list_numbering_processor.ts` (475 linhas): Extração pura do detector e processador de listas multinível, formatador de propriedades OpenXML com *Hanging Indent* (`buildHangingIndentParagraphProperties`), propriedades nativas de numeração (`buildNativeNumberingParagraphProperties`), extrator de prefixo de seção pai (`extractSectionHeadingPrefix`), resolvedor de reancoragem (`reanchorMultilevelItem`) e pós-processamento de quebras de linha e texto rico.
+    - `src/tools/fill_template.ts` (434 linhas $\le 500$ linhas): Mantido como orquestrador principal e ponto de entrada, re-exportando 100% dos símbolos públicos para garantir retrocompatibilidade absoluta sem quebrar testes legados ou consumidores externos.
+  - **Submódulo `src/tools/inspect/` (decomposição de `inspect.ts`):**
+    - `src/tools/inspect/integrity_scanner.ts` (434 linhas): Extração pura do scanner de integridade pós-compilação (`scanPostCompileIntegrityAlerts`) e dos 8 detectores especializados (`ENG-08`, `ENG-13`, `ENG-15`).
+    - `src/tools/inspect/audit_view_formatter.ts` (434 linhas): Extração pura dos geradores de visão linear de auditoria para Markdown (`generateLinearAuditViewMarkdown`, `generatePdfLinearAuditViewMarkdown`, `generateTextLinearAuditViewMarkdown`), construção de `toc_map` e compactadores de resultado sintético.
+    - `src/tools/inspect/document_pipelines.ts` (448 linhas): Extração pura de detecção de subtabelas e checkboxes em tabelas (`detectTableSubtablesAndCheckboxes`), helpers de classificação de arquivos (`isZipBuffer`, `isTextOrMarkdownFile`) e formatadores de retorno sintético.
+    - `src/tools/inspect/non_docx_pipeline.ts` (357 linhas): Extração pura dos pipelines de inspeção estrutural de planilhas (`inspectSpreadsheetDocument`), documentos PDF (`inspectPdfDocument`) e arquivos de texto puro / Markdown (`inspectTextOrMarkdownDocument`).
+    - `src/tools/inspect.ts` (434 linhas $\le 500$ linhas): Reduzido de 2.474 para 434 linhas, atuando como orquestrador central do AST OpenXML DOCX, fingerprinting e cache global, com re-export de todas as funções públicas.
+- **Sincronização de SemVer e Self-Discovery (Lei 4):**
+  - Atualização do número de versão para `1.3.10` em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts`, `docs/especificacao_motor.md` e 9 arquivos de teste.
+
 ## [1.3.9] - 2026-10-31
 
 ### Adicionado

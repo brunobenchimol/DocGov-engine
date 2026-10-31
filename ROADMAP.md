@@ -145,6 +145,11 @@
   - Injeção literal determinística com Hanging Indent (`ENG-14b`): cláusulas multi-decimais utilizam injeção literal no primeiro run `<w:t>` com `<w:tab/>`, `<w:spacing w:after="120"/>` e recuo estático, eliminando nós `<w:numPr>` órfãos e erradicando o reset do Word para 1.1/1.1.1.
   - Scanners de anomalia pós-compilação (`ENG-15`): `MULTILEVEL_NUMBERING_RESET` (alertando sobre itens 1.1 sob seções >= 2) e `DUPLICATE_CONFLICTING_SLA_TABLES` (alertando sobre tabelas distintas de SLA de chamados com prazos divergentes para Severidade 1 herdadas do modelo doador).
 
+- [x] **6.12. Patch `v1.3.10` — Decomposição Modular, Teto de 500 Linhas e Instituição da Lei 9 de Economia de Tokens:**
+  - Decomposição pura dos monólitos `fill_template.ts` e `inspect.ts` em submódulos coesos em subdiretórios de domínio (`src/tools/openxml/` e `src/tools/inspect/`) com zero alteração funcional.
+  - Teto físico estrito de 500 linhas por arquivo em 100% dos arquivos TypeScript de `src/`, com re-exports retrocompatíveis nas raízes de ferramentas.
+  - Instituição da **Lei 9 de Governança no Estatuto (`AGENTS.md`)**: Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens (inspeção cirúrgica com `read_file` delimitado e testes direcionados).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)
@@ -200,7 +205,7 @@
 
 ## 🛡️ Estatuto de Governança para Agentes IA
 
-Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente as **8 Leis Invioláveis de Engenharia** descritas no [`AGENTS.md`](AGENTS.md):
+Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente as **9 Leis Invioláveis de Engenharia** descritas no [`AGENTS.md`](AGENTS.md):
 1. **Runtime Bun & Portabilidade:** Sem caminhos locais absolutos.
 2. **Teto de Payload MCP (< 1024 bytes):** Margem segura recomendada `< 900 bytes`.
 3. **Exact Copy-Paste Error:** Fail-fast com snippet de autocorreção imediata.
@@ -209,3 +214,4 @@ Todo desenvolvimento e evolução dos marcos acima deve respeitar estritamente a
 6. **Resiliência de Caminhos e Cache Global:** Resolução desacoplada de `process.cwd()`.
 7. **Ritual de Qualidade e Release Automatizada:** Autodescoberta de esteira CI/CD externa, gatilho canônico por tag Git e proibição estrita de upload manual de binários locais.
 8. **Disciplina Autônoma de Micro-Commits & Memória:** Fatiamento em commits atômicos, testes por commit e sincronia contínua de `CHANGELOG.md` e `ROADMAP.md`.
+9. **Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens:** Arquivos $\le 500$ linhas, submódulos coesos de domínio, inspeção cirúrgica por faixas de linha e testes restritos durante micro-commits.

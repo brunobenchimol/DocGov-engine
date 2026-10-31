@@ -247,7 +247,7 @@ export async function inspectPdfDocument(
     headers: [],
     footers: [],
     paragraphs,
-    tables,
+    tables: [],
     ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
   };
 
