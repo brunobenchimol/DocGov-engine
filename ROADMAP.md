@@ -146,6 +146,7 @@
 - [ ] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query Sob Demanda em APIs Oficiais de Controle Externo (Habilitada em `cases/<slug>` e em Pesquisa Livre via `%TEMP%`):**
   - Ferramenta de acionamento sob demanda (ideal para Co-Autoria/Workbench Mode e Pesquisa Jurídica Livre, sem obrigatoriedade de execução automática no pipeline padrão).
   - Integração nativa com os endpoints públicos REST do TCU (`pesquisa.apps.tcu.gov.br/rest/publico/base/jurisprudencia-selecionada`, `/acordao-completo` e `/publicacoes`), suportando múltiplas queries em paralelo separadas por `|` (`Promise.all`), filtros por colegiado (`Plenário`, `1ª Câmara`, `2ª Câmara`), ano e foco em Estatais (`Lei 13.303/2016`) ou Administração Direta (`Lei 14.133/2021`).
+  - **Seleção Explícita de Escopo (`courts` e `uf`):** Suporte aos parâmetros opcionais `courts` (ex.: `["TCU", "STJ", "STF", "TCE-PA"]`) e `uf` (ex.: `"PA"`, `"CE"`, `"DF"`). Quando nenhum estado ou tribunal específico for solicitado, pesquisa por padrão apenas na camada nacional (`TCU`, e opcionalmente `STJ`/`STF`), evitando varreduras desnecessárias e lentas em todos os estados.
   - **Suporte a Pesquisa Livre (`Standalone`):** Quando acionada dentro de um caso, grava em `cases/<slug>/state/juris_search_results.json` e `.md`; quando acionada em pesquisa livre fora de `cases/<slug>` (`caseDir` omitido ou externo), faz parte da *whitelist* do Guardrail de Escopo (`ENG-10`), gravando automaticamente em `%TEMP%/docgov_ephemeral_inspect/` sem poluir diretórios do usuário (com retorno sintético MCP $< 900$ bytes).
 
 - [ ] **7.2. Matriz Determinística de Equivalência Normativa (`Statutory Bridge: Lei 13.303/2016 + RILC <-> Lei 14.133/2021`):**
@@ -158,6 +159,14 @@
 - [ ] **7.4. Suporte Dual Tático (`stance: "DEFENSE" | "ATTACK" | "BOTH"`) e Compilação Sob Demanda de Contrarrazões Jurídicas ou Impugnação:**
   - Classificação e apoio tático para **Modo Defesa** (precedentes que autorizam a modelagem do gestor ou rebatem parecer jurídico restritivo via *distinguishing*) e **Modo Ataque** (precedentes que suspendem ou anulam cláusulas restritivas de editais nas 14 Zonas).
   - Expansão de `generate_technical_note_docx` / `generate_audit_docx` para compilar, quando solicitado pelo usuário, `Nota_Tecnica_Contrarrazoes_Juridicas.docx/.pdf` (defesa técnica perante Assessoria Jurídica / PGE / Controle Interno) ou `Peca_Impugnacao_Representacao.docx/.pdf` (ataque fundamentado a edital externo).
+
+- [ ] **7.5. Roteador Jurisdicional Modular (`JurisdictionProviderRegistry`) e Degradação Graciosa por UF:**
+  - **Seleção Explícita de Escopo (`courts` e `uf`):** `search_juris` deve aceitar os parâmetros opcionais `courts` (ex.: `["TCU", "STJ", "STF", "TCE-PA"]`) e `uf` (ex.: `"PA"`, `"CE"`, `"DF"`). Se nenhum estado for solicitado, pesquisa por padrão apenas na camada nacional (`TCU`, e opcionalmente `STJ`/`STF`), evitando varreduras desnecessárias em todos os estados.
+  - **Arquitetura de Conectores Plugáveis (*Adapter Pattern*) — Cobertura Inicial `v1.4.0`:**
+    - *Camada Federal / Cortes Superiores:* Conectores nativos para **`TCU`** (Tribunal de Contas da União), **`STJ`** (Superior Tribunal de Justiça) e **`STF`** (Supremo Tribunal Federal);
+    - *Camada Estadual (Primeira Onda de TCEs):* Conectores nativos dedicados para os Tribunais de Contas de **`PA` (`TCE-PA`)**, **`CE` (`TCE-CE`)** e **`DF` (`TCDF`)**.
+  - **Degradação Graciosa (*Graceful Fallback*) para UFs Não Implementadas (Zero Travamento):**
+    - Caso o agente ou usuário solicite pesquisa em uma `uf` cujo conector estadual ainda não esteja implementado no binário (ex.: `uf: "AM"` ou `"PR"`), o motor **JAMAIS deve falhar ou abortar a execução**: deve executar normalmente a pesquisa na camada federal (`TCU`/`STJ`/`STF`) e retornar no payload sintético MCP e no cabeçalho de `juris_search_results.md` o bloco `jurisdiction_routing: { executed_courts, unimplemented_uf_requested, supported_ufs: ["PA", "CE", "DF"], fallback_notice }`, permitindo que o agente dê feedback claro ao usuário sem interromper o trabalho.
 
 ---
 
