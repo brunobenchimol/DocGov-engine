@@ -864,6 +864,120 @@ export function scanPostCompileIntegrityAlerts(
     }
   }
 
+  // 7. Detecção de Anomalia de Reset de Numeração Multinível (ENG-15: MULTILEVEL_NUMBERING_RESET)
+  const resetCoords: string[] = [];
+  let currentActiveSectionNum: number | null = null;
+
+  for (const p of inspection.paragraphs || []) {
+    const text = p.text.trim();
+    if (!text) continue;
+
+    const sectionMatch = text.match(
+      /^(\d+)(?:\.|\s*[-–—:]|\s+)\s*([A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\s\-_/–—,.:;()'"ºª§]{2,})/
+    );
+    if (sectionMatch) {
+      const secNum = parseInt(sectionMatch[1], 10);
+      const title = sectionMatch[2].trim();
+      if (
+        title === title.toUpperCase() ||
+        /^(?:JUSTIFICATIVA|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA)/i.test(
+          title
+        )
+      ) {
+        currentActiveSectionNum = secNum;
+        continue;
+      }
+    }
+
+    if (currentActiveSectionNum !== null && currentActiveSectionNum >= 2) {
+      if (/^\s*(?:\*\*)?1\.1(?:\.1)?[\.\-\)\s]/i.test(text)) {
+        resetCoords.push(`P${p.index}`);
+      }
+    }
+  }
+
+  if (resetCoords.length > 0) {
+    alerts.push({
+      code: "MULTILEVEL_NUMBERING_RESET",
+      severity: "HIGH",
+      coords: resetCoords.slice(0, 8),
+      message: `Detectada anomalia de numeração multinível: parágrafo(s) iniciando em '1.1.' sob seção de nível superior >= 2 nas coordenadas: ${resetCoords
+        .slice(0, 6)
+        .join(", ")}.`,
+      remediation_hint: `Reancorar numeração relativa com o prefixo da seção ativa ou aplicar hanging indent literal.`,
+    });
+  }
+
+  // 8. Detecção de Tabelas de SLA Duplicadas e Divergentes (ENG-15: DUPLICATE_CONFLICTING_SLA_TABLES)
+  interface SlaTableInfo {
+    tableIndex: number;
+    severity1Text: string;
+    hours: number;
+  }
+  const detectedSlaTables: SlaTableInfo[] = [];
+
+  for (const tbl of inspection.tables || []) {
+    let isSlaTable = false;
+    let foundSev1Text: string | null = null;
+    let foundSev1Hours: number | null = null;
+
+    for (const r of tbl.rows) {
+      const rowText = r.cells
+        .filter((c) => !c.isSpanPlaceholder && c.rowSpan !== "continue")
+        .map((c) => c.text.trim())
+        .join(" ");
+
+      if (
+        /\b(?:severidade|sla|tempo\s+de\s+(?:resposta|solu[çc][ãa]o|atendimento)|chamado(?:s)?)\b/i.test(
+          rowText
+        )
+      ) {
+        isSlaTable = true;
+      }
+
+      if (
+        /\b(?:severidade\s*1|cr[ií]tic[ao]|urgente|n[ií]vel\s*1)\b/i.test(rowText)
+      ) {
+        const timeMatch = rowText.match(
+          /\b(\d+)\s*(?:horas?|h\b|minutos?|min\b)/i
+        );
+        if (timeMatch && !foundSev1Text) {
+          foundSev1Text = timeMatch[0];
+          const val = parseInt(timeMatch[1], 10);
+          const isMin = /min/i.test(timeMatch[0]);
+          foundSev1Hours = isMin ? val / 60 : val;
+        }
+      }
+    }
+
+    if (isSlaTable && foundSev1Text && foundSev1Hours !== null) {
+      detectedSlaTables.push({
+        tableIndex: tbl.index,
+        severity1Text: foundSev1Text,
+        hours: foundSev1Hours,
+      });
+    }
+  }
+
+  if (detectedSlaTables.length >= 2) {
+    for (let i = 0; i < detectedSlaTables.length - 1; i++) {
+      for (let j = i + 1; j < detectedSlaTables.length; j++) {
+        const t1 = detectedSlaTables[i];
+        const t2 = detectedSlaTables[j];
+        if (Math.abs(t1.hours - t2.hours) >= 0.5) {
+          alerts.push({
+            code: "DUPLICATE_CONFLICTING_SLA_TABLES",
+            severity: "HIGH",
+            coords: [`T${t1.tableIndex}`, `T${t2.tableIndex}`],
+            message: `Detectadas tabelas distintas de SLA de Atendimento com prazos divergentes para Severidade 1 (T${t1.tableIndex}: '${t1.severity1Text}' vs T${t2.tableIndex}: '${t2.severity1Text}').`,
+            remediation_hint: `Verificar se há tabela residual de SLA herdada do modelo doador e remover linhas divergentes com remove_table_rows ou harmonizar prazos.`,
+          });
+          break;
+        }
+      }
+    }
+  }
+
   return alerts;
 }
 

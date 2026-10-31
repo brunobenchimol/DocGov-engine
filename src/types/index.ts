@@ -207,16 +207,26 @@ export interface DetectedCheckboxGroup {
   options_summary: string;
 }
 
+export type PostCompileAlertCode =
+  | "UNREMOVED_ITEM_WORKAROUND"
+  | "RAW_MARKDOWN_TABLE"
+  | "CONTRADICTORY_CHECKBOXES"
+  | "HARDWARE_DONOR_CONTAMINATION"
+  | "PARTIAL_ITEM_ROW_CONTAMINATION"
+  | "UNCALCULATED_TOTAL_ROW"
+  | "MULTILEVEL_NUMBERING_RESET"
+  | "DUPLICATE_CONFLICTING_SLA_TABLES";
+
 export interface PostCompileIntegrityAlert {
-  category:
-    | "UNREMOVED_ITEM_WORKAROUND"
-    | "RAW_MARKDOWN_TABLE"
-    | "CONTRADICTORY_CHECKBOXES"
-    | "HARDWARE_DONOR_CONTAMINATION";
-  severity: "CRITICAL" | "HIGH";
-  coord: string;
-  excerpt: string;
-  recommendation: string;
+  code: PostCompileAlertCode;
+  category?: string;
+  severity: "CRITICAL" | "HIGH" | "WARNING";
+  coords?: string[];
+  coord?: string;
+  excerpt?: string;
+  message?: string;
+  recommendation?: string;
+  remediation_hint?: string;
 }
 
 export interface DocxInspectionResult {
