@@ -37,6 +37,7 @@ import {
   extractCellGridSpan,
   extractCellVMerge,
   NumberingManager,
+  createNumberingResolver,
   ensureNumberingPart,
   sanitizeTemplateTagExpression,
   sanitizeXmlString,
@@ -251,6 +252,17 @@ function buildHangingIndentParagraphProperties(
     const numPrList = getDirectChildElements(pPr, "w:numPr");
     for (const numPr of numPrList) {
       pPr.removeChild(numPr);
+    }
+  }
+
+  // ENG-14b: Remove <w:pStyle> de cabeçalho herdado do template para listas
+  for (const oldPStyle of getDirectChildElements(pPr, "w:pStyle")) {
+    const val =
+      oldPStyle.getAttribute("w:val") ||
+      oldPStyle.getAttribute("val") ||
+      "";
+    if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
+      pPr.removeChild(oldPStyle);
     }
   }
 
@@ -841,14 +853,199 @@ function convertSiblingParagraphMarkdownTables(xmlDoc: Document): boolean {
   return modified;
 }
 
+// ============================================================================
+// Parent Section Prefix Resolver & Reancoragem Multinivel (ENG-14a / v1.3.9)
+// ============================================================================
+
+export function extractSectionHeadingPrefix(
+  text: string,
+  numPrefix?: string | null,
+  hasHeadingStyle?: boolean
+): string | null {
+  // 1. Se tem prefixo do numbering.xml (ex: "4.4." ou "2.")
+  if (numPrefix) {
+    const numClean = numPrefix.trim();
+    const match = numClean.match(/^(\d+(?:\.\d+)*)/);
+    if (match) {
+      const textTrim = text.trim();
+      const isUpperCaseOrHeading =
+        hasHeadingStyle ||
+        /^[A-ZÀ-Ú0-9\s,.:\-–—]{3,}/.test(textTrim) ||
+        textTrim.length > 0;
+      if (isUpperCaseOrHeading) {
+        return match[1];
+      }
+    }
+  }
+
+  const trimmed = text.trim();
+  // 2. Título com número literal no texto:
+  // Ex: "2. JUSTIFICATIVA E OBJETIVO", "4.4 CRITÉRIOS DE MEDIÇÃO", "5.1 MODELO DE EXECUÇÃO", "6. MODELO DE GESTÃO"
+  const literalMatch = trimmed.match(
+    /^(\d+(?:\.\d+)*)(?:[\.\-\)\s]+)\s*([A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\s\-_/–—,.:;()'"ºª§]{2,})/
+  );
+  if (literalMatch) {
+    const candidatePrefix = literalMatch[1];
+    const candidateTitle = literalMatch[2].trim();
+    if (
+      hasHeadingStyle ||
+      candidateTitle === candidateTitle.toUpperCase() ||
+      /^(?:JUSTIFICATIVA|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA|INFRAESTRUTURA|REQUISITO)/i.test(
+        candidateTitle
+      )
+    ) {
+      return candidatePrefix;
+    }
+  }
+
+  return null;
+}
+
+export interface ReanchoredNumberingResult {
+  isConvertedToBullet: boolean;
+  newMarkerText: string;
+  newRemainder: string;
+  newLevel: number;
+  segments: number[];
+}
+
+export function reanchorMultilevelItem(
+  lineListInfo: HierarchicalListItemInfo,
+  activeSectionPrefix: string | null,
+  existingSectionPrefixes: Set<string>,
+  _lastReanchoredSegments?: number[] | null
+): ReanchoredNumberingResult {
+  if (lineListInfo.kind !== "multi_decimal" || !activeSectionPrefix) {
+    return {
+      isConvertedToBullet: false,
+      newMarkerText: lineListInfo.markerText,
+      newRemainder: lineListInfo.cleanRemainder,
+      newLevel: lineListInfo.level,
+      segments: lineListInfo.segments,
+    };
+  }
+
+  const rawSegments = [...lineListInfo.segments];
+  const activeSegments = activeSectionPrefix
+    .split(".")
+    .map((s) => parseInt(s, 10))
+    .filter((n) => !isNaN(n));
+
+  if (activeSegments.length === 0) {
+    return {
+      isConvertedToBullet: false,
+      newMarkerText: lineListInfo.markerText,
+      newRemainder: lineListInfo.cleanRemainder,
+      newLevel: lineListInfo.level,
+      segments: lineListInfo.segments,
+    };
+  }
+
+  // Verifica se o item já começa com o prefixo ativo (ex: já é 4.4.1 ou 5.1.1)
+  const startsWithActive =
+    rawSegments.length > activeSegments.length &&
+    activeSegments.every((val, idx) => rawSegments[idx] === val);
+
+  let targetSegments: number[];
+
+  if (startsWithActive) {
+    targetSegments = rawSegments;
+  } else {
+    // LLM gerou numeração relativa iniciando em 1.x ou 1.1.x
+    if (rawSegments[0] === 1 && rawSegments.length >= 2) {
+      if (rawSegments.length === 2) {
+        // [1, 1] -> [...activeSegments, rawSegments[1]] (ex: 4.4 -> 4.4.1, 6 -> 6.1)
+        targetSegments = [...activeSegments, rawSegments[1]];
+      } else if (rawSegments.length === 3) {
+        // [1, 1, 1] ou [1, 1, 2]
+        if (activeSegments.length >= 2 && rawSegments[1] === 1) {
+          // Se a seção ativa já tem 2 níveis (ex: 4.4) e o LLM colocou 3 níveis [1, 1, k], normaliza para [...activeSegments, k]
+          targetSegments = [...activeSegments, rawSegments[2]];
+        } else {
+          targetSegments = [...activeSegments, ...rawSegments.slice(1)];
+        }
+      } else {
+        targetSegments = [...activeSegments, ...rawSegments.slice(1)];
+      }
+    } else {
+      // Se não começa com 1, anexa mantendo os índices relativos a partir do segundo elemento
+      targetSegments = [...activeSegments, ...rawSegments.slice(1)];
+    }
+  }
+
+  // Verifica colisão com subseções fixas do template
+  const candidatePrefixStr = targetSegments.join(".");
+  if (existingSectionPrefixes.has(candidatePrefixStr)) {
+    // Colisão com subseção existente (ex: 2.1 já existe no template) -> Converte para Bullet
+    return {
+      isConvertedToBullet: true,
+      newMarkerText: "• ",
+      newRemainder: lineListInfo.cleanRemainder,
+      newLevel: 1,
+      segments: [],
+    };
+  }
+
+  // Extrai separador final (ponto, hífen, dois pontos)
+  let sep = ".";
+  if (lineListInfo.markerText.endsWith(" -") || lineListInfo.markerText.endsWith(" –")) {
+    sep = " -";
+  } else if (lineListInfo.markerText.endsWith(":")) {
+    sep = ":";
+  }
+
+  const newMarker = `${candidatePrefixStr}${sep}`;
+
+  return {
+    isConvertedToBullet: false,
+    newMarkerText: newMarker,
+    newRemainder: lineListInfo.cleanRemainder,
+    newLevel: Math.max(1, targetSegments.length - activeSegments.length),
+    segments: targetSegments,
+  };
+}
+
 function postProcessRichTextAndLineBreaksInXmlDoc(
   xmlDoc: Document,
-  numberingManager?: NumberingManager
+  numberingManager?: NumberingManager,
+  existingNumberingXml?: string | null
 ): boolean {
   let modified = false;
   const paragraphs = getAllElements(xmlDoc, "w:p");
 
+  // Rastreamento Contextual de Numeração de Seções (ENG-14a)
+  const existingSectionPrefixes = new Set<string>();
+  const numberingResolver = createNumberingResolver(existingNumberingXml);
+
+  // Fase 1: Mapeamento de Títulos Fixos do Template
+  for (const p of paragraphs) {
+    const pPrList = getDirectChildElements(p, "w:pPr");
+    const hasHeadingStyle =
+      pPrList.length > 0 &&
+      getDirectChildElements(pPrList[0], "w:pStyle").some((s) => {
+        const val = s.getAttribute("w:val") || s.getAttribute("val") || "";
+        return /^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(
+          val
+        );
+      });
+    const pNum = extractParagraphNumbering(p);
+    const numPrefix =
+      pNum && numberingResolver
+        ? numberingResolver.formatParagraphPrefix(pNum.numId, pNum.level)
+        : null;
+    const pText = extractParagraphText(p);
+    const headingPrefix = extractSectionHeadingPrefix(
+      pText,
+      numPrefix,
+      hasHeadingStyle
+    );
+    if (headingPrefix) {
+      existingSectionPrefixes.add(headingPrefix);
+    }
+  }
+
   // Controla a instância <w:num> ativa para listas decimais no <w:body>
+  let activeSectionPrefix: string | null = null;
   let activeBodyChapter: number | null = null;
   let activeBodyNumId: string | null = null;
   let activeSingleDecimalNumber: number | null = null;
@@ -866,10 +1063,29 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
         return /^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val);
       });
 
+    const fullText = extractParagraphText(p);
+
+    // Parent Section Prefix Resolver (ENG-14a): Atualiza a seção pai ativa
+    const pNum = extractParagraphNumbering(p);
+    const numPrefix =
+      pNum && numberingResolver
+        ? numberingResolver.formatParagraphPrefix(pNum.numId, pNum.level)
+        : null;
+    const headingPrefix = extractSectionHeadingPrefix(
+      fullText,
+      numPrefix,
+      hasHeadingStyle
+    );
+    if (headingPrefix) {
+      activeSectionPrefix = headingPrefix;
+      activeBodyNumId = null;
+      activeBodyChapter = null;
+      activeSingleDecimalNumber = null;
+    }
+
     const hasBrElements =
       getAllElements(p, "w:br").length > 0 ||
       getAllElements(p, "w:cr").length > 0;
-    const fullText = extractParagraphText(p);
     const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
     const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
     const singleLineListInfo = detectHierarchicalListItem(fullText);
@@ -924,17 +1140,44 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
       }
 
       const newP = xmlDoc.createElement("w:p");
-      const lineListInfo = detectHierarchicalListItem(line);
+      let lineListInfo = detectHierarchicalListItem(line);
 
-      const isDecimalListOutsideTable =
+      // ENG-14a & ENG-14b: Reancoragem contextual de multi_decimal com o prefixo da seção pai
+      if (lineListInfo.isListItem && lineListInfo.kind === "multi_decimal") {
+        const reanchorRes = reanchorMultilevelItem(
+          lineListInfo,
+          activeSectionPrefix,
+          existingSectionPrefixes
+        );
+        if (reanchorRes.isConvertedToBullet) {
+          lineListInfo = {
+            ...lineListInfo,
+            isListItem: true,
+            hasExplicitMarker: true,
+            kind: "bullet",
+            level: 1,
+            markerText: "• ",
+            markerBold: true,
+            segments: [],
+          };
+        } else {
+          lineListInfo = {
+            ...lineListInfo,
+            markerText: reanchorRes.newMarkerText,
+            level: reanchorRes.newLevel,
+            segments: reanchorRes.segments,
+          };
+        }
+      }
+
+      const isSingleDecimalListOutsideTable =
         !insideTable &&
         numberingManager !== undefined &&
         lineListInfo.isListItem &&
-        (lineListInfo.kind === "multi_decimal" ||
-          lineListInfo.kind === "single_decimal");
+        lineListInfo.kind === "single_decimal";
 
-      if (isDecimalListOutsideTable && numberingManager) {
-        // Modo 1: Fora de Tabela (<w:body>) — Lista Multinível Nativa com word/numbering.xml + <w:numPr>
+      if (isSingleDecimalListOutsideTable && numberingManager) {
+        // Modo 1: Fora de Tabela (<w:body>) — Lista Decimal Simples Nativa com word/numbering.xml + <w:numPr>
         const chapter = lineListInfo.chapterNumber ?? 1;
         const subLvl1 =
           lineListInfo.segments.length > 1 ? lineListInfo.segments[1] : null;
@@ -989,7 +1232,7 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
           normalRPr
         );
       } else if (lineListInfo.isListItem) {
-        // Modo 2: Dentro de Tabela (<w:tc>) ou Alíneas/Bullets — Hanging Indent Estático com <w:tab/>
+        // Modo 2: Dentro de Tabela (<w:tc>), Alíneas/Bullets ou Multi-Decimal Literal (ENG-14b) — Hanging Indent Estático com <w:tab/>
         activeSingleDecimalNumber = null;
         const hangingPPr = buildHangingIndentParagraphProperties(
           xmlDoc,
@@ -1176,7 +1419,13 @@ async function postProcessInjectedDocxBuffer(
       const xmlDoc = parser.parseFromString(xmlStr, "application/xml");
       const managerForPart =
         name === "word/document.xml" ? numberingManager : undefined;
-      if (postProcessRichTextAndLineBreaksInXmlDoc(xmlDoc, managerForPart)) {
+      if (
+        postProcessRichTextAndLineBreaksInXmlDoc(
+          xmlDoc,
+          managerForPart,
+          existingNumberingXml
+        )
+      ) {
         zip.file(name, serializer.serializeToString(xmlDoc));
         anyModified = true;
       }
