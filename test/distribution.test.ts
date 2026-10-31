@@ -67,7 +67,7 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     const pkg = JSON.parse(readFileSync(pkgPath, "utf-8"));
 
     expect(pkg.name).toBe("docgov-engine");
-    expect(pkg.version).toBe("1.3.7");
+    expect(pkg.version).toBe("1.3.8");
     expect(pkg.scripts["build:linux"]).toContain("./bin/docgov-engine");
     expect(pkg.scripts["build:windows"]).toContain("./bin/docgov-engine.exe");
   });

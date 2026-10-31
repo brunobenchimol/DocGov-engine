@@ -130,6 +130,14 @@
   - Scanner pós-compilação (`scanPostCompileIntegrityAlerts`) alertando sobre workarounds `"Item não aplicável"`, tabelas Markdown residuais, checkboxes contraditórios e contaminação semântica de doador de Hardware em contratações puras de Software/Serviços (sem falsos-positivos em contratações mistas).
   - Normalização universal Unicode `NFC` e lookup resiliente `NFC/NFD` (`resolveExistingPathNfc`) em `bootstrap_case`, `inspect_doc` e utilitários de arquivos.
 
+- [x] **6.10. Patch `v1.3.8` — Guardrail de Escopo DocGov com %TEMP% Efêmero, Redirecionamento Geométrico C1->C2, Heading Guard e Detector de Órfãos (`ENG-10` a `ENG-13`):**
+  - Validador canônico `assertDocGovCaseScope` bloqueando fail-fast as 6 ferramentas de processo (`bootstrap_case`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `generate_technical_note_docx`, `fetch_pncp`) fora de árvores de caso DocGov.
+  - Isolamento de exploração em `%TEMP%/docgov_ephemeral_inspect/` para `inspect_doc` e `search_pncp` sem tocar pastas externas do usuário.
+  - Auto-redirecionamento geométrico C1->C2 em colunas de checkbox (`☒ Sim.` em C1 e `{{tag}}`/texto discursivo longo em C2).
+  - Heading Guard em `replace_paragraphs` preservando títulos de seção (`1. OBJETO`) intactos no Word quando `start_p` aponta para cabeçalho.
+  - Saneamento de `<w:numPr>` herdado, descarte de linhas vazias, espaçamento vertical `<w:spacing w:after="120"/>` e sequenciamento contínuo em listas decimais simples consecutivas (1. -> 2. -> 3.).
+  - Scanner pós-compilação detectando contaminação parcial de unidades físicas em linhas de software (`PARTIAL_ITEM_ROW_CONTAMINATION`) e linhas de total desatualizadas ou zeradas (`UNCALCULATED_TOTAL_ROW`).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite

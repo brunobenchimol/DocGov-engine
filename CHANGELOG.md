@@ -8,6 +8,28 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.3.8] - 2026-10-30
+
+### Adicionado
+- **Guardrail Canônico de Escopo DocGov com Isolamento Efêmero em `%TEMP%` (`ENG-10`):**
+  - Implementação de `isValidDocGovCaseScope` e `assertDocGovCaseScope` em `src/utils/paths.ts` com bloqueio fail-fast estrito nas 6 ferramentas de processo (`bootstrap_case`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `generate_technical_note_docx` e `fetch_pncp`), com mensagem imperativa canônica caso invocadas fora de árvores de caso DocGov (`/cases/<slug>`).
+  - Isolamento transparente de exploração e benchmark em `%TEMP%/docgov_ephemeral_inspect/` para `inspect_doc` e `search_pncp`, permitindo inspecionar arquivos avulsos e pesquisar editais sem violar diretórios do usuário.
+  - Atualização dos prompts das 8 ferramentas MCP com a diretriz explícita `- Quando NÃO usar (Fora de Escopo): ...`.
+- **Auto-Redirecionamento Geométrico em Colunas de Checkbox (`ENG-11`):**
+  - Fase 1 (`inspect_doc` / `ENG-11a`): Detecção de pares `C_k` (checkbox curto `[☒☑☐◻□]|\bSim\b|\bNão\b`, `colSpan <= 2`) e `C_{k+1}` (célula ampla `colSpan >= 4`), anotando `[Checkbox Curto]` e apontando `suggested_target_slot = C_{k+1}` (`[Texto Discursivo / Especificar]`) no `toc_map.form_fields` e na visão linear.
+  - Fase 2 (`build_docx_template` / `ENG-11b`): Auto-redirecionamento no template ao receber regra de substituição discursiva em `C_k`, marcando `☒ Sim.` em `C_k` e posicionando a `{{tag}}` em `C_{k+1}`.
+  - Fase 3 (`fill_docx_template` / `ENG-11b`): Pós-processamento de segurança em tabelas transferindo textos longos ($> 45$ chars) acidentalmente injetados em células estreitas `C_k` para `C_{k+1}` e restaurando `☒ Sim.` em `C_k`.
+- **Detector Pós-Compilação de Células Órfãs e Totais Zerados (`ENG-13`):**
+  - Alerta `PARTIAL_ITEM_ROW_CONTAMINATION`: Detecta linhas de itens de software que retêm unidades físicas espúrias do doador de hardware (`servidores`, `GB`, `TB`, `Rack`).
+  - Alerta `UNCALCULATED_TOTAL_ROW`: Detecta linhas de `TOTAL` ou `VALOR GLOBAL` preenchidas com `R$ 0,00` ou `[A DEFINIR]` enquanto os itens possuem valores definidos.
+- **Heading Guard em `replace_paragraphs` (`ENG-12a`):**
+  - Preservação determinística de títulos de seção quando `start_p` aponta para cabeçalhos (`Heading*`, `Titulo*` ou numerações de seção `1. OBJETO`) com `end_p > start_p`, mantendo `start_p` intacto e aplicando o slot em `start_p + 1`.
+- **Saneamento de `<w:numPr>`, Espaçamento e Sequenciamento de Listas (`ENG-12b` e `ENG-12c`):**
+  - Descarte de linhas vazias na expansão multilinha prevenindo parágrafos vazios numerados (`2.`, `4.`).
+  - Remoção de `<w:numPr>` e estilos de título herdados de parágrafos comuns de texto discursivo.
+  - Aplicação de espaçamento vertical nativo `<w:spacing w:after="120"/>` (6pt) em todos os parágrafos gerados na expansão.
+  - Sequenciamento contínuo de listas decimais simples consecutivas (`1.` -> `2.` -> `3.`) compartilhando o mesmo `numId` no Word sem repetições.
+
 ## [1.3.7] - 2026-10-27
 
 ### Adicionado
