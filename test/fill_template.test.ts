@@ -247,6 +247,7 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
 </Types>`
     );
     zip.file(
@@ -340,6 +341,7 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
 </Types>`
     );
     zip.file(
@@ -438,16 +440,18 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
       "1.1.1.1.1 Arquitetura: Compatível com x86_64 de última geração."
     );
 
-    // Verifica que no <w:body> (v0.7.0) <w:numPr> nativo foi aplicado em document.xml e os recuos progressivos estão em word/numbering.xml
+    // Verifica que no <w:body> (ENG-14b / v1.3.9) multi_decimal utiliza injeção literal determinística com hanging indent sem <w:numPr> órfão
     const outZip = await JSZip.loadAsync(readFileSync(nestedOutPath));
     const outXml = await outZip.file("word/document.xml")!.async("string");
-    const numXml = await outZip.file("word/numbering.xml")!.async("string");
-    expect(outXml).toContain("<w:numPr>");
+    expect(outXml).not.toContain("<w:numPr>");
     expect(outXml).not.toContain('w:val="5"');
-    expect(numXml).toContain('w:left="360"');
-    expect(numXml).toContain('w:left="720"');
-    expect(numXml).toContain('w:left="1080"');
-    expect(numXml).toContain('w:left="1440"');
+    expect(outXml).toContain("1.1");
+    expect(outXml).toContain("1.1.1");
+    expect(outXml).toContain("<w:tab/>");
+    expect(outXml).toContain('w:left="360"');
+    expect(outXml).toContain('w:left="720"');
+    expect(outXml).toContain('w:left="1080"');
+    expect(outXml).toContain('w:left="1440"');
   });
 
   test("deve executar auto-inspeção integrada em fill_docx_template gerando inspecao_<stem>.json e visao_auditoria_<stem>.md, retornando payload sintético < 1024b (v0.6.4)", async () => {
@@ -582,6 +586,7 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
   <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
   <Default Extension="xml" ContentType="application/xml"/>
   <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
 </Types>`
     );
     zip.file(
@@ -589,6 +594,13 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
       `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
   <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    zip.file(
+      "word/_rels/document.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
 </Relationships>`
     );
     zip.file(
@@ -683,21 +695,14 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
     expect(numXml).toContain('w:abstractNumId="1"');
     expect(numXml).toContain('w:numId="1"');
 
-    expect(numXml).toContain('w:lvlText w:val="%1."');
-    expect(numXml).toContain('w:lvlText w:val="%1.%2."');
-    expect(numXml).toContain('w:lvlText w:val="%1.%2.%3."');
-    expect(numXml).toContain('w:lvlText w:val="%1.%2.%3.%4.%5.%6.%7.%8.%9."');
-    expect(numXml).toContain('<w:suff w:val="tab"/>');
-    expect(numXml).toContain('<w:startOverride w:val="4"/>');
-
-    expect(docXml).not.toContain("4.1.1.");
-    expect(docXml).not.toContain("4.1.2.");
+    // ENG-14b: multi_decimal fora de tabela grava o número literal reancorado no <w:t> com <w:tab/> e sem <w:numPr> órfão
+    expect(docXml).toContain("4.1.1.");
+    expect(docXml).toContain("4.1.2.");
     expect(docXml).toContain("Sustentabilidade Ambiental:");
     expect(docXml).toContain("Logística Reversa:");
-    expect(docXml).toContain('<w:ilvl w:val="1"/>');
-    expect(docXml).toContain('<w:ilvl w:val="2"/>');
+    expect(docXml).not.toContain('<w:numPr>');
 
-    expect(docXml).toContain("1.1.1.");
+    expect(docXml).toContain("4.1.1.");
     expect(docXml).toContain("<w:tab/>");
     expect(docXml).toContain('<w:tab w:val="left" w:pos="720"/>');
     expect(docXml).toContain('w:hanging="480"');
@@ -707,24 +712,24 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
       "4. REQUISITOS DA CONTRATAÇÃO (ORGAO_CONTRATANTE)"
     );
     expect(finalInsp.paragraphs[1].text).toBe(
-      "4.1 Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
+      "4.1. Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
     );
     expect(finalInsp.paragraphs[2].text).toBe(
-      "4.1.1 Logística Reversa: Descarte ambientalmente adequado de insumos."
+      "4.1.1. Logística Reversa: Descarte ambientalmente adequado de insumos."
     );
     expect(finalInsp.paragraphs[3].text).toBe(
-      "4.1.2 Eficiência Energética: Equipamentos com selo de baixo consumo."
+      "4.1.2. Eficiência Energética: Equipamentos com selo de baixo consumo."
     );
     expect(finalInsp.paragraphs[4].text).toBe(
-      "4.2 Subcontratação: Não será admitida a subcontratação do objeto principal."
+      "4.2. Subcontratação: Não será admitida a subcontratação do objeto principal."
     );
 
     const tableCellText = finalInsp.tables[0].rows[0].cells[1].text;
     expect(tableCellText).toContain(
-      "1.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
+      "4.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
     );
     expect(tableCellText).toContain(
-      "1.1.1. Local de Recebimento: Almoxarifado Central do ORGAO_B."
+      "4.1.1. Local de Recebimento: Almoxarifado Central do ORGAO_B."
     );
     expect(tableCellText).toContain(
       "a) Conferência provisória no ato da entrega;"
@@ -735,19 +740,19 @@ describe("Testes Unitários: fill_docx_template (Injeção, Listas Multinível v
 
     const auditMd = readFileSync(fillRes.visao_auditoria_path!, "utf-8");
     expect(auditMd).toContain(
-      "4.1 Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
+      "4.1. Sustentabilidade Ambiental: A contratada deverá observar diretrizes federais."
     );
     expect(auditMd).toContain(
-      "4.1.1 Logística Reversa: Descarte ambientalmente adequado de insumos."
+      "4.1.1. Logística Reversa: Descarte ambientalmente adequado de insumos."
     );
     expect(auditMd).toContain(
-      "4.1.2 Eficiência Energética: Equipamentos com selo de baixo consumo."
+      "4.1.2. Eficiência Energética: Equipamentos com selo de baixo consumo."
     );
     expect(auditMd).toContain(
-      "4.2 Subcontratação: Não será admitida a subcontratação do objeto principal."
+      "4.2. Subcontratação: Não será admitida a subcontratação do objeto principal."
     );
     expect(auditMd).toContain(
-      "1.1. Prazo de Entrega: Até 15 dias úteis na sede do ORGAO_A."
+      "4.1. Prazo de Entrega: Até 15 dias úteis"
     );
   });
 

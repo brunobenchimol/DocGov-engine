@@ -873,14 +873,14 @@ export function scanPostCompileIntegrityAlerts(
     if (!text) continue;
 
     const sectionMatch = text.match(
-      /^(\d+)(?:\.|\s*[-–—:]|\s+)\s*([A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\s\-_/–—,.:;()'"ºª§]{2,})/
+      /^(\d+(?:\.\d+)*)(?:\.|\s*[-–—:]|\s+)\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s\-_/–—,.:;()'"ºª§]{2,})/
     );
     if (sectionMatch) {
-      const secNum = parseInt(sectionMatch[1], 10);
+      const secNum = parseInt(sectionMatch[1].split(".")[0], 10);
       const title = sectionMatch[2].trim();
       if (
         title === title.toUpperCase() ||
-        /^(?:JUSTIFICATIVA|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA)/i.test(
+        /^(?:JUSTIFICATIVA|MOTIVA[ÇC][ÃA]O|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA|INFRAESTRUTURA|REQUISITO)/i.test(
           title
         )
       ) {

@@ -867,12 +867,7 @@ export function extractSectionHeadingPrefix(
     const numClean = numPrefix.trim();
     const match = numClean.match(/^(\d+(?:\.\d+)*)/);
     if (match) {
-      const textTrim = text.trim();
-      const isUpperCaseOrHeading =
-        hasHeadingStyle ||
-        /^[A-ZÀ-Ú0-9\s,.:\-–—]{3,}/.test(textTrim) ||
-        textTrim.length > 0;
-      if (isUpperCaseOrHeading) {
+      if (hasHeadingStyle || text.trim().length > 0) {
         return match[1];
       }
     }
@@ -882,7 +877,7 @@ export function extractSectionHeadingPrefix(
   // 2. Título com número literal no texto:
   // Ex: "2. JUSTIFICATIVA E OBJETIVO", "4.4 CRITÉRIOS DE MEDIÇÃO", "5.1 MODELO DE EXECUÇÃO", "6. MODELO DE GESTÃO"
   const literalMatch = trimmed.match(
-    /^(\d+(?:\.\d+)*)(?:[\.\-\)\s]+)\s*([A-ZÀ-Ú0-9][A-ZÀ-Ú0-9\s\-_/–—,.:;()'"ºª§]{2,})/
+    /^(\d+(?:\.\d+)*)(?:[\.\-\)\s]+)\s*([A-Za-zÀ-ÿ][A-Za-zÀ-ÿ0-9\s\-_/–—,.:;()'"ºª§]{2,})/
   );
   if (literalMatch) {
     const candidatePrefix = literalMatch[1];
@@ -890,7 +885,7 @@ export function extractSectionHeadingPrefix(
     if (
       hasHeadingStyle ||
       candidateTitle === candidateTitle.toUpperCase() ||
-      /^(?:JUSTIFICATIVA|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA|INFRAESTRUTURA|REQUISITO)/i.test(
+      /^(?:JUSTIFICATIVA|MOTIVA[ÇC][ÃA]O|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA|INFRAESTRUTURA|REQUISITO)/i.test(
         candidateTitle
       )
     ) {
