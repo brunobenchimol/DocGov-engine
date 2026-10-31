@@ -299,7 +299,16 @@ export function extractSectionHeadingPrefix(
     const numClean = numPrefix.trim();
     const match = numClean.match(/^(\d+(?:\.\d+)*)/);
     if (match) {
-      if (hasHeadingStyle || text.trim().length > 0) {
+      const candidateTitle = text.trim();
+      const isTitleLike =
+        hasHeadingStyle ||
+        (candidateTitle.length >= 3 &&
+          candidateTitle.length <= 150 &&
+          (candidateTitle === candidateTitle.toUpperCase() ||
+            /^(?:JUSTIFICATIVA|MOTIVA[ÇC][ÃA]O|OBJETO|ESPECIFICA|CRIT[EÉ]RIO|MODELO|GEST[AÃ]O|OBRIGA|RECEBIMENTO|PAGAMENTO|SAN[CÇ]|DISPOSI|GLOSS|ESTIMATIVA|VALOR|EQUIPE|VISTORIA|AMOSTRA|MATRIZ|SLA|N[IÍ]VEL|VIG[EÊ]NCIA|FISCALIZA|INFRAESTRUTURA|REQUISITO)/i.test(
+              candidateTitle
+            )));
+      if (isTitleLike) {
         return match[1];
       }
     }
@@ -338,7 +347,7 @@ export function reanchorMultilevelItem(
   lineListInfo: HierarchicalListItemInfo,
   activeSectionPrefix: string | null,
   existingSectionPrefixes: Set<string>,
-  _lastReanchoredSegments?: number[] | null
+  sectionChildCounters?: Map<string, number>
 ): ReanchoredNumberingResult {
   if (lineListInfo.kind !== "multi_decimal" || !activeSectionPrefix) {
     return {
@@ -392,6 +401,24 @@ export function reanchorMultilevelItem(
     }
   }
 
+  if (sectionChildCounters && targetSegments.length > 0) {
+    const parentKey = targetSegments.slice(0, -1).join(".");
+    const currentVal = targetSegments[targetSegments.length - 1];
+    const lastCounter = sectionChildCounters.get(parentKey);
+
+    if (lastCounter !== undefined) {
+      if (currentVal <= lastCounter) {
+        const nextVal = lastCounter + 1;
+        sectionChildCounters.set(parentKey, nextVal);
+        targetSegments[targetSegments.length - 1] = nextVal;
+      } else {
+        sectionChildCounters.set(parentKey, currentVal);
+      }
+    } else {
+      sectionChildCounters.set(parentKey, currentVal);
+    }
+  }
+
   const candidatePrefixStr = targetSegments.join(".");
   if (existingSectionPrefixes.has(candidatePrefixStr)) {
     return {
@@ -430,7 +457,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
   const paragraphs = getAllElements(xmlDoc, "w:p");
 
   const existingSectionPrefixes = new Set<string>();
-  const numberingResolver = createNumberingResolver(existingNumberingXml);
+  const preScanResolver = createNumberingResolver(existingNumberingXml);
 
   for (const p of paragraphs) {
     const pPrList = getDirectChildElements(p, "w:pPr");
@@ -442,8 +469,8 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
       });
     const pNum = extractParagraphNumbering(p);
     const numPrefix =
-      pNum && numberingResolver
-        ? numberingResolver.formatParagraphPrefix(pNum.numId, pNum.level)
+      pNum && preScanResolver
+        ? preScanResolver.formatParagraphPrefix(pNum.numId, pNum.level)
         : null;
     const pText = extractParagraphText(p);
     const headingPrefix = extractSectionHeadingPrefix(
@@ -461,6 +488,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
   let activeBodyNumId: string | null = null;
   let activeSingleDecimalNumber: number | null = null;
   const usedSubLevel1InCurrentNum = new Set<number>();
+  const numberingResolver = createNumberingResolver(existingNumberingXml);
 
   for (const p of paragraphs) {
     const parent = p.parentNode;
@@ -533,6 +561,40 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
     const segments = segmentLinesWithMarkdownTables(lines);
     let insertedCount = 0;
 
+    const templateNum = extractParagraphNumbering(p);
+    const isRegisteredInNumberingXml =
+      existingNumberingXml !== undefined &&
+      existingNumberingXml !== null &&
+      templateNum?.numId !== undefined &&
+      existingNumberingXml.includes(`w:numId="${templateNum.numId}"`);
+
+    const hasTemplateNumInheritance =
+      !insideTable &&
+      !hasHeadingStyle &&
+      templateNum !== undefined &&
+      templateNum.level >= 1 &&
+      isRegisteredInNumberingXml;
+    const templateNumId = templateNum?.numId;
+    const templateIlvl = templateNum?.level ?? 0;
+
+    const sectionChildCounters = new Map<string, number>();
+
+    let minNumericLevel = 0;
+    if (hasTemplateNumInheritance) {
+      const numericLevels: number[] = [];
+      for (const seg of segments) {
+        if (seg.type === "table" || seg.line.trim() === "") continue;
+        const info = detectHierarchicalListItem(seg.line);
+        if (
+          info.isListItem &&
+          (info.kind === "single_decimal" || info.kind === "multi_decimal")
+        ) {
+          numericLevels.push(info.level);
+        }
+      }
+      minNumericLevel = numericLevels.length > 0 ? Math.min(...numericLevels) : 0;
+    }
+
     for (const seg of segments) {
       if (seg.type === "table") {
         const tblRPr = detectedRPr ? stripBoldFromRPr(detectedRPr) : null;
@@ -550,152 +612,207 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
       const newP = xmlDoc.createElement("w:p");
       let lineListInfo = detectHierarchicalListItem(line);
 
-      if (lineListInfo.isListItem && lineListInfo.kind === "multi_decimal") {
-        const reanchorRes = reanchorMultilevelItem(
-          lineListInfo,
-          activeSectionPrefix,
-          existingSectionPrefixes
-        );
-        if (reanchorRes.isConvertedToBullet) {
-          lineListInfo = {
-            ...lineListInfo,
-            isListItem: true,
-            hasExplicitMarker: true,
-            kind: "bullet",
-            level: 1,
-            markerText: "• ",
-            markerBold: true,
-            segments: [],
-          };
-        } else {
-          lineListInfo = {
-            ...lineListInfo,
-            markerText: reanchorRes.newMarkerText,
-            level: reanchorRes.newLevel,
-            segments: reanchorRes.segments,
-          };
-        }
-      }
-
-      const isSingleDecimalListOutsideTable =
-        !insideTable &&
-        numberingManager !== undefined &&
-        lineListInfo.isListItem &&
-        lineListInfo.kind === "single_decimal";
-
-      if (isSingleDecimalListOutsideTable && numberingManager) {
-        const chapter = lineListInfo.chapterNumber ?? 1;
-        const subLvl1 =
-          lineListInfo.segments.length > 1 ? lineListInfo.segments[1] : null;
-
-        const isSequentialSingleDecimal =
-          lineListInfo.kind === "single_decimal" &&
-          activeBodyNumId !== null &&
-          activeSingleDecimalNumber !== null &&
-          lineListInfo.segments[0] === activeSingleDecimalNumber + 1;
-
-        const shouldAllocateNewNum =
-          !isSequentialSingleDecimal &&
-          (activeBodyNumId === null ||
-            activeBodyChapter !== chapter ||
-            (lineListInfo.level === 1 &&
-              subLvl1 !== null &&
-              usedSubLevel1InCurrentNum.has(subLvl1)));
-
-        if (shouldAllocateNewNum) {
-          activeBodyNumId = numberingManager.createMultilevelDecimalNum(
-            chapter,
-            lineListInfo.segments
+      if (hasTemplateNumInheritance && templateNumId) {
+        activeSingleDecimalNumber = null;
+        if (
+          lineListInfo.isListItem &&
+          (lineListInfo.kind === "single_decimal" ||
+            lineListInfo.kind === "multi_decimal")
+        ) {
+          const deltaLevel = Math.max(0, lineListInfo.level - minNumericLevel);
+          const targetIlvl = Math.min(templateIlvl + deltaLevel, 8);
+          const nativePPr = buildNativeNumberingParagraphProperties(
+            xmlDoc,
+            basePPr,
+            targetIlvl,
+            templateNumId
           );
-          activeBodyChapter = chapter;
-          usedSubLevel1InCurrentNum.clear();
-        }
-
-        if (lineListInfo.kind === "single_decimal") {
-          activeSingleDecimalNumber = lineListInfo.segments[0];
+          newP.appendChild(nativePPr);
+          appendRichTextRunsToParagraph(
+            xmlDoc,
+            newP,
+            lineListInfo.cleanRemainder,
+            normalRPr
+          );
+        } else if (
+          lineListInfo.isListItem &&
+          (lineListInfo.kind === "bullet" ||
+            lineListInfo.kind === "alpha_lower" ||
+            lineListInfo.kind === "alpha_upper")
+        ) {
+          const targetIlvl = Math.min(templateIlvl + 1, 8);
+          const nativePPr = buildNativeNumberingParagraphProperties(
+            xmlDoc,
+            basePPr,
+            targetIlvl,
+            templateNumId
+          );
+          newP.appendChild(nativePPr);
+          appendRichTextRunsToParagraph(
+            xmlDoc,
+            newP,
+            lineListInfo.cleanRemainder,
+            normalRPr
+          );
         } else {
-          activeSingleDecimalNumber = null;
-        }
-
-        if (subLvl1 !== null) {
-          usedSubLevel1InCurrentNum.add(subLvl1);
-        }
-
-        const nativePPr = buildNativeNumberingParagraphProperties(
-          xmlDoc,
-          basePPr,
-          lineListInfo.level,
-          activeBodyNumId!
-        );
-        newP.appendChild(nativePPr);
-
-        appendRichTextRunsToParagraph(
-          xmlDoc,
-          newP,
-          lineListInfo.cleanRemainder,
-          normalRPr
-        );
-      } else if (lineListInfo.isListItem) {
-        activeSingleDecimalNumber = null;
-        const hangingPPr = buildHangingIndentParagraphProperties(
-          xmlDoc,
-          basePPr,
-          lineListInfo
-        );
-        if (hangingPPr) {
-          newP.appendChild(hangingPPr);
-        }
-
-        const markerRun = xmlDoc.createElement("w:r");
-        const markerRPr = lineListInfo.markerBold
-          ? addBoldToRPr(xmlDoc, normalRPr)
-          : normalRPr
-            ? (normalRPr.cloneNode(true) as Element)
-            : null;
-        if (markerRPr) {
-          markerRun.appendChild(markerRPr);
-        }
-        const markerT = xmlDoc.createElement("w:t");
-        markerT.setAttribute("xml:space", "preserve");
-        markerT.textContent = lineListInfo.markerText;
-        markerRun.appendChild(markerT);
-        newP.appendChild(markerRun);
-
-        const tabRun = xmlDoc.createElement("w:r");
-        if (normalRPr) {
-          tabRun.appendChild(normalRPr.cloneNode(true));
-        }
-        tabRun.appendChild(xmlDoc.createElement("w:tab"));
-        newP.appendChild(tabRun);
-
-        appendRichTextRunsToParagraph(
-          xmlDoc,
-          newP,
-          lineListInfo.cleanRemainder,
-          normalRPr
-        );
-      } else {
-        activeBodyNumId = null;
-        activeBodyChapter = null;
-        activeSingleDecimalNumber = null;
-
-        if (basePPr) {
-          const cleanPPr = basePPr.cloneNode(true) as Element;
-          for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
-            cleanPPr.removeChild(oldNumPr);
-          }
-          for (const oldPStyle of getDirectChildElements(cleanPPr, "w:pStyle")) {
-            const val =
-              oldPStyle.getAttribute("w:val") ||
-              oldPStyle.getAttribute("val") ||
-              "";
-            if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
-              cleanPPr.removeChild(oldPStyle);
+          if (basePPr) {
+            const cleanPPr = basePPr.cloneNode(true) as Element;
+            for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
+              cleanPPr.removeChild(oldNumPr);
             }
+            newP.appendChild(cleanPPr);
           }
-          newP.appendChild(cleanPPr);
+          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
         }
-        appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
+      } else {
+        if (lineListInfo.isListItem && lineListInfo.kind === "multi_decimal") {
+          const reanchorRes = reanchorMultilevelItem(
+            lineListInfo,
+            activeSectionPrefix,
+            existingSectionPrefixes,
+            sectionChildCounters
+          );
+          if (reanchorRes.isConvertedToBullet) {
+            lineListInfo = {
+              ...lineListInfo,
+              isListItem: true,
+              hasExplicitMarker: true,
+              kind: "bullet",
+              level: 1,
+              markerText: "• ",
+              markerBold: true,
+              segments: [],
+            };
+          } else {
+            lineListInfo = {
+              ...lineListInfo,
+              markerText: reanchorRes.newMarkerText,
+              level: reanchorRes.newLevel,
+              segments: reanchorRes.segments,
+            };
+          }
+        }
+
+        const isSingleDecimalListOutsideTable =
+          !insideTable &&
+          numberingManager !== undefined &&
+          lineListInfo.isListItem &&
+          lineListInfo.kind === "single_decimal";
+
+        if (isSingleDecimalListOutsideTable && numberingManager) {
+          const chapter = lineListInfo.chapterNumber ?? 1;
+          const subLvl1 =
+            lineListInfo.segments.length > 1 ? lineListInfo.segments[1] : null;
+
+          const isSequentialSingleDecimal =
+            lineListInfo.kind === "single_decimal" &&
+            activeBodyNumId !== null &&
+            activeSingleDecimalNumber !== null &&
+            lineListInfo.segments[0] === activeSingleDecimalNumber + 1;
+
+          const shouldAllocateNewNum =
+            !isSequentialSingleDecimal &&
+            (activeBodyNumId === null ||
+              activeBodyChapter !== chapter ||
+              (lineListInfo.level === 1 &&
+                subLvl1 !== null &&
+                usedSubLevel1InCurrentNum.has(subLvl1)));
+
+          if (shouldAllocateNewNum) {
+            activeBodyNumId = numberingManager.createMultilevelDecimalNum(
+              chapter,
+              lineListInfo.segments
+            );
+            activeBodyChapter = chapter;
+            usedSubLevel1InCurrentNum.clear();
+          }
+
+          if (lineListInfo.kind === "single_decimal") {
+            activeSingleDecimalNumber = lineListInfo.segments[0];
+          } else {
+            activeSingleDecimalNumber = null;
+          }
+
+          if (subLvl1 !== null) {
+            usedSubLevel1InCurrentNum.add(subLvl1);
+          }
+
+          const nativePPr = buildNativeNumberingParagraphProperties(
+            xmlDoc,
+            basePPr,
+            lineListInfo.level,
+            activeBodyNumId!
+          );
+          newP.appendChild(nativePPr);
+
+          appendRichTextRunsToParagraph(
+            xmlDoc,
+            newP,
+            lineListInfo.cleanRemainder,
+            normalRPr
+          );
+        } else if (lineListInfo.isListItem) {
+          activeSingleDecimalNumber = null;
+          const hangingPPr = buildHangingIndentParagraphProperties(
+            xmlDoc,
+            basePPr,
+            lineListInfo
+          );
+          if (hangingPPr) {
+            newP.appendChild(hangingPPr);
+          }
+
+          const markerRun = xmlDoc.createElement("w:r");
+          const markerRPr = lineListInfo.markerBold
+            ? addBoldToRPr(xmlDoc, normalRPr)
+            : normalRPr
+              ? (normalRPr.cloneNode(true) as Element)
+              : null;
+          if (markerRPr) {
+            markerRun.appendChild(markerRPr);
+          }
+          const markerT = xmlDoc.createElement("w:t");
+          markerT.setAttribute("xml:space", "preserve");
+          markerT.textContent = lineListInfo.markerText;
+          markerRun.appendChild(markerT);
+          newP.appendChild(markerRun);
+
+          const tabRun = xmlDoc.createElement("w:r");
+          if (normalRPr) {
+            tabRun.appendChild(normalRPr.cloneNode(true));
+          }
+          tabRun.appendChild(xmlDoc.createElement("w:tab"));
+          newP.appendChild(tabRun);
+
+          appendRichTextRunsToParagraph(
+            xmlDoc,
+            newP,
+            lineListInfo.cleanRemainder,
+            normalRPr
+          );
+        } else {
+          activeBodyNumId = null;
+          activeBodyChapter = null;
+          activeSingleDecimalNumber = null;
+
+          if (basePPr) {
+            const cleanPPr = basePPr.cloneNode(true) as Element;
+            for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
+              cleanPPr.removeChild(oldNumPr);
+            }
+            for (const oldPStyle of getDirectChildElements(cleanPPr, "w:pStyle")) {
+              const val =
+                oldPStyle.getAttribute("w:val") ||
+                oldPStyle.getAttribute("val") ||
+                "";
+              if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
+                cleanPPr.removeChild(oldPStyle);
+              }
+            }
+            newP.appendChild(cleanPPr);
+          }
+          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
+        }
       }
 
       applyParagraphAfterSpacing(xmlDoc, newP, 120);
