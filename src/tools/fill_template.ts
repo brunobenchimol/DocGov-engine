@@ -289,6 +289,29 @@ function buildHangingIndentParagraphProperties(
   return pPr;
 }
 
+function applyParagraphAfterSpacing(
+  xmlDoc: Document,
+  p: Element,
+  afterTwips = 120
+): void {
+  let pPr = getDirectChildElements(p, "w:pPr")[0];
+  if (!pPr) {
+    pPr = xmlDoc.createElement("w:pPr");
+    if (p.firstChild) {
+      p.insertBefore(pPr, p.firstChild);
+    } else {
+      p.appendChild(pPr);
+    }
+  }
+  const spacingList = getDirectChildElements(pPr, "w:spacing");
+  let spacingEl = spacingList[0];
+  if (!spacingEl) {
+    spacingEl = xmlDoc.createElement("w:spacing");
+    pPr.appendChild(spacingEl);
+  }
+  spacingEl.setAttribute("w:after", String(afterTwips));
+}
+
 function flattenRecursiveItemsArray(
   items: any[],
   parentPrefix: string = "1"
@@ -828,11 +851,20 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
   // Controla a instância <w:num> ativa para listas decimais no <w:body>
   let activeBodyChapter: number | null = null;
   let activeBodyNumId: string | null = null;
+  let activeSingleDecimalNumber: number | null = null;
   const usedSubLevel1InCurrentNum = new Set<number>();
 
   for (const p of paragraphs) {
     const parent = p.parentNode;
     if (!parent) continue;
+
+    const pPrList = getDirectChildElements(p, "w:pPr");
+    const hasHeadingStyle =
+      pPrList.length > 0 &&
+      getDirectChildElements(pPrList[0], "w:pStyle").some((s) => {
+        const val = s.getAttribute("w:val") || s.getAttribute("val") || "";
+        return /^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val);
+      });
 
     const hasBrElements =
       getAllElements(p, "w:br").length > 0 ||
@@ -841,8 +873,10 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
     const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
     const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
     const singleLineListInfo = detectHierarchicalListItem(fullText);
-    const hasListItem = singleLineListInfo.isListItem;
+    // Títulos de seção do documento original nunca são convertidos em listas numeradas
+    const hasListItem = !hasHeadingStyle && singleLineListInfo.isListItem;
     const hasNumberingConflict =
+      !hasHeadingStyle &&
       singleLineListInfo.hasExplicitMarker &&
       extractParagraphNumbering(p) !== undefined;
 
@@ -856,7 +890,6 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
     }
 
     const insideTable = isInsideTableCell(p);
-    const pPrList = getDirectChildElements(p, "w:pPr");
     let basePPr =
       pPrList.length > 0 ? (pPrList[0].cloneNode(true) as Element) : null;
     const detectedRPr = findBodyRunProperties([p]);
@@ -873,16 +906,23 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
 
     const lines = fullText.split(/\r?\n/);
     const segments = segmentLinesWithMarkdownTables(lines);
+    let insertedCount = 0;
 
     for (const seg of segments) {
       if (seg.type === "table") {
         const tblRPr = detectedRPr ? stripBoldFromRPr(detectedRPr) : null;
         const tblEl = buildOpenXmlTableFromMarkdown(xmlDoc, seg.lines, tblRPr);
         parent.insertBefore(tblEl, p);
+        insertedCount++;
         continue;
       }
 
       const line = seg.line;
+      if (line.trim() === "") {
+        // ENG-12b: Ignora linhas vazias para evitar a criação de elementos <w:p> vazios numerados
+        continue;
+      }
+
       const newP = xmlDoc.createElement("w:p");
       const lineListInfo = detectHierarchicalListItem(line);
 
@@ -899,12 +939,20 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
         const subLvl1 =
           lineListInfo.segments.length > 1 ? lineListInfo.segments[1] : null;
 
+        // ENG-12c: Sequenciamento estrito para listas decimais simples consecutivas (1. -> 2. -> 3.)
+        const isSequentialSingleDecimal =
+          lineListInfo.kind === "single_decimal" &&
+          activeBodyNumId !== null &&
+          activeSingleDecimalNumber !== null &&
+          lineListInfo.segments[0] === activeSingleDecimalNumber + 1;
+
         const shouldAllocateNewNum =
-          activeBodyNumId === null ||
-          activeBodyChapter !== chapter ||
-          (lineListInfo.level === 1 &&
-            subLvl1 !== null &&
-            usedSubLevel1InCurrentNum.has(subLvl1));
+          !isSequentialSingleDecimal &&
+          (activeBodyNumId === null ||
+            activeBodyChapter !== chapter ||
+            (lineListInfo.level === 1 &&
+              subLvl1 !== null &&
+              usedSubLevel1InCurrentNum.has(subLvl1)));
 
         if (shouldAllocateNewNum) {
           activeBodyNumId = numberingManager.createMultilevelDecimalNum(
@@ -913,6 +961,12 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
           );
           activeBodyChapter = chapter;
           usedSubLevel1InCurrentNum.clear();
+        }
+
+        if (lineListInfo.kind === "single_decimal") {
+          activeSingleDecimalNumber = lineListInfo.segments[0];
+        } else {
+          activeSingleDecimalNumber = null;
         }
 
         if (subLvl1 !== null) {
@@ -936,6 +990,7 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
         );
       } else if (lineListInfo.isListItem) {
         // Modo 2: Dentro de Tabela (<w:tc>) ou Alíneas/Bullets — Hanging Indent Estático com <w:tab/>
+        activeSingleDecimalNumber = null;
         const hangingPPr = buildHangingIndentParagraphProperties(
           xmlDoc,
           basePPr,
@@ -977,14 +1032,49 @@ function postProcessRichTextAndLineBreaksInXmlDoc(
           normalRPr
         );
       } else {
-        // Parágrafo comum sem marcador de lista
+        // Parágrafo comum sem marcador de lista (ENG-12b)
+        activeBodyNumId = null;
+        activeBodyChapter = null;
+        activeSingleDecimalNumber = null;
+
         if (basePPr) {
-          newP.appendChild(basePPr.cloneNode(true));
+          const cleanPPr = basePPr.cloneNode(true) as Element;
+          // ENG-12b: Remove <w:numPr> herdado para parágrafos que não são listas
+          for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
+            cleanPPr.removeChild(oldNumPr);
+          }
+          // ENG-12b: Remove estilos Heading* ou Titulo* herdados
+          for (const oldPStyle of getDirectChildElements(cleanPPr, "w:pStyle")) {
+            const val =
+              oldPStyle.getAttribute("w:val") ||
+              oldPStyle.getAttribute("val") ||
+              "";
+            if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
+              cleanPPr.removeChild(oldPStyle);
+            }
+          }
+          newP.appendChild(cleanPPr);
         }
         appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
       }
 
+      // ENG-12b: Aplica espaçamento vertical pós-parágrafo de 120 twips (6pt)
+      applyParagraphAfterSpacing(xmlDoc, newP, 120);
+
       parent.insertBefore(newP, p);
+      insertedCount++;
+    }
+
+    if (insertedCount === 0) {
+      const fallbackP = xmlDoc.createElement("w:p");
+      if (basePPr) {
+        const cleanPPr = basePPr.cloneNode(true) as Element;
+        for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
+          cleanPPr.removeChild(oldNumPr);
+        }
+        fallbackP.appendChild(cleanPPr);
+      }
+      parent.insertBefore(fallbackP, p);
     }
 
     parent.removeChild(p);

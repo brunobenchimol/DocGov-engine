@@ -8,6 +8,7 @@ import { createSlotsManifestContractError } from "../contracts/errors.ts";
 import {
   getAllElements,
   getDirectChildElements,
+  extractParagraphStyle,
   extractParagraphText,
   findBodyRunProperties,
   findBodyParagraphProperties,
@@ -201,10 +202,47 @@ export async function buildDocxTemplate(
           `Índice start_p (${start_p}) fora do intervalo de parágrafos (0..${originalBodyParagraphs.length - 1})`
         );
       }
-      const targetP = originalBodyParagraphs[start_p];
       const sliceEnd = Math.min(end_p, originalBodyParagraphs.length - 1);
+
+      // ENG-12a: Heading Guard — Quando end_p > start_p e start_p for título de seção,
+      // preserva start_p intacto e aplica o slot a partir de start_p + 1
+      let effectiveStartP = start_p;
+      if (sliceEnd > start_p) {
+        const startElement = originalBodyParagraphs[start_p];
+        const style = extractParagraphStyle(startElement);
+        const text = extractParagraphText(startElement).trim();
+        const hasHeadingStyle =
+          style !== null &&
+          /^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(style);
+        const isNumberedSection =
+          /^(?:(?:\d+(?:\.\d+)*|[A-Z]|\b[IVXLCDM]+\b)[\.\-\)\s]|CL[ÁA]USULA|SE[ÇC][ÃA]O|CAP[IÍ]TULO|ANEXO)\s+[A-ZÀ-Ú0-9]/i.test(
+            text
+          );
+        const isCommonAdminHeader =
+          /^(?:ESTUDO T[EÉ]CNICO PRELIMINAR|TERMO DE REFER[EÊ]NCIA|PROJETO B[AÁ]SICO|JUSTIFICATIVA|OBJETO(?:\s+DA\s+CONTRATA[ÇC][ÃA]O)?|DISPOSI[ÇC][ÕO]ES GERAIS|MATRIZ DE RISCOS|CRONOGRAMA|PESQUISA DE PRE[ÇC]OS|CRIT[EÉ]RIOS DE HABILITA[ÇC][ÃA]O|DISPOSI[ÇC][ÕO]ES FINAIS)\b/i.test(
+            text
+          );
+        const isAllCapsTitle =
+          text.length >= 4 &&
+          text.length <= 100 &&
+          text === text.toUpperCase() &&
+          /[A-ZÀ-Ú]/.test(text) &&
+          !/[;,.]$/.test(text) &&
+          !text.includes("\n");
+
+        if (
+          hasHeadingStyle ||
+          isNumberedSection ||
+          isCommonAdminHeader ||
+          isAllCapsTitle
+        ) {
+          effectiveStartP = start_p + 1;
+        }
+      }
+
+      const targetP = originalBodyParagraphs[effectiveStartP];
       const paragraphRange = originalBodyParagraphs.slice(
-        start_p,
+        effectiveStartP,
         sliceEnd + 1
       );
       const bodyRPr = findBodyRunProperties(paragraphRange);
@@ -218,7 +256,7 @@ export async function buildDocxTemplate(
         bodyPPr
       );
 
-      for (let i = start_p + 1; i <= sliceEnd; i++) {
+      for (let i = effectiveStartP + 1; i <= sliceEnd; i++) {
         const pToRemove = originalBodyParagraphs[i];
         if (pToRemove && pToRemove.parentNode === body) {
           body.removeChild(pToRemove);
