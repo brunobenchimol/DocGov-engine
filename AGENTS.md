@@ -1,6 +1,6 @@
 # Estatuto de Governança do Motor MCP docgov-engine
 
-Este documento estabelece as 8 Leis Invioláveis de Engenharia do motor standalone `docgov-engine`. Qualquer agente de IA ou desenvolvedor deve segui-las estritamente em todas as sessões e contribuições.
+Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalone `docgov-engine`. Qualquer agente de IA ou desenvolvedor deve segui-las estritamente em todas as sessões e contribuições.
 
 ---
 
@@ -52,6 +52,11 @@ Este documento estabelece as 8 Leis Invioláveis de Engenharia do motor standalo
 - Todo plano (`/plan`) e toda execução no repositório `docgov-engine` DEVE ser estruturada nativamente em **Micro-Commits Atômicos e Semânticos** (`feat(...)`, `fix(...)`, `test(...)`, `docs(...)`, `chore(...)`), onde cada micro-commit representa uma unidade lógica isolada e passa em 100% dos testes (`bun test`).
 - Ao finalizar qualquer feature, patch ou marco, o agente DEVE obrigatoriamente e por iniciativa própria atualizar o `CHANGELOG.md` e o `ROADMAP.md`.
 
+## Lei 9: Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens
+- **Teto Físico de Arquivo ($\le 500$ linhas):** Nenhum arquivo `.ts` em `src/` pode ultrapassar 500 linhas de código. Novas capacidades (como o futuro motor de jurisprudência da `v1.4.0`) DEVEM nascer em subdiretórios próprios de domínio (ex.: `src/tools/juris/search_juris.ts`, `src/tools/juris/fetch_juris.ts`, `src/tools/juris/statutory_bridge.ts`, `src/tools/juris/anatomical_slicer.ts`), jamais sendo empilhadas dentro de arquivos existentes;
+- **Leitura Fatiada (*Target-Lines Only*):** Durante manutenções e inspeções, o agente DEVE inspecionar apenas o submódulo específico ou intervalo estrito de linhas alvo, evitando leituras integrais de arquivos grandes para prevenir sobrecarga de contexto e economia de tokens;
+- **Execução Cirúrgica de Testes durante Micro-Commits:** Durante o ciclo de micro-commits intermediários (`MC-1` a `MC-3`), o agente DEVE executar apenas o arquivo de teste unitário afetado (`bun test test/<alvo>.test.ts`), reservando a bateria completa `bun test` para o micro-commit final de fechamento de release.
+
 ---
 
 ## Protocolo Operacional de Micro-Commits e Rastreabilidade Contínua
@@ -84,4 +89,5 @@ Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do 
 - [ ] **5. Micro-Commits Semânticos (Lei 8):** Fatiamento atômico registrado no Git;
 - [ ] **6. Memória Evolutiva (Lei 8):** `CHANGELOG.md` e `ROADMAP.md` atualizados e consistentes;
 - [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
-- [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas.
+- [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas;
+- [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/` respeitando o limite $\le 500$ linhas.
