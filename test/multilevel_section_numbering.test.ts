@@ -9,6 +9,7 @@ import {
   detectHierarchicalListItem,
   processDocument,
 } from "../src/tools/fill_template.ts";
+import { buildDocxTemplate } from "../src/tools/build_template.ts";
 import {
   inspectDocx,
   scanPostCompileIntegrityAlerts,
@@ -166,6 +167,40 @@ describe("ENG-14 e ENG-15: Reancoragem de Prefixos Multinível e Scanner de Anom
     const alertsSecao1 = scanPostCompileIntegrityAlerts(mockInspectionSecao1);
     const resetAlertSecao1 = alertsSecao1.find((a) => a.code === "MULTILEVEL_NUMBERING_RESET");
     expect(resetAlertSecao1).toBeUndefined();
+
+    // ENG-16: Detectar SECTION_PREFIX_MISMATCH quando subcláusula com raiz divergente surgir sob a seção ativa (ex: 10.2.2 na Seção 5)
+    const mockInspectionMismatch: DocxInspectionResult = {
+      paragraphs: [
+        { index: 0, text: "5. DA EXECUÇÃO DO OBJETO E CRITÉRIOS DE MEDIÇÃO" },
+        { index: 1, text: "5.1. A execução observará o cronograma físico-financeiro." },
+        { index: 2, text: "10.2.2. O prazo de entrega do hardware do doador será de 30 dias." },
+      ],
+      tables: [],
+      headers: [],
+      footers: [],
+    };
+    const alertsMismatch = scanPostCompileIntegrityAlerts(mockInspectionMismatch);
+    const mismatchAlert = alertsMismatch.find((a) => a.code === "SECTION_PREFIX_MISMATCH");
+    expect(mismatchAlert).toBeDefined();
+    expect(mismatchAlert?.severity).toBe("HIGH");
+    expect(mismatchAlert?.coords[0]).toContain("10.2.2 sob Seção 5");
+
+    // ENG-16: Detectar DUPLICATE_CLAUSE_NUMBER quando a mesma numeração de cláusula for repetida na mesma seção
+    const mockInspectionDuplicate: DocxInspectionResult = {
+      paragraphs: [
+        { index: 0, text: "5. DA EXECUÇÃO DO OBJETO E CRITÉRIOS DE MEDIÇÃO" },
+        { index: 1, text: "5.2.1. Primeira especificação técnica." },
+        { index: 2, text: "5.2.1. Segunda especificação técnica com mesmo número duplicado." },
+      ],
+      tables: [],
+      headers: [],
+      footers: [],
+    };
+    const alertsDuplicate = scanPostCompileIntegrityAlerts(mockInspectionDuplicate);
+    const dupAlert = alertsDuplicate.find((a) => a.code === "DUPLICATE_CLAUSE_NUMBER");
+    expect(dupAlert).toBeDefined();
+    expect(dupAlert?.severity).toBe("HIGH");
+    expect(dupAlert?.coords[0]).toContain("5.2.1 duplicado na Seção 5");
   });
 
   test("5. scanPostCompileIntegrityAlerts deve detectar DUPLICATE_CONFLICTING_SLA_TABLES quando houver prazos divergentes para Severidade 1 (ENG-15)", () => {
@@ -410,5 +445,269 @@ describe("ENG-14 e ENG-15: Reancoragem de Prefixos Multinível e Scanner de Anom
     expect(auditMd).toContain("4.4.1. Periodicidade de Faturamento");
     expect(auditMd).toContain("6.1. Gestor do Contrato");
     expect(auditMd).toContain("• Objetivo Principal");
+  });
+
+  test("7. scanPostCompileIntegrityAlerts: refinamento de UNCALCULATED_TOTAL_ROW permite unitários de referência com total zerado (RILC Art. 19)", () => {
+    // Cenário 1: Tabela de Estimativa de Preços com valores unitários preenchidos e total zerado (orçamento em fechamento de cotações)
+    const mockCotacaoPreliminar: DocxInspectionResult = {
+      paragraphs: [{ index: 0, text: "Estudo Técnico Preliminar - Estimativa de Preços" }],
+      tables: [
+        {
+          index: 0,
+          rows: [
+            {
+              rowIndex: 0,
+              cells: [
+                { cellIndex: 0, text: "Item", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "Descrição", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "Qtd", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "Valor Unitário", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "Valor Total", isSpanPlaceholder: false },
+              ],
+            },
+            {
+              rowIndex: 1,
+              cells: [
+                { cellIndex: 0, text: "1", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "Subscrição Red Hat Enterprise Linux", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "10 UNS", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "R$ 1.306,46", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "R$ 0,00", isSpanPlaceholder: false },
+              ],
+            },
+            {
+              rowIndex: 2,
+              cells: [
+                { cellIndex: 0, text: "2", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "Subscrição OpenShift Container Platform", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "5 UNS", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "R$ 1.631,78", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "R$ 0,00", isSpanPlaceholder: false },
+              ],
+            },
+            {
+              rowIndex: 3,
+              cells: [
+                { cellIndex: 0, text: "TOTAL GERAL", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "R$ 0,00", isSpanPlaceholder: false },
+              ],
+            },
+          ],
+        },
+      ],
+      headers: [],
+      footers: [],
+    };
+
+    const alertsCotacao = scanPostCompileIntegrityAlerts(mockCotacaoPreliminar);
+    const uncalcAlertCotacao = alertsCotacao.find((a) => a.code === "UNCALCULATED_TOTAL_ROW");
+    expect(uncalcAlertCotacao).toBeUndefined();
+
+    // Cenário 2: Tabela onde os itens possuem total calculado (> 0), mas a linha TOTAL GERAL está em R$ 0,00 -> DEVE disparar
+    const mockTotalDivergente: DocxInspectionResult = {
+      paragraphs: [{ index: 0, text: "Termo de Referência" }],
+      tables: [
+        {
+          index: 0,
+          rows: [
+            {
+              rowIndex: 0,
+              cells: [
+                { cellIndex: 0, text: "Item", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "Descrição", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "Qtd", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "Valor Unitário", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "Valor Total", isSpanPlaceholder: false },
+              ],
+            },
+            {
+              rowIndex: 1,
+              cells: [
+                { cellIndex: 0, text: "1", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "Subscrição Software", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "10 UNS", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "R$ 1.000,00", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "R$ 10.000,00", isSpanPlaceholder: false },
+              ],
+            },
+            {
+              rowIndex: 2,
+              cells: [
+                { cellIndex: 0, text: "TOTAL GERAL", isSpanPlaceholder: false },
+                { cellIndex: 1, text: "", isSpanPlaceholder: false },
+                { cellIndex: 2, text: "", isSpanPlaceholder: false },
+                { cellIndex: 3, text: "", isSpanPlaceholder: false },
+                { cellIndex: 4, text: "R$ 0,00", isSpanPlaceholder: false },
+              ],
+            },
+          ],
+        },
+      ],
+      headers: [],
+      footers: [],
+    };
+
+    const alertsDivergente = scanPostCompileIntegrityAlerts(mockTotalDivergente);
+    const uncalcAlertDivergente = alertsDivergente.find((a) => a.code === "UNCALCULATED_TOTAL_ROW");
+    expect(uncalcAlertDivergente).toBeDefined();
+    expect(uncalcAlertDivergente?.severity).toBe("HIGH");
+  });
+
+  test("8. E2E: Herança nativa de <w:numPr> preserva árvore do template (numId=1, seções 1..19) sem reset e sem 10.2.2 na Seção 5 (ENG-16)", async () => {
+    const rawDocxPath = resolve(tempDir, "tr_prodepa_raw.docx");
+    const manifestPath = resolve(tempDir, "slots_manifest_prodepa.json");
+    const tplDocxPath = resolve(tempDir, "tr_prodepa_tpl.docx");
+    const statePath = resolve(tempDir, "estado_caso_prodepa.json");
+    const outDocxPath = resolve(tempDir, "TR_PRODEPA_FINAL.docx");
+
+    const zip = new JSZip();
+    zip.file(
+      "[Content_Types].xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+  <Override PartName="/word/numbering.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.numbering+xml"/>
+</Types>`
+    );
+    zip.file(
+      "_rels/.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`
+    );
+    zip.file(
+      "word/_rels/document.xml.rels",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/numbering" Target="numbering.xml"/>
+</Relationships>`
+    );
+    // numbering.xml com lista multinível numId="1" de 9 níveis (%1., %1.%2., %1.%2.%3., etc.)
+    zip.file(
+      "word/numbering.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:abstractNum w:abstractNumId="1">
+    <w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:lvlJc w:val="left"/></w:lvl>
+    <w:lvl w:ilvl="1"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1.%2."/><w:lvlJc w:val="left"/></w:lvl>
+    <w:lvl w:ilvl="2"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1.%2.%3."/><w:lvlJc w:val="left"/></w:lvl>
+    <w:lvl w:ilvl="3"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1.%2.%3.%4."/><w:lvlJc w:val="left"/></w:lvl>
+  </w:abstractNum>
+  <w:num w:numId="1">
+    <w:abstractNumId w:val="1"/>
+  </w:num>
+</w:numbering>`
+    );
+
+    // document.xml com Seções 1 a 19 do template real
+    const sectionsXml = [];
+    for (let s = 1; s <= 19; s++) {
+      sectionsXml.push(`
+        <w:p>
+          <w:pPr>
+            <w:pStyle w:val="Heading1"/>
+            <w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr>
+          </w:pPr>
+          <w:r><w:t>SEÇÃO ${s}. TITULO DA SECAO</w:t></w:r>
+        </w:p>
+      `);
+      if (s === 5) {
+        sectionsXml.push(`
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="Heading2"/>
+              <w:numPr><w:ilvl w:val="1"/><w:numId w:val="1"/></w:numPr>
+            </w:pPr>
+            <w:r><w:t>SUBSECAO 5.1 REQUISITOS</w:t></w:r>
+          </w:p>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="Heading2"/>
+              <w:numPr><w:ilvl w:val="1"/><w:numId w:val="1"/></w:numPr>
+            </w:pPr>
+            <w:r><w:t>SUBSECAO 5.2 ESPECIFICACOES TECNICAS</w:t></w:r>
+          </w:p>
+          <w:p>
+            <w:pPr>
+              <w:pStyle w:val="ListParagraph"/>
+              <w:numPr><w:ilvl w:val="2"/><w:numId w:val="1"/></w:numPr>
+            </w:pPr>
+            <w:r><w:t>{{tr.especificacoes_secao52}}</w:t></w:r>
+          </w:p>
+        `);
+      }
+    }
+
+    zip.file(
+      "word/document.xml",
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    ${sectionsXml.join("\n")}
+  </w:body>
+</w:document>`
+    );
+
+    writeFileSync(rawDocxPath, await zip.generateAsync({ type: "nodebuffer" }));
+
+    const rawInsp = await inspectDocx(rawDocxPath);
+    const slotPIndex = rawInsp.paragraphs.findIndex((p) => p.text.includes("{{tr.especificacoes_secao52}}"));
+    expect(slotPIndex).toBeGreaterThan(0);
+
+    const manifest: SlotsManifest = {
+      replace_paragraphs: [
+        {
+          start_p: slotPIndex,
+          end_p: slotPIndex,
+          tag: "{{tr.especificacoes_secao52}}",
+        },
+      ],
+    };
+    writeFileSync(manifestPath, JSON.stringify(manifest, null, 2));
+    await buildDocxTemplate(rawDocxPath, manifestPath, tplDocxPath);
+
+    const state = {
+      tr: {
+        especificacoes_secao52: [
+          "**Características Gerais das Subscrições:**",
+          "**1.1. Suporte Técnico 24x7:** Disponibilidade ininterrupta com abertura de chamados.",
+          "**1.1.1. Prazo de Atendimento:** Severidade 1 atendida em até 1 hora.",
+          "**1.2. Atualizações de Segurança:** Correções críticas aplicadas automaticamente.",
+        ].join("\n"),
+      },
+    };
+    writeFileSync(statePath, JSON.stringify(state, null, 2));
+
+    const fillRes = await processDocument(tplDocxPath, statePath, outDocxPath);
+    expect(fillRes.success).toBe(true);
+
+    const finalZip = await JSZip.loadAsync(readFileSync(outDocxPath));
+    const finalDocXml = await finalZip.file("word/document.xml")!.async("string");
+
+    // 1. Deve herdar o <w:numId w:val="1"/> nativo da árvore do template
+    expect(finalDocXml).toContain('<w:numId w:val="1"/>');
+    // 2. Não deve inventar prefixo literal de outra seção (zero 10.2.x ou 10.3.x)
+    expect(finalDocXml).not.toContain("10.2.2.");
+    expect(finalDocXml).not.toContain("10.3.1.1.");
+    // 3. Os runs <w:t> não devem conter prefixos literais duplicados (o Word numera via numPr)
+    expect(finalDocXml).toContain("Suporte Técnico 24x7:");
+    expect(finalDocXml).toContain("Disponibilidade ininterrupta com abertura de chamados.");
+    expect(finalDocXml).toContain("Prazo de Atendimento:");
+    expect(finalDocXml).toContain("Severidade 1 atendida em até 1 hora.");
+    expect(finalDocXml).not.toContain(">1.1. Suporte Técnico 24x7");
+    expect(finalDocXml).not.toContain(">1.1.1. Prazo de Atendimento");
+
+    // 4. Scanner de integridade deve passar sem alertas de inconsistência ou mismatch
+    const finalInsp = await inspectDocx(outDocxPath);
+    const finalAlerts = scanPostCompileIntegrityAlerts(finalInsp);
+    const mismatch = finalAlerts.find((a) => a.code === "SECTION_PREFIX_MISMATCH");
+    const numReset = finalAlerts.find((a) => a.code === "MULTILEVEL_NUMBERING_RESET");
+    expect(mismatch).toBeUndefined();
+    expect(numReset).toBeUndefined();
   });
 });
