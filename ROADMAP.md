@@ -4,7 +4,7 @@
 > **Propósito deste Documento:** Fonte única da verdade sobre o planejamento arquitetural, evoluções funcionais e marcos estratégicos futuros do motor (`v1.1.x+`).
 > **Natureza Standalone & Desacoplada:** O `docgov-engine` é um motor autônomo e determinístico. Embora sirva como fundação para a camada de agentes do ecossistema `docgov`, ele possui ciclo próprio de evolução e pode ser utilizado de forma independente via CLI ou MCP por qualquer cliente, agente de IA ou pipeline automatizado.
 > **Política de Versionamento Pareado (Lockstep `Major.Minor` com o repositório `DocGov`):**
-> O par `Major.Minor` (`1.2.x`, `1.3.x`, `1.4.x`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. Evoluções incrementais, hotfixes e melhorias internas de robustez utilizam exclusivamente o dígito `Patch` (`.x`), evitando inflação desnecessária de números de versão e assegurando previsibilidade arquitetural entre a engine e a camada de agentes.
+> O par `Major.Minor` (`1.2.x`, `1.3.x`, `1.4.x`, `1.5.x`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. Evoluções incrementais, hotfixes e melhorias internas de robustez utilizam exclusivamente o dígito `Patch` (`.x`), evitando inflação desnecessária de números de versão e assegurando previsibilidade arquitetural entre a engine e a camada de agentes.
 > **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao planejar ou concluir cada marco evolutivo.
 
 ---
@@ -16,7 +16,8 @@
 | **Geração 1** | `v1.1.x` | Auditoria Matemática de Planilhas (`Z10`/`Z12`), Diff Estrutural e Resiliência Multi-Arquivo |
 | **Geração 2** | `v1.2.x` | Segurança Supply-Chain, Ingestão de `.xlsx`/`.csv`, Tabelas Multi-Página e OCR Headless |
 | **Geração 3** | `v1.3.x` | Diff Semântico Granular, Evolução de Cláusulas e Nota Técnica Comparativa Padronizada |
-| **Geração 4** | `v1.4.x` | Fiscalização Contratual, Aditivos 25%/50%, Reajustes e Validação Tripartite |
+| **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021) |
+| **Geração 5** | `v1.5.x` | Fiscalização Contratual, Aditivos 25%/50%, Reajustes e Validação Tripartite |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP |
 
 ---
@@ -140,17 +141,37 @@
 
 ---
 
-## 🎯 MARCO 7 — `v1.4.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
+## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)
 
-- [ ] **7.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
+- [ ] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query Sob Demanda em APIs Oficiais de Controle Externo (Habilitada em `cases/<slug>` e em Pesquisa Livre via `%TEMP%`):**
+  - Ferramenta de acionamento sob demanda (ideal para Co-Autoria/Workbench Mode e Pesquisa Jurídica Livre, sem obrigatoriedade de execução automática no pipeline padrão).
+  - Integração nativa com os endpoints públicos REST do TCU (`pesquisa.apps.tcu.gov.br/rest/publico/base/jurisprudencia-selecionada`, `/acordao-completo` e `/publicacoes`), suportando múltiplas queries em paralelo separadas por `|` (`Promise.all`), filtros por colegiado (`Plenário`, `1ª Câmara`, `2ª Câmara`), ano e foco em Estatais (`Lei 13.303/2016`) ou Administração Direta (`Lei 14.133/2021`).
+  - **Suporte a Pesquisa Livre (`Standalone`):** Quando acionada dentro de um caso, grava em `cases/<slug>/state/juris_search_results.json` e `.md`; quando acionada em pesquisa livre fora de `cases/<slug>` (`caseDir` omitido ou externo), faz parte da *whitelist* do Guardrail de Escopo (`ENG-10`), gravando automaticamente em `%TEMP%/docgov_ephemeral_inspect/` sem poluir diretórios do usuário (com retorno sintético MCP $< 900$ bytes).
+
+- [ ] **7.2. Matriz Determinística de Equivalência Normativa (`Statutory Bridge: Lei 13.303/2016 + RILC <-> Lei 14.133/2021`):**
+  - Expansor léxico-normativo embutido em `search_juris` que mapeia automaticamente os institutos da Lei das Estatais (`Lei 13.303/2016`, arts. 28 a 84) para seus correlatos na `Lei 14.133/2021` e Súmulas do TCU (`247`, `255`, `263`, `269`, `270`), destacando precedentes específicos de empresas estatais de TI (Serpro, Dataprev, BB Tecnologia, Petrobras, Prodepa, Proderj, etc.) e preservando as prerrogativas empresariais próprias da Lei 13.303/16 (como orçamento nativamente sigiloso do Art. 34 e vigência quinquenal direta do Art. 71).
+
+- [ ] **7.3. 10ª Ferramenta MCP `fetch_juris` (CLI `--fetch-juris`) — Verificador Anti-Alucinação e Fatiador Anatômico de Acórdãos:**
+  - Recebe o identificador de um acórdão (ex.: `"Acórdão 1234/2024-TCU-Plenário"` ou URL/ID de TCE estadual), verifica sua existência real na base oficial (bloqueando citações alucinadas por LLM) e baixa o inteiro teor isolado em `cases/<slug>/inputs/juris_<shortname>/` (ou em `%TEMP%/docgov_ephemeral_inspect/` em modo de pesquisa livre).
+  - **Fatiamento Anatômico Automático (`Anatomical Slicer`):** Separa o acórdão em suas 4 camadas estruturais (`1. Tese/Enunciado`, `2. Relatório da Unidade Técnica / AudTI`, `3. Voto do Ministro Relator / Ratio Decidendi` e `4. Dispositivo/Acórdão`), extraindo os parágrafos de alta densidade argumentativa para `dossie_juris_<shortname>.md` sem poluir a janela de contexto do LLM com dezenas de páginas irrelevantes.
+
+- [ ] **7.4. Suporte Dual Tático (`stance: "DEFENSE" | "ATTACK" | "BOTH"`) e Compilação Sob Demanda de Contrarrazões Jurídicas ou Impugnação:**
+  - Classificação e apoio tático para **Modo Defesa** (precedentes que autorizam a modelagem do gestor ou rebatem parecer jurídico restritivo via *distinguishing*) e **Modo Ataque** (precedentes que suspendem ou anulam cláusulas restritivas de editais nas 14 Zonas).
+  - Expansão de `generate_technical_note_docx` / `generate_audit_docx` para compilar, quando solicitado pelo usuário, `Nota_Tecnica_Contrarrazoes_Juridicas.docx/.pdf` (defesa técnica perante Assessoria Jurídica / PGE / Controle Interno) ou `Peca_Impugnacao_Representacao.docx/.pdf` (ataque fundamentado a edital externo).
+
+---
+
+## 🎯 MARCO 8 — `v1.5.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
+
+- [ ] **8.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
   - Cartografia pericial de instrumentos contratuais, vigências, garantias e termos aditivos de acréscimo/supressão.
   - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços e 50% para reformas, conforme Lei nº 14.133/2021).
 
-- [ ] **7.2. Motor de Validação Cruzada Tripartite (Edital $\leftrightarrow$ Proposta Vencedora $\leftrightarrow$ Contrato):**
+- [ ] **8.2. Motor de Validação Cruzada Tripartite (Edital $\leftrightarrow$ Proposta Vencedora $\leftrightarrow$ Contrato):**
   - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada e as cláusulas pactuadas no contrato administrativo.
   - Detecção de desvios de objeto, itens suprimidos sem amparo e divergências de especificação técnica.
 
-- [ ] **7.3. Monitoramento e Histórico de Reajustes / Repactuações:**
+- [ ] **8.3. Monitoramento e Histórico de Reajustes / Repactuações:**
   - Rastreamento de índices inflacionários contratuais (IPCA, INPC, IGP-M) e memória de cálculo de repactuação de mão de obra exclusiva.
 
 ---
