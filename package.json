@@ -9,6 +9,7 @@
     "test:live": "bun run ./scripts/run_live_tests.ts",
     "test:live:pncp": "bun run ./scripts/run_live_tests.ts --suite=pncp",
     "test:live:updater": "bun run ./scripts/run_live_tests.ts --suite=updater",
+    "test:live:juris": "bun run ./scripts/run_live_tests.ts --suite=juris",
     "build": "bun run build:all",
     "build:all": "bun run ./scripts/build_all.ts",
     "build:linux": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-engine",

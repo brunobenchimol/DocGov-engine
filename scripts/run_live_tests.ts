@@ -1,10 +1,11 @@
 import { appendFileSync, existsSync } from "node:fs";
 import { runPncpLiveProbes, type LiveProbeResult } from "../tests_live/pncp_api.live.ts";
 import { runGitHubUpdaterLiveProbes } from "../tests_live/github_updater.live.ts";
+import { runJurisLiveProbes } from "../tests_live/juris_api.live.ts";
 
 /**
  * Runner Central de Testes Online de Contrato de API (Live API Smoke Tests)
- * Suporta execução isolada por suite via flag --suite=all|pncp|updater
+ * Suporta execução isolada por suite via flag --suite=all|pncp|updater|juris
  */
 async function main() {
   const args = process.argv.slice(2);
@@ -19,7 +20,7 @@ async function main() {
   console.log("================================================================================");
   console.log(`🌐 DOCGOV-ENGINE: LIVE API CONTRACT SMOKE TESTS (Suite: ${suite.toUpperCase()})`);
   console.log("================================================================================");
-  console.log("Aviso: Esta suite executa requisições HTTPS REAIS contra pncp.gov.br e api.github.com.\n");
+  console.log("Aviso: Esta suite executa requisições HTTPS REAIS contra pncp.gov.br, api.github.com e pesquisa.apps.tcu.gov.br.\n");
 
   const results: LiveProbeResult[] = [];
   const startTotal = Date.now();
@@ -34,6 +35,12 @@ async function main() {
     console.log("\n📦 Executando sondas de contrato do GitHub Updater (api.github.com)...");
     const updaterResults = await runGitHubUpdaterLiveProbes();
     results.push(...updaterResults);
+  }
+
+  if (suite === "all" || suite === "juris") {
+    console.log("\n⚖️ Executando sondas de contrato de Jurisprudência (TCU / Cortes)...");
+    const jurisResults = await runJurisLiveProbes();
+    results.push(...jurisResults);
   }
 
   const totalDuration = Date.now() - startTotal;
