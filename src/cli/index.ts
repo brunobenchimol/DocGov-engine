@@ -1,11 +1,8 @@
 import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
-import { generateEngineSpecMarkdown } from "../mcp/spec.ts";
-import { selfUpdate } from "../core/updater.ts";
 import {
   bootstrapCase,
-  executeBackgroundCopyTask,
   formatBootstrapCaseSyntheticResult,
 } from "../tools/bootstrap.ts";
 import {
@@ -23,14 +20,13 @@ import {
   createTechnicalNoteDataFromDiff,
 } from "../tools/technical_note.ts";
 import {
-  fetchPncpContract,
-  formatFetchPncpSyntheticResult,
-  searchPncpContracts,
-  formatSearchPncpSyntheticResult,
-} from "../tools/pncp.ts";
+  compileDefenseCounterReasoningDocx,
+  compileAttackChallengeDocx,
+} from "../tools/juris/index.ts";
+import { handleConnectorsCli, handleMaintenanceCli } from "./connectors_cli.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
-import type { BackgroundCopyInput, TechnicalNoteData } from "../types/index.ts";
+import type { TechnicalNoteData } from "../types/index.ts";
 
 // ============================================================================
 // Modo CLI (Linha de Comando)
@@ -59,6 +55,8 @@ Uso:
   docgov-engine --generate-technical-note --note-json <nota.json> --out <nota.docx> [--format <docx|pdf|both>]
   docgov-engine --fetch-pncp --case-dir <dir> --pncp <id_ou_url> [--shortname <nome>]
   docgov-engine --search-pncp --case-dir <dir> --query <termos> [--status <todas|recebendo_proposta|encerradas>] [--uf <UF>] [--modalidade <termo>] [--limit <1..20>]
+  docgov-engine --search-juris [--case-dir <dir>] --query <termos> [--courts <TCU,TCE-PA...>] [--uf <UF>] [--stance <DEFENSE|ATTACK|BOTH>] [--limit <n>]
+  docgov-engine --fetch-juris [--case-dir <dir>] --id <acordao> [--shortname <nome>] [--topic <filtro>] [--stance <DEFENSE|ATTACK|BOTH>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release
@@ -68,80 +66,8 @@ Uso:
     return;
   }
 
-  // 0c) Modo --dump-spec
-  if (args.includes("--dump-spec")) {
-    const specIdx = args.indexOf("--dump-spec");
-    const outIdx = args.indexOf("--out");
-    let outputPath: string | undefined;
-    if (outIdx !== -1 && args[outIdx + 1] && !args[outIdx + 1].startsWith("--")) {
-      outputPath = args[outIdx + 1];
-    } else if (
-      args[specIdx + 1] &&
-      !args[specIdx + 1].startsWith("--")
-    ) {
-      outputPath = args[specIdx + 1];
-    }
-
-    const specMarkdown = generateEngineSpecMarkdown();
-    if (outputPath) {
-      const resolved = resolve(outputPath);
-      mkdirSync(dirname(resolved), { recursive: true });
-      writeFileSync(resolved, specMarkdown, "utf8");
-      console.log(`Especificação técnica do motor gravada com sucesso em: ${resolved}`);
-    } else {
-      process.stdout.write(specMarkdown + "\n");
-    }
-    return;
-  }
-
-  // 0a) Modo interno de cópia em segundo plano desanexada
-  if (args.includes("--internal-bg-copy")) {
-    const sourceIdx = args.indexOf("--source");
-    const destIdx = args.indexOf("--dest");
-    const stateIdx = args.indexOf("--state");
-    const filesIdx = args.indexOf("--files");
-    if (
-      sourceIdx !== -1 &&
-      destIdx !== -1 &&
-      stateIdx !== -1 &&
-      filesIdx !== -1
-    ) {
-      try {
-        const sourceDir = args[sourceIdx + 1];
-        const destDir = args[destIdx + 1];
-        const stateDir = args[stateIdx + 1];
-        const files: BackgroundCopyInput = JSON.parse(args[filesIdx + 1]);
-        await executeBackgroundCopyTask(sourceDir, destDir, stateDir, files);
-      } catch {
-        process.exit(1);
-      }
-    }
-    return;
-  }
-
-  // 0) Modo Auto-Atualização (--check-update, --update, -u, --force-update)
-  if (
-    args.includes("--check-update") ||
-    args.includes("--update") ||
-    args.includes("-u") ||
-    args.includes("--force-update")
-  ) {
-    const checkOnly = args.includes("--check-update");
-    const force = args.includes("--force-update");
-    const outIdx = args.indexOf("--out");
-    const customTarget = outIdx !== -1 ? args[outIdx + 1] : undefined;
-
-    try {
-      const res = await selfUpdate({
-        checkOnly,
-        force,
-        targetPath: customTarget,
-      });
-      console.log(res.message);
-    } catch (err: any) {
-      console.error(`Erro na atualização: ${err.message}`);
-      process.exit(1);
-    }
+  // 0c) Modos de Manutenção e Atualização (--dump-spec, --internal-bg-copy, --update)
+  if (await handleMaintenanceCli(args)) {
     return;
   }
 
@@ -199,123 +125,8 @@ Uso:
     return;
   }
 
-  // 0d) Modo --fetch-pncp
-  if (args.includes("--fetch-pncp")) {
-    const fetchIdx = args.indexOf("--fetch-pncp");
-    const caseDirIdx = args.indexOf("--case-dir");
-    const pncpIdx = args.indexOf("--pncp");
-    const shortnameIdx = args.indexOf("--shortname");
-
-    let caseDir: string | undefined;
-    if (caseDirIdx !== -1 && args[caseDirIdx + 1] && !args[caseDirIdx + 1].startsWith("--")) {
-      caseDir = args[caseDirIdx + 1];
-    }
-
-    let pncpIdOrUrl: string | undefined;
-    if (pncpIdx !== -1 && args[pncpIdx + 1] && !args[pncpIdx + 1].startsWith("--")) {
-      pncpIdOrUrl = args[pncpIdx + 1];
-    } else if (args[fetchIdx + 1] && !args[fetchIdx + 1].startsWith("--")) {
-      pncpIdOrUrl = args[fetchIdx + 1];
-    }
-
-    let shortname: string | undefined;
-    if (shortnameIdx !== -1 && args[shortnameIdx + 1] && !args[shortnameIdx + 1].startsWith("--")) {
-      shortname = args[shortnameIdx + 1];
-    }
-
-    if (!caseDir) {
-      console.error("Erro: Informe o diretório do caso usando --case-dir <dir>.");
-      process.exit(1);
-    }
-    if (!pncpIdOrUrl) {
-      console.error("Erro: Informe o identificador ou URL do PNCP usando --pncp <id_ou_url>.");
-      process.exit(1);
-    }
-
-    try {
-      const res = await fetchPncpContract(caseDir, pncpIdOrUrl, { shortname });
-      const synthetic = formatFetchPncpSyntheticResult(res);
-      console.log(JSON.stringify(synthetic, null, 2));
-    } catch (err: any) {
-      console.error(`Erro: ${err.message}`);
-      process.exit(1);
-    }
-    return;
-  }
-
-  // 0e) Modo --search-pncp
-  if (args.includes("--search-pncp")) {
-    const searchIdx = args.indexOf("--search-pncp");
-    const caseDirIdx = args.indexOf("--case-dir");
-    const queryIdx = args.indexOf("--query");
-    const statusIdx = args.indexOf("--status");
-    const ufIdx = args.indexOf("--uf");
-    const modalidadeIdx = args.indexOf("--modalidade");
-    const limitIdx = args.indexOf("--limit");
-
-    let caseDir: string | undefined;
-    if (
-      caseDirIdx !== -1 &&
-      args[caseDirIdx + 1] &&
-      !args[caseDirIdx + 1].startsWith("--")
-    ) {
-      caseDir = args[caseDirIdx + 1];
-    }
-
-    let query: string | undefined;
-    if (
-      queryIdx !== -1 &&
-      args[queryIdx + 1] &&
-      !args[queryIdx + 1].startsWith("--")
-    ) {
-      query = args[queryIdx + 1];
-    } else if (args[searchIdx + 1] && !args[searchIdx + 1].startsWith("--")) {
-      query = args[searchIdx + 1];
-    }
-
-    const status =
-      statusIdx !== -1 &&
-      args[statusIdx + 1] &&
-      !args[statusIdx + 1].startsWith("--")
-        ? (args[statusIdx + 1] as any)
-        : undefined;
-    const uf =
-      ufIdx !== -1 && args[ufIdx + 1] && !args[ufIdx + 1].startsWith("--")
-        ? args[ufIdx + 1]
-        : undefined;
-    const modalidade =
-      modalidadeIdx !== -1 &&
-      args[modalidadeIdx + 1] &&
-      !args[modalidadeIdx + 1].startsWith("--")
-        ? args[modalidadeIdx + 1]
-        : undefined;
-    const limit =
-      limitIdx !== -1 && args[limitIdx + 1] && !args[limitIdx + 1].startsWith("--")
-        ? Number(args[limitIdx + 1])
-        : undefined;
-
-    if (!caseDir) {
-      console.error("Erro: Informe o diretório do caso usando --case-dir <dir>.");
-      process.exit(1);
-    }
-    if (!query) {
-      console.error("Erro: Informe os termos de busca usando --query <termos>.");
-      process.exit(1);
-    }
-
-    try {
-      const res = await searchPncpContracts(caseDir, query, {
-        status,
-        uf,
-        modalidade,
-        limit,
-      });
-      const synthetic = formatSearchPncpSyntheticResult(res);
-      console.log(JSON.stringify(synthetic, null, 2));
-    } catch (err: any) {
-      console.error(`Erro: ${err.message}`);
-      process.exit(1);
-    }
+  // 0d) Conectores Externos (PNCP e Jurisprudência v1.4.0)
+  if (await handleConnectorsCli(args)) {
     return;
   }
 
@@ -452,6 +263,13 @@ Uso:
       explicitFormat || (outPath.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
 
     try {
+      const rawAudit = safeReadJsonFile(resolve(auditJsonPath));
+      if (rawAudit?.document_type === "BID_CHALLENGE_REPRESENTATION") {
+        const res = await compileAttackChallengeDocx(rawAudit, outPath, { outputFormat });
+        console.log(res.message);
+        if (res.pdf_path) console.log(`Documento PDF gerado: ${res.pdf_path}`);
+        return;
+      }
       const res = await generateAuditDocx(auditJsonPath, outPath, {
         outputFormat,
       });
@@ -581,6 +399,13 @@ Uso:
       explicitFormat || (outPath.toLowerCase().endsWith(".pdf") ? "pdf" : undefined);
 
     try {
+      const rawNote = safeReadJsonFile(resolve(noteJsonPath));
+      if (rawNote?.document_type === "LEGAL_COUNTER_REASONING") {
+        const res = await compileDefenseCounterReasoningDocx(rawNote, outPath, { outputFormat });
+        console.log(res.message);
+        if (res.pdf_path) console.log(`Documento PDF gerado: ${res.pdf_path}`);
+        return;
+      }
       const res = await generateTechnicalNoteDocx(noteJsonPath, outPath, {
         outputFormat,
       });

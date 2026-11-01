@@ -33,7 +33,13 @@ import {
 import {
   fetchJuris,
   formatFetchJurisSyntheticResult,
-} from "../src/tools/juris/fetch_juris.ts";
+  compileDefenseCounterReasoningDocx,
+  compileAttackChallengeDocx,
+} from "../src/tools/juris/index.ts";
+import JSZip from "jszip";
+import { readFileSync, unlinkSync, existsSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import type { JurisdictionProvider } from "../src/tools/juris/types.ts";
 
 describe("Jurisprudência v1.4.0 — Statutory Bridge (Lei 13.303/16 <-> Lei 14.133/21)", () => {
@@ -397,5 +403,98 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     expect(synthetic.layers_extracted.length).toBe(10);
   });
 });
+
+describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", () => {
+  it("compileDefenseCounterReasoningDocx deve gerar Nota de Contrarrazões com A4 vertical e zero tabelas", async () => {
+    const outDocx = join(tmpdir(), "test_contrarazoes_defense.docx");
+    const res = await compileDefenseCounterReasoningDocx(
+      {
+        processo_id: "PROC-1234/2024",
+        orgao_entidade: "SERPRO",
+        objeto: "Solução Integrada de Nuvem Soberana",
+        regime_juridico: "Lei 13.303/2016",
+        parecer_juridico_ref: "Parecer Jurídico nº 45/2024",
+        apontamentos_respondidos: [
+          {
+            id: "AP-01",
+            item_edital: "Cláusula 4.1",
+            apontamento_juridico: "Possível restrição na exigência de lote único.",
+            fundamentacao_tecnica: "A solução requer gestão centralizada e SLA único de disponibilidade.",
+            distinguishing_normativo: "Aplicação da Súmula TCU 247 e flexibilidade do Art. 32 da Lei 13.303/16.",
+            precedentes_tcu: ["Acórdão 1234/2024-TCU-Plenário"],
+          },
+        ],
+        acordaos_autenticados: [
+          {
+            id: "ACORDAO-TCU-1234-2024",
+            tese: "Adjudicação por preço global de TI é legítima.",
+            dispositivo: "Julgar improcedente a representação.",
+          },
+        ],
+      },
+      outDocx
+    );
+
+    expect(existsSync(res.outputPath)).toBe(true);
+
+    const buffer = readFileSync(res.outputPath);
+    const zip = await JSZip.loadAsync(buffer);
+    const docXml = await zip.file("word/document.xml")?.async("string");
+
+    expect(docXml).toBeDefined();
+    // Invariante Assert 29.6: Folha A4 vertical (11906 x 16838 dxa)
+    expect(docXml).toContain('w:w="11906"');
+    expect(docXml).toContain('w:h="16838"');
+    // Invariante Assert 29.6: Zero tabelas <w:tbl> (layout editorial corrido com blocos verticais)
+    expect(docXml).not.toContain("<w:tbl>");
+    expect(docXml).not.toContain("<w:tbl ");
+    // Conteúdo
+    expect(docXml).toContain("NOTA TÉCNICA DE CONTRARRAZÕES");
+    expect(docXml).toContain("SERPRO");
+    expect(docXml).toContain("AP-01");
+
+    if (existsSync(outDocx)) unlinkSync(outDocx);
+  });
+
+  it("compileAttackChallengeDocx deve gerar Peça de Impugnação com A4 vertical e zero tabelas", async () => {
+    const outDocx = join(tmpdir(), "test_impugnacao_attack.docx");
+    const res = await compileAttackChallengeDocx(
+      {
+        certame_id: "PREGAO-001/2024",
+        orgao_promotor: "ORGAO_CONTRATANTE",
+        clausulas_impugnadas: [
+          {
+            zona_id: "Z4",
+            item_edital: "8.2.1",
+            redacao_clausula: "Exigência de atestado com marca proprietária específica.",
+            ilegalidade_apontada: "Violação do princípio da isonomia e vedação a marcas.",
+            dispositivo_violado: "Art. 41 da Lei 14.133/2021",
+            precedentes_condenatorios: ["Acórdão 200/2024-TCU-Plenário"],
+          },
+        ],
+        pedidos_cautelares: ["Suspensão cautelar do certame."],
+      },
+      outDocx
+    );
+
+    expect(existsSync(res.outputPath)).toBe(true);
+
+    const buffer = readFileSync(res.outputPath);
+    const zip = await JSZip.loadAsync(buffer);
+    const docXml = await zip.file("word/document.xml")?.async("string");
+
+    expect(docXml).toBeDefined();
+    // Invariante Assert 29.6: Folha A4 vertical e zero tabelas
+    expect(docXml).toContain('w:w="11906"');
+    expect(docXml).toContain('w:h="16838"');
+    expect(docXml).not.toContain("<w:tbl>");
+    expect(docXml).not.toContain("<w:tbl ");
+    expect(docXml).toContain("PEÇA DE IMPUGNAÇÃO");
+    expect(docXml).toContain("Z4");
+
+    if (existsSync(outDocx)) unlinkSync(outDocx);
+  });
+});
+
 
 
