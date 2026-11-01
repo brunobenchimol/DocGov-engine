@@ -17,6 +17,10 @@ import {
   EXACT_COPY_PASTE_JURIS_SEARCH_SNIPPET,
   EXACT_COPY_PASTE_JURIS_FETCH_SNIPPET,
 } from "../src/contracts/errors.ts";
+import {
+  assertAuthenticAcordao,
+  sliceAcordaoAnatomically,
+} from "../src/tools/juris/anatomical_slicer.ts";
 
 describe("Jurisprudência v1.4.0 — Statutory Bridge (Lei 13.303/16 <-> Lei 14.133/21)", () => {
   it("deve contemplar os 10 eixos normativos estruturados (SB-01 a SB-10)", () => {
@@ -157,3 +161,87 @@ describe("Jurisprudência v1.4.0 — Contratos e Padrão Exact Copy-Paste Error 
     expect(err.message).toContain(EXACT_COPY_PASTE_JURIS_FETCH_SNIPPET);
   });
 });
+
+describe("Jurisprudência v1.4.0 — AnatomicalSlicer e Trava Anti-Alucinação", () => {
+  it("assertAuthenticAcordao deve permitir acórdãos autênticos e barrar acórdãos inexistentes com [ANTI_HALLUCINATION_BLOCK]", () => {
+    expect(() => assertAuthenticAcordao(true, "Acórdão 1234/2024-TCU-Plenário", "TCU")).not.toThrow();
+
+    expect(() => assertAuthenticAcordao(false, "Acórdão 99999/2099-TCU-Plenário", "TCU")).toThrow(
+      /\[ANTI_HALLUCINATION_BLOCK\].*NÃO EXISTE na base oficial/
+    );
+  });
+
+  it("sliceAcordaoAnatomically deve decompor nas 6 Macro-Partes e 10 Sub-Camadas", () => {
+    const rawAcordao = {
+      tribunal: "TCU",
+      colegiado: "Plenário",
+      numeroAcordao: "1234",
+      anoAcordao: 2024,
+      processo: "001.234/2024-5",
+      relator: "Ministro Relator Teste",
+      dataSessao: "15/05/2024",
+      unidadeJurisdicionada: "Serviço Federal de Processamento de Dados - SERPRO",
+      indexacao: "LICITAÇÃO; CONTRATAÇÃO DE TI; LOTE ÚNICO; LEI 13.303/2016",
+      enunciado: "<p>É lícita a <b>adjudicação por preço global</b> em solução integrada de software quando motivada na integridade sistêmica.</p>",
+      relatorio: `
+        HISTÓRICO
+        Trata-se de representação sobre supostas irregularidades em pregão eletrônico.
+        MANIFESTAÇÃO DA UNIDADE JURISDICIONADA
+        O Serpro alegou que a indivisibilidade do objeto é indispensável para garantia de SLA único.
+        EXAME TÉCNICO DA AUDTI
+        A AudTI concluiu que a modelagem adotada preserva a vantajosidade e atende à jurisprudência.
+      `,
+      voto: `
+        I - INTRODUÇÃO
+        Acolho as conclusões da unidade técnica.
+        II - DO LOTE ÚNICO E ADJUDICAÇÃO GLOBAL
+        No caso concreto, assiste razão ao gestor diante da interdependência técnica dos módulos.
+      `,
+      acordao: `
+        ACÓRDÃO 1234/2024 - TCU - Plenário
+        9.1. conhecer da presente representação para, no mérito, julgá-la improcedente;
+        9.2. arquivar os presentes autos.
+      `,
+    };
+
+    const result = sliceAcordaoAnatomically(rawAcordao, {
+      topicFilter: "lote único | adjudicação global",
+    });
+
+    const l = result.layers;
+    // 1A & 1B
+    expect(l.layer_1A_metadata.tribunal).toBe("TCU");
+    expect(l.layer_1A_metadata.colegiado).toBe("Plenário");
+    expect(l.layer_1A_metadata.numero).toBe("1234");
+    expect(l.layer_1A_metadata.ano).toBe(2024);
+    expect(l.layer_1B_entity_regime.regimeLegal).toBe("LEI_13303_ESTATAIS");
+    expect(l.layer_1B_entity_regime.isStateItEntity).toBe(true);
+
+    // 2A & 2B
+    expect(l.layer_2A_indexing_tags.length).toBeGreaterThanOrEqual(3);
+    expect(l.layer_2B_enunciado_tese).toContain("adjudicação por preço global");
+    expect(l.layer_2B_enunciado_tese).not.toContain("<b>"); // HTML sanitizado
+
+    // 3A, 3B, 3C
+    expect(l.layer_3A_factual_controversy).toContain("representação");
+    expect(l.layer_3B_defense_arguments).toContain("Serpro");
+    expect(l.layer_3C_technical_unit_analysis).toContain("AudTI");
+
+    // 4A & 5A & 6A
+    expect(l.layer_4A_ratio_decidendi).toContain("interdependência técnica");
+    expect(l.layer_5A_operative_commands.length).toBe(2);
+    expect(result.layers.outcome_summary).toBe("IMPROCEDENTE / MANUTENCAO_CERTAME");
+    expect(l.layer_6A_closing_quorum.quorum).toBeDefined();
+
+    // Estágio 2 e 3 Markdowns
+    expect(result.dossieMarkdown).toContain("# 🏛️ Dossiê Anatômico de Jurisprudência");
+    expect(result.dossieMarkdown).toContain("IMPROCEDENTE / MANUTENCAO_CERTAME");
+    expect(result.fullMarkdown).toContain("# Inteiro Teor Estruturado");
+    expect(result.fullMarkdown).toContain("## 3. Relatório");
+    expect(result.fullMarkdown).toContain("## 4. Voto / Fundamentação");
+
+    // Topic matching
+    expect(result.topicsMatched).toBeGreaterThanOrEqual(1);
+  });
+});
+
