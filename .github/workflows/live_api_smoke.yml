@@ -1,0 +1,39 @@
+name: Live API Contract Smoke Tests
+
+on:
+  # Execução manual via interface do GitHub Actions
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: "Suite de testes online a executar"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - pncp
+          - updater
+
+  # Execução periódica automática (toda segunda-feira às 12:00 UTC / 09:00 BRT)
+  schedule:
+    - cron: "0 12 * * 1"
+
+jobs:
+  live-contract-probes:
+    name: Sondas de Contrato Online (${{ inputs.suite || 'all' }})
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout Código
+        uses: actions/checkout@v7
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Instalar Dependências
+        run: bun install
+
+      - name: Executar Sondas de Contrato Online
+        run: bun run ./scripts/run_live_tests.ts --suite=${{ inputs.suite || 'all' }}

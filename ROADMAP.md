@@ -157,6 +157,12 @@
   - Filtro em `extractSectionHeadingPrefix` garantindo que apenas títulos autênticos atualizem o prefixo de seção pai, e escopo de contador monotônico por parágrafo-slot (`sectionChildCounters`).
   - Scanner de integridade pós-compilação detectando `SECTION_PREFIX_MISMATCH` e números duplicados de cláusula, e refinamento de `UNCALCULATED_TOTAL_ROW` para estimativas sob orçamento sigiloso (RILC Art. 19).
 
+- [x] **6.14. Suíte Online de Testes de Contrato de API (`Live API Smoke & Contract Suite`):**
+  - Isolamento estrito de testes de rede fora do `bun test` via `bunfig.toml` (`[test] root = "./test"`).
+  - Caderno de testes online do PNCP (`tests_live/pncp_api.live.ts`) com 6 sondas de rede reais cobrindo busca textual, filtros de UF/status, lookup direto de compra, rota de arquivos, download binário E2E de editais/anexos e resolução de URLs.
+  - Caderno de testes online do GitHub Updater (`tests_live/github_updater.live.ts`) com 3 sondas cobrindo consulta à API de releases, checagem lógica de novas versões e download de `SHA256SUMS.txt`.
+  - Runner central CLI (`scripts/run_live_tests.ts`) com atalhos `bun run test:live`, `test:live:pncp`, `test:live:updater` e workflow GitHub Actions com agendamento semanal e disparo manual (`live_api_smoke.yml`).
+
 ---
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)

@@ -8,6 +8,13 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Adicionado
+- **Caderno de Testes Online de Contrato de API (`Live API Smoke & Contract Suite` — `tests_live/`):**
+  - Isolamento estrito em 3 camadas via `bunfig.toml` (`[test] root = "./test"`), runner próprio (`scripts/run_live_tests.ts`) e suíte `tests_live/*.live.ts`, garantindo que o `bun test` padrão permaneça 100% offline e determinístico.
+  - **Sondas de Contrato da API Oficial do PNCP (`tests_live/pncp_api.live.ts`):** 6 sondas de rede reais cobrindo busca textual multi-query (`/api/search/`), filtros de UF e status, lookup direto de compra (`/api/consulta/v1/.../compras/...`), rota de anexos (`/api/pncp/v1/.../arquivos`), `fetchPncpContract` E2E com download binário real de editais/anexos governamentais e descompactação em pasta temporária, e validação de URLs web oficiais.
+  - **Sondas de Contrato do GitHub Updater (`tests_live/github_updater.live.ts`):** 3 sondas cobrindo consulta à API de releases (`fetchLatestReleaseInfo`), checagem lógica de novas versões (`selfUpdate checkOnly`) e download/parsing do arquivo de checksums oficial `SHA256SUMS.txt`.
+  - **Workflow de Monitoramento Agendado e Manual (`.github/workflows/live_api_smoke.yml`):** Disparo sob demanda (`workflow_dispatch`) e agendamento semanal automático (`schedule` toda segunda-feira às 09:00 BRT) com emissão de relatório executivo em Markdown via `$GITHUB_STEP_SUMMARY`.
+
 ## [1.3.11] - 2026-10-31
 
 ### Adicionado

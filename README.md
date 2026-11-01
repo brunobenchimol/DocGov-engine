@@ -577,10 +577,16 @@ Requer [Bun](https://bun.sh/) instalado:
 # Instalar dependências
 bun install
 
-# Executar suíte completa de testes unitários e E2E
+# Executar suíte completa de testes unitários e E2E (100% Offline e Determinístico)
 bun test
 
-# Executar suítes específicas por domínio
+# Executar suíte online de testes de contrato de API (Live API Smoke Tests)
+# Executa requisições HTTPS REAIS contra pncp.gov.br e api.github.com
+bun run test:live          # Executa todas as 9 sondas de rede (PNCP + GitHub Updater)
+bun run test:live:pncp     # Sondas exclusivas da API oficial do PNCP
+bun run test:live:updater  # Sondas exclusivas da API de Releases e Checksums do GitHub
+
+# Executar suítes específicas por domínio (Locais)
 bun test test/pdf_exporter.test.ts  # Testes do Pipeline Híbrido DOCX -> PDF (Word COM e Pure-JS)
 bun test test/engine.test.ts        # Testes E2E (PDF, Cartografia, Radar Z1..Z14 e binário standalone)
 bun test test/bootstrap.test.ts     # Ingestão de pastas, salvaguarda, magic bytes e determinismo
