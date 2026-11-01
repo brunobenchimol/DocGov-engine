@@ -341,4 +341,43 @@ export function createPncpSearchContractError(reason: string): Error {
   );
 }
 
+// ============================================================================
+// Contratos de Jurisprudência (v1.4.0 — Exact Copy-Paste Error)
+// ============================================================================
+
+export const EXACT_COPY_PASTE_JURIS_SEARCH_SNIPPET = `{
+  "query": "lote único indivisibilidade software | adjudicação por preço global TI",
+  "caseDir": "cases/meu_caso",
+  "courts": ["TCU", "TCE-PA"],
+  "uf": "PA",
+  "stance": "DEFENSE",
+  "regime": "13303",
+  "limit": 10
+}`;
+
+export function createJurisSearchContractError(reason: string): Error {
+  return new Error(
+    `Erro nos parâmetros de busca de jurisprudência (search_juris): ${reason}\n` +
+      `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente a chamada utilizando estritamente o contrato abaixo:\n` +
+      EXACT_COPY_PASTE_JURIS_SEARCH_SNIPPET
+  );
+}
+
+export const EXACT_COPY_PASTE_JURIS_FETCH_SNIPPET = `{
+  "acordaoIdOrUrl": "Acórdão 1234/2024-TCU-Plenário",
+  "caseDir": "cases/meu_caso",
+  "shortname": "acordao_1234_2024",
+  "topicFilter": "parcelamento | lote único",
+  "stance": "DEFENSE"
+}`;
+
+export function createJurisFetchContractError(reason: string): Error {
+  return new Error(
+    `Erro nos parâmetros de obtenção de jurisprudência (fetch_juris): ${reason}\n` +
+      `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente a chamada utilizando estritamente o contrato abaixo:\n` +
+      EXACT_COPY_PASTE_JURIS_FETCH_SNIPPET
+  );
+}
+
+
 
