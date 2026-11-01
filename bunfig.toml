@@ -1,0 +1,6 @@
+# Configuração do Runtime e Test Runner Bun
+# Restringe a suíte padrão de testes automatizados estritamente ao diretório ./test/
+# impedindo execução acidental de testes online de rede (tests_live/) durante "bun test"
+
+[test]
+root = "./test"

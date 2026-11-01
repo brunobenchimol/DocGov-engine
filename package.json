@@ -6,6 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "bun test",
+    "test:live": "bun run ./scripts/run_live_tests.ts",
+    "test:live:pncp": "bun run ./scripts/run_live_tests.ts --suite=pncp",
+    "test:live:updater": "bun run ./scripts/run_live_tests.ts --suite=updater",
     "build": "bun run build:all",
     "build:all": "bun run ./scripts/build_all.ts",
     "build:linux": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-engine",
