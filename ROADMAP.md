@@ -167,7 +167,7 @@
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)
 
-- [ ] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query e Estágio 1 do Funil (Triagem Rápida por `Cabeçalho + Ementa + Dispositivo` & Ranking `0..100 pts`):**
+- [x] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query e Estágio 1 do Funil (Triagem Rápida por `Cabeçalho + Ementa + Dispositivo` & Ranking `0..100 pts`):**
   - Ferramenta de acionamento sob demanda (ideal para Co-Autoria/Workbench Mode e Pesquisa Jurídica Livre, sem obrigatoriedade de execução automática no pipeline padrão).
   - Integração nativa com os endpoints públicos REST do TCU (`pesquisa.apps.tcu.gov.br/rest/publico/base/jurisprudencia-selecionada`, `/acordao-completo` e `/publicacoes`), suportando múltiplas queries em paralelo separadas por `|` (`Promise.all`), filtros por colegiado (`Plenário`, `1ª Câmara`, `2ª Câmara`), ano e foco em Estatais (`Lei 13.303/2016`) ou Administração Direta (`Lei 14.133/2021`).
   - **Ficha de Triagem Rápida (Estágio 1 do Funil — Sem Download de Textos Longos):** Em vez de baixar textos longos na busca inicial, `search_juris` extrai para cada *hit* a Ficha de Triagem Rápida composta por:
@@ -183,10 +183,10 @@
   - **Seleção Explícita de Escopo (`courts` e `uf`):** Suporte aos parâmetros opcionais `courts` (ex.: `["TCU", "STJ", "STF", "TCE-PA"]`) e `uf` (ex.: `"PA"`, `"CE"`, `"DF"`). Quando nenhum estado ou tribunal específico for solicitado, pesquisa por padrão apenas na camada nacional (`TCU`, e opcionalmente `STJ`/`STF`), evitando varreduras desnecessárias e lentas em todos os estados.
   - **Suporte a Pesquisa Livre (`Standalone`):** Quando acionada dentro de um caso, grava em `cases/<slug>/state/juris_search_results.json` e `.md`; quando acionada em pesquisa livre fora de `cases/<slug>` (`caseDir` omitido ou externo), faz parte da *whitelist* do Guardrail de Escopo (`ENG-10`), gravando automaticamente em `%TEMP%/docgov_ephemeral_inspect/` sem poluir diretórios do usuário (com retorno sintético MCP $< 900$ bytes).
 
-- [ ] **7.2. Matriz Determinística de Equivalência Normativa (`Statutory Bridge: Lei 13.303/2016 + RILC <-> Lei 14.133/2021`):**
+- [x] **7.2. Matriz Determinística de Equivalência Normativa (`Statutory Bridge: Lei 13.303/2016 + RILC <-> Lei 14.133/2021`):**
   - Expansor léxico-normativo embutido em `search_juris` que mapeia automaticamente os institutos da Lei das Estatais (`Lei 13.303/2016`, arts. 28 a 84) para seus correlatos na `Lei 14.133/2021` e Súmulas do TCU (`247`, `255`, `263`, `269`, `270`), destacando precedentes específicos de empresas estatais de TI (Serpro, Dataprev, BB Tecnologia, Petrobras, Prodepa, Proderj, etc.) e preservando as prerrogativas empresariais próprias da Lei 13.303/16 (como orçamento nativamente sigiloso do Art. 34 e vigência quinquenal direta do Art. 71).
 
-- [ ] **7.3. 10ª Ferramenta MCP `fetch_juris` (CLI `--fetch-juris`) — Estágios 2 e 3 do Funil (Fatiador Anatômico em 6 Macro-Partes / 10 Sub-Camadas + Inteiro Teor Estruturado):**
+- [x] **7.3. 10ª Ferramenta MCP `fetch_juris` (CLI `--fetch-juris`) — Estágios 2 e 3 do Funil (Fatiador Anatômico em 6 Macro-Partes / 10 Sub-Camadas + Inteiro Teor Estruturado):**
   - Recebe o identificador de um acórdão (ex.: `"Acórdão 1234/2024-TCU-Plenário"` ou URL/ID de TCE estadual), verifica sua existência real na base oficial (bloqueando citações alucinadas por LLM) e baixa o inteiro teor isolado em `cases/<slug>/inputs/juris_<shortname>/` (ou em `%TEMP%/docgov_ephemeral_inspect/` em modo de pesquisa livre).
   - **Fatiador Anatômico Avançado (`AnatomicalSlicer` — 6 Macro-Partes / 10 Sub-Camadas com `Topic-Aware Windowing`):** Decompõe os acórdãos selecionados nas 6 macro-partes clássicas desdobradas em 10 sub-camadas semânticas com fatiamento interno por tópico:
     - **1. Cabeçalho:** `1A. Metadados & Jurisdição` | `1B. Perfil da Entidade & Regime Legal (13.303 vs 14.133)`;
@@ -200,11 +200,11 @@
     - **Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md` — Inteiro Teor Limpo e Estruturado):** Preserva 100% do texto integral do acórdão organizado nas 6 macro-partes / 10 camadas (sem ruído de HTML), permitindo ao agente realizar a leitura integral do caso quando o *hit* for positivo (*Leading Case*) para confirmar a aderência fática total ao processo em tela.
   - **Testes Online de Contrato de API (`tests_live/juris_api.live.ts`):** Validação em cadeia autodescoberta (`search_juris` com ranking de Ementa+Dispositivo $\rightarrow$ `fetch_juris` validando as 10 camadas anatômicas e o inteiro teor estruturado).
 
-- [ ] **7.4. Suporte Dual Tático (`stance: "DEFENSE" | "ATTACK" | "BOTH"`) e Compilação Sob Demanda de Contrarrazões Jurídicas ou Impugnação:**
+- [x] **7.4. Suporte Dual Tático (`stance: "DEFENSE" | "ATTACK" | "BOTH"`) e Compilação Sob Demanda de Contrarrazões Jurídicas ou Impugnação:**
   - Classificação e apoio tático para **Modo Defesa** (precedentes que autorizam a modelagem do gestor ou rebatem parecer jurídico restritivo via *distinguishing*) e **Modo Ataque** (precedentes que suspendem ou anulam cláusulas restritivas de editais nas 14 Zonas).
   - Expansão de `generate_technical_note_docx` / `generate_audit_docx` para compilar, quando solicitado pelo usuário, `Nota_Tecnica_Contrarrazoes_Juridicas.docx/.pdf` (defesa técnica perante Assessoria Jurídica / PGE / Controle Interno) ou `Peca_Impugnacao_Representacao.docx/.pdf` (ataque fundamentado a edital externo).
 
-- [ ] **7.5. Roteador Jurisdicional Modular (`JurisdictionProviderRegistry`) e Degradação Graciosa por UF:**
+- [x] **7.5. Roteador Jurisdicional Modular (`JurisdictionProviderRegistry`) e Degradação Graciosa por UF:**
   - **Seleção Explícita de Escopo (`courts` e `uf`):** `search_juris` deve aceitar os parâmetros opcionais `courts` (ex.: `["TCU", "STJ", "STF", "TCE-PA"]`) e `uf` (ex.: `"PA"`, `"CE"`, `"DF"`). Se nenhum estado for solicitado, pesquisa por padrão apenas na camada nacional (`TCU`, e opcionalmente `STJ`/`STF`), evitando varreduras desnecessárias em todos os estados.
   - **Arquitetura de Conectores Plugáveis (*Adapter Pattern*) — Cobertura Inicial `v1.4.0`:**
     - *Camada Federal / Cortes Superiores:* Conectores nativos para **`TCU`** (Tribunal de Contas da União), **`STJ`** (Superior Tribunal de Justiça) e **`STF`** (Supremo Tribunal Federal);

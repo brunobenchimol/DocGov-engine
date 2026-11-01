@@ -712,11 +712,11 @@ describe("Testes Unitários v1.3.5: Conector Nativo PNCP e Busca Textual (fetch_
     }
   });
 
-  test("15. MCP: ferramenta search_pncp deve estar registrada nas 8 ferramentas do servidor MCP", async () => {
+  test("15. MCP: ferramenta search_pncp deve estar registrada nas 10 ferramentas do servidor MCP", async () => {
     const { getMcpToolsDefinition } = await import("../src/mcp/server.ts");
     const tools = getMcpToolsDefinition();
 
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(10);
 
     const searchTool = tools.find((t) => t.name === "search_pncp");
     expect(searchTool).toBeDefined();

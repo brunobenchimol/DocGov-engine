@@ -25,7 +25,7 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
 
     // 2. Camada 2: ListTools enriquecido com pré/pós-condições, descriptions em todas as propriedades e annotations
     const tools = getMcpToolsDefinition();
-    expect(tools.length).toBe(8);
+    expect(tools.length).toBe(10);
     const toolNames = tools.map((t) => t.name);
     expect(toolNames).toEqual([
       "bootstrap_case",
@@ -36,6 +36,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
       "generate_technical_note_docx",
       "fetch_pncp",
       "search_pncp",
+      "search_juris",
+      "fetch_juris",
     ]);
 
     for (const tool of tools) {
@@ -118,9 +120,11 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(buildTool.description).toContain("auto-reparo");
   });
 
-  test("deve expor versão 1.3.11 e novos recursos v1.3.11 nas instruções e ferramentas MCP", () => {
-    expect(VERSION).toBe("1.3.11");
-    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.3.11");
+  test("deve expor versão 1.4.0 e novos recursos v1.4.0 nas instruções e ferramentas MCP", () => {
+    expect(VERSION).toBe("1.4.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("v1.4.0");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("search_juris");
+    expect(DOCX_ENGINE_INSTRUCTIONS).toContain("fetch_juris");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Herança Nativa de <w:numPr>");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Modularidade Estrita, Decomposição em Submódulos e Economia de Tokens");
     expect(DOCX_ENGINE_INSTRUCTIONS).toContain("Parent Section Prefix Resolver");
@@ -206,9 +210,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     ]);
   });
 
-  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.3.11)", () => {
+  test("deve exportar especificação técnica integral em Markdown (--dump-spec v1.4.0)", () => {
     const spec = generateEngineSpecMarkdown();
-    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.3.11)");
+    expect(spec).toContain("# Especificação Técnica do Motor docgov-engine (v1.4.0)");
     expect(spec).toContain("Herança Nativa de <w:numPr>");
     expect(spec).toContain("Modularidade Estrita, Decomposição em Submódulos e Economia de Tokens");
     expect(spec).toContain("Reancoragem Contextual Multinível");
@@ -343,6 +347,6 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(typeof barrel.validateTechnicalNoteData).toBe("function");
 
     // Constantes
-    expect(barrel.VERSION).toBe("1.3.11");
+    expect(barrel.VERSION).toBe("1.4.0");
   });
 });

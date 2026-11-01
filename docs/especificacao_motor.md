@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.3.11)
+# Especificação Técnica do Motor docgov-engine (v1.4.0)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.3.11`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.4.0`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -28,10 +28,11 @@ Documento normativo e especificação canônica do motor standalone `docgov-engi
 20. **Reancoragem Contextual Multinível, Injeção Literal e Scanner de Anomalias (v1.3.9 — Leis 2, 3, 4 e 8):** Rastreamento de prefixo de seção pai (`activeSectionPrefix`) no `<w:body>` resolvendo títulos fixos literais ou via `numbering.xml`; reancoragem automática de itens multinível relativos (1.1, 1.2, 1.1.1) gerados pelo LLM sob seções 4.4, 5.1, 5.2, 6, etc.; prevenção de colisão com subseções irmãs existentes no template (ex.: introdução da Seção 2 convertendo itens conflitantes em Bullet '• ' estilizado com hanging indent); injeção literal determinística de cláusulas multi-decimais com `<w:tab/>` e `<w:spacing w:after="120"/>` sem nós `<w:numPr>` órfãos (eliminando o reset indesejado do Word para 1.1/1.1.1); listas simples mantidas no numbering nativo com sequenciamento estrito; e dois novos scanners pós-compilação: `MULTILEVEL_NUMBERING_RESET` (alertando sobre itens 1.1 sob seções >= 2) e `DUPLICATE_CONFLICTING_SLA_TABLES` (alertando sobre tabelas distintas de SLA de chamados com prazos divergentes para Severidade 1 herdadas do modelo doador).
 21. **Modularidade Estrita, Decomposição em Submódulos e Economia de Tokens (v1.3.10 — Lei 9):** Decomposição estrutural pura dos monólitos do motor em submódulos coesos em subdiretórios de domínio (`src/tools/openxml/` e `src/tools/inspect/`) com teto físico estrito de 500 linhas por arquivo, preservação total de assinaturas e re-exports públicos com zero alteração funcional, e protocolo de leitura e testes cirúrgicos de baixo consumo de tokens.
 22. **Herança Nativa de <w:numPr>, Fim do Bug de Pré-Varredura e Scanner Top-Down (v1.3.11 — Leis 2, 3, 4, 8 e 9):** Herança prioritária de <w:numPr> (numId e ilvl) da árvore nativa de numeração do template doador (preservando o sequenciamento contínuo das 19 seções do Word e impedindo reset espúrio para 1.), separação estrita do preScanResolver (Passada 1) prevenindo mutação indevida de contadores na compilação, contador top-down monotônico estrito por parágrafo-slot ('sectionChildCounters'), scanner de integridade pós-compilação detectando inconsistência de prefixo de seção ('SECTION_PREFIX_MISMATCH') e números duplicados de cláusula, e refinamento de 'UNCALCULATED_TOTAL_ROW' para aceitar preços unitários referenciais com total zerado sob orçamento sigiloso (RILC Art. 19).
+23. **Motor Determinístico de Jurisprudência, Statutory Bridge e Fatiamento Anatômico (Marco 7 — v1.4.0):** 9ª e 10ª ferramentas MCP ('search_juris' e 'fetch_juris') e flags CLI ('--search-juris', '--fetch-juris'), matriz de equivalência normativa (Lei 13.303/2016 + RILC <-> Lei 14.133/2021 com 10 eixos normativos estruturados SB-01 a SB-10), motor de ranking de relevância determinístico (0..100 pts) com alinhamento tático DEFENSE/ATTACK, roteador de jurisdição modular com conectores para TCU, STJ, STF, TCE-PA, TCE-CE e TCDF com degradação graciosa (graceful fallback) para UFs não implementadas, fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas com trava anti-alucinação '[ANTI_HALLUCINATION_BLOCK]', compilador tático OpenXML para Notas de Contrarrazões e Peças de Impugnação em layout vertical A4 (zero tabelas), suporte unificado a 'DOCGOV_JURIS_BASE_URL' e payloads sintéticos estritamente abaixo de 900 bytes.
 
 ---
 
-## 2. Ferramentas MCP Nativas (8 Tools)
+## 2. Ferramentas MCP Nativas (10 Tools)
 
 ### 2.1. bootstrap_case
 Inicializa a governança de pastas do caso (`inputs/`, `state/`, `templates/`, `output/`), descompacta e ingere automaticamente arquivos compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`) presentes em `uploadsDir`, na raiz do caso ou em `inputs/` (com classificação `libmagic msooxml`, defesa Anti-Zip Slip e achatamento de pastas), preserva nomes legíveis, move e deduplica automaticamente documentos soltos na raiz para `inputs/` (preservando `context.json`), infere extensões por magic bytes (`PK\x03\x04` para .docx e `%PDF` para .pdf), aceita `fileRenameMap` opcional, realiza auto-batismo de uploads anônimos (`media_*` -> `<TIPO>_<ORGAO>_<hash4>.<ext>`), detecta páginas escaneadas como imagem (`scanned_pages_detected`), inspeciona minutas `.docx`, editais/anexos `.pdf` e arquivos `.md`/`.txt` com isolamento `try/catch` por arquivo gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md`, `state/dossie_hotspots_<stem>.md`, `state/auditoria_orcamentaria_<stem>.json` e o consolidado multipeça `state/indice_mestre_caso.md` contendo o inventário de 100% dos arquivos com matriz cruzada Z1..Z14 e alertas globais. Retorna sumário executivo sintético (< 1 KB, margem segura < 920 bytes) com `master_index_path`, `unpacked_archives_count` e `extracted_files_count`.
@@ -221,6 +222,41 @@ Realiza busca textual multi-query no endpoint oficial `/api/search/` do Portal N
   "uf": "DF",
   "modalidade": "Pregão",
   "limit": 10
+}
+```
+
+### 2.9. search_juris
+Realiza busca multi-query sob demanda de jurisprudência em cortes de contas e superiores (TCU, STJ, STF, TCE-PA, TCE-CE, TCDF) com Statutory Bridge (Lei 13.303/2016 + RILC <-> Lei 14.133/2021) e motor de ranking determinístico de 0..100 pts.
+- **Roteamento Jurisdicional Seletivo & Graceful Fallback:** Aceita `courts` e `uf`. Se omitidos, executa a camada federal (`TCU`, `STJ`, `STF`). Caso solicitada uma UF não implementada (ex.: `AM`), degrada graciosamente executando as cortes federais e reportando `unimplemented_uf_requested` sem falhar.
+- **Statutory Bridge:** 10 eixos normativos canônicos (SB-01 a SB-10) correlacionando institutos da Lei das Estatais e da Lei 14.133/2021, com expansão léxica e distinguishing.
+- **Ranking Determinístico (0..100 pts):** Ponderação de aderência léxica (35 pts), alinhamento tático com postura DEFENSE/ATTACK (25 pts), afinidade de regime jurídico (20 pts), colegiado e quórum (10 pts) e contemporaneidade (10 pts).
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve `status`, `engine_version`, `queries_executed`, `stance`, `regime`, `total_hits`, `statutory_bridge_applied`, `jurisdiction_routing`, `top_hits`, `results_md` e `next_step_hint`.
+- **Exemplo Canônico de Chamada para `search_juris`:**
+```json
+{
+  "query": "lote único indivisibilidade software | adjudicação por preço global TI",
+  "caseDir": "cases/meu_caso",
+  "courts": ["TCU", "TCE-PA"],
+  "uf": "PA",
+  "stance": "DEFENSE",
+  "regime": "13303",
+  "limit": 10
+}
+```
+
+### 2.10. fetch_juris
+Verificador de autenticidade anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes / 10 Sub-Camadas semânticas (Cabeçalho, Ementa, Relatório fático/defesa/unidade técnica, Voto com Ratio Decidendi, Dispositivo e Fecho com Quórum).
+- **Trava Anti-Alucinação Estrita:** Valida se o precedente existe na fonte oficial ou mock server; acórdãos fabricados ou inexistentes são bloqueados imediatamente com o marcador `[ANTI_HALLUCINATION_BLOCK]`.
+- **Fatiamento Anatômico & Topic-Aware Windowing:** Extrai fatias cirúrgicas com fundamentação do voto em torno do tópico selecionado, persistindo o Dossiê Fatiado do Estágio 2 em `state/dossie_juris_<shortname>.md` e o Inteiro Teor Estruturado do Estágio 3 em `inputs/juris_<shortname>/inteiro_teor_anatomico.md`.
+- **Retorno Sintético MCP (< 1 KB, margem < 900 bytes):** Devolve `status`, `engine_version`, `verified_authentic`, `canonical_id`, `court`, `colegiado`, `relator`, `regime_detected`, `outcome`, `layers_extracted`, `topics_matched`, `dossie_sliced_md`, `inteiro_teor_full_md` e `next_step_hint`.
+- **Exemplo Canônico de Chamada para `fetch_juris`:**
+```json
+{
+  "acordaoIdOrUrl": "Acórdão 1234/2024-TCU-Plenário",
+  "caseDir": "cases/meu_caso",
+  "shortname": "acordao_1234_2024",
+  "topicFilter": "parcelamento | lote único",
+  "stance": "DEFENSE"
 }
 ```
 

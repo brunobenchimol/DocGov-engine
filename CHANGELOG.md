@@ -8,6 +8,29 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-11-01
+
+### Adicionado
+- **Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (Marco 7 / Geração 4):**
+  - **9ª Ferramenta MCP `search_juris` e CLI `--search-juris`:** Busca multi-query sob demanda (`|`) em APIs oficiais de controle externo e cortes superiores (TCU, STJ, STF, TCE-PA, TCE-CE, TCDF), com suporte a pesquisa dentro de caso (`state/juris_search_results.json` e `.md`) ou isolada em `%TEMP%/docgov_ephemeral_inspect/` via Guardrail de Escopo. Retorno sintético MCP conciso estritamente $< 900$ bytes (Lei 2).
+  - **Matriz de Equivalência Normativa (`Statutory Bridge` Lei 13.303/2016 + RILC $\leftrightarrow$ Lei 14.133/2021):** 10 eixos normativos canônicos (`SB-01` a `SB-10`) mapeando padronização de TI (Art. 47 vs Art. 41), lote único/indivisibilidade (Art. 32 vs Art. 40 + Súmula 247), qualificação técnica/atestados (Art. 58 vs Art. 67 + Súmulas 263/269), vigência quinquenal (Art. 71 vs Arts. 106/107), orçamento sigiloso (Art. 34 vs Art. 24), oportunidade de negócio (Art. 28 §3º II), catálogo padronizado (Art. 48 vs Art. 19 II), sobrepreço (Art. 31 vs Art. 23), sanções (Art. 83 vs Art. 156) e matriz de riscos (Art. 42 X vs Art. 22), com reconhecimento de empresas públicas de TI (`Serpro`, `Dataprev`, `BB Tecnologia`, etc.) e distinção das prerrogativas da Lei 13.303/16.
+  - **Motor de Ranking de Relevância Determinístico (`0..100 pts`):** Ordenação ponderada em 5 dimensões: aderência léxica na ementa/tese (`0..35 pts`), alinhamento tático do dispositivo com postura `DEFENSE` ou `ATTACK` (`0..25 pts`), afinidade de regime legal (`0..20 pts`), peso de colegiado e quórum (`0..10 pts`) e contemporaneidade (`0..10 pts`).
+  - **10ª Ferramenta MCP `fetch_juris` e CLI `--fetch-juris`:** Download e fatiamento anatômico de acórdãos com trava anti-alucinação estrita (`assertAuthenticAcordao` barrando precedentes inventados com `[ANTI_HALLUCINATION_BLOCK]`).
+  - **Fatiador Anatômico em 6 Macro-Partes e 10 Sub-Camadas (`AnatomicalSlicer`):** Decomposição estrutural em Metadados (`1A`), Regime/Entidade (`1B`), Indexação (`2A`), Enunciado/Tese (`2B`), Controvérsia Fática (`3A`), Argumentos de Defesa (`3B`), Análise da Unidade Técnica AudTI/Sefti (`3C`), Ratio Decidendi/Distinguishing (`4A`), Dispositivo Operativo (`5A`) e Fecho com Quórum (`6A`). Dupla saída: Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e Inteiro Teor Estruturado no Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md`).
+  - **Roteador Jurisdicional Modular (`JurisdictionProviderRegistry`) & Graceful Fallback:** Conectores nativos para camada federal (`TCU`, `STJ`, `STF`) e estadual (`TCE-PA`, `TCE-CE`, `TCDF`). Tratamento gracioso com fallback automático para camada federal caso solicitada UF não implementada (ex.: `"AM"` ou `"PR"`), sem travar a execução.
+  - **Compilador Tático OpenXML (Lockstep C# Assert 29.6):** Geração sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
+  - **Unificação de Variáveis de Ambiente para Mock Server (.NET Assert 29):** Suporte global à variável `DOCGOV_JURIS_BASE_URL` permitindo mock unificado de todos os 6 provedores, além das variáveis específicas por corte (`DOCGOV_TCU_BASE_URL`, `DOCGOV_STJ_BASE_URL`, etc.).
+  - **Alinhamento de Contrato com Lockstep C#:** Exposição simultânea de `statutory_bridge_applied` e alias `normative_bridge` no JSON de busca, bem como `relevance_score` e alias `score` em cada item retornado.
+  - **Caderno de Testes Online de Jurisprudência (`tests_live/juris_api.live.ts`):** 3 sondas online para APIs oficiais de tribunais, cobrindo busca textual, download de acórdão com fatiamento anatômico e degradação graciosa com UF não implementada.
+
+### Modificado
+- **Modularização de CLI e Servidor MCP (Lei 9 de Governança):**
+  - Extração de `src/mcp/tools_definition.ts` (303 linhas), reduzindo `src/mcp/server.ts` de 799 para 478 linhas.
+  - Extração de `src/cli/connectors_cli.ts` (296 linhas), reduzindo `src/cli/index.ts` de 642 para 467 linhas.
+  - 100% dos novos submódulos e arquivos em `src/` em estrita conformidade com o teto de 500 linhas.
+- **Sincronização de SemVer e Self-Discovery (Lei 4):**
+  - Atualização do número de versão para `1.4.0` em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts`, `docs/especificacao_motor.md`, `README.md` e `ROADMAP.md`.
+
 ### Adicionado
 - **Caderno de Testes Online de Contrato de API (`Live API Smoke & Contract Suite` — `tests_live/`):**
   - Isolamento estrito em 3 camadas via `bunfig.toml` (`[test] root = "./test"`), runner próprio (`scripts/run_live_tests.ts`) e suíte `tests_live/*.live.ts`, garantindo que o `bun test` padrão permaneça 100% offline e determinístico.

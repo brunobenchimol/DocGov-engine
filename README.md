@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.3.11)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.0)
 
 Motor unificado para o **ciclo completo de documentos Microsoft Word (`.docx`), planilhas (`.xlsx`/`.csv`), minutas e notas técnicas em Markdown/Texto (`.md`/`.txt`) e engenharia reversa/cartografia/auditoria determinística de Editais, Termos de Referência e anexos em PDF (`.pdf`)**, além de servidor **Model Context Protocol (MCP)** via `stdio`, projetado para o ecossistema **DocGov** e compatível com qualquer agente de IA (Google Antigravity, Claude Code, Claude Desktop, Cursor, VS Code Copilot e Windsurf).
 
@@ -84,7 +84,36 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.3.11` (Geração 3 — Herança Nativa de numPr, Fim do Bug de Pré-Varredura e Scanner Top-Down) e Marcos Anteriores
+## 2. Destaques da Versão `v1.4.0` (Geração 4 — Motor Determinístico de Jurisprudência, Statutory Bridge e Fatiamento Anatômico) e Marcos Anteriores
+
+A versão **`v1.4.0`** consolida o **Marco 7 do ROADMAP**, trazendo o motor determinístico sob demanda para pesquisa, validação e fatiamento anatômico de jurisprudência (TCU, STJ, STF, TCE-PA, TCE-CE, TCDF), alinhado ao ecossistema DocGov e à suíte de verificação:
+
+### Novidades da `v1.4.0`:
+1. **9ª Ferramenta MCP `search_juris` & CLI `--search-juris` (Estágio 1 do Funil):**
+   - Busca multi-query sob demanda com separador pipe `|` (`Promise.all`) em endpoints REST oficiais de controle externo.
+   - Suporte a pesquisa dentro de casos (`state/juris_search_results.json` e `.md`) ou em modo de pesquisa livre em pasta efêmera segura (`%TEMP%/docgov_ephemeral_inspect/`).
+   - Retorno sintético MCP conciso estritamente $< 900$ bytes (Lei 2).
+2. **Matriz de Equivalência Normativa (`Statutory Bridge` Lei 13.303/2016 + RILC $\leftrightarrow$ Lei 14.133/2021):**
+   - 10 eixos normativos canônicos (`SB-01` a `SB-10`) mapeando padronização, lote único/indivisibilidade, qualificação técnica, vigência contratual de 5 anos, orçamento sigiloso (Art. 34 vs Art. 24), oportunidade de negócio, catálogo de soluções, sobrepreço e matriz de riscos.
+   - Reconhecimento automático de empresas estatais de TI (`Serpro`, `Dataprev`, `BB Tecnologia`, `Petrobras`, `Prodepa`, etc.) e aplicação de distinguishing protetivo para estatais.
+3. **Motor de Ranking de Relevância Determinístico (`0..100 pts`):**
+   - Ponderação de 5 fatores: aderência léxica na ementa/tese (`0..35 pts`), alinhamento tático com postura `DEFENSE` ou `ATTACK` (`0..25 pts`), afinidade de regime legal (`0..20 pts`), peso de colegiado e quórum (`0..10 pts`) e contemporaneidade (`0..10 pts`).
+4. **10ª Ferramenta MCP `fetch_juris` & CLI `--fetch-juris` (Estágios 2 e 3 do Funil):**
+   - **Trava Anti-Alucinação Estrita:** Validação de existência real na fonte oficial, bloqueando precedentes fictícios com `[ANTI_HALLUCINATION_BLOCK]`.
+   - **Fatiador Anatômico Avançado (`AnatomicalSlicer`):** 6 Macro-Partes / 10 Sub-Camadas semânticas (Cabeçalho, Ementa, Relatório com divisão de fatos/defesa/unidade técnica AudTI, Voto com Ratio Decidendi, Dispositivo e Fecho com Quórum).
+   - Saída dupla: Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e Inteiro Teor Estruturado no Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md`).
+5. **Roteador Jurisdicional Modular (`JurisdictionProviderRegistry`) & Graceful Fallback:**
+   - Cobertura de 6 tribunais: federais/superiores (`TCU`, `STJ`, `STF`) e estaduais (`TCE-PA`, `TCE-CE`, `TCDF`).
+   - Degradação graciosa para UFs não implementadas (ex.: `AM` ou `PR`), executando a camada federal e reportando `unimplemented_uf_requested` sem travar a execução.
+6. **Compilador Tático OpenXML (Lockstep C# Assert 29.6):**
+   - Compilação sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
+7. **Integração com Mock Server & Compatibilidade C#:**
+   - Suporte unificado à variável `DOCGOV_JURIS_BASE_URL` para mock de todos os 6 conectores.
+   - Exposição simultânea de `statutory_bridge_applied` e `normative_bridge`, e `relevance_score` e `score`.
+
+---
+
+## 2.1. Destaques da Versão `v1.3.11` (Geração 3 — Herança Nativa de numPr, Fim do Bug de Pré-Varredura e Scanner Top-Down) e Marcos Anteriores
 
 A versão **`v1.3.11`** resolve em definitivo anomalias de numeração em templates complexos com árvore multinível nativa do Word (`ENG-16`), separa o estado do resolvedor de pré-varredura e refina o scanner pós-compilação:
 
