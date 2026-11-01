@@ -45,11 +45,12 @@ export async function fetchJuris(
   court: string;
   canonicalId: string;
 }> {
-  if (!options || !options.acordaoIdOrUrl || typeof options.acordaoIdOrUrl !== "string") {
+  const ref = options?.acordaoIdOrUrl || (options as any)?.id;
+  if (!options || !ref || typeof ref !== "string") {
     throw createJurisFetchContractError("Parâmetro 'acordaoIdOrUrl' ausente ou inválido.");
   }
 
-  const court = detectCourtFromRef(options.acordaoIdOrUrl);
+  const court = options.court || detectCourtFromRef(ref);
   const provider = defaultJurisdictionRegistry.get(court);
 
   if (!provider) {
@@ -57,11 +58,11 @@ export async function fetchJuris(
   }
 
   // 1. Busca na fonte oficial (ou Mock Server)
-  const rawFetch = await provider.fetch(options.acordaoIdOrUrl);
+  const rawFetch = await provider.fetch(ref);
 
   // 2. Trava Anti-Alucinação Estrita (Lei 3)
   const isAuthentic = !!rawFetch && rawFetch.exists && !!rawFetch.rawTextOrJson;
-  assertAuthenticAcordao(isAuthentic, options.acordaoIdOrUrl, court);
+  assertAuthenticAcordao(isAuthentic, ref, court);
 
   // 3. Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)
   const slicedResult = sliceAcordaoAnatomically(rawFetch!.rawTextOrJson, {

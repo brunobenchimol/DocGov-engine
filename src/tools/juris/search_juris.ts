@@ -33,14 +33,15 @@ export async function searchJuris(
   jsonPath: string;
   mdPath: string;
 }> {
-  if (!options || !options.query || typeof options.query !== "string") {
+  const qStr = options?.query || (options as any)?.queries;
+  if (!options || !qStr || typeof qStr !== "string") {
     throw createJurisSearchContractError("Parâmetro 'query' ausente ou inválido.");
   }
 
-  const rawQueries = options.query
+  const rawQueries = qStr
     .split("|")
-    .map((q) => q.trim())
-    .filter((q) => q.length > 0);
+    .map((q: string) => q.trim())
+    .filter((q: string) => q.length > 0);
 
   if (rawQueries.length === 0) {
     throw createJurisSearchContractError("Query de busca vazia.");

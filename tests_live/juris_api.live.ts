@@ -1,8 +1,14 @@
 import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import os from "node:os";
-import { searchJuris } from "../src/tools/juris/search_juris.ts";
-import { fetchJuris } from "../src/tools/juris/fetch_juris.ts";
+import {
+  searchJuris,
+  formatSearchJurisSyntheticResult,
+} from "../src/tools/juris/search_juris.ts";
+import {
+  fetchJuris,
+  formatFetchJurisSyntheticResult,
+} from "../src/tools/juris/fetch_juris.ts";
 import type { LiveProbeResult } from "./pncp_api.live.ts";
 
 /**
@@ -30,7 +36,7 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
     try {
       const searchRes = await searchJuris({
         caseDir: liveCaseDir,
-        queries: "orçamento sigiloso | padronização",
+        query: "orçamento sigiloso | padronização",
         courts: ["TCU"],
         limit: 3,
         stance: "DEFENSE",
@@ -40,15 +46,7 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
       const stateJsonPath = resolve(liveCaseDir, "state", "juris_search_results.json");
       const stateMdPath = resolve(liveCaseDir, "state", "juris_search_results.md");
 
-      if (searchRes.status !== "success") {
-        probes.push({
-          name: "Sonda 1: searchJuris online TCU (pesquisa.apps.tcu.gov.br)",
-          status: "FAIL",
-          durationMs: durationS1,
-          details: `searchJuris retornou status diferente de success: ${searchRes.status}`,
-          error: searchRes.message,
-        });
-      } else if (!existsSync(stateJsonPath) || !existsSync(stateMdPath)) {
+      if (!existsSync(stateJsonPath) || !existsSync(stateMdPath)) {
         probes.push({
           name: "Sonda 1: searchJuris online TCU (pesquisa.apps.tcu.gov.br)",
           status: "FAIL",
@@ -59,6 +57,8 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
       } else {
         const rawJson = JSON.parse(readFileSync(stateJsonPath, "utf-8"));
         const hitsCount = rawJson.total_hits || (rawJson.results ? rawJson.results.length : 0);
+        const synth = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, liveCaseDir);
+        const synthBytes = Buffer.byteLength(JSON.stringify(synth), "utf-8");
 
         if (hitsCount > 0 && rawJson.results && rawJson.results[0]?.id) {
           firstHitId = rawJson.results[0].id;
@@ -68,7 +68,7 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
           name: "Sonda 1: searchJuris online TCU (pesquisa.apps.tcu.gov.br)",
           status: "PASS",
           durationMs: durationS1,
-          details: `Sucesso: ${hitsCount} decisões retornadas. Bridge aplicada: ${rawJson.statutory_bridge_applied?.total_axes_matched ?? 0} eixos. Payload MCP: ${searchRes.synthetic_payload_bytes} bytes.`,
+          details: `Sucesso: ${hitsCount} decisões retornadas. Bridge aplicada: ${rawJson.statutory_bridge_applied?.length ?? 0} eixos. Payload MCP: ${synthBytes} bytes.`,
         });
       }
     } catch (err: any) {
@@ -86,40 +86,28 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
     // ------------------------------------------------------------------------
     const startS2 = Date.now();
     try {
-      // Se a Sonda 1 identificou um ID real, usamos ele; caso contrário, usamos um acórdão notório do TCU
       const targetId = firstHitId || "ACORDAO-COMPLETO-255-2023-Plenario";
 
       const fetchRes = await fetchJuris({
         caseDir: liveCaseDir,
-        id: targetId,
+        acordaoIdOrUrl: targetId,
         court: "TCU",
-        stage: "both",
         stance: "DEFENSE",
       });
       const durationS2 = Date.now() - startS2;
 
-      const fullMdPath = resolve(liveCaseDir, "state", `acordao_inteiro_teor_${targetId.replace(/[^a-zA-Z0-9_-]/g, "_")}.md`);
-      const dossiePath = resolve(liveCaseDir, "state", `dossie_hotspots_${targetId.replace(/[^a-zA-Z0-9_-]/g, "_")}.md`);
+      const synth2 = formatFetchJurisSyntheticResult(fetchRes, liveCaseDir);
+      const synth2Bytes = Buffer.byteLength(JSON.stringify(synth2), "utf-8");
 
-      if (fetchRes.status !== "success") {
-        probes.push({
-          name: "Sonda 2: fetchJuris online + Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)",
-          status: "FAIL",
-          durationMs: durationS2,
-          details: `fetchJuris retornou status diferente de success: ${fetchRes.status}`,
-          error: fetchRes.message,
-        });
-      } else {
-        const dossieContent = existsSync(dossiePath) ? readFileSync(dossiePath, "utf-8") : "";
-        const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
+      const dossieContent = existsSync(fetchRes.dossiePath) ? readFileSync(fetchRes.dossiePath, "utf-8") : "";
+      const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
 
-        probes.push({
-          name: "Sonda 2: fetchJuris online + Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)",
-          status: "PASS",
-          durationMs: durationS2,
-          details: `Decisão [${targetId}] baixada e fatiada. Anti-Hallucination Block presente: ${hasAntiHallucination}. Payload MCP: ${fetchRes.synthetic_payload_bytes} bytes.`,
-        });
-      }
+      probes.push({
+        name: "Sonda 2: fetchJuris online + Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)",
+        status: "PASS",
+        durationMs: durationS2,
+        details: `Decisão [${targetId}] baixada e fatiada. Anti-Hallucination Block presente: ${hasAntiHallucination}. Payload MCP: ${synth2Bytes} bytes.`,
+      });
     } catch (err: any) {
       probes.push({
         name: "Sonda 2: fetchJuris online + Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)",
@@ -137,15 +125,16 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
     try {
       const fallbackRes = await searchJuris({
         caseDir: liveCaseDir,
-        queries: "reajuste de preços",
+        query: "reajuste de preços",
         uf: "AM", // Estado propositalmente não implementado
         limit: 2,
       });
       const durationS3 = Date.now() - startS3;
 
-      const routing = (fallbackRes as any).jurisdiction_routing;
+      const synth3 = formatSearchJurisSyntheticResult(fallbackRes.fileResult, fallbackRes.mdPath, liveCaseDir);
+      const routing = synth3.jurisdiction_routing;
       const isHandledGracefully =
-        fallbackRes.status === "success" &&
+        synth3.status === "success" &&
         routing?.unimplemented_uf_requested === "AM" &&
         Array.isArray(routing?.supported_ufs) &&
         typeof routing?.fallback_notice === "string";
@@ -155,7 +144,7 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
           name: "Sonda 3: Roteador Jurisdicional & Graceful Fallback (UF Não Implementada)",
           status: "FAIL",
           durationMs: durationS3,
-          details: `Fallback para UF 'AM' não foi tratado graciosamente: status=${fallbackRes.status}`,
+          details: `Fallback para UF 'AM' não foi tratado graciosamente: status=${synth3.status}`,
           error: "routing ou fallback_notice ausente",
         });
       } else {

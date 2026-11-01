@@ -45,7 +45,8 @@ export interface JurisSearchResultItem {
 
 export interface SearchJurisOptions {
   caseDir?: string;
-  query: string;
+  query?: string;
+  queries?: string; // alias para query
   courts?: string[];
   uf?: string;
   stance?: JurisStance;
@@ -145,7 +146,9 @@ export interface SlicedDossierResult {
 
 export interface FetchJurisOptions {
   caseDir?: string;
-  acordaoIdOrUrl: string;
+  acordaoIdOrUrl?: string;
+  id?: string; // alias para acordaoIdOrUrl
+  court?: string;
   shortname?: string;
   topicFilter?: string;
   stance?: JurisStance;
