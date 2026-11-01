@@ -167,18 +167,38 @@
 
 ## 🎯 MARCO 7 — `v1.4.0`: Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021)
 
-- [ ] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query Sob Demanda em APIs Oficiais de Controle Externo (Habilitada em `cases/<slug>` e em Pesquisa Livre via `%TEMP%`):**
+- [ ] **7.1. 9ª Ferramenta MCP `search_juris` (CLI `--search-juris`) — Busca Multi-Query e Estágio 1 do Funil (Triagem Rápida por `Cabeçalho + Ementa + Dispositivo` & Ranking `0..100 pts`):**
   - Ferramenta de acionamento sob demanda (ideal para Co-Autoria/Workbench Mode e Pesquisa Jurídica Livre, sem obrigatoriedade de execução automática no pipeline padrão).
   - Integração nativa com os endpoints públicos REST do TCU (`pesquisa.apps.tcu.gov.br/rest/publico/base/jurisprudencia-selecionada`, `/acordao-completo` e `/publicacoes`), suportando múltiplas queries em paralelo separadas por `|` (`Promise.all`), filtros por colegiado (`Plenário`, `1ª Câmara`, `2ª Câmara`), ano e foco em Estatais (`Lei 13.303/2016`) ou Administração Direta (`Lei 14.133/2021`).
+  - **Ficha de Triagem Rápida (Estágio 1 do Funil — Sem Download de Textos Longos):** Em vez de baixar textos longos na busca inicial, `search_juris` extrai para cada *hit* a Ficha de Triagem Rápida composta por:
+    1. *Cabeçalho & Perfil:* Tribunal, Colegiado (`Plenário` vs `Câmara`), Número/Ano, Processo, Relator, Data da Sessão, Entidade Julgada e Regime Legal (`Lei 13.303/2016` vs `Lei 14.133/2021`);
+    2. *Ementa Completa:* Indexação/Titulação (tags em caixa alta) + Enunciado/Tese jurídica fixada;
+    3. *Dispositivo / Desfecho:* Síntese do comando decisório (Procedente, Improcedente, Cautelar Deferida/Negada, Anulação, Determinação ou Ciência/Recomendação).
+  - **Motor de Ranking de Relevância (`relevance_score: 0..100 pts`):** Ordenação automática determinística dos *hits* em `state/juris_search_results.md` e `.json` combinando 5 pesos:
+    - *(a) Aderência Léxica na Ementa/Tese (`0..35 pts`)*;
+    - *(b) Alinhamento Tático do Dispositivo com o `stance` (`0..25 pts`):* Em `stance: "DEFENSE"`, pontua mais alto quando o dispositivo julga a representação improcedente, nega cautelar ou mantém o certame; em `stance: "ATTACK"`, pontua mais alto quando suspende cautelarmente, anula ou expede determinação corretiva;
+    - *(c) Afinidade de Regime Jurídico (`0..20 pts`):* Bônus para mesma lei de regência (`Lei 13.303/2016` em estatais) ou equivalência direta na matriz `Statutory Bridge`;
+    - *(d) Peso do Colegiado e Quórum (`0..10 pts`):* `Plenário / Unânime` > `Câmaras / Maioria`;
+    - *(e) Contemporaneidade (`0..10 pts`):* Prioridade para julgados recentes (2021–2026).
   - **Seleção Explícita de Escopo (`courts` e `uf`):** Suporte aos parâmetros opcionais `courts` (ex.: `["TCU", "STJ", "STF", "TCE-PA"]`) e `uf` (ex.: `"PA"`, `"CE"`, `"DF"`). Quando nenhum estado ou tribunal específico for solicitado, pesquisa por padrão apenas na camada nacional (`TCU`, e opcionalmente `STJ`/`STF`), evitando varreduras desnecessárias e lentas em todos os estados.
   - **Suporte a Pesquisa Livre (`Standalone`):** Quando acionada dentro de um caso, grava em `cases/<slug>/state/juris_search_results.json` e `.md`; quando acionada em pesquisa livre fora de `cases/<slug>` (`caseDir` omitido ou externo), faz parte da *whitelist* do Guardrail de Escopo (`ENG-10`), gravando automaticamente em `%TEMP%/docgov_ephemeral_inspect/` sem poluir diretórios do usuário (com retorno sintético MCP $< 900$ bytes).
 
 - [ ] **7.2. Matriz Determinística de Equivalência Normativa (`Statutory Bridge: Lei 13.303/2016 + RILC <-> Lei 14.133/2021`):**
   - Expansor léxico-normativo embutido em `search_juris` que mapeia automaticamente os institutos da Lei das Estatais (`Lei 13.303/2016`, arts. 28 a 84) para seus correlatos na `Lei 14.133/2021` e Súmulas do TCU (`247`, `255`, `263`, `269`, `270`), destacando precedentes específicos de empresas estatais de TI (Serpro, Dataprev, BB Tecnologia, Petrobras, Prodepa, Proderj, etc.) e preservando as prerrogativas empresariais próprias da Lei 13.303/16 (como orçamento nativamente sigiloso do Art. 34 e vigência quinquenal direta do Art. 71).
 
-- [ ] **7.3. 10ª Ferramenta MCP `fetch_juris` (CLI `--fetch-juris`) — Verificador Anti-Alucinação e Fatiador Anatômico de Acórdãos:**
+- [ ] **7.3. 10ª Ferramenta MCP `fetch_juris` (CLI `--fetch-juris`) — Estágios 2 e 3 do Funil (Fatiador Anatômico em 6 Macro-Partes / 10 Sub-Camadas + Inteiro Teor Estruturado):**
   - Recebe o identificador de um acórdão (ex.: `"Acórdão 1234/2024-TCU-Plenário"` ou URL/ID de TCE estadual), verifica sua existência real na base oficial (bloqueando citações alucinadas por LLM) e baixa o inteiro teor isolado em `cases/<slug>/inputs/juris_<shortname>/` (ou em `%TEMP%/docgov_ephemeral_inspect/` em modo de pesquisa livre).
-  - **Fatiamento Anatômico Automático (`Anatomical Slicer`):** Separa o acórdão em suas 4 camadas estruturais (`1. Tese/Enunciado`, `2. Relatório da Unidade Técnica / AudTI`, `3. Voto do Ministro Relator / Ratio Decidendi` e `4. Dispositivo/Acórdão`), extraindo os parágrafos de alta densidade argumentativa para `dossie_juris_<shortname>.md` sem poluir a janela de contexto do LLM com dezenas de páginas irrelevantes.
+  - **Fatiador Anatômico Avançado (`AnatomicalSlicer` — 6 Macro-Partes / 10 Sub-Camadas com `Topic-Aware Windowing`):** Decompõe os acórdãos selecionados nas 6 macro-partes clássicas desdobradas em 10 sub-camadas semânticas com fatiamento interno por tópico:
+    - **1. Cabeçalho:** `1A. Metadados & Jurisdição` | `1B. Perfil da Entidade & Regime Legal (13.303 vs 14.133)`;
+    - **2. Ementa:** `2A. Indexação / Titulação (Tags)` | `2B. Enunciado / Sumário (Tese Fixada)`;
+    - **3. Relatório (Fatiado por Tópico `I, II, III...`):** `3A. Alegações / Controvérsia Fática` | `3B. Argumentos de Defesa do Gestor/Órgão` | `3C. Análise Técnica da Unidade Especializada (AudTI / Sefti / Engenharia)`;
+    - **4. Fundamentação (Voto / Motivação):** `4A. Ratio Decidendi & Distinguishing do Ministro Relator por Tópico`;
+    - **5. Dispositivo:** `5A. Comando Decisório e Moduladores (Itens 9.1, 9.2... Procedência, Cautelar, Determinação, Ciência)`;
+    - **6. Acórdão (Sentido Estrito / Fecho):** `6A. Quórum de Votação (Unânime vs Maioria), Declarações de Voto e Data da Sessão`.
+  - **Dupla Saída Persistida em Disco (`SLICED` + `FULL`):**
+    - **Estágio 2 (`state/dossie_juris_<shortname>.md` — Dossiê Fatiado por Tópico):** Contém o índice interno de tópicos do acórdão e as 10 sub-camadas filtradas para o tema da controvérsia, sem poluir a janela de contexto do LLM com dezenas de páginas irrelevantes;
+    - **Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md` — Inteiro Teor Limpo e Estruturado):** Preserva 100% do texto integral do acórdão organizado nas 6 macro-partes / 10 camadas (sem ruído de HTML), permitindo ao agente realizar a leitura integral do caso quando o *hit* for positivo (*Leading Case*) para confirmar a aderência fática total ao processo em tela.
+  - **Testes Online de Contrato de API (`tests_live/juris_api.live.ts`):** Validação em cadeia autodescoberta (`search_juris` com ranking de Ementa+Dispositivo $\rightarrow$ `fetch_juris` validando as 10 camadas anatômicas e o inteiro teor estruturado).
 
 - [ ] **7.4. Suporte Dual Tático (`stance: "DEFENSE" | "ATTACK" | "BOTH"`) e Compilação Sob Demanda de Contrarrazões Jurídicas ou Impugnação:**
   - Classificação e apoio tático para **Modo Defesa** (precedentes que autorizam a modelagem do gestor ou rebatem parecer jurídico restritivo via *distinguishing*) e **Modo Ataque** (precedentes que suspendem ou anulam cláusulas restritivas de editais nas 14 Zonas).
