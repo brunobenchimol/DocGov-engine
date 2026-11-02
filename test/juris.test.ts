@@ -634,6 +634,48 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
     const score = scoreJurisItem(taxNoiseItem, "software padronização de marca", { stance: "DEFENSE" });
     expect(score.breakdown.domainNoisePenalty).toBe(-25);
   });
+
+  it("TstProvider v1.4.2: deve integrar conector TST, auto-trigger trabalhista e fatiamento anatômico", async () => {
+    const { defaultJurisdictionRegistry } = require("../src/tools/juris/provider_registry.ts");
+    const { TstProvider } = require("../src/tools/juris/providers/tst_provider.ts");
+
+    const tst = defaultJurisdictionRegistry.get("TST");
+    expect(tst).toBeDefined();
+    expect(tst?.courtId).toBe("TST");
+    expect(tst?.tier).toBe("FEDERAL");
+    expect(tst?.defaultFederal).toBe(false);
+
+    // 1. Auto-trigger em query trabalhista/terceirização
+    const routeLabor = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "fiscalização de terceirização e responsabilidade subsidiária da súmula 331"
+    );
+    expect(routeLabor.routingInfo.executed_courts).toContain("TST");
+    expect(routeLabor.routingInfo.executed_courts).toContain("TCU");
+    expect(routeLabor.routingInfo.executed_courts).toContain("STJ");
+    expect(routeLabor.routingInfo.executed_courts).toContain("STF");
+
+    // 2. Não-acionamento em query puramente de hardware/software
+    const routeTech = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "aquisição de switches ethernet e servidores em lote único"
+    );
+    expect(routeTech.routingInfo.executed_courts).not.toContain("TST");
+    expect(routeTech.routingInfo.executed_courts).toContain("TCU");
+
+    // 3. Acionamento quando courts incluir TST explicitamente
+    const routeExplicit = defaultJurisdictionRegistry.resolveRouting(["TST"]);
+    expect(routeExplicit.routingInfo.executed_courts).toEqual(["TST"]);
+
+    // 4. Reconhecimento de padrão de ID do TST
+    const detected = defaultJurisdictionRegistry.detectCourtFromRef("TST-RR-21474-45.2015.5.04.0202");
+    expect(detected).toBe("TST");
+
+    const detectedRef = defaultJurisdictionRegistry.detectCourtFromRef("AIRR - 100123-45.2020.5.02.0001");
+    expect(detectedRef).toBe("TST");
+  });
 });
 
 
