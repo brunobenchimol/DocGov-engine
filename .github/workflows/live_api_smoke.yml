@@ -13,6 +13,7 @@ on:
           - all
           - pncp
           - updater
+          - juris
 
   # Execução periódica automática (toda segunda-feira às 12:00 UTC / 09:00 BRT)
   schedule:
