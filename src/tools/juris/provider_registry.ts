@@ -145,7 +145,8 @@ export class JurisdictionProviderRegistry {
    */
   public resolveRouting(
     requestedCourts?: string[],
-    requestedUf?: string
+    requestedUf?: string,
+    queryContext?: string
   ): {
     selectedProviders: JurisdictionProvider[];
     routingInfo: JurisdictionRoutingInfo;
@@ -176,7 +177,7 @@ export class JurisdictionProviderRegistry {
           }
         } else {
           unimplementedUf = upperUf;
-          fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado na v1.4.1 (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada nas cortes selecionadas via Graceful Fallback.`;
+          fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada nas cortes selecionadas via Graceful Fallback.`;
         }
       }
     } else {
@@ -189,6 +190,18 @@ export class JurisdictionProviderRegistry {
         }
       }
 
+      // Auto-Trigger Contextual Plug-and-Play para provedores especializados (ex.: TST)
+      if (queryContext) {
+        for (const prov of this.providers.values()) {
+          if (prov.autoTriggerKeywords && prov.autoTriggerKeywords.test(queryContext)) {
+            if (!selected.includes(prov)) {
+              selected.push(prov);
+              executedCourts.push(prov.courtId);
+            }
+          }
+        }
+      }
+
       if (upperUf) {
         const stateProv = this.getProviderByUf(upperUf);
         if (stateProv) {
@@ -198,7 +211,7 @@ export class JurisdictionProviderRegistry {
           }
         } else {
           unimplementedUf = upperUf;
-          fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado na v1.4.1 (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada automaticamente na camada federal (${executedCourts.join(", ")}) via Graceful Fallback.`;
+          fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada automaticamente na camada federal (${executedCourts.join(", ")}) via Graceful Fallback.`;
         }
       }
     }

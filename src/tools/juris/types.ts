@@ -4,6 +4,7 @@
 
 export type JurisStance = "DEFENSE" | "ATTACK" | "BOTH";
 export type JurisLegalRegime = "13303" | "14133" | "BOTH";
+export type StanceAlignment = "FAVORABLE" | "ADVERSE_DISTINGUISHING_REQUIRED" | "NEUTRAL";
 
 export interface JurisdictionRoutingInfo {
   executed_courts: string[];
@@ -46,6 +47,7 @@ export interface JurisSearchResultItem {
   tese_short?: string;
   dispositivo?: string;
   outcome?: string;
+  stance_alignment?: StanceAlignment;
   relevance_score: number; // 0..100
   score?: number; // alias para relevance_score
   statutory_bridge_refs?: string[];
@@ -217,6 +219,7 @@ export interface JurisdictionProvider {
   readonly envOverrideKey?: string;
   readonly liveSmokeQuery?: string;
   readonly idPatterns?: RegExp[];
+  readonly autoTriggerKeywords?: RegExp;
   search(query: string, options?: Partial<SearchJurisOptions>): Promise<RawJurisSearchResult[]>;
   searchWithDiagnostic?(query: string, options?: Partial<SearchJurisOptions>): Promise<{
     hits: RawJurisSearchResult[];

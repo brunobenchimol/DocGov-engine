@@ -54,7 +54,8 @@ export async function searchJuris(
   // 1. Roteamento Jurisdicional e Graceful Fallback
   const { selectedProviders, routingInfo } = (registry || defaultJurisdictionRegistry).resolveRouting(
     options.courts,
-    options.uf
+    options.uf,
+    qStr
   );
 
   // 2. Expansão via Statutory Bridge
@@ -146,6 +147,7 @@ export async function searchJuris(
         tese_short: teseShort,
         dispositivo: raw.dispositivo,
         outcome: scoring.outcome,
+        stance_alignment: scoring.stance_alignment,
         relevance_score: scoring.relevance_score,
         score: scoring.score,
         statutory_bridge_refs: scoring.statutoryBridgeRefs,
@@ -254,7 +256,12 @@ function generateJurisSearchMarkdown(
 
   for (const item of res.results) {
     const teseMini = (item.tese_short || item.tese || "").slice(0, 140).replace(/\|/g, "/");
-    md += `| **${item.relevance_score} pts** | \`${item.court}\` | **${item.id}** | \`${item.outcome || "DECISAO"}\` | ${teseMini} |\n`;
+    const adverseNotice =
+      item.stance_alignment === "ADVERSE_DISTINGUISHING_REQUIRED"
+        ? " ⚠️ `[ADVERSO — EXIGE DISTINGUISHING]`"
+        : "";
+    const outcomeCol = `\`${item.outcome || "DECISAO"}\`${adverseNotice}`;
+    md += `| **${item.relevance_score} pts** | \`${item.court}\` | **${item.id}** | ${outcomeCol} | ${teseMini} |\n`;
   }
 
   md += `\n---\n*Para fatiar e validar o inteiro teor de qualquer precedente acima, acione \`fetch_juris\` informando o identificador.*`;

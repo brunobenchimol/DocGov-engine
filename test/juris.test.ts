@@ -118,7 +118,9 @@ describe("Jurisprudência v1.4.0 — Motor de Ranking Determinístico (0..100 pt
     expect(defenseScore.relevance_score).toBeGreaterThan(attackScore.relevance_score);
     expect(defenseScore.relevance_score).toBe(defenseScore.score); // alias de compatibilidade
     expect(defenseScore.breakdown.stanceAlignment).toBe(25);
-    expect(attackScore.breakdown.stanceAlignment).toBe(4);
+    expect(defenseScore.stance_alignment).toBe("FAVORABLE");
+    expect(attackScore.breakdown.stanceAlignment).toBe(0);
+    expect(attackScore.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
     expect(defenseScore.outcome).toBe("IMPROCEDENTE / MANUTENCAO_CERTAME");
   });
 
@@ -143,7 +145,9 @@ describe("Jurisprudência v1.4.0 — Motor de Ranking Determinístico (0..100 pt
 
     expect(attackScore.relevance_score).toBeGreaterThan(defenseScore.relevance_score);
     expect(attackScore.breakdown.stanceAlignment).toBe(25);
-    expect(defenseScore.breakdown.stanceAlignment).toBe(4);
+    expect(attackScore.stance_alignment).toBe("FAVORABLE");
+    expect(defenseScore.breakdown.stanceAlignment).toBe(0);
+    expect(defenseScore.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
     expect(attackScore.outcome).toBe("PROCEDENTE / DETERMINACAO");
   });
 
@@ -560,6 +564,75 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
     expect(s.cleanQuery).toContain("padronização");
     expect(s.shortQuery).toContain("padronização");
     expect(s.terms).toContain("marca");
+  });
+
+  it("relevance_scorer v1.4.2: deve aplicar penalidade tática (-15 pts) e marcar ADVERSE_DISTINGUISHING_REQUIRED em stance DEFENSE com desfecho desfavorável", () => {
+    const { scoreJurisItem } = require("../src/tools/juris/relevance_scorer.ts");
+
+    // Caso A: Acórdão desfavorável ao gestor (anulação determinada), embora mencione "regularidade" na ementa
+    const adverseItem = {
+      indexacao: "LICITAÇÃO. LOTE ÚNICO. PADRONIZAÇÃO DE MARCA.",
+      tese: "É regular e lícito em tese o registro de preços, contudo restou viciada a indivisibilidade.",
+      dispositivo: "ACORDAM os Ministros em julgar a representação PROCEDENTE e determinar a ANULAÇÃO do certame por restrição indevida.",
+      ano: 2024,
+    };
+
+    const scoreDefense = scoreJurisItem(adverseItem, "lote único padronização de marca", { stance: "DEFENSE" });
+    expect(scoreDefense.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
+    expect(scoreDefense.breakdown.stanceAlignment).toBe(0);
+    expect(scoreDefense.breakdown.tacticalPenalty).toBe(-15);
+    expect(scoreDefense.outcome).toBe("PROCEDENTE / DETERMINACAO");
+
+    // No stance ATTACK, o mesmo item deve ser FAVORABLE
+    const scoreAttack = scoreJurisItem(adverseItem, "lote único padronização de marca", { stance: "ATTACK" });
+    expect(scoreAttack.stance_alignment).toBe("FAVORABLE");
+    expect(scoreAttack.breakdown.stanceAlignment).toBe(25);
+    expect(scoreAttack.breakdown.tacticalPenalty).toBeUndefined();
+
+    // Caso B: Acórdão favorável ao gestor (improcedente)
+    const favorableItem = {
+      indexacao: "LICITAÇÃO. PADRONIZAÇÃO DE MARCA DE TI.",
+      tese: "Justificada a escolha técnica pelo gestor com base na economicidade.",
+      dispositivo: "ACORDAM em julgar IMPROCEDENTE a representação, mantendo o certame em andamento.",
+      ano: 2024,
+    };
+
+    const scoreFav = scoreJurisItem(favorableItem, "padronização de marca de TI", { stance: "DEFENSE" });
+    expect(scoreFav.stance_alignment).toBe("FAVORABLE");
+    expect(scoreFav.breakdown.stanceAlignment).toBe(25);
+    expect(scoreFav.breakdown.tacticalPenalty).toBeUndefined();
+    expect(scoreFav.outcome).toBe("IMPROCEDENTE / MANUTENCAO_CERTAME");
+  });
+
+  it("relevance_scorer v1.4.2: deve aplicar penalidade de ruído tributário puro (-25 pts)", () => {
+    const { scoreJurisItem, isPureTaxOrCriminalNoise } = require("../src/tools/juris/relevance_scorer.ts");
+
+    expect(
+      isPureTaxOrCriminalNoise(
+        "DIREITO TRIBUTÁRIO. ICMS E ISS. SOFTWARE PADRONIZADO.",
+        "Incidência de ICMS sobre operações de software de prateleira e bitributação.",
+        "Conhecer da ação direta para declarar inconstitucional a incidência de ICMS."
+      )
+    ).toBe(true);
+
+    // Se houver menção a licitação ou contrato público, não é ruído puro
+    expect(
+      isPureTaxOrCriminalNoise(
+        "LICITAÇÃO. TRIBUTÁRIO. RETENÇÃO DE ISSQN EM CONTRATO ADMINISTRATIVO.",
+        "É lícita a exigência de regularidade fiscal quanto ao ISSQN no edital.",
+        "Julgar improcedente."
+      )
+    ).toBe(false);
+
+    const taxNoiseItem = {
+      indexacao: "DIREITO TRIBUTÁRIO. ICMS E ISS. SOFTWARE DE PRATELEIRA.",
+      tese: "Fato gerador tributário de ICMS vs ISS sobre cessão de licença de uso.",
+      dispositivo: "Julgar procedente a ação direta de inconstitucionalidade.",
+      ano: 2023,
+    };
+
+    const score = scoreJurisItem(taxNoiseItem, "software padronização de marca", { stance: "DEFENSE" });
+    expect(score.breakdown.domainNoisePenalty).toBe(-25);
   });
 });
 

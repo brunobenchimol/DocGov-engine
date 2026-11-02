@@ -98,16 +98,40 @@ export class StfProvider implements JurisdictionProvider {
     const { cleanQuery } = sanitizeQueryForCourt(query);
     const queryTerm = cleanQuery || query;
 
+    const isDirectProcessSearch = /\b(ADI|ADC|ADPF|RE|ARE|Rcl|MS|MI|SV)\s*[-Nº]*\s*\d+/i.test(queryTerm);
+    const mustClauses: any[] = [{ query_string: { query: queryTerm } }];
+    const mustNotClauses: any[] = [];
+
+    if (!isDirectProcessSearch) {
+      mustClauses.push({
+        query_string: {
+          query: '(licitação OR licitações OR contratação OR edital OR pregão OR "administração pública" OR "contrato administrativo" OR estatal OR 13.303 OR 14.133 OR 8.666 OR "tribunal de contas" OR terceirização OR "serviço público")',
+        },
+      });
+      mustNotClauses.push({
+        query_string: {
+          query: '(ICMS AND ISS) OR bitributação',
+        },
+      });
+    }
+
     const endpoint = this.getSearchEndpoint(baseUrl);
-    const bodyPayload = {
+    const bodyPayload: any = {
       query: {
         bool: {
-          must: [{ query_string: { query: queryTerm } }],
+          must: mustClauses,
           filter: [{ term: { base: "acordaos" } }],
         },
       },
+      _source: {
+        excludes: ["inteiro_teor_texto", "documental_observacao_html"],
+      },
       size: limit,
     };
+
+    if (mustNotClauses.length > 0) {
+      bodyPayload.query.bool.must_not = mustNotClauses;
+    }
 
     const res = await executeJurisHttpRequest(endpoint, {
       method: "POST",
