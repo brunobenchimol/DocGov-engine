@@ -24,16 +24,10 @@ import type {
 } from "./types.ts";
 
 /**
- * Detecta a corte a partir do identificador ou URL do acórdão.
+ * Detecta a corte a partir do identificador ou URL do acórdão via registro dinâmico.
  */
 export function detectCourtFromRef(ref: string): string {
-  const upper = ref.toUpperCase();
-  if (upper.includes("TCE-PA") || upper.includes("TCEPA")) return "TCE-PA";
-  if (upper.includes("TCE-CE") || upper.includes("TCECE")) return "TCE-CE";
-  if (upper.includes("TCDF")) return "TCDF";
-  if (upper.includes("STJ")) return "STJ";
-  if (upper.includes("STF")) return "STF";
-  return "TCU";
+  return defaultJurisdictionRegistry.detectCourtFromRef(ref);
 }
 
 export async function fetchJuris(

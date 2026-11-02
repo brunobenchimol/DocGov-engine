@@ -260,16 +260,34 @@ export function sanitizeQueryForCourt(rawQuery: string): {
  * Parser canônico universal de referências de acórdãos.
  * Extrai número, ano, colegiado e corte a partir de qualquer string informada.
  */
-export function parseCanonicalAcordaoRef(idOrRef: string): ParsedAcordaoRef {
+export function parseCanonicalAcordaoRef(
+  idOrRef: string,
+  customCourtDetector?: (ref: string) => string
+): ParsedAcordaoRef {
   const ref = (idOrRef || "").trim();
   const upper = ref.toUpperCase();
 
   let court = "TCU";
-  if (upper.includes("TCE-PA") || upper.includes("TCEPA")) court = "TCE-PA";
-  else if (upper.includes("TCE-CE") || upper.includes("TCECE")) court = "TCE-CE";
-  else if (upper.includes("TCDF")) court = "TCDF";
-  else if (upper.includes("STJ")) court = "STJ";
-  else if (upper.includes("STF")) court = "STF";
+  if (customCourtDetector) {
+    court = customCourtDetector(ref);
+  } else {
+    const tceMatch = upper.match(/\bTCE[-_]?([A-Z]{2})\b/);
+    if (tceMatch) {
+      court = `TCE-${tceMatch[1]}`;
+    } else if (/\bTCDF\b/.test(upper)) {
+      court = "TCDF";
+    } else if (/\bSTJ\b/.test(upper)) {
+      court = "STJ";
+    } else if (/\bSTF\b/.test(upper)) {
+      court = "STF";
+    } else if (/\bTST\b/.test(upper)) {
+      court = "TST";
+    } else if (/\b(AGU|CGU)\b/.test(upper)) {
+      court = "AGU";
+    } else {
+      court = "TCU";
+    }
+  }
 
   let colegiado: string | undefined;
   if (/plen[aá]rio/i.test(ref)) colegiado = "Plenário";

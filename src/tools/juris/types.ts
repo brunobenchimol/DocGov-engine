@@ -207,8 +207,16 @@ export interface RawJurisFetchResult {
   rawTextOrJson: any;
 }
 
+export type JurisdictionTier = "FEDERAL" | "STATE";
+
 export interface JurisdictionProvider {
-  courtId: string;
+  readonly courtId: string;
+  readonly tier?: JurisdictionTier;
+  readonly uf?: string;
+  readonly defaultFederal?: boolean;
+  readonly envOverrideKey?: string;
+  readonly liveSmokeQuery?: string;
+  readonly idPatterns?: RegExp[];
   search(query: string, options?: Partial<SearchJurisOptions>): Promise<RawJurisSearchResult[]>;
   searchWithDiagnostic?(query: string, options?: Partial<SearchJurisOptions>): Promise<{
     hits: RawJurisSearchResult[];

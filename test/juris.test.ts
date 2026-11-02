@@ -36,6 +36,7 @@ import {
   compileDefenseCounterReasoningDocx,
   compileAttackChallengeDocx,
 } from "../src/tools/juris/index.ts";
+import { parseCanonicalAcordaoRef } from "../src/tools/juris/providers/http_client.ts";
 import JSZip from "jszip";
 import { readFileSync, unlinkSync, existsSync } from "node:fs";
 import { join } from "node:path";
@@ -300,6 +301,37 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     const res = defaultJurisdictionRegistry.resolveRouting(["TCU", "TCE-PA"]);
     expect(res.routingInfo.executed_courts).toEqual(["TCU", "TCE-PA"]);
     expect(res.routingInfo.unimplemented_uf_requested).toBeNull();
+  });
+
+  it("Plug-and-Play: deve expandir UFs suportadas e roteamento dinamicamente ao registrar novo conector", () => {
+    const customRegistry = new JurisdictionProviderRegistry();
+    const mockTceSp: JurisdictionProvider = {
+      courtId: "TCE-SP",
+      tier: "STATE",
+      uf: "SP",
+      idPatterns: [/\bTCE[-_\s]?SP\b/i],
+      async search() {
+        return [];
+      },
+      async fetch() {
+        return null;
+      },
+    };
+
+    customRegistry.register(mockTceSp);
+
+    // 1. supported_ufs agora inclui SP
+    expect(customRegistry.getSupportedUfs()).toContain("SP");
+    expect(customRegistry.getProviderByUf("SP")?.courtId).toBe("TCE-SP");
+
+    // 2. Roteamento automático para SP sem graceful fallback
+    const resSp = customRegistry.resolveRouting(undefined, "SP");
+    expect(resSp.routingInfo.executed_courts).toContain("TCE-SP");
+    expect(resSp.routingInfo.unimplemented_uf_requested).toBeNull();
+
+    // 3. Detecção automática de corte por idPatterns / regex
+    expect(customRegistry.detectCourtFromRef("Acórdão 456/2024-TCE-SP")).toBe("TCE-SP");
+    expect(parseCanonicalAcordaoRef("Acórdão 789/2024-TCE-MG").court).toBe("TCE-MG");
   });
 });
 
