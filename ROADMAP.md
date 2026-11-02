@@ -212,6 +212,22 @@
   - **Degradação Graciosa (*Graceful Fallback*) para UFs Não Implementadas (Zero Travamento):**
     - Caso o agente ou usuário solicite pesquisa em uma `uf` cujo conector estadual ainda não esteja implementado no binário (ex.: `uf: "AM"` ou `"PR"`), o motor **JAMAIS deve falhar ou abortar a execução**: deve executar normalmente a pesquisa na camada federal (`TCU`/`STJ`/`STF`) e retornar no payload sintético MCP e no cabeçalho de `juris_search_results.md` o bloco `jurisdiction_routing: { executed_courts, unimplemented_uf_requested, supported_ufs: ["PA", "CE", "DF"], fallback_notice }`, permitindo que o agente dê feedback claro ao usuário sem interromper o trabalho.
 
+- [x] **7.6. Patch `v1.4.1` — Arquitetura Plug-and-Play do `JurisdictionProviderRegistry`, Seletor `--court=<ID>` em Live Tests, Fix STF (`HTTP 404`) e Hardening TCE-PA / TCE-CE / TCDF:**
+  - **Desacoplamento 100% Plug-and-Play do Registry:** Eliminação completa de listas estáticas ou hardcoded de cortes e UFs no core da aplicação. Adoção de metadados declarativos na interface `JurisdictionProvider` (`tier: "FEDERAL" | "STATE"`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`), com autodescoberta dinâmica de UFs suportadas e tribunais federais padrão via `defaultJurisdictionRegistry`.
+  - **Seletor de Tribunal Isolado (`--court=<ID>`) em Live Tests:** Implementação de filtro específico de corte em `scripts/run_live_tests.ts` e `tests_live/juris_api.live.ts`, permitindo a execução de sondas online de contrato contra provedores individuais (ex.: `--court=STF`, `--court=TCE-PA`, `--court=TCE-CE`, `--court=TCDF`) sem poluir a execução com outras cortes.
+  - **Correção da Rota de Busca do STF:** Ajuste no endpoint da API pública do STF para `POST /api/search/search`, eliminando o erro de `HTTP 404 Not Found`.
+  - **Hardening e Eliminação de `[object Object]` em TCEs Estaduais:** Desestruturação cirúrgica de `sanitizeQueryForCourt` nos provedores do TCE-PA, TCE-CE e TCDF, prevenindo a serialização inadvertida de objetos como texto nas URLs de busca.
+  - **Resiliência Estrutural no Cliente HTTP (`JurisHttpResponse`):** Adição do alias `body` apontando para o texto da resposta, suporte a busca por `parsedRef.numero` no `fetch` do TCE-CE e TCDF, e tolerância estrutural nos nós de hits do Elasticsearch (`hits.hits` vs `data.hits.hits`).
+
+- [ ] **7.7. Patch `v1.4.2` — Conector Nativo TST (Tribunal Superior do Trabalho — Terceirização e Súmula 331):**
+  - Integração nativa com a jurisprudência trabalhista unificada do TST para contratos de prestação de serviços com dedicação exclusiva de mão de obra (Súmula 331, Tema 246 de Repercussão Geral e fiscalização de encargos trabalhistas).
+
+- [ ] **7.8. Patch `v1.4.3` — Conectores Nativos AGU/CGU (Orientações Normativas, Pareceres Vinculantes e Relatórios de Auditoria):**
+  - Mapeamento direto de Orientações Normativas da Advocacia-Geral da União (ONs da AGU) e relatórios/guias de conformidade da Controladoria-Geral da União (CGU).
+
+- [ ] **7.9. Patches `v1.4.4` a `v1.4.12` — Expansão Progressiva das Ondas Estaduais (1 Conector por Patch Release):**
+  - Implementação incremental dos Tribunais de Contas Estaduais e Municipais remanescentes no padrão plug-and-play da `v1.4.1`, com 1 release por estado (`v1.4.4`: `TCE-SP`, `v1.4.5`: `TCE-RJ`, `v1.4.6`: `TCE-MG`, `v1.4.7`: `TCE-PR`, `v1.4.8`: `TCE-RS`, `v1.4.9`: `TCE-SC`, `v1.4.10`: `TCE-BA`, `v1.4.11`: `TCE-PE`, `v1.4.12`: `TCM-SP` / `TCM-RJ`).
+
 ---
 
 ## 🎯 MARCO 8 — `v1.5.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite

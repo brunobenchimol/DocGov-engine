@@ -1,5 +1,5 @@
 // ============================================================================
-// Definições de Ferramentas e Prompts MCP (docgov-engine v1.4.0)
+// Definições de Ferramentas e Prompts MCP (docgov-engine v1.4.1)
 // ============================================================================
 
 export function getMcpPromptsDefinition() {

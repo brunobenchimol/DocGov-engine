@@ -8,6 +8,28 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.1] - 2026-11-02
+
+### Adicionado
+- **Arquitetura Plug-and-Play no `JurisdictionProviderRegistry` (Marco 7.6):**
+  - Desacoplamento integral do registro de conectores: eliminação de listas estáticas ou arrays hardcoded de cortes e UFs no núcleo do motor.
+  - Metadados declarativos na interface `JurisdictionProvider` (`tier: "FEDERAL" | "STATE"`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
+  - Autodescoberta dinâmica de UFs suportadas (`getSupportedUfs()`) e cortes federais de fallback (`getDefaultFederalProviders()`) a partir dos conectores registrados.
+  - Preservação retrocompatível transparente de `SUPPORTED_UFS` e `UF_TO_COURT_MAP` via proxies dinâmicos em tempo de execução.
+- **Seletor de Tribunal Isolado (`--court=<ID>`) em Live Tests:**
+  - Suporte à flag `--court=<CORTE>` (ex.: `--court=STF`, `--court=TCE-PA`, `--court=TCE-CE`, `--court=TCDF`) em `scripts/run_live_tests.ts`.
+  - Execução isolada em `tests_live/juris_api.live.ts` de sondas de contrato específicas (Busca Online + Download com Fatiamento Anatômico) para o tribunal selecionado, com validação de latência e teto MCP (< 900 bytes).
+
+### Corrigido
+- **Correção da Rota de Busca do STF (HTTP 404):**
+  - Ajuste do endpoint de busca estruturada da API pública do STF para `POST /api/search/search`, resolvendo a divergência de URL que resultava em erro 404.
+- **Sanitização de Queries e Eliminação de `[object Object]` em TCEs Estaduais:**
+  - Desestruturação correta do retorno de `sanitizeQueryForCourt` nos provedores do `TCE-PA`, `TCE-CE` e `TCDF`, eliminando a serialização acidental de objetos em texto.
+  - Limitação de tamanho de query para Joomla `com_search` no `TCE-PA` e suporte a busca por `parsedRef.numero` no `fetch` do `TCE-CE` e `TCDF`.
+- **Resiliência do Cliente HTTP (`JurisHttpResponse`):**
+  - Adição de propriedade e alias `body` apontando para o texto da resposta em `JurisHttpResponse`.
+  - Tratamento tolerante para respostas de busca pública do TCDF suportando tanto `json.data.hits.hits` quanto `json.data.data.hits.hits`.
+
 ## [1.4.0] - 2026-11-01
 
 ### Adicionado
