@@ -17,7 +17,7 @@
 | **Geração 2** | `v1.2.x` | Segurança Supply-Chain, Ingestão de `.xlsx`/`.csv`, Tabelas Multi-Página e OCR Headless |
 | **Geração 3** | `v1.3.x` | Diff Semântico Granular, Evolução de Cláusulas e Nota Técnica Comparativa Padronizada |
 | **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021) |
-| **Geração 5** | `v1.5.x` | Fiscalização Contratual, Aditivos 25%/50%, Reajustes e Validação Tripartite |
+| **Geração 5** | `v1.5.x` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%) e Validação Tripartite |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP |
 
 ---
@@ -214,18 +214,33 @@
 
 ---
 
-## 🎯 MARCO 8 — `v1.5.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50% e Validação Tripartite
+## 🎯 MARCO 8 — `v1.5.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite
 
 - [ ] **8.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
   - Cartografia pericial de instrumentos contratuais, vigências, garantias e termos aditivos de acréscimo/supressão.
   - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços e 50% para reformas, conforme Lei nº 14.133/2021).
 
-- [ ] **8.2. Motor de Validação Cruzada Tripartite (Edital $\leftrightarrow$ Proposta Vencedora $\leftrightarrow$ Contrato):**
-  - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada e as cláusulas pactuadas no contrato administrativo.
+- [ ] **8.2. Motor de Validação Cruzada Tripartite e Quadripartite:**
+  - Encadeamento determinístico de conformidade documental: `[TR / Edital] <-> [Proposta Vencedora] <-> [Ata de Registro de Preços (ARP)] <-> [Contrato Derivado / OS / Fatura]`.
+  - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada, os valores registrados na Ata e as cláusulas pactuadas no contrato administrativo ou ordem de fornecimento.
   - Detecção de desvios de objeto, itens suprimidos sem amparo e divergências de especificação técnica.
+  - **Bloqueio Determinístico de Aditivo Direto sobre ARP:** Alerta e bloqueio de tentativas ilegais de aplicar aditivo quantitativo de 25% diretamente sobre a Ata de Registro de Preços (vedação expressa da jurisprudência do TCU e Art. 86 da Lei 14.133/2021 — aditamentos quantitativos são permitidos exclusivamente sobre os contratos derivados celebrados).
 
 - [ ] **8.3. Monitoramento e Histórico de Reajustes / Repactuações:**
   - Rastreamento de índices inflacionários contratuais (IPCA, INPC, IGP-M) e memória de cálculo de repactuação de mão de obra exclusiva.
+
+- [ ] **8.4. Motor Determinístico de Governança de Atas de Registro de Preços (ARP & Gestão de Caronas):**
+  - **Controle Matemático de Limites de Adesão ("Carona" — Art. 86, §§ 4º e 5º da Lei 14.133/2021 e RILC/Lei 13.303/2016):**
+    - *Trava Individual (50%):* Bloqueio determinístico caso um único órgão não participante solicite adesão superior a **50%** do quantitativo registrado por item;
+    - *Trava Global Acumulada (200% / Dobro):* Livro-razão automatizado para auxiliar o **Órgão Gerenciador** no controle de todas as anuências concedidas, bloqueando novas caronas quando o somatório atingir **200% (o dobro)** do quantitativo originalmente registrado na ARP (preservando intacto o saldo próprio do Gerenciador e Participantes).
+  - **Matriz de Compatibilidade Jurídica e Federativa entre Órgãos (`[Gerenciador] <-> [Aderente]`):**
+    - Verificação de simetria de regime legal (**Estatais / Lei 13.303/2016 + RILC** vs. **Administração Direta / Lei 14.133/2021**);
+    - Bloqueio de adesão ascendente vedada (União e Estados aderindo a ARP Municipal — Art. 86, § 3º da Lei nº 14.133/2021);
+    - Validação de requisitos específicos para carona em Atas de TIC (conforme normativos de contratação de soluções de TIC).
+  - **Gestão de Vigência (`1 + 1 Ano`), Renovação de Saldos e Burn-Down da Ata:**
+    - Monitoramento da vigência da ARP (12 meses prorrogáveis por mais 12 meses);
+    - Auditoria de previsão editalícia para renovação de quantitativos no 2º ano da vigência da Ata;
+    - Rastreamento do desacoplamento entre a vigência da ARP e a vigência (de até 5 anos) dos contratos dela derivados.
 
 ---
 
