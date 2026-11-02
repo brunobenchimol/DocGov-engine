@@ -18,6 +18,11 @@ import {
 
 export class StjProvider implements JurisdictionProvider {
   public readonly courtId = "STJ";
+  public readonly tier = "FEDERAL" as const;
+  public readonly defaultFederal = true;
+  public readonly envOverrideKey = "DOCGOV_STJ_BASE_URL";
+  public readonly liveSmokeQuery = "licitação serviço técnico especializado";
+  public readonly idPatterns = [/\bSTJ\b/i, /\bREsp\s*\d+/i];
 
   // Cache em memória de curta duração por sessão (Trava Técnica 2)
   private static cachedDataset: any[] | null = null;

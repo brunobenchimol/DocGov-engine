@@ -18,6 +18,11 @@ import {
 
 export class TcePaProvider implements JurisdictionProvider {
   public readonly courtId = "TCE-PA";
+  public readonly tier = "STATE" as const;
+  public readonly uf = "PA";
+  public readonly envOverrideKey = "DOCGOV_TCE_PA_BASE_URL";
+  public readonly liveSmokeQuery = "licitação";
+  public readonly idPatterns = [/\bTCE[-_\s]?PA\b/i];
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {
@@ -83,9 +88,10 @@ export class TcePaProvider implements JurisdictionProvider {
       }
 
       // Conexão real contra TCE-PA via HTTP/1.1 legado
-      const cleanQ = sanitizeQueryForCourt(query, "TCE-PA");
+      const { cleanQuery, shortQuery } = sanitizeQueryForCourt(query);
+      const queryTerm = (shortQuery || cleanQuery || query).slice(0, 50);
       const url = `${baseUrl}/index.php?option=com_search&searchword=${encodeURIComponent(
-        cleanQ
+        queryTerm
       )}&searchphrase=any&ordering=newest&tmpl=component`;
 
       const response = await executeLegacyHttp1Request(url, {

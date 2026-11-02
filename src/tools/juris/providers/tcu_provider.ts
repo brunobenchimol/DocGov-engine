@@ -18,6 +18,11 @@ import {
 
 export class TcuProvider implements JurisdictionProvider {
   public readonly courtId = "TCU";
+  public readonly tier = "FEDERAL" as const;
+  public readonly defaultFederal = true;
+  public readonly envOverrideKey = "DOCGOV_TCU_BASE_URL";
+  public readonly liveSmokeQuery = "orçamento sigiloso padronização";
+  public readonly idPatterns = [/\bTCU\b/i, /\bAcórdão\s+\d+[/_-]\d+[-_\s]*TCU/i];
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {

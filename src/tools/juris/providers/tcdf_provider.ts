@@ -18,6 +18,11 @@ import {
 
 export class TcdfProvider implements JurisdictionProvider {
   public readonly courtId = "TCDF";
+  public readonly tier = "STATE" as const;
+  public readonly uf = "DF";
+  public readonly envOverrideKey = "DOCGOV_TCDF_BASE_URL";
+  public readonly liveSmokeQuery = "licitação";
+  public readonly idPatterns = [/\bTCDF\b/i];
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {
@@ -85,7 +90,8 @@ export class TcdfProvider implements JurisdictionProvider {
       // Conexão real contra a API Busca Pública do TCDF
       // Nota: o servidor do TCDF possui certificado intermediário ausente na cadeia padrão,
       // logo usamos executeLegacyHttp1Request com rejectUnauthorized: false resiliente.
-      const cleanQ = sanitizeQueryForCourt(query, "TCDF");
+      const { cleanQuery } = sanitizeQueryForCourt(query);
+      const cleanQ = cleanQuery || query;
       const url = `${baseUrl}/jurisprudencia/?q=${encodeURIComponent(
         cleanQ
       )}&from=0&maxPerPage=${limit}`;

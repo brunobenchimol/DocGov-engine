@@ -18,6 +18,11 @@ import {
 
 export class StfProvider implements JurisdictionProvider {
   public readonly courtId = "STF";
+  public readonly tier = "FEDERAL" as const;
+  public readonly defaultFederal = true;
+  public readonly envOverrideKey = "DOCGOV_STF_BASE_URL";
+  public readonly liveSmokeQuery = "licitação contrato administrativo";
+  public readonly idPatterns = [/\bSTF\b/i, /\bRE\s*\d+/i, /\bADI\s*\d+/i];
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {
@@ -25,8 +30,14 @@ export class StfProvider implements JurisdictionProvider {
     }
     return (
       process.env.DOCGOV_STF_BASE_URL ||
-      "https://jurisprudencia.stf.jus.br/api/search"
+      "https://jurisprudencia.stf.jus.br/api/search/search"
     ).replace(/\/+$/, "");
+  }
+
+  private getSearchEndpoint(baseUrl: string): string {
+    if (baseUrl.endsWith("/search/search")) return baseUrl;
+    if (baseUrl.endsWith("/search")) return `${baseUrl}/search`;
+    return `${baseUrl}/api/search/search`;
   }
 
   public async search(
@@ -87,7 +98,7 @@ export class StfProvider implements JurisdictionProvider {
     const { cleanQuery } = sanitizeQueryForCourt(query);
     const queryTerm = cleanQuery || query;
 
-    const endpoint = baseUrl.endsWith("/search") ? baseUrl : `${baseUrl}/search`;
+    const endpoint = this.getSearchEndpoint(baseUrl);
     const bodyPayload = {
       query: {
         bool: {
@@ -157,7 +168,7 @@ export class StfProvider implements JurisdictionProvider {
     }
 
     // 2. Modo Produção Oficial STF Elasticsearch
-    const endpoint = baseUrl.endsWith("/search") ? baseUrl : `${baseUrl}/search`;
+    const endpoint = this.getSearchEndpoint(baseUrl);
     const parsed = parseCanonicalAcordaoRef(idOrRef);
     const searchTerm = parsed.numero ? `${parsed.numero}` : idOrRef;
 

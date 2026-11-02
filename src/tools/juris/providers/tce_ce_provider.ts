@@ -17,6 +17,11 @@ import {
 
 export class TceCeProvider implements JurisdictionProvider {
   public readonly courtId = "TCE-CE";
+  public readonly tier = "STATE" as const;
+  public readonly uf = "CE";
+  public readonly envOverrideKey = "DOCGOV_TCE_CE_BASE_URL";
+  public readonly liveSmokeQuery = "licitação software";
+  public readonly idPatterns = [/\bTCE[-_\s]?CE\b/i];
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {
@@ -82,7 +87,8 @@ export class TceCeProvider implements JurisdictionProvider {
       }
 
       // Conexão real contra a API Contexto do TCE-CE
-      const cleanQ = sanitizeQueryForCourt(query, "TCE-CE");
+      const { cleanQuery } = sanitizeQueryForCourt(query);
+      const cleanQ = cleanQuery || query;
       const url = `${baseUrl}/documentos/buscar-jurisprudencia`;
 
       const requestBody = {
