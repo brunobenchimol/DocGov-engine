@@ -8,12 +8,11 @@ import type {
   JurisdictionRoutingInfo,
 } from "./types.ts";
 import { TcuProvider } from "./providers/tcu_provider.ts";
-import { StjProvider, StfProvider } from "./providers/higher_courts_provider.ts";
-import {
-  TcePaProvider,
-  TceCeProvider,
-  TcdfProvider,
-} from "./providers/state_tces_provider.ts";
+import { StjProvider } from "./providers/stj_provider.ts";
+import { StfProvider } from "./providers/stf_provider.ts";
+import { TcePaProvider } from "./providers/tce_pa_provider.ts";
+import { TceCeProvider } from "./providers/tce_ce_provider.ts";
+import { TcdfProvider } from "./providers/tcdf_provider.ts";
 
 export const SUPPORTED_UFS = ["PA", "CE", "DF"] as const;
 

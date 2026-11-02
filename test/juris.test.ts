@@ -345,6 +345,10 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     expect(res.fileResult.statutory_bridge_applied).toBeDefined();
     // Exigência estrita de contrato Gen4: normative_bridge idêntico a statutory_bridge_applied
     expect(res.fileResult.normative_bridge).toEqual(res.fileResult.statutory_bridge_applied);
+    expect(res.fileResult.court_diagnostics).toBeDefined();
+    expect(res.fileResult.court_diagnostics?.[0].court).toBe("TCU");
+    expect(res.fileResult.court_diagnostics?.[0].status).toBe("ok");
+    expect(res.fileResult.court_diagnostics?.[0].latency_ms).toBeGreaterThanOrEqual(0);
     expect(res.fileResult.results[0].relevance_score).toBeGreaterThan(50);
     expect(res.fileResult.results[0].relevance_score).toBe(res.fileResult.results[0].score);
 

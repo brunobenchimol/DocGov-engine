@@ -67,16 +67,57 @@ export async function searchJuris(
   }
   const appliedBridges = Array.from(allBridgeDescriptions);
 
-  // 3. Execução paralela multi-query e multi-provider
-  const searchPromises: Promise<any[]>[] = [];
-  for (const q of rawQueries) {
-    for (const prov of selectedProviders) {
-      searchPromises.push(prov.search(q, { limit, colegiado: options.colegiado }));
-    }
-  }
+  // 3. Execução paralela por provedor com telemetria determinística (court_diagnostics)
+  const courtDiagnostics: import("./types.ts").CourtDiagnostic[] = [];
+  const rawHits: any[] = [];
 
-  const searchResultsNested = await Promise.all(searchPromises);
-  const rawHits = searchResultsNested.flat();
+  const providerTasks = selectedProviders.map(async (prov) => {
+    const provStart = Date.now();
+    let provHits: any[] = [];
+    let provError: string | null = null;
+    let provStatus: "ok" | "error" = "ok";
+
+    try {
+      for (const q of rawQueries) {
+        if (prov.searchWithDiagnostic) {
+          const res = await prov.searchWithDiagnostic(q, {
+            limit,
+            colegiado: options.colegiado,
+          });
+          provHits.push(...res.hits);
+          if (res.diagnostic.status === "error" && !provError) {
+            provError = res.diagnostic.error;
+          }
+        } else {
+          const hits = await prov.search(q, {
+            limit,
+            colegiado: options.colegiado,
+          });
+          provHits.push(...hits);
+        }
+      }
+    } catch (err: any) {
+      provStatus = "error";
+      provError = err?.message || String(err);
+    }
+
+    const latency = Date.now() - provStart;
+    if (provError && provHits.length === 0) {
+      provStatus = "error";
+    }
+
+    courtDiagnostics.push({
+      court: prov.courtId,
+      status: provStatus,
+      hits: provHits.length,
+      latency_ms: latency,
+      error: provError,
+    });
+
+    rawHits.push(...provHits);
+  });
+
+  await Promise.all(providerTasks);
 
   // 4. Desduplicação e Cálculo Determinístico do Score (0..100)
   const hitMap = new Map<string, JurisSearchResultItem>();
@@ -155,6 +196,7 @@ export async function searchJuris(
     statutory_bridge_applied: appliedBridges,
     normative_bridge: appliedBridges, // alias para conformidade com .NET Gen4
     jurisdiction_routing: routingInfo,
+    court_diagnostics: courtDiagnostics,
     results: finalHits,
   };
 
@@ -190,6 +232,18 @@ function generateJurisSearchMarkdown(
     md += `## 🌉 Pontes Normativas Aplicadas (Statutory Bridge)\n`;
     for (const b of res.statutory_bridge_applied) {
       md += `- ${b}\n`;
+    }
+    md += "\n";
+  }
+
+  if (res.court_diagnostics && res.court_diagnostics.length > 0) {
+    md += `## 📡 Telemetria e Diagnóstico dos Conectores (Court Diagnostics)\n\n`;
+    md += `| Corte | Status | Precedentes | Latência | Detalhe / Diagnóstico |\n`;
+    md += `| :---: | :---: | :---: | :---: | :--- |\n`;
+    for (const d of res.court_diagnostics) {
+      const statusIcon = d.status === "ok" ? "✅ OK" : "⚠️ FALHA";
+      const detail = d.error ? d.error.replace(/\|/g, "/") : "Conexão e parser operacionais";
+      md += `| \`${d.court}\` | ${statusIcon} | ${d.hits} | ${d.latency_ms}ms | ${detail} |\n`;
     }
     md += "\n";
   }
