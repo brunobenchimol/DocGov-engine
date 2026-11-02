@@ -178,13 +178,27 @@ export class TcuProvider implements JurisdictionProvider {
     const parsed = parseCanonicalAcordaoRef(idOrRef);
     let exactDoc: any = null;
 
-    if (parsed.numero && parsed.ano) {
-      // Consulta direta por número e ano na base de acórdãos completos
+    // 2.1 Lookup direto por KEY na base respectiva
+    if (idOrRef.toUpperCase().startsWith("JURISPRUDENCIA-SELECIONADA-")) {
+      const urlKey = `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
+      const resKey = await executeJurisHttpRequest(urlKey);
+      if (resKey.ok && Array.isArray(resKey.data?.documentos) && resKey.data.documentos.length > 0) {
+        exactDoc = resKey.data.documentos[0];
+      }
+    } else if (idOrRef.toUpperCase().startsWith("ACORDAO-COMPLETO-")) {
+      const urlKey = `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
+      const resKey = await executeJurisHttpRequest(urlKey);
+      if (resKey.ok && Array.isArray(resKey.data?.documentos) && resKey.data.documentos.length > 0) {
+        exactDoc = resKey.data.documentos[0];
+      }
+    }
+
+    // 2.2 Consulta direta por número e ano na base de acórdãos completos
+    if (!exactDoc && parsed.numero && parsed.ano) {
       const url = `${baseUrl}/acordao-completo/documento?termo=${parsed.numero}/${parsed.ano}&quantidade=20`;
       const res = await executeJurisHttpRequest(url);
       if (res.ok && Array.isArray(res.data?.documentos)) {
         const docs = res.data.documentos;
-        // Localiza documento exato pelo número e ano
         const matches = docs.filter(
           (d: any) =>
             String(d.NUMACORDAO || "").trim() === parsed.numero &&
@@ -206,14 +220,37 @@ export class TcuProvider implements JurisdictionProvider {
       }
     }
 
-    // Se ainda não encontrou (ou idOrRef foi uma KEY tipo ACORDAO-COMPLETO-2424300), busca por termo livre
+    // 2.3 Se ainda não encontrou, tenta por filtro KEY em ambas as bases
+    if (!exactDoc) {
+      const urlKeyAcordao = `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
+      const resKeyAcordao = await executeJurisHttpRequest(urlKeyAcordao);
+      if (resKeyAcordao.ok && Array.isArray(resKeyAcordao.data?.documentos) && resKeyAcordao.data.documentos.length > 0) {
+        exactDoc = resKeyAcordao.data.documentos[0];
+      } else {
+        const urlKeyJuris = `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
+        const resKeyJuris = await executeJurisHttpRequest(urlKeyJuris);
+        if (resKeyJuris.ok && Array.isArray(resKeyJuris.data?.documentos) && resKeyJuris.data.documentos.length > 0) {
+          exactDoc = resKeyJuris.data.documentos[0];
+        }
+      }
+    }
+
+    // 2.4 Fallback por termo livre em acordao-completo e jurisprudencia-selecionada
     if (!exactDoc) {
       const urlFallback = `${baseUrl}/acordao-completo/documento?termo=${encodeURIComponent(
         idOrRef
       )}&quantidade=5`;
       const resFallback = await executeJurisHttpRequest(urlFallback);
-      if (resFallback.ok && Array.isArray(resFallback.data?.documentos)) {
+      if (resFallback.ok && Array.isArray(resFallback.data?.documentos) && resFallback.data.documentos.length > 0) {
         exactDoc = resFallback.data.documentos[0];
+      } else {
+        const urlFallbackJuris = `${baseUrl}/jurisprudencia-selecionada/documento?termo=${encodeURIComponent(
+          idOrRef
+        )}&quantidade=5`;
+        const resFallbackJuris = await executeJurisHttpRequest(urlFallbackJuris);
+        if (resFallbackJuris.ok && Array.isArray(resFallbackJuris.data?.documentos) && resFallbackJuris.data.documentos.length > 0) {
+          exactDoc = resFallbackJuris.data.documentos[0];
+        }
       }
     }
 
@@ -230,13 +267,15 @@ export class TcuProvider implements JurisdictionProvider {
   }
 
   private mapTcuDocToResult(doc: any): RawJurisSearchResult {
-    const num = doc.NUMACORDAO || doc.numeroAcordao || doc.numero || "S/N";
-    const ano = doc.ANOACORDAO || doc.anoAcordao || doc.ano || new Date().getFullYear();
+    const num = doc.NUMACORDAO || doc.numeroAcordao || doc.numero;
+    const ano = doc.ANOACORDAO || doc.anoAcordao || doc.ano;
     const col = doc.COLEGIADO || doc.colegiado || "Plenário";
     const id =
-      doc.KEY ||
-      doc.id ||
-      `ACORDAO-TCU-${num}-${ano}-${String(col).toUpperCase().replace(/\s+/g, "_")}`;
+      num && ano && num !== "S/N"
+        ? `Acórdão ${num}/${ano}-TCU-${col}`
+        : doc.KEY ||
+          doc.id ||
+          `ACORDAO-TCU-${num || "SN"}-${ano || 2024}-${String(col).toUpperCase().replace(/\s+/g, "_")}`;
 
     const procRaw = doc.PROC || doc.processo || "";
     const procClean = procRaw.replace(/<[^>]+>/g, "").trim() || undefined;

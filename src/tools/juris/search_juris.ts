@@ -298,13 +298,18 @@ export function formatSearchJurisSyntheticResult(
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
     payload.top_hits = payload.top_hits.slice(0, 1);
     if (payload.top_hits[0]) {
-      payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 75);
+      payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 70);
     }
     payload.statutory_bridge_applied = payload.statutory_bridge_applied.slice(0, 1);
   }
 
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
-    payload.jurisdiction_routing.fallback_notice = null;
+    if (payload.jurisdiction_routing.fallback_notice) {
+      payload.jurisdiction_routing.fallback_notice = `UF '${payload.jurisdiction_routing.unimplemented_uf_requested}' não implementada; fallback federal executado.`;
+    }
+    if (payload.top_hits[0]) {
+      payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 45);
+    }
     payload.next_step_hint = `Consulte ${relMd}`;
   }
 
