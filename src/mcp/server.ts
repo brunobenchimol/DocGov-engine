@@ -111,56 +111,68 @@ export async function runMcpServer() {
   });
 
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
-    const toolName = request.params.name;
+    return await handleCallToolRequest(request as any);
+  });
 
-    try {
-      if (toolName === "bootstrap_case") {
-        const { caseDir, uploadsDir, fileRenameMap } = request.params
-          .arguments as {
-          caseDir: string;
-          uploadsDir?: string;
-          fileRenameMap?: Record<string, string>;
-        };
-        const resolvedCaseDir = resolveWorkspacePath(caseDir);
-        const resolvedUploadsDir = uploadsDir ? resolveWorkspacePath(uploadsDir) : undefined;
-        const res = await bootstrapCase(resolvedCaseDir, resolvedUploadsDir, { fileRenameMap });
-        const synthetic = formatBootstrapCaseSyntheticResult(res, resolvedCaseDir);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
-      }
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+}
 
-      if (toolName === "inspect_doc" || toolName === "inspect_docx") {
-        const args = (request.params.arguments || {}) as {
-          filePath?: string;
-          docxPath?: string;
-          outputPath?: string;
-          compact?: boolean;
-          compareWithPath?: string;
-        };
-        const rawPath = args.filePath || args.docxPath;
-        if (!rawPath) {
-          throw new Error("Parâmetro obrigatório 'filePath' não fornecido.");
-        }
-        const resolvedPath = resolveWorkspacePath(rawPath);
-        const resolvedOutput = args.outputPath ? resolveWorkspacePath(args.outputPath) : undefined;
-        const resolvedCompare = args.compareWithPath ? resolveWorkspacePath(args.compareWithPath) : undefined;
-        const res = await inspectDoc(resolvedPath, resolvedOutput, args.compact ?? true, resolvedCompare);
-        const synthetic = formatInspectDocSyntheticResult(res, resolvedPath, resolvedOutput);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+export async function handleCallToolRequest(request: {
+  params: { name: string; arguments?: Record<string, any> };
+}) {
+  const toolName = request.params.name;
+
+  try {
+    if (toolName === "bootstrap_case") {
+      const { caseDir, uploadsDir, fileRenameMap } = (request.params
+        .arguments || {}) as {
+        caseDir: string;
+        uploadsDir?: string;
+        fileRenameMap?: Record<string, string>;
+      };
+      const resolvedCaseDir = resolveWorkspacePath(caseDir);
+      const resolvedUploadsDir = uploadsDir ? resolveWorkspacePath(uploadsDir) : undefined;
+      const res = await bootstrapCase(resolvedCaseDir, resolvedUploadsDir, { fileRenameMap });
+      const synthetic = formatBootstrapCaseSyntheticResult(res, resolvedCaseDir);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(synthetic, null, 2),
+          },
+        ],
+      };
+    }
+
+    if (toolName === "inspect_doc" || toolName === "inspect_docx") {
+      const args = (request.params.arguments || {}) as {
+        filePath?: string;
+        docxPath?: string;
+        outputPath?: string;
+        compact?: boolean;
+        compareWithPath?: string;
+      };
+      const rawPath = args.filePath || args.docxPath;
+      if (!rawPath) {
+        throw new Error("Parâmetro obrigatório 'filePath' não fornecido.");
       }
+      const resolvedPath = resolveWorkspacePath(rawPath);
+      const resolvedOutput = args.outputPath ? resolveWorkspacePath(args.outputPath) : undefined;
+      const resolvedCompare = args.compareWithPath ? resolveWorkspacePath(args.compareWithPath) : undefined;
+      const res = await inspectDoc(resolvedPath, resolvedOutput, args.compact ?? true, {
+        compareWithPath: resolvedCompare,
+      });
+      const synthetic = formatInspectDocSyntheticResult(resolvedPath, resolvedOutput, res);
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify(synthetic, null, 2),
+          },
+        ],
+      };
+    }
 
       if (toolName === "build_docx_template") {
         const { sourcePath, manifestPath, outputPath, saveToRegistry, templateId } =
@@ -178,7 +190,7 @@ export async function runMcpServer() {
           saveToRegistry,
           templateId,
         });
-        const synthetic = formatBuildDocxTemplateSyntheticResult(res);
+        const synthetic = formatBuildDocxTemplateSyntheticResult(resolvedOutput, res);
         return {
           content: [
             {
@@ -471,8 +483,13 @@ export async function runMcpServer() {
     }
 
     throw new Error(`Ferramenta desconhecida: ${toolName}`);
-  });
+}
 
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
+export async function handleCallTool(
+  toolName: string,
+  toolArgs: Record<string, any> = {}
+) {
+  return handleCallToolRequest({
+    params: { name: toolName, arguments: toolArgs },
+  });
 }

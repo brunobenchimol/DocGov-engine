@@ -56,6 +56,7 @@ import type {
 // Re-exports dos Submódulos Extraídos (Modularização v1.3.10)
 // ============================================================================
 
+export type { InspectResult } from "../types/index.ts";
 export { scanPostCompileIntegrityAlerts } from "./inspect/integrity_scanner.ts";
 export {
   buildTocMap,

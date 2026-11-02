@@ -6,6 +6,7 @@ import type {
   DetectedItemSubtable,
   DetectedCheckboxGroup,
   DocxInspectionResult,
+  InspectResult,
   InspectDocSyntheticResult,
   InspectDocxSyntheticResult,
   TemplateMatchResult,
@@ -309,11 +310,11 @@ export function isTextOrMarkdownFile(filePath: string, buf: Buffer): boolean {
 
 export function formatInspectDocSyntheticResult(
   filePath: string,
-  outputPath: string,
-  inspection: DocxInspectionResult
+  outputPath: string | undefined,
+  inspection: InspectResult
 ): InspectDocSyntheticResult {
   let totalRows = 0;
-  for (const table of inspection.tables) {
+  for (const table of inspection.tables ?? []) {
     totalRows += table.rows.length;
   }
 
@@ -441,7 +442,7 @@ export function formatInspectDocSyntheticResult(
     engine_version: VERSION,
     filePath,
     docxPath: filePath,
-    outputPath,
+    ...(outputPath ? { outputPath } : {}),
     ...(inspection.doc_type && inspection.doc_type !== "docx"
       ? {
           doc_type: inspection.doc_type,
@@ -449,9 +450,9 @@ export function formatInspectDocSyntheticResult(
           line_count: inspection.line_count,
         }
       : {}),
-    tables: inspection.tables.length,
+    tables: inspection.tables?.length ?? 0,
     rows: totalRows,
-    paragraphs: inspection.paragraphs.length,
+    paragraphs: inspection.paragraphs?.length ?? 0,
     ...(conciseMatch ? { template_match: conciseMatch } : {}),
     ...(relAuditPath ? { audit_view_path: relAuditPath } : {}),
     ...(relDossiePath ? { dossie_path: relDossiePath } : {}),

@@ -290,6 +290,8 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
 
     // Servidor MCP e Especificação
     expect(typeof barrel.runMcpServer).toBe("function");
+    expect(typeof barrel.handleCallTool).toBe("function");
+    expect(typeof barrel.handleCallToolRequest).toBe("function");
     expect(typeof barrel.getMcpToolsDefinition).toBe("function");
     expect(typeof barrel.getMcpPromptsDefinition).toBe("function");
     expect(typeof barrel.generateEngineSpecMarkdown).toBe("function");

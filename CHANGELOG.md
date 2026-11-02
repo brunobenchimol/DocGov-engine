@@ -23,6 +23,13 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - **Alinhamento de Contrato com Lockstep C#:** Exposição simultânea de `statutory_bridge_applied` e alias `normative_bridge` no JSON de busca, bem como `relevance_score` e alias `score` em cada item retornado.
   - **Caderno de Testes Online de Jurisprudência (`tests_live/juris_api.live.ts`):** 3 sondas online para APIs oficiais de tribunais, cobrindo busca textual, download de acórdão com fatiamento anatômico e degradação graciosa com UF não implementada.
 
+### Corrigido
+- **Hotfix no Handler MCP de `inspect_doc` e `build_docx_template` (`src/mcp/server.ts`):**
+  - Correção na ordem dos argumentos na chamada a `formatInspectDocSyntheticResult`: o objeto de resultado da inspeção era passado no 1º argumento e o `outputPath` (muitas vezes omitido/undefined) no 3º argumento esperado para a inspeção, provocando a falha `undefined is not an object (evaluating 'r.tables')`.
+  - Tipagem TypeScript estrita: introduzido o alias `InspectResult = DocxInspectionResult`, remoção de qualquer tipagem frouxa ou permissiva e assinatura `formatInspectDocSyntheticResult(filePath: string, outputPath: string | undefined, inspection: InspectResult)`.
+  - Correção na chamada de `formatBuildDocxTemplateSyntheticResult(resolvedOutput, res)` no handler de `build_docx_template`, suprindo o argumento `outputPath` faltante.
+  - Extração das funções `handleCallToolRequest` e `handleCallTool` em `src/mcp/server.ts` e inclusão de suíte de testes de regressão de dispatch MCP em `test/mcp_dispatch.test.ts`.
+
 ### Modificado
 - **Modularização de CLI e Servidor MCP (Lei 9 de Governança):**
   - Extração de `src/mcp/tools_definition.ts` (303 linhas), reduzindo `src/mcp/server.ts` de 799 para 478 linhas.

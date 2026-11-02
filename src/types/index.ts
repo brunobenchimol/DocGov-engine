@@ -256,6 +256,8 @@ export interface DocxInspectionResult {
   post_compile_alerts?: PostCompileIntegrityAlert[];
 }
 
+export type InspectResult = DocxInspectionResult;
+
 export interface ReplaceParagraphRule {
   start_p: number;
   end_p: number;
@@ -537,7 +539,7 @@ export interface InspectDocSyntheticResult {
   engine_version: string;
   filePath: string;
   docxPath?: string;
-  outputPath: string;
+  outputPath?: string;
   doc_type?: "docx" | "pdf" | "xlsx" | "csv" | "spreadsheet" | "markdown" | "text";
   format?: string;
   page_count?: number;
