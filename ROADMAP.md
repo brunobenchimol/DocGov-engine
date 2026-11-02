@@ -241,6 +241,9 @@
     - Monitoramento da vigência da ARP (12 meses prorrogáveis por mais 12 meses);
     - Auditoria de previsão editalícia para renovação de quantitativos no 2º ano da vigência da Ata;
     - Rastreamento do desacoplamento entre a vigência da ARP e a vigência (de até 5 anos) dos contratos dela derivados.
+  - **Compilação Documental Nativa de ARP (`ARP_ADHESION_GRANT_NOTE` e `ARP_ADVANTAGE_STUDY` em `.docx`/`.pdf`):**
+    - *Para o Órgão Gerenciador (`Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf`):* Geração automatizada do despacho/nota técnica de anuência ou negativa fundamentada de pedido de carona, estampando a memória de cálculo do livro-razão da Ata (quantitativo original registrado, consumo acumulado de adesões anteriores, verificação da trava individual de 50% e do teto global de 200%, compatibilidade jurídica/federativa do órgão solicitante e saldo remanescente após o abate);
+    - *Para o Órgão Aderente / "Carona" (`Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf`):* Geração automatizada do estudo técnico e jurídico de instrução de adesão, comprovando a identidade de necessidade técnica, a simetria de regime legal (`Lei 13.303/2016 + RILC` vs. `Lei 14.133/2021`), a vantajosidade econômica comparativa perante os preços de mercado/PNCP, a justificativa para não realização de licitação própria (ou adesão a lote único) e a anuência formal do fornecedor e do órgão gerenciador.
 
 ---
 
