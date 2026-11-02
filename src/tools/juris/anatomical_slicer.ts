@@ -104,16 +104,55 @@ export function sliceAcordaoAnatomically(
 
   // 1A. Metadados & Jurisdição
   const numeroMatch = rawText.match(/ACÓRDÃO\s+(?:Nº\s*)?(\d+)\/(\d{4})/i);
-  const numero = obj.numero || obj.numeroAcordao || (numeroMatch ? numeroMatch[1] : "S/N");
-  const ano = obj.ano || obj.anoAcordao || (numeroMatch ? parseInt(numeroMatch[2], 10) : new Date().getFullYear());
-  const colegiado = obj.colegiado || (rawText.match(/TCU\s*-\s*(Plenário|1ª Câmara|2ª Câmara)/i)?.[1]) || "Plenário";
-  const processo = obj.processo || rawText.match(/Processo\s*[:\s]*([0-9./-]+)/i)?.[1] || "N/A";
-  const relator = obj.relator || rawText.match(/Relator\s*[:\s]*([^\n\r]+)/i)?.[1] || "Ministro Relator";
-  const dataSessao = obj.dataSessao || obj.data || rawText.match(/Data\s*da\s*Sessão\s*[:\s]*([^\n\r]+)/i)?.[1];
+  const numero =
+    obj.numero ||
+    obj.numeroAcordao ||
+    obj.NUMACORDAO ||
+    (numeroMatch ? numeroMatch[1] : "S/N");
+  const ano =
+    obj.ano ||
+    obj.anoAcordao ||
+    (obj.ANOACORDAO ? parseInt(String(obj.ANOACORDAO), 10) : undefined) ||
+    (numeroMatch ? parseInt(numeroMatch[2], 10) : new Date().getFullYear());
+  const colegiado =
+    obj.colegiado ||
+    obj.COLEGIADO ||
+    rawText.match(/TCU\s*-\s*(Plenário|1ª Câmara|2ª Câmara)/i)?.[1] ||
+    "Plenário";
+  const procClean = obj.PROC ? cleanHtmlAndNormalize(String(obj.PROC)) : undefined;
+  const processo =
+    obj.processo ||
+    procClean ||
+    rawText.match(/Processo\s*[:\s]*([0-9./-]+)/i)?.[1] ||
+    "N/A";
+  const relator =
+    obj.relator ||
+    obj.RELATOR ||
+    obj.AUTORTESE ||
+    rawText.match(/Relator\s*[:\s]*([^\n\r]+)/i)?.[1] ||
+    "Ministro Relator";
+  const dataSessao =
+    obj.dataSessao ||
+    obj.data ||
+    obj.DATASESSAO ||
+    obj.DATASESSAOFORMATADA ||
+    rawText.match(/Data\s*da\s*Sessão\s*[:\s]*([^\n\r]+)/i)?.[1];
 
   // 1B. Perfil da Entidade & Regime Legal
-  const entidade = obj.unidadeJurisdicionada || obj.entidade || rawText.match(/Unidade\s+Jurisdicionada\s*[:\s]*([^\n\r]+)/i)?.[1] || "ÓRGÃO_CONTRATANTE";
-  const fullContent = `${rawText} ${obj.relatorio || ""} ${obj.voto || ""} ${obj.sumario || ""} ${obj.enunciado || ""}`;
+  const rawEntidade = Array.isArray(obj.ENTIDADE)
+    ? obj.ENTIDADE.join("; ")
+    : obj.ENTIDADE;
+  const entidade =
+    obj.unidadeJurisdicionada ||
+    obj.entidade ||
+    rawEntidade ||
+    rawText.match(/Unidade\s+Jurisdicionada\s*[:\s]*([^\n\r]+)/i)?.[1] ||
+    "ÓRGÃO_CONTRATANTE";
+  const fullContent = `${rawText} ${obj.relatorio || obj.RELATORIO || ""} ${
+    obj.voto || obj.VOTO || ""
+  } ${obj.sumario || obj.SUMARIO || ""} ${
+    obj.enunciado || obj.ENUNCIADO || ""
+  }`;
   const isItEntity = isStateItEntity(entidade) || isStateItEntity(fullContent);
   const mentions13303 = /\b13\.?303\b/i.test(fullContent) || isItEntity;
   const regimeLegal: "LEI_13303_ESTATAIS" | "LEI_14133_ADM_DIRETA" | "OUTRO" = mentions13303
@@ -124,10 +163,11 @@ export function sliceAcordaoAnatomically(
 
   // 2A. Indexação / Tags
   let indexingTags: string[] = [];
-  if (Array.isArray(obj.indexacao)) {
-    indexingTags = obj.indexacao.map(String);
-  } else if (typeof obj.indexacao === "string") {
-    indexingTags = obj.indexacao.split(/[;.\n]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 2);
+  const rawIndexacao = obj.indexacao || obj.INDEXACAO;
+  if (Array.isArray(rawIndexacao)) {
+    indexingTags = rawIndexacao.map(String);
+  } else if (typeof rawIndexacao === "string") {
+    indexingTags = rawIndexacao.split(/[;.\n]+/).map((s: string) => s.trim()).filter((s: string) => s.length > 2);
   } else {
     const tagMatch = rawText.match(/^(?:[A-ZÁÉÍÓÚÂÊÔÃÕÇ0-9\s/,-]+\.\s*){2,}/m);
     if (tagMatch) {
@@ -137,11 +177,24 @@ export function sliceAcordaoAnatomically(
 
   // 2B. Enunciado / Tese Fixada
   const enunciadoTese = cleanHtmlAndNormalize(
-    obj.enunciado || obj.sumario || obj.tese || rawText.match(/SUMÁRIO\s*[:\s]*([\s\S]*?)(?:RELATÓRIO|VOTO|ACÓRDÃO)/i)?.[1] || "Tese jurídica fixada nos autos."
+    obj.enunciado ||
+      obj.ENUNCIADO ||
+      obj.sumario ||
+      obj.SUMARIO ||
+      obj.tese ||
+      obj.ASSUNTO ||
+      rawText.match(/SUMÁRIO\s*[:\s]*([\s\S]*?)(?:RELATÓRIO|VOTO|ACÓRDÃO)/i)?.[1] ||
+      "Tese jurídica fixada nos autos."
   );
 
   // 3. Relatório (3A, 3B, 3C)
-  const relatorioRaw = cleanHtmlAndNormalize(obj.relatorio || rawText.match(/RELATÓRIO[\s\S]*?(?=VOTO|ACÓRDÃO|$)/i)?.[0] || "");
+  const relatorioRaw = cleanHtmlAndNormalize(
+    obj.relatorio ||
+      obj.RELATORIO ||
+      obj.EXCERTO ||
+      rawText.match(/RELATÓRIO[\s\S]*?(?=VOTO|ACÓRDÃO|$)/i)?.[0] ||
+      ""
+  );
   let factualControversy = "";
   let defenseArguments = "";
   let technicalUnitAnalysis = "";
@@ -153,14 +206,25 @@ export function sliceAcordaoAnatomically(
   defenseArguments = defesaMatch ? defesaMatch[0].trim() : "";
 
   const audTiMatch = relatorioRaw.match(/(?:EXAME TÉCNICO|ANÁLISE TÉCNICA|PARECER DA (?:AUDTI|SEFTI|SELOG|UNIDADE TÉCNICA))[\s\S]*?(?=CONCLUSÃO|PROPOSTA DE ENCAMINHAMENTO|$)/i);
-  technicalUnitAnalysis = audTiMatch ? audTiMatch[0].trim() : "";
+  technicalUnitAnalysis =
+    audTiMatch ? audTiMatch[0].trim() : (obj.UNIDADETECNICA ? `Unidade Técnica: ${cleanHtmlAndNormalize(obj.UNIDADETECNICA)}` : "");
 
   // 4A. Fundamentação / Ratio Decidendi
-  const votoRaw = cleanHtmlAndNormalize(obj.voto || rawText.match(/VOTO[\s\S]*?(?=ACÓRDÃO|$)/i)?.[0] || "");
+  const votoRaw = cleanHtmlAndNormalize(
+    obj.voto ||
+      obj.VOTO ||
+      rawText.match(/VOTO[\s\S]*?(?=ACÓRDÃO|$)/i)?.[0] ||
+      ""
+  );
   const ratioDecidendi = votoRaw;
 
   // 5A. Dispositivo / Moduladores
-  const acordaoRaw = cleanHtmlAndNormalize(obj.acordao || rawText.match(/ACÓRDÃO[\s\S]*$/i)?.[0] || "");
+  const acordaoRaw = cleanHtmlAndNormalize(
+    obj.acordao ||
+      obj.ACORDAO ||
+      rawText.match(/ACÓRDÃO[\s\S]*$/i)?.[0] ||
+      ""
+  );
   const operativeCommands: string[] = [];
   const itemMatches = acordaoRaw.match(/\b9\.\d+[\s\S]*?(?=\b9\.\d+|$)/g);
   if (itemMatches && itemMatches.length > 0) {
@@ -174,7 +238,7 @@ export function sliceAcordaoAnatomically(
 
   // 6A. Quórum de Fecho
   const isUnanime = /\b(unânime|unanimidade)\b/i.test(acordaoRaw);
-  const quorum = isUnanime ? "Unânime" : "Por Maioria";
+  const quorum = obj.QUORUM ? cleanHtmlAndNormalize(obj.QUORUM) : (isUnanime ? "Unânime" : "Por Maioria");
   const closingQuorum = {
     quorum,
     votos: isUnanime ? "Votação unânime dos membros do colegiado" : "Decisão por maioria",

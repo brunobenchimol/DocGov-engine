@@ -12,6 +12,14 @@ export interface JurisdictionRoutingInfo {
   fallback_notice: string | null;
 }
 
+export interface CourtDiagnostic {
+  court: string;
+  status: "ok" | "error";
+  hits: number;
+  latency_ms: number;
+  error: string | null;
+}
+
 export interface StatutoryBridgeMapping {
   id: string;
   topic: string;
@@ -88,6 +96,7 @@ export interface SearchJurisFileResult {
   statutory_bridge_applied: string[];
   normative_bridge: string[]; // alias obrigatório para statutory_bridge_applied (.NET Gen4)
   jurisdiction_routing: JurisdictionRoutingInfo;
+  court_diagnostics?: CourtDiagnostic[];
   results: JurisSearchResultItem[];
 }
 
@@ -201,5 +210,9 @@ export interface RawJurisFetchResult {
 export interface JurisdictionProvider {
   courtId: string;
   search(query: string, options?: Partial<SearchJurisOptions>): Promise<RawJurisSearchResult[]>;
+  searchWithDiagnostic?(query: string, options?: Partial<SearchJurisOptions>): Promise<{
+    hits: RawJurisSearchResult[];
+    diagnostic: CourtDiagnostic;
+  }>;
   fetch(idOrRef: string): Promise<RawJurisFetchResult | null>;
 }

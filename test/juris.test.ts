@@ -494,7 +494,39 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
 
     if (existsSync(outDocx)) unlinkSync(outDocx);
   });
+
+  it("http_client: parseCanonicalAcordaoRef deve extrair corte, número, ano e colegiado", () => {
+    const { parseCanonicalAcordaoRef, sanitizeQueryForCourt } = require("../src/tools/juris/providers/http_client.ts");
+
+    const p1 = parseCanonicalAcordaoRef("Acórdão 2403/2020-TCU-Plenário");
+    expect(p1.court).toBe("TCU");
+    expect(p1.numero).toBe("2403");
+    expect(p1.ano).toBe(2020);
+    expect(p1.colegiado).toBe("Plenário");
+
+    const p2 = parseCanonicalAcordaoRef("ACORDAO-TCU-2403-2020-PLENARIO");
+    expect(p2.court).toBe("TCU");
+    expect(p2.numero).toBe("2403");
+    expect(p2.ano).toBe(2020);
+    expect(p2.colegiado).toBe("Plenário");
+
+    const p3 = parseCanonicalAcordaoRef("TCE-PA-62072-2024");
+    expect(p3.court).toBe("TCE-PA");
+    expect(p3.numero).toBe("62072");
+    expect(p3.ano).toBe(2024);
+
+    const p4 = parseCanonicalAcordaoRef("Decisão 123/2024 - TCDF");
+    expect(p4.court).toBe("TCDF");
+    expect(p4.numero).toBe("123");
+    expect(p4.ano).toBe(2024);
+
+    const s = sanitizeQueryForCourt("padronização de marca para solução de TI com edital!");
+    expect(s.cleanQuery).toContain("padronização");
+    expect(s.shortQuery).toContain("padronização");
+    expect(s.terms).toContain("marca");
+  });
 });
+
 
 
 
