@@ -114,8 +114,12 @@ export class TcdfProvider implements JurisdictionProvider {
         };
       }
 
-      const json = JSON.parse(response.body);
-      const hitsArray = Array.isArray(json?.data?.data?.hits?.hits)
+      const json =
+        response.data ||
+        (response.body ? JSON.parse(response.body) : null);
+      const hitsArray = Array.isArray(json?.data?.hits?.hits)
+        ? json.data.hits.hits
+        : Array.isArray(json?.data?.data?.hits?.hits)
         ? json.data.data.hits.hits
         : [];
       const mapped = hitsArray.map((h: any) => this.mapTcdfSource(h._source || h));
@@ -166,9 +170,7 @@ export class TcdfProvider implements JurisdictionProvider {
 
     try {
       const parsedRef = parseCanonicalAcordaoRef(idOrRef);
-      const searchQuery = parsedRef
-        ? `documento_numero:"${parsedRef.numero}" AND documento_ano:${parsedRef.ano}`
-        : idOrRef;
+      const searchQuery = parsedRef?.numero ? parsedRef.numero : idOrRef;
 
       const searchRes = await this.search(searchQuery, { limit: 5 });
       if (searchRes.length > 0) {

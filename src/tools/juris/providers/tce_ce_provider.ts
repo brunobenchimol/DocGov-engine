@@ -172,9 +172,7 @@ export class TceCeProvider implements JurisdictionProvider {
 
     try {
       const parsedRef = parseCanonicalAcordaoRef(idOrRef);
-      const searchQuery = parsedRef
-        ? `nrdocumento:${parsedRef.numero} AND nranodocumento:${parsedRef.ano}`
-        : idOrRef;
+      const searchQuery = parsedRef?.numero ? parsedRef.numero : idOrRef;
 
       const searchRes = await this.search(searchQuery, { limit: 5 });
       if (searchRes.length > 0) {

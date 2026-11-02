@@ -9,13 +9,15 @@ import {
   fetchJuris,
   formatFetchJurisSyntheticResult,
 } from "../src/tools/juris/fetch_juris.ts";
+import { defaultJurisdictionRegistry } from "../src/tools/juris/provider_registry.ts";
 import type { LiveProbeResult } from "./pncp_api.live.ts";
 
 /**
  * Caderno de Testes Online de Contrato para as APIs Oficiais de Jurisprudência (TCU / Cortes)
  * Valida rotas públicas, parsing de ementas, fatiamento anatômico e degradação graciosa.
+ * Suporta filtro isolado via courtFilter (ex: "STF", "TCE-PA", "TCU").
  */
-export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
+export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProbeResult[]> {
   const probes: LiveProbeResult[] = [];
   const baseTemp = resolve(
     os.tmpdir(),
@@ -29,8 +31,129 @@ export async function runJurisLiveProbes(): Promise<LiveProbeResult[]> {
   let firstHitId = "";
 
   try {
+    if (courtFilter) {
+      const normalizedCourt = courtFilter.trim().toUpperCase();
+      const prov = defaultJurisdictionRegistry.get(normalizedCourt);
+
+      if (!prov) {
+        const available = defaultJurisdictionRegistry.getAll().map((p) => p.courtId).join(", ");
+        probes.push({
+          name: `Sonda de Tribunal [${normalizedCourt}]`,
+          status: "FAIL",
+          durationMs: 0,
+          details: `Tribunal '${normalizedCourt}' não encontrado no JurisdictionProviderRegistry.`,
+          error: `Cortes disponíveis: ${available}`,
+        });
+        return probes;
+      }
+
+      // ------------------------------------------------------------------------
+      // Sonda 1 (Isolada): searchJuris online para a corte especificada
+      // ------------------------------------------------------------------------
+      const startS1 = Date.now();
+      const smokeQuery = prov.liveSmokeQuery || "licitação | pregão";
+      try {
+        const searchRes = await searchJuris({
+          caseDir: liveCaseDir,
+          query: smokeQuery,
+          courts: [prov.courtId],
+          limit: 3,
+          stance: "DEFENSE",
+        });
+        const durationS1 = Date.now() - startS1;
+
+        const stateJsonPath = resolve(liveCaseDir, "state", "juris_search_results.json");
+        const stateMdPath = resolve(liveCaseDir, "state", "juris_search_results.md");
+
+        if (!existsSync(stateJsonPath) || !existsSync(stateMdPath)) {
+          probes.push({
+            name: `Sonda 1 [${prov.courtId}]: searchJuris online (${prov.courtName})`,
+            status: "FAIL",
+            durationMs: durationS1,
+            details: "Arquivos de estado juris_search_results (.json / .md) não foram persistidos.",
+            error: "Falha de persistência de estado em disco.",
+          });
+        } else {
+          const rawJson = JSON.parse(readFileSync(stateJsonPath, "utf-8"));
+          const hitsCount = rawJson.total_hits || (rawJson.results ? rawJson.results.length : 0);
+          const synth = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, liveCaseDir);
+          const synthBytes = Buffer.byteLength(JSON.stringify(synth), "utf-8");
+
+          const diag = searchRes.fileResult.court_diagnostics?.find((d) => d.court === prov.courtId);
+          const diagStatus = diag ? diag.status : "ok";
+
+          if (hitsCount > 0 && rawJson.results && rawJson.results[0]?.id) {
+            firstHitId = rawJson.results[0].id;
+          }
+
+          if (diagStatus === "error") {
+            probes.push({
+              name: `Sonda 1 [${prov.courtId}]: searchJuris online`,
+              status: "FAIL",
+              durationMs: durationS1,
+              details: `Diagnóstico de corte reportou erro: ${diag?.error || "Falha"}. Payload MCP: ${synthBytes} bytes.`,
+              error: diag?.error || "Court diagnostic error",
+            });
+          } else {
+            probes.push({
+              name: `Sonda 1 [${prov.courtId}]: searchJuris online`,
+              status: "PASS",
+              durationMs: durationS1,
+              details: `Sucesso: ${hitsCount} decisões retornadas. Status: ${diagStatus}. Query: "${smokeQuery}". Payload MCP: ${synthBytes} bytes.`,
+            });
+          }
+        }
+      } catch (err: any) {
+        probes.push({
+          name: `Sonda 1 [${prov.courtId}]: searchJuris online (${prov.courtName})`,
+          status: "FAIL",
+          durationMs: Date.now() - startS1,
+          details: `Exceção ao consultar API da corte ${prov.courtId}: ${err.message}`,
+          error: err.message,
+        });
+      }
+
+      // ------------------------------------------------------------------------
+      // Sonda 2 (Isolada): fetchJuris online + Fatiamento Anatômico
+      // ------------------------------------------------------------------------
+      const startS2 = Date.now();
+      const targetId = firstHitId || (prov.courtId === "TCU" ? "ACORDAO-COMPLETO-255-2023-Plenario" : `Acórdão 100/2023-${prov.courtId}`);
+      try {
+        const fetchRes = await fetchJuris({
+          caseDir: liveCaseDir,
+          acordaoIdOrUrl: targetId,
+          court: prov.courtId,
+          stance: "DEFENSE",
+        });
+        const durationS2 = Date.now() - startS2;
+
+        const synth2 = formatFetchJurisSyntheticResult(fetchRes, liveCaseDir);
+        const synth2Bytes = Buffer.byteLength(JSON.stringify(synth2), "utf-8");
+
+        const dossieContent = existsSync(fetchRes.dossiePath) ? readFileSync(fetchRes.dossiePath, "utf-8") : "";
+        const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
+
+        probes.push({
+          name: `Sonda 2 [${prov.courtId}]: fetchJuris online + Fatiamento Anatômico`,
+          status: "PASS",
+          durationMs: durationS2,
+          details: `Decisão [${targetId}] processada. Anti-Hallucination Block: ${hasAntiHallucination}. Payload MCP: ${synth2Bytes} bytes.`,
+        });
+      } catch (err: any) {
+        probes.push({
+          name: `Sonda 2 [${prov.courtId}]: fetchJuris online + Fatiamento Anatômico`,
+          status: "FAIL",
+          durationMs: Date.now() - startS2,
+          details: `Exceção ao baixar e fatiar acórdão [${targetId}]: ${err.message}`,
+          error: err.message,
+        });
+      }
+
+      return probes;
+    }
+
     // ------------------------------------------------------------------------
-    // Sonda 1: searchJuris (Busca Real TCU + Statutory Bridge + Ranking)
+    // Modo Padrão (Sem filtro de corte): Executa Bateria Geral TCU + Fallback
     // ------------------------------------------------------------------------
     const startS1 = Date.now();
     try {

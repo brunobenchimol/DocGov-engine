@@ -20,6 +20,7 @@ export interface JurisHttpResponse {
   status: number;
   data: any;
   text: string;
+  body: string; // alias para text
   latencyMs: number;
   error: string | null;
 }
@@ -87,6 +88,7 @@ export async function executeJurisHttpRequest(
           status: resp.status,
           data: lastData,
           text: lastText,
+          body: lastText,
           latencyMs,
           error: null,
         };
@@ -100,6 +102,7 @@ export async function executeJurisHttpRequest(
           status: resp.status,
           data: lastData,
           text: lastText,
+          body: lastText,
           latencyMs,
           error: lastError,
         };
@@ -114,6 +117,7 @@ export async function executeJurisHttpRequest(
           status: lastStatus,
           data: null,
           text: lastText,
+          body: lastText,
           latencyMs,
           error: lastError,
         };
@@ -127,6 +131,7 @@ export async function executeJurisHttpRequest(
     status: lastStatus,
     data: lastData,
     text: lastText,
+    body: lastText,
     latencyMs: 0,
     error: lastError || "Falha desconhecida",
   };
@@ -186,6 +191,7 @@ export async function executeLegacyHttp1Request(
               status,
               data,
               text: body,
+              body,
               latencyMs,
               error: status >= 400 ? `HTTP ${status}` : null,
             });
@@ -204,6 +210,7 @@ export async function executeLegacyHttp1Request(
           status: 0,
           data: null,
           text: "",
+          body: "",
           latencyMs,
           error: err.message,
         });
@@ -214,7 +221,8 @@ export async function executeLegacyHttp1Request(
         status: 0,
         data: null,
         text: "",
-        latencyMs: Math.round(performance.now() - t0),
+        body: "",
+        latencyMs: 0,
         error: err?.message || String(err),
       });
     }

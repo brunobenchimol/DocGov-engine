@@ -10,17 +10,27 @@ import { runJurisLiveProbes } from "../tests_live/juris_api.live.ts";
 async function main() {
   const args = process.argv.slice(2);
   let suite = "all";
+  let court: string | undefined = undefined;
 
-  for (const arg of args) {
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
     if (arg.startsWith("--suite=")) {
       suite = arg.split("=")[1].toLowerCase();
+    } else if (arg === "--suite" && args[i + 1]) {
+      suite = args[++i].toLowerCase();
+    } else if (arg.startsWith("--court=")) {
+      court = arg.split("=")[1].toUpperCase();
+      if (suite === "all") suite = "juris";
+    } else if (arg === "--court" && args[i + 1]) {
+      court = args[++i].toUpperCase();
+      if (suite === "all") suite = "juris";
     }
   }
 
   console.log("================================================================================");
-  console.log(`🌐 DOCGOV-ENGINE: LIVE API CONTRACT SMOKE TESTS (Suite: ${suite.toUpperCase()})`);
+  console.log(`🌐 DOCGOV-ENGINE: LIVE API CONTRACT SMOKE TESTS (Suite: ${suite.toUpperCase()}${court ? ` | Court: ${court}` : ""})`);
   console.log("================================================================================");
-  console.log("Aviso: Esta suite executa requisições HTTPS REAIS contra pncp.gov.br, api.github.com e pesquisa.apps.tcu.gov.br.\n");
+  console.log("Aviso: Esta suite executa requisições HTTPS REAIS contra pncp.gov.br, api.github.com e portais de jurisprudência.\n");
 
   const results: LiveProbeResult[] = [];
   const startTotal = Date.now();
@@ -38,8 +48,8 @@ async function main() {
   }
 
   if (suite === "all" || suite === "juris") {
-    console.log("\n⚖️ Executando sondas de contrato de Jurisprudência (TCU / Cortes)...");
-    const jurisResults = await runJurisLiveProbes();
+    console.log(`\n⚖️ Executando sondas de contrato de Jurisprudência${court ? ` (Filtro: ${court})` : " (TCU / Cortes)"}...`);
+    const jurisResults = await runJurisLiveProbes(court);
     results.push(...jurisResults);
   }
 
