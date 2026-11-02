@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.1)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.2)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -109,7 +109,7 @@ A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do doc
 5. **Arquitetura 100% Plug-and-Play de Provedores (`JurisdictionProviderRegistry`):**
    - Desacoplamento integral de cortes e UFs: novos tribunais são registrados declarativamente com metadados (`tier`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
    - Política evolutiva canônica: **1 Conector / UF = 1 Patch Release**.
-   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**) e Estadual (**TCE-PA**, **TCE-CE**, **TCDF**).
+   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**) e Estadual (**TCE-PA**, **TCE-CE**, **TCDF**).
    - **Graceful Fallback:** Caso solicitada UF não implementada (ex.: `AM` ou `PR`), o motor executa automaticamente a camada federal e reporta `unimplemented_uf_requested` no payload sintético sem travar a execução.
 6. **Compilador Tático OpenXML (Lockstep C# Assert 29.6):**
    - Compilação sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
@@ -150,7 +150,7 @@ A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do doc
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.1`):** Inclusão mandatória do campo `"engine_version": "1.4.1"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.2`):** Inclusão mandatória do campo `"engine_version": "1.4.2"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -228,7 +228,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Parâmetros: `caseDir`, `query` (*obrigatórios*), `status`, `uf`, `modalidade`, `limit` (*opcionais*).
 
 9. **`search_juris`**
-   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TCE-PA, TCE-CE, TCDF) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK` e degradação graciosa com graceful fallback por UF.
+   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, TCE-PA, TCE-CE, TCDF) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
    - Persiste Ficha de Triagem Rápida em `state/juris_search_results.json` e painel em `.md` com retorno sintético MCP conciso (< 900 bytes).
    - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `stance`, `regime`, `limit` (*opcionais*).
 
@@ -325,7 +325,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--fetch-juris` | Resolução canônica e fatiamento anatômico estrutural de acórdão via `--id` (e opcionalmente `--court`). |
 | `--query <termo>` | Termo ou expressão de busca textual (usado com `--search-pncp` e `--search-juris`). |
 | `--pncp <id_ou_url>` | Identificador PNCP canônico (`CNPJ-tipo-sequencial/ano`) ou link da contratação no PNCP. |
-| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TCE-PA,TCE-CE,TCDF`). |
+| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,TCE-PA,TCE-CE,TCDF`). |
 | `--court <id>` | Sigla da corte/tribunal de destino (usado com `--fetch-juris`). |
 | `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática de TCE no Juris. |
 | `--id <acordao>` | Identificador ou citação canônica do acórdão/processo (usado com `--fetch-juris`). |
@@ -554,6 +554,9 @@ bun scripts/run_live_tests.ts --suite=juris --court=STJ
 
 # Supremo Tribunal Federal (STF)
 bun scripts/run_live_tests.ts --suite=juris --court=STF
+
+# Tribunal Superior do Trabalho (TST — Terceirização e Súmula 331)
+bun scripts/run_live_tests.ts --suite=juris --court=TST
 
 # Tribunal de Contas do Estado do Pará (TCE-PA)
 bun scripts/run_live_tests.ts --suite=juris --court=TCE-PA

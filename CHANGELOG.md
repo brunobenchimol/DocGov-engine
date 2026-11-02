@@ -8,6 +8,27 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.2] - 2026-11-02
+
+### Adicionado
+- **Conector Federal Isolado TST (`src/tools/juris/providers/tst_provider.ts`) (Marco 7.7):**
+  - Integração nativa com a jurisprudência trabalhista unificada do Tribunal Superior do Trabalho via REST (`https://jurisprudencia-backend.tst.jus.br/rest/pesquisa-textual`), focado em Súmula 331, Tema 246 e Tema 1118 de Repercussão Geral, responsabilidade subsidiária da Administração Pública e de Empresas Estatais e fiscalização de encargos trabalhistas em terceirização de TI e serviços contínuos.
+  - Ativação condicional declarativa (`autoTriggerKeywords`) no padrão plug-and-play da `v1.4.1`: TST participa automaticamente de buscas quando a query textual contém termos como `terceirização`, `súmula 331`, `responsabilidade subsidiária`, `tema 246`, `tema 1118`, `mão de obra`, `dedicação exclusiva`, sem inchar buscas ordinárias de TI/bens comuns.
+  - Resolução autônoma por número de processo CNJ (`XXXXXXX-XX.XXXX.5.XX.XXXX`) no `fetch_juris` com lookup textual no backend do TST para identificação do hash de 32 caracteres e download do HTML do inteiro teor, sem depender de cache prévio em memória.
+- **Calibragem Tática do `RelevanceScorer` (Precedência de Desfecho & Distinguishing):**
+  - Precedência estrita da Camada 5A (Dispositivo e comando decisório) sobre enunciados e ementas gerais.
+  - Penalidade de inversão tática de `-15 pts` quando o desfecho do acórdão for adverso à tese do gestor em `stance: "DEFENSE"` (ex.: condenação, anulação de certame ou determinação corretiva).
+  - Classificação explícita `stance_alignment: "FAVORABLE" | "ADVERSE_DISTINGUISHING_REQUIRED" | "NEUTRAL"` em cada resultado retornado.
+  - Inclusão do badge visual `⚠️ [ADVERSO — EXIGE DISTINGUISHING]` na tabela ranqueada de `juris_search_results.md`.
+- **Sonda Online de Contrato para o TST:**
+  - Inclusão de sonda dedicada para o conector do TST no runner de live tests (`bun scripts/run_live_tests.ts --suite=juris --court=TST`), validando tempo de resposta (< 1000ms) e teto MCP (< 900 bytes).
+
+### Corrigido
+- **Filtro Anti-Ruído de Domínio Administrativo no `StfProvider`:**
+  - Injeção mandatória de cláusula `must` administrativa e cláusula `must_not` para ruídos tributários `(ICMS AND ISS) OR bitributação` na query Elasticsearch da jurisprudência do STF.
+  - Otimização severa de rede no `StfProvider`: exclusão do campo pesado `inteiro_teor_texto` no `_source` durante a fase de busca, reduzindo o payload de rede de ~870 KB para ~15 KB.
+  - Aplicação de penalidade de ruído tributário/penal (`-25 pts`) no `RelevanceScorer`, expurgando precedentes fiscais irrelevantes (como ADI 1945 sobre software de prateleira) do topo das buscas de contratações públicas.
+
 ## [1.4.1] - 2026-11-02
 
 ### Adicionado
