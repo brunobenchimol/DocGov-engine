@@ -288,7 +288,12 @@ export function parseCanonicalAcordaoRef(
       court = "STJ";
     } else if (/\bSTF\b/.test(upper)) {
       court = "STF";
-    } else if (/\bTST\b/.test(upper)) {
+    } else if (
+      /\bTST\b/.test(upper) ||
+      /\b\d{1,7}-\d{2}\.\d{4}\.5\.\d{2}\.\d{4}\b/.test(ref) ||
+      /\b\d{7}\d{2}(?:19|20)\d{2}5\d{2}\d{4}\b/.test(ref) ||
+      /\b(?:AIRR|RR|E-RR|RO|Ag-AIRR|Ag-RR|ED-Ag-RR|Ag-RRAg|EDCiv-RR)\b/i.test(ref)
+    ) {
       court = "TST";
     } else if (/\b(AGU|CGU)\b/.test(upper)) {
       court = "AGU";

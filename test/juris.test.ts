@@ -675,6 +675,26 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
 
     const detectedRef = defaultJurisdictionRegistry.detectCourtFromRef("AIRR - 100123-45.2020.5.02.0001");
     expect(detectedRef).toBe("TST");
+
+    // 5. Roteamento de CNJ trabalhista puro (J=5) pontuado e 20 dígitos
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("TST-Ag-Ag-RR-959-81.2015.5.05.0033")).toBe("TST");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("959-81.2015.5.05.0033")).toBe("TST");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("00009598120155050033")).toBe("TST");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("1000201-25.2017.5.02.0025")).toBe("TST");
+
+    expect(parseCanonicalAcordaoRef("959-81.2015.5.05.0033").court).toBe("TST");
+    expect(parseCanonicalAcordaoRef("00009598120155050033").court).toBe("TST");
+
+    // 6. Resiliência de mapTstHitToResult com elementos nulos em arrays
+    const rawHitWithNulls = {
+      id: "abc123",
+      numFormatado: "RR - 0000697-62.2024.5.10.0006",
+      temaProcs: [null, { desTemaProc: "Ente Público" }],
+      indicadores: [null, { desIndicador: "Lei 13.467/2017" }],
+    };
+    const mapped = (tst as any).mapTstHitToResult(rawHitWithNulls);
+    expect(mapped.indexacao).toContain("Ente Público");
+    expect(mapped.indexacao).toContain("Lei 13.467/2017");
   });
 });
 

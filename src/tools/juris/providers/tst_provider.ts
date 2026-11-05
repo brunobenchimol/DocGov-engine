@@ -26,7 +26,9 @@ export class TstProvider implements JurisdictionProvider {
     "terceirização responsabilidade subsidiária administração pública súmula 331";
   public readonly idPatterns = [
     /\bTST\b/i,
-    /\b(?:AIRR|RR|E-RR|RO|Ag-AIRR|Ag-RR)\s*[-Nº]*\s*\d+/i,
+    /\b(?:AIRR|RR|E-RR|RO|Ag-AIRR|Ag-RR|ED-Ag-RR|Ag-RRAg|EDCiv-RR)\b/i,
+    /\b\d{1,7}-\d{2}\.\d{4}\.5\.\d{2}\.\d{4}\b/,
+    /\b\d{7}\d{2}(?:19|20)\d{2}5\d{2}\d{4}\b/,
   ];
   public readonly autoTriggerKeywords =
     /\b(terceiriza[çc][aã]o|s[úu]mula\s*331|responsabilidade\s+subsidi[áa]ria|encargos\s+trabalhistas|posto[s]?\s+de\s+trabalho|dedica[çc][aã]o\s+exclusiva|m[aã]o\s+de\s+obra|culpa\s+in\s+vigilando|tema\s*(?:246|1118)|pejotiza[çc][aã]o|aloca[çc][aã]o\s+de\s+profissionais)\b/i;
@@ -354,16 +356,16 @@ export class TstProvider implements JurisdictionProvider {
       reg.nomRelator ||
       "Ministro Relator";
 
-    // Extrai temas ou palavras-chave
+    // Extrai temas ou palavras-chave com resiliência a nulos
     const tags: string[] = [];
     if (Array.isArray(reg.temaProcs)) {
       for (const t of reg.temaProcs) {
-        if (t.desTemaProc) tags.push(t.desTemaProc);
+        if (t && typeof t === "object" && t.desTemaProc) tags.push(t.desTemaProc);
       }
     }
     if (Array.isArray(reg.indicadores)) {
       for (const ind of reg.indicadores) {
-        if (ind.desIndicador) tags.push(ind.desIndicador);
+        if (ind && typeof ind === "object" && ind.desIndicador) tags.push(ind.desIndicador);
       }
     }
     const indexacao = tags.join("; ");
