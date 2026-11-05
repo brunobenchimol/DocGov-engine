@@ -24,6 +24,12 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - Inclusão de sonda dedicada para o conector do TST no runner de live tests (`bun scripts/run_live_tests.ts --suite=juris --court=TST`), validando tempo de resposta (< 1000ms) e teto MCP (< 900 bytes).
 
 ### Corrigido
+- **Hotfix Crítico no Conector TST (`TstProvider`) e Fatiamento Anatômico (`AnatomicalSlicer`):**
+  - **Resolução Precisa de CNJ Trabalhista (`J = 5`):** Implementação de parser robusto para CNJ pontuado (`NNNNNNN-DD.AAAA.5.TR.OOOO`) e não-pontuado (20 dígitos numéricos puros), formatando `numeracaoUnica` com strings normalizadas (`tribunal: "05"`, `vara: "0033"`) para consulta exata ao backend do TST, eliminando a falha de busca por tipos numéricos incorretos.
+  - **Eliminação de Crash por Elementos Nulos:** Saneamento defensivo com *safe navigation* em `reg.temaProcs` e `reg.indicadores`, evitando o crash fatal `TypeError: null is not an object (evaluating 't.desTemaProc')` quando a API do TST retorna arrays contendo `[ null ]`.
+  - **Roteamento Determinístico de CNJ Trabalhista:** Adição de padrões regex do CNJ trabalhista (`.5.` e 20 dígitos numéricos) em `TstProvider.idPatterns`, `detectCourtFromRef` e `parseCanonicalAcordaoRef`, impedindo o redirecionamento indevido de processos trabalhistas para o TCU.
+  - **Extração Real de HTML com Tolerância a Tipografia Forense Espaçada:** Suporte a letras espaçadas (`V O T O`, `R E L A T Ó R I O`, `A C Ó R D Ã O`, `ISTO POSTO` e `ACORDAM`), assegurando a extração integral dos votos dos ministros (> 25.000 caracteres) e do dispositivo real nos acórdãos do TST.
+  - **Mapeamento Completo de Metadados e Fallbacks:** Inclusão de `obj.ementa` na cadeia de fallbacks do `AnatomicalSlicer` e mapeamento fiel de `processo` (`numFormatado`), `colegiado` (turmas do TST), `relator` e `dataSessao`, erradicando placeholders falsos e avisos de conteúdo vazio (`(VAZIO — ZERO CONTEÚDO EXTRAÍDO)`).
 - **Filtro Anti-Ruído de Domínio Administrativo no `StfProvider`:**
   - Injeção mandatória de cláusula `must` administrativa e cláusula `must_not` para ruídos tributários `(ICMS AND ISS) OR bitributação` na query Elasticsearch da jurisprudência do STF.
   - Otimização severa de rede no `StfProvider`: exclusão do campo pesado `inteiro_teor_texto` no `_source` durante a fase de busca, reduzindo o payload de rede de ~870 KB para ~15 KB.

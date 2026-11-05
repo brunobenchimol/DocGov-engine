@@ -227,8 +227,8 @@ export function sliceAcordaoAnatomically(
   const votoRaw = cleanHtmlAndNormalize(
     obj.voto ||
       obj.VOTO ||
-      rawText.match(/(?:V\s*O\s*T\s*O|VOTO|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)[\s\S]*?(?=ISTO\s+POSTO|ACÓRDÃO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i)?.[0] ||
-      rawText.match(/VOTO[\s\S]*?(?=ACÓRDÃO|$)/i)?.[0] ||
+      rawText.match(/(?:V\s*O\s*T\s*O|VOTO|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)[\s\S]*?(?=ISTO\s+POSTO|ACORDAM|\n\s*(?:A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|ACÓRDÃO)\s*(?:Nº|\n|:)|$)/i)?.[0] ||
+      rawText.match(/VOTO[\s\S]*?(?=\n\s*(?:A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|ACÓRDÃO)|$)/i)?.[0] ||
       ""
   );
   const ratioDecidendi = votoRaw;

@@ -352,12 +352,12 @@ export class TstProvider implements JurisdictionProvider {
 
     // Extrai seções com suporte à tipografia forense brasileira (letras espaçadas)
     const relatorioMatch = cleanFullText.match(
-      /(?:R\s*E\s*L\s*A\s*T\s*Ó\s*R\s*I\s*O|Vistos,\s*relatados[\s\S]*?)([\s\S]*?)(?=V\s*O\s*T\s*O|I\s*-\s*CONHECIMENTO|FUNDAMENTAÇÃO|ISTO\s+POSTO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i
+      /(?:R\s*E\s*L\s*A\s*T\s*Ó\s*R\s*I\s*O|Vistos,\s*relatados[\s\S]*?)([\s\S]*?)(?=V\s*O\s*T\s*O|I\s*-\s*CONHECIMENTO|FUNDAMENTAÇÃO|ISTO\s+POSTO|ACORDAM|$)/i
     );
     const relatorioText = relatorioMatch ? relatorioMatch[0].trim() : undefined;
 
     const votoMatch = cleanFullText.match(
-      /(?:V\s*O\s*T\s*O|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)([\s\S]*?)(?=ISTO\s+POSTO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i
+      /(?:V\s*O\s*T\s*O|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)([\s\S]*?)(?=ISTO\s+POSTO|ACORDAM|$)/i
     );
     const votoText = votoMatch ? votoMatch[0].trim() : cleanFullText;
 
