@@ -268,6 +268,58 @@ describe("Jurisprudência v1.4.0 — AnatomicalSlicer e Trava Anti-Alucinação"
     // Topic matching
     expect(result.topicsMatched).toBeGreaterThanOrEqual(1);
   });
+
+  it("sliceAcordaoAnatomically: deve fatiar acórdão do TST com tipografia espaçada forense e extrair votos reais", () => {
+    const rawTstText = `
+A C Ó R D Ã O
+(4ª Turma)
+GMMCP/jmd
+
+EMBARGOS DE DECLARAÇÃO – RECURSO DE REVISTA – TERCEIRIZAÇÃO – SÚMULA Nº 331, IV, DO TST
+
+Vistos, relatados e discutidos estes autos de ED-Ag-RR n° TST-ED-Ag-RR-959-81.2015.5.05.0033.
+A C. 4ª Turma negou provimento ao Agravo da Reclamante.
+É o relatório.
+
+V O T O
+
+I - CONHECIMENTO
+Tempestivos e regulares, conheço dos embargos.
+
+II – MÉRITO
+Manteve a decisão monocrática que conhecera do Recurso de Revista da segunda Reclamada por má aplicação da Súmula nº 331 do TST.
+Fundamentação detalhada com mais de mil palavras sobre terceirização ilícita e fiscalização contratual pelo ente público.
+
+ISTO POSTO
+
+ACORDAM os Ministros da Quarta Turma do Tribunal Superior do Trabalho, por unanimidade, rejeitar os Embargos de Declaração.
+Brasília, 6 de agosto de 2024.
+Maria Cristina Irigoyen Peduzzi
+Ministra Relatora
+    `;
+
+    const tstPayload = {
+      court: "TST",
+      colegiado: "4ª Turma",
+      processo: "ED-Ag-RR - 959-81.2015.5.05.0033",
+      relator: "Maria Cristina Irigoyen Peduzzi",
+      ementa: "EMBARGOS DE DECLARAÇÃO – RECURSO DE REVISTA – TERCEIRIZAÇÃO – SÚMULA Nº 331, IV, DO TST",
+      rawText: rawTstText,
+    };
+
+    const res = sliceAcordaoAnatomically(tstPayload, { court: "TST" });
+    const l = res.layers;
+
+    expect(l.layer_1A_metadata.tribunal).toBe("TST");
+    expect(l.layer_1A_metadata.colegiado).toBe("4ª Turma");
+    expect(l.layer_1A_metadata.relator).toContain("Maria Cristina Irigoyen Peduzzi");
+    expect(l.layer_2B_enunciado_tese).toContain("SÚMULA Nº 331");
+    expect(l.layer_4A_ratio_decidendi).toContain("Súmula nº 331");
+    expect(l.layer_4A_ratio_decidendi).not.toBe("");
+    expect(l.layer_5A_operative_commands.length).toBeGreaterThan(0);
+    expect(l.layer_5A_operative_commands[0]).toContain("ACORDAM");
+    expect(res.dossieMarkdown).not.toContain("(VAZIO — ZERO CONTEÚDO EXTRAÍDO)");
+  });
 });
 
 describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallback", () => {

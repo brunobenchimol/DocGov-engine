@@ -183,6 +183,62 @@ export class TstProvider implements JurisdictionProvider {
     };
   }
 
+  private parseCnjLabor(ref: string): {
+    numero: string;
+    digito: string;
+    ano: string;
+    orgao: string;
+    tribunal: string;
+    vara: string;
+    standardFormatted: string;
+  } | null {
+    const clean = ref.trim().replace(/^TST[-_]/i, "");
+
+    // 1. Formato pontuado (ex.: 959-81.2015.5.05.0033 ou 0000959-81.2015.5.05.0033)
+    const punctMatch = clean.match(
+      /\b(\d{1,7})[-.](\d{2})[-.](\d{4})[-.]5[-.](\d{2})[-.](\d{4})\b/
+    );
+    if (punctMatch) {
+      const numero = parseInt(punctMatch[1], 10).toString();
+      const digito = punctMatch[2];
+      const ano = punctMatch[3];
+      const tribunal = punctMatch[4].padStart(2, "0");
+      const vara = punctMatch[5].padStart(4, "0");
+      return {
+        numero,
+        digito,
+        ano,
+        orgao: "5",
+        tribunal,
+        vara,
+        standardFormatted: `${numero}-${digito}.${ano}.5.${tribunal}.${vara}`,
+      };
+    }
+
+    // 2. Formato 20 dígitos puros (ex.: 00009598120155050033)
+    const pure20Match = clean.match(
+      /\b(\d{7})(\d{2})((?:19|20)\d{2})(5)(\d{2})(\d{4})\b/
+    );
+    if (pure20Match) {
+      const numero = parseInt(pure20Match[1], 10).toString();
+      const digito = pure20Match[2];
+      const ano = pure20Match[3];
+      const tribunal = pure20Match[5].padStart(2, "0");
+      const vara = pure20Match[6].padStart(4, "0");
+      return {
+        numero,
+        digito,
+        ano,
+        orgao: "5",
+        tribunal,
+        vara,
+        standardFormatted: `${numero}-${digito}.${ano}.5.${tribunal}.${vara}`,
+      };
+    }
+
+    return null;
+  }
+
   public async fetch(idOrRef: string): Promise<RawJurisFetchResult | null> {
     const baseUrl = this.getBaseUrl();
     const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
@@ -214,80 +270,47 @@ export class TstProvider implements JurisdictionProvider {
     if (/^[a-f0-9]{32}$/i.test(idOrRef.trim())) {
       tstUuid = idOrRef.trim();
     } else {
-      // Extrai numeração CNJ ou busca via pesquisa textual
+      const cnj = this.parseCnjLabor(idOrRef);
       const cleanRef = idOrRef.replace(/^TST-/i, "").trim();
-      const cnjMatch = cleanRef.match(
-        /(\d{1,7})[-.](\d{2})[-.](\d{4})[-.]5[-.](\d{2})[-.](\d{4})/
-      );
 
       const searchEndpoint = `${baseUrl}/rest/pesquisa-textual/1/5?a=${Math.random().toFixed(4)}`;
-      let searchBody: any;
-
-      if (cnjMatch) {
-        searchBody = {
-          ou: "",
-          e: "",
-          termoExato: "",
-          naoContem: "",
-          ementa: "",
-          dispositivo: "",
-          numeracaoUnica: {
-            numero: parseInt(cnjMatch[1], 10),
-            digito: parseInt(cnjMatch[2], 10),
-            ano: parseInt(cnjMatch[3], 10),
-            orgao: "5",
-            tribunal: parseInt(cnjMatch[4], 10),
-            vara: parseInt(cnjMatch[5], 10),
-          },
-          orgaosJudicantes: [],
-          ministros: [],
-          convocados: [],
-          classesProcessuais: [],
-          codigosClassesPrecedentes: [],
-          indicadores: [],
-          assuntos: [],
-          tipos: ["ACORDAO"],
-          orgao: "TST",
-          publicacaoInicial: null,
-          publicacaoFinal: null,
-          julgamentoInicial: null,
-          julgamentoFinal: null,
-          ordenacao: null,
-          tiposPaginacao: ["ACORDAO"],
-        };
-      } else {
-        searchBody = {
-          ou: "",
-          e: cleanRef,
-          termoExato: "",
-          naoContem: "",
-          ementa: "",
-          dispositivo: "",
-          numeracaoUnica: {
-            numero: "",
-            ano: "",
-            digito: "",
-            orgao: "5",
-            tribunal: "",
-            vara: "",
-          },
-          orgaosJudicantes: [],
-          ministros: [],
-          convocados: [],
-          classesProcessuais: [],
-          codigosClassesPrecedentes: [],
-          indicadores: [],
-          assuntos: [],
-          tipos: ["ACORDAO"],
-          orgao: "TST",
-          publicacaoInicial: null,
-          publicacaoFinal: null,
-          julgamentoInicial: null,
-          julgamentoFinal: null,
-          ordenacao: null,
-          tiposPaginacao: ["ACORDAO"],
-        };
-      }
+      const searchBody = cnj
+        ? {
+            ou: "",
+            e: "",
+            termoExato: "",
+            naoContem: "",
+            ementa: "",
+            dispositivo: "",
+            numeracaoUnica: {
+              numero: cnj.numero,
+              digito: cnj.digito,
+              ano: cnj.ano,
+              orgao: "5",
+              tribunal: cnj.tribunal,
+              vara: cnj.vara,
+            },
+            tipos: ["ACORDAO"],
+            orgao: "TST",
+          }
+        : {
+            ou: "",
+            e: cleanRef,
+            termoExato: "",
+            naoContem: "",
+            ementa: "",
+            dispositivo: "",
+            numeracaoUnica: {
+              numero: "",
+              ano: "",
+              digito: "",
+              orgao: "5",
+              tribunal: "",
+              vara: "",
+            },
+            tipos: ["ACORDAO"],
+            orgao: "TST",
+          };
 
       const searchRes = await executeJurisHttpRequest(searchEndpoint, {
         method: "POST",
@@ -296,7 +319,7 @@ export class TstProvider implements JurisdictionProvider {
           Accept: "application/json",
         },
         body: JSON.stringify(searchBody),
-        timeoutMs: 8000,
+        timeoutMs: 10000,
       });
 
       const firstRec = searchRes.data?.registros?.[0]?.registro;
@@ -317,19 +340,73 @@ export class TstProvider implements JurisdictionProvider {
       headers: {
         Accept: "text/html,application/xhtml+xml,text/plain,*/*",
       },
-      timeoutMs: 8000,
+      timeoutMs: 12000,
     });
 
-    const htmlBody = docRes.body || (typeof docRes.data === "string" ? docRes.data : "");
+    const htmlBody =
+      docRes.body || (typeof docRes.data === "string" ? docRes.data : "");
+    if (!htmlBody || htmlBody.length < 50) {
+      return null;
+    }
     const cleanFullText = cleanHtmlAndNormalize(htmlBody);
+
+    // Extrai seções com suporte à tipografia forense brasileira (letras espaçadas)
+    const relatorioMatch = cleanFullText.match(
+      /(?:R\s*E\s*L\s*A\s*T\s*Ó\s*R\s*I\s*O|Vistos,\s*relatados[\s\S]*?)([\s\S]*?)(?=V\s*O\s*T\s*O|I\s*-\s*CONHECIMENTO|FUNDAMENTAÇÃO|ISTO\s+POSTO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i
+    );
+    const relatorioText = relatorioMatch ? relatorioMatch[0].trim() : undefined;
+
+    const votoMatch = cleanFullText.match(
+      /(?:V\s*O\s*T\s*O|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)([\s\S]*?)(?=ISTO\s+POSTO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i
+    );
+    const votoText = votoMatch ? votoMatch[0].trim() : cleanFullText;
+
+    const dispositivoMatch = cleanFullText.match(
+      /(?:ISTO\s+POSTO[\s\S]*?)?(?:ACORDAM[\s\S]*?)(?=(?:Bras[íi]lia|Firmado\s+por|\n\s*Ministr[oa]|$))/i
+    );
+    const dispositivoText = dispositivoMatch
+      ? dispositivoMatch[0].trim()
+      : initialRecord?.dispositivo || undefined;
+
+    // Metadados reais
+    const numFmt = initialRecord?.numFormatado
+      ? String(initialRecord.numFormatado).replace(/\s+/g, " ")
+      : idOrRef;
+    const canonicalNum = numFmt.replace(/\s+/g, "");
+    const relator =
+      initialRecord?.nomRelatorSemTratamento ||
+      initialRecord?.nomRelator ||
+      "Ministro Relator";
+    const colegiado = initialRecord?.orgaoJudicante?.descricao || "Turma";
+    const dataSessao =
+      initialRecord?.dtaJulgamento || initialRecord?.dtaPublicacao;
+    const ano = dataSessao
+      ? parseInt(String(dataSessao).slice(0, 4), 10)
+      : initialRecord?.anoProc || new Date().getFullYear();
+    const ementaText =
+      initialRecord?.ementa ||
+      initialRecord?.txtEmentaHighlight ||
+      cleanFullText.slice(0, 1500);
 
     const mergedPayload = {
       ...(initialRecord || {}),
-      tstUuid,
+      id: `TST-${canonicalNum}`,
+      numero: initialRecord?.numero ? String(initialRecord.numero) : canonicalNum,
+      processo: numFmt,
+      colegiado,
+      relator,
+      dataSessao,
+      ano,
+      ementa: ementaText,
+      tese: ementaText,
+      relatorio: relatorioText,
+      voto: votoText,
+      acordao: dispositivoText,
+      dispositivo: dispositivoText,
       inteiroTeorHtml: htmlBody,
       inteiroTeorTexto: cleanFullText,
-      ementa: initialRecord?.ementa || cleanFullText.slice(0, 1500),
-      dispositivo: initialRecord?.dispositivo || "",
+      rawText: cleanFullText,
+      rawPayload: { ...(initialRecord || {}), tstUuid },
     };
 
     return {

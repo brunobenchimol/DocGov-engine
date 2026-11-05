@@ -99,8 +99,17 @@ export function sliceAcordaoAnatomically(
   } = {}
 ): SlicedDossierResult {
   const court = options.court || rawInput.tribunal || rawInput.court || "TCU";
-  const rawText = typeof rawInput === "string" ? rawInput : "";
   const obj = typeof rawInput === "object" && rawInput !== null ? rawInput : {};
+  const rawText =
+    typeof rawInput === "string"
+      ? rawInput
+      : typeof obj.rawText === "string"
+      ? obj.rawText
+      : typeof obj.inteiroTeorTexto === "string"
+      ? obj.inteiroTeorTexto
+      : typeof obj.texto === "string"
+      ? obj.texto
+      : "";
 
   // 1A. Metadados & Jurisdição
   const numeroMatch = rawText.match(/ACÓRDÃO\s+(?:Nº\s*)?(\d+)\/(\d{4})/i);
@@ -118,6 +127,7 @@ export function sliceAcordaoAnatomically(
     obj.colegiado ||
     obj.COLEGIADO ||
     rawText.match(/TCU\s*-\s*(Plenário|1ª Câmara|2ª Câmara)/i)?.[1] ||
+    rawText.match(/\b(\d+[ªa]\s*Turma|Tribunal\s+Pleno|Seção\s+Especializada)\b/i)?.[1] ||
     "Plenário";
   const procClean = obj.PROC ? cleanHtmlAndNormalize(String(obj.PROC)) : undefined;
   const processo =
@@ -130,6 +140,7 @@ export function sliceAcordaoAnatomically(
     obj.RELATOR ||
     obj.AUTORTESE ||
     rawText.match(/Relator\s*[:\s]*([^\n\r]+)/i)?.[1] ||
+    rawText.match(/(?:Ministr[oa]|Relator[a]?)\s*[:\s]*([A-ZÁÉÍÓÚÂÊÔÃÕÇ\s]{4,40})/i)?.[1] ||
     "Ministro Relator";
   const dataSessao =
     obj.dataSessao ||
@@ -182,6 +193,8 @@ export function sliceAcordaoAnatomically(
       obj.sumario ||
       obj.SUMARIO ||
       obj.tese ||
+      obj.ementa ||
+      obj.EMENTA ||
       obj.ASSUNTO ||
       rawText.match(/SUMÁRIO\s*[:\s]*([\s\S]*?)(?:RELATÓRIO|VOTO|ACÓRDÃO)/i)?.[1] ||
       "Tese jurídica fixada nos autos."
@@ -192,6 +205,7 @@ export function sliceAcordaoAnatomically(
     obj.relatorio ||
       obj.RELATORIO ||
       obj.EXCERTO ||
+      rawText.match(/(?:R\s*E\s*L\s*A\s*T\s*Ó\s*R\s*I\s*O|RELATÓRIO|Vistos,\s*relatados[\s\S]*?)([\s\S]*?)(?=V\s*O\s*T\s*O|VOTO|ACÓRDÃO|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i)?.[0] ||
       rawText.match(/RELATÓRIO[\s\S]*?(?=VOTO|ACÓRDÃO|$)/i)?.[0] ||
       ""
   );
@@ -213,6 +227,7 @@ export function sliceAcordaoAnatomically(
   const votoRaw = cleanHtmlAndNormalize(
     obj.voto ||
       obj.VOTO ||
+      rawText.match(/(?:V\s*O\s*T\s*O|VOTO|FUNDAMENTAÇÃO|I\s*-\s*CONHECIMENTO)[\s\S]*?(?=ISTO\s+POSTO|ACÓRDÃO|ACORDAM|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O|$)/i)?.[0] ||
       rawText.match(/VOTO[\s\S]*?(?=ACÓRDÃO|$)/i)?.[0] ||
       ""
   );
@@ -222,6 +237,7 @@ export function sliceAcordaoAnatomically(
   const acordaoRaw = cleanHtmlAndNormalize(
     obj.acordao ||
       obj.ACORDAO ||
+      rawText.match(/(?:ISTO\s+POSTO[\s\S]*?)?(?:ACORDAM[\s\S]*?|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O[\s\S]*?|ACÓRDÃO[\s\S]*)$/i)?.[0] ||
       rawText.match(/ACÓRDÃO[\s\S]*$/i)?.[0] ||
       ""
   );
@@ -231,6 +247,9 @@ export function sliceAcordaoAnatomically(
     for (const m of itemMatches) {
       operativeCommands.push(m.trim());
     }
+  } else if (/ACORDAM/i.test(acordaoRaw)) {
+    const acordamMatch = acordaoRaw.match(/ACORDAM[\s\S]*?(?=(?:Bras[íi]lia|Firmado|\n\s*Ministr[oa]|$))/i);
+    operativeCommands.push(acordamMatch ? acordamMatch[0].trim() : acordaoRaw.slice(0, 800));
   } else {
     operativeCommands.push(acordaoRaw.slice(0, 800));
   }
