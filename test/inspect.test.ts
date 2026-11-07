@@ -38,21 +38,8 @@ describe("Testes Unitários: inspect_docx (Mapeamento Estrutural, TOC, Visão Li
         {
           index: 0,
           rows: [
-            {
-              rowIndex: 0,
-              cells: [
-                { cellIndex: 0, text: "" },
-                { cellIndex: 1, text: "   " },
-              ],
-            },
-            {
-              rowIndex: 1,
-              cells: [
-                { cellIndex: 0, text: "Unidade Requisitante" },
-                { cellIndex: 1, text: "" },
-                { cellIndex: 2, text: "Diretoria de TI" },
-              ],
-            },
+            { rowIndex: 0, cells: [{ cellIndex: 0, text: "" }, { cellIndex: 1, text: "   " }] },
+            { rowIndex: 1, cells: [{ cellIndex: 0, text: "Unidade Requisitante" }, { cellIndex: 1, text: "" }, { cellIndex: 2, text: "Diretoria de TI" }] },
           ],
         },
       ],
