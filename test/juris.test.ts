@@ -814,6 +814,49 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
     expect(() => assertAuthenticAcordao(false, "AGU-ON-999999", "AGU")).toThrow(
       /\[ANTI_HALLUCINATION_BLOCK\]/
     );
+
+    // 7. Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas
+    const sliced50 = sliceAcordaoAnatomically(fetched50!.rawTextOrJson, { court: "AGU" });
+    expect(sliced50.layers.layer_1A_metadata.tribunal).toBe("AGU");
+    expect(sliced50.layers.layer_1A_metadata.colegiado).toBe("Advogado-Geral da União");
+    expect(sliced50.layers.layer_1B_entity_regime.entidade).toBe("ADMINISTRAÇÃO_PÚBLICA_FEDERAL");
+    expect(sliced50.layers.layer_5A_operative_commands.length).toBeGreaterThan(0);
+    expect(sliced50.layers.layer_6A_closing_quorum.quorum).toContain("Vinculante");
+
+    // 8. Relevance Scorer determinístico e precedência da Camada 5A
+    const scored50 = scoreJurisItem(
+      {
+        court: "AGU",
+        colegiado: "Advogado-Geral da União",
+        ano: 2024,
+        indexacao: ["SERVIÇOS CONTÍNUOS", "PRORROGAÇÃO"],
+        tese: fetched50!.rawTextOrJson.enunciado,
+        dispositivo: fetched50!.rawTextOrJson.dispositivo,
+      },
+      "prorrogação serviços contínuos vigência",
+      { stance: "DEFENSE" }
+    );
+    expect(scored50.breakdown.quorum).toBe(10);
+    expect(scored50.outcome).toBe("IMPROCEDENTE / MANUTENCAO_CERTAME");
+    expect(scored50.stance_alignment).toBe("FAVORABLE");
+
+    // 9. Desfecho adverso / distinguishing em stance DEFENSE
+    const fetched84 = await agu.fetch("ON-AGU-084-2024");
+    expect(fetched84).not.toBeNull();
+    const scored84 = scoreJurisItem(
+      {
+        court: "AGU",
+        colegiado: "Advogado-Geral da União",
+        ano: 2024,
+        indexacao: ["PAGAMENTO ANTECIPADO", "VEDAÇÃO"],
+        tese: fetched84!.rawTextOrJson.enunciado,
+        dispositivo: fetched84!.rawTextOrJson.dispositivo,
+      },
+      "pagamento antecipado edital",
+      { stance: "DEFENSE" }
+    );
+    expect(scored84.outcome).toBe("PROCEDENTE / DETERMINACAO");
+    expect(scored84.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
   });
 });
 

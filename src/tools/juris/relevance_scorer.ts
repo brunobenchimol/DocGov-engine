@@ -58,10 +58,10 @@ export function classifyDecisionOutcome(dispositivo?: string, tese?: string): st
     if (/\b((?:indeferir|negar|revogar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+indeferida|revogar\s+a\s+medida\s+cautelar)\b/i.test(dispClean)) {
       return "CAUTELAR_INDEFERIDA";
     }
-    if (/\b(anular|anula[çc][aã]o|determinar\s+a\s+anula[çc][aã]o|procedente|parcialmente\s+procedente|manter\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria)\b/i.test(dispClean)) {
+    if (/\b(anular|anula[çc][aã]o|determinar|determina(?:-se)?|determina[çc][ãa]o|absten[çc][ãa]o|abster[- ]se|procedente|parcialmente\s+procedente|manter\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria|é\s+vedad[oa]|vedada?|vedação|não\s+se\s+aplica|nulidade|nulo)\b/i.test(dispClean)) {
       return "PROCEDENTE / DETERMINACAO";
     }
-    if (/\b(improcedente|n[aã]o\s+procedente|arquivamento|regularidade|é\s+l[íi]cit[oa]|excluir\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria|afastar\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria)\b/i.test(dispClean)) {
+    if (/\b(improcedente|n[aã]o\s+procedente|arquivamento|regularidade|é\s+l[íi]cit[oa]|é\s+permitid[oa]|prescinde|não\s+está\s+adstrit[oa]|dispensa[- ]se|dispensada?|autorizada?|excluir\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria|afastar\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria)\b/i.test(dispClean)) {
       return "IMPROCEDENTE / MANUTENCAO_CERTAME";
     }
     if (/\b(dar\s+ci[êe]ncia|recomenda[çc][aã]o)\b/i.test(dispClean)) {
@@ -77,10 +77,10 @@ export function classifyDecisionOutcome(dispositivo?: string, tese?: string): st
   if (/\b((?:indeferir|negar|revogar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+indeferida|revogar\s+a\s+medida\s+cautelar)\b/i.test(combined)) {
     return "CAUTELAR_INDEFERIDA";
   }
-  if (/\b(anular|anula[çc][aã]o|determinar\s+a\s+anula[çc][aã]o|procedente|parcialmente\s+procedente)\b/i.test(combined)) {
+  if (/\b(anular|anula[çc][aã]o|determinar|determina(?:-se)?|determina[çc][ãa]o|absten[çc][ãa]o|abster[- ]se|procedente|parcialmente\s+procedente|é\s+vedad[oa]|vedada?|vedação|não\s+se\s+aplica|nulidade|nulo)\b/i.test(combined)) {
     return "PROCEDENTE / DETERMINACAO";
   }
-  if (/\b(improcedente|n[aã]o\s+procedente|arquivamento|regularidade|é\s+l[íi]cit[oa])\b/i.test(combined)) {
+  if (/\b(improcedente|n[aã]o\s+procedente|arquivamento|regularidade|é\s+l[íi]cit[oa]|é\s+permitid[oa]|prescinde|não\s+está\s+adstrit[oa]|dispensa[- ]se|dispensada?|autorizada?)\b/i.test(combined)) {
     return "IMPROCEDENTE / MANUTENCAO_CERTAME";
   }
   if (/\b(dar\s+ci[êe]ncia|recomenda[çc][aã]o)\b/i.test(combined)) {
@@ -241,7 +241,13 @@ export function scoreJurisItem(
   // 4. Peso do Colegiado e Quórum (0..10 pts)
   let quorumScore = 5;
   const colegiado = (item.colegiado || "").toLowerCase();
-  if (colegiado.includes("plenário") || colegiado.includes("corte especial")) {
+  if (
+    colegiado.includes("plenário") ||
+    colegiado.includes("corte especial") ||
+    colegiado.includes("advogado-geral") ||
+    colegiado.includes("vinculante") ||
+    (item.court && item.court.toUpperCase() === "AGU")
+  ) {
     quorumScore = 10;
   } else if (colegiado.includes("câmara") || colegiado.includes("turma")) {
     quorumScore = 7;

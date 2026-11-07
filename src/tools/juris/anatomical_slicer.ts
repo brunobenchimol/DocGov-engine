@@ -127,8 +127,9 @@ export function sliceAcordaoAnatomically(
     obj.colegiado ||
     obj.COLEGIADO ||
     rawText.match(/TCU\s*-\s*(Plenário|1ª Câmara|2ª Câmara)/i)?.[1] ||
+    rawText.match(/\b(Advogado-Geral da União|CNLCA|CGU|CONUNI)\b/i)?.[1] ||
     rawText.match(/\b(\d+[ªa]\s*Turma|Tribunal\s+Pleno|Seção\s+Especializada)\b/i)?.[1] ||
-    "Plenário";
+    (court === "AGU" ? "Advogado-Geral da União" : "Plenário");
   const procClean = obj.PROC ? cleanHtmlAndNormalize(String(obj.PROC)) : undefined;
   const processo =
     obj.processo ||
@@ -158,7 +159,7 @@ export function sliceAcordaoAnatomically(
     obj.entidade ||
     rawEntidade ||
     rawText.match(/Unidade\s+Jurisdicionada\s*[:\s]*([^\n\r]+)/i)?.[1] ||
-    "ÓRGÃO_CONTRATANTE";
+    (court === "AGU" ? "ADMINISTRAÇÃO_PÚBLICA_FEDERAL" : "ÓRGÃO_CONTRATANTE");
   const fullContent = `${rawText} ${obj.relatorio || obj.RELATORIO || ""} ${
     obj.voto || obj.VOTO || ""
   } ${obj.sumario || obj.SUMARIO || ""} ${
@@ -234,9 +235,11 @@ export function sliceAcordaoAnatomically(
   const ratioDecidendi = votoRaw;
 
   // 5A. Dispositivo / Moduladores
+  const rawDispositivo = obj.dispositivo || obj.DISPOSITIVO || obj.conclusao || obj.CONCLUSAO || "";
   const acordaoRaw = cleanHtmlAndNormalize(
     obj.acordao ||
       obj.ACORDAO ||
+      rawDispositivo ||
       rawText.match(/(?:ISTO\s+POSTO[\s\S]*?)?(?:ACORDAM[\s\S]*?|A\s*C\s*Ó\s*R\s*D\s*Ã\s*O[\s\S]*?|ACÓRDÃO[\s\S]*)$/i)?.[0] ||
       rawText.match(/ACÓRDÃO[\s\S]*$/i)?.[0] ||
       ""
@@ -250,17 +253,30 @@ export function sliceAcordaoAnatomically(
   } else if (/ACORDAM/i.test(acordaoRaw)) {
     const acordamMatch = acordaoRaw.match(/ACORDAM[\s\S]*?(?=(?:Bras[íi]lia|Firmado|\n\s*Ministr[oa]|$))/i);
     operativeCommands.push(acordamMatch ? acordamMatch[0].trim() : acordaoRaw.slice(0, 800));
-  } else {
+  } else if (rawDispositivo) {
+    operativeCommands.push(cleanHtmlAndNormalize(rawDispositivo));
+  } else if (acordaoRaw.length > 0) {
     operativeCommands.push(acordaoRaw.slice(0, 800));
+  } else {
+    operativeCommands.push(enunciadoTese.slice(0, 800));
   }
   const outcomeSummary = classifyDecisionOutcome(acordaoRaw, enunciadoTese);
 
   // 6A. Quórum de Fecho
+  const isAgu = court === "AGU" || /AGU/i.test(court);
   const isUnanime = /\b(unânime|unanimidade)\b/i.test(acordaoRaw);
-  const quorum = obj.QUORUM ? cleanHtmlAndNormalize(obj.QUORUM) : (isUnanime ? "Unânime" : "Por Maioria");
+  const quorum = isAgu
+    ? "Vinculante para a Administração Pública Federal (Art. 40 da LC 73/1993)"
+    : obj.QUORUM
+    ? cleanHtmlAndNormalize(obj.QUORUM)
+    : (isUnanime ? "Unânime" : "Por Maioria");
   const closingQuorum = {
     quorum,
-    votos: isUnanime ? "Votação unânime dos membros do colegiado" : "Decisão por maioria",
+    votos: isAgu
+      ? "Eficácia vinculante para os órgãos jurídicos e entidades federais"
+      : isUnanime
+      ? "Votação unânime dos membros do colegiado"
+      : "Decisão por maioria",
     data: dataSessao || String(ano),
   };
 
