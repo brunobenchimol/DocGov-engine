@@ -236,8 +236,25 @@
   - Conector estadual dedicado para o Tribunal de Contas do Estado de São Paulo (`TCE-SP`, `uf: "SP"`), cobrindo o Repertório Oficial de Súmulas (Súmulas nº 1 a 52 com foco em licitações e contratos: Súmulas 14, 15, 20, 21, 22, 24, 25, 27, 30, 33, 44, 50, 51), busca live no portal oficial (`tce.sp.gov.br/jurisprudencia/pesquisar`) e Catálogo Curado Determinístico (`tce_sp_catalog.ts`).
   - Ativação contextual rigorosa por palavras-chave (`autoTriggerKeywords`) com higiene estrita anti-falso-positivo, suporte a modo mock via `DOCGOV_JURIS_TCESP_URL` para o Sub-Assert 29.9 do `JurisMockServer.cs` no `.NET`, fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas e trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
 
-- [ ] **7.10. Patches `v1.4.5` a `v1.4.12` — Expansão Progressiva das Ondas Estaduais (1 Conector por Patch Release):**
-  - Implementação incremental dos Tribunais de Contas Estaduais e Municipais remanescentes no padrão plug-and-play da `v1.4.1`, com 1 release por estado (`v1.4.5`: `TCE-RJ`, `v1.4.6`: `TCE-MG`, `v1.4.7`: `TCE-PR`, `v1.4.8`: `TCE-RS`, `v1.4.9`: `TCE-SC`, `v1.4.10`: `TCE-BA`, `v1.4.11`: `TCE-PE`, `v1.4.12`: `TCM-SP` / `TCM-RJ`).
+- [ ] **7.10. Esteira Incremental de Conectores Jurisdicionais (`v1.4.5` a `v1.4.18+` — Sincronia 1:1 com o `DocGov`):**
+  - **Política:** 1 Conector / Tribunal = 1 Patch Release em Lockstep Estrito com o `DocGov`.
+  - **Onda 2 — Grandes Cortes Estaduais (`v1.4.5` a `v1.4.12`):**
+    - [ ] `v1.4.5`: **`TCE-MG`** (`tce_mg_provider.ts` — `UF: "MG"`, Súmulas e Consultas Normativas do TCE-MG)
+    - [ ] `v1.4.6`: **`TCE-PR`** (`tce_pr_provider.ts` — `UF: "PR"`, Súmulas, Acórdãos e Prejulgados do TCE-PR)
+    - [ ] `v1.4.7`: **`TCE-RJ`** (`tce_rj_provider.ts` — `UF: "RJ"`, Súmulas e Deliberações do TCE-RJ)
+    - [ ] `v1.4.8`: **`TCE-RS`** (`tce_rs_provider.ts` — `UF: "RS"`, Súmulas e Jurisprudência do TCE-RS)
+    - [ ] `v1.4.9`: **`TCE-PE`** (`tce_pe_provider.ts` — `UF: "PE"`, Súmulas e Deliberações do TCE-PE)
+    - [ ] `v1.4.10`: **`TCE-BA`** (`tce_ba_provider.ts` — `UF: "BA"`, Súmulas e Resoluções do TCE-BA)
+    - [ ] `v1.4.11`: **`TCE-SC`** (`tce_sc_provider.ts` — `UF: "SC"`, Prejulgados e Súmulas do TCE-SC)
+    - [ ] `v1.4.12`: **`TCE-AM`** (`tce_am_provider.ts` — `UF: "AM"`, Súmulas e Acórdãos do TCE-AM)
+  - **Onda 3 — Tribunais de Contas Municipais e dos Municípios — Os 5 TCMs do Brasil (`v1.4.13` a `v1.4.17`):**
+    - [ ] `v1.4.13`: **`TCM-SP`** (`tcm_sp_provider.ts` — `UF: "SP"`, Tribunal de Contas do Município de São Paulo — Capital SP)
+    - [ ] `v1.4.14`: **`TCM-RIO`** (`tcm_rj_provider.ts` — `UF: "RJ"`, Tribunal de Contas do Município do Rio de Janeiro — Capital RJ)
+    - [ ] `v1.4.15`: **`TCM-BA`** (`tcm_ba_provider.ts` — `UF: "BA"`, Tribunal de Contas dos Municípios do Estado da Bahia)
+    - [ ] `v1.4.16`: **`TCM-GO`** (`tcm_go_provider.ts` — `UF: "GO"`, Tribunal de Contas dos Municípios do Estado de Goiás)
+    - [ ] `v1.4.17`: **`TCM-PA`** (`tcm_pa_provider.ts` — `UF: "PA"`, Tribunal de Contas dos Municípios do Estado do Pará)
+  - **Onda 4 — Demais Cortes Estaduais sob demanda (`v1.4.18+`):**
+    - [ ] `v1.4.18+`: `GO, ES, MT, MS, MA, RN, PB, AL, SE, PI, RO, AC, AP, RR, TO` (com *Graceful Fallback* contínuo).
 
 ---
 

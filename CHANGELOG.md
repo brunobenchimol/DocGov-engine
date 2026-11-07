@@ -8,6 +8,23 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Modificado
+- **Hardening Estrutural de Governança de Testes e Extensão da Lei 9:**
+  - Decomposição modular de 6 monólitos históricos de teste que ultrapassavam o teto físico:
+    - `test/juris.test.ts` (900+ linhas) decomposto no subdiretório `test/juris/` (`anatomical_slicer.test.ts`, `core_and_scorer.test.ts`, `federal_courts.test.ts`, `routing_and_tools.test.ts`, `state_courts.test.ts`);
+    - `test/engine.test.ts` decomposto em `test/engine_mcp_ceiling.test.ts`, `test/engine_resilience.test.ts`, `test/engine_pdf_cartography.test.ts` e `test/engine_pdf_spatial.test.ts`;
+    - `test/fill_template.test.ts` decomposto em `test/fill_template_injection.test.ts` e `test/fill_template_multilevel.test.ts`;
+    - `test/build_template.test.ts` decomposto em `test/build_template_contracts.test.ts` e `test/build_template_tables.test.ts`;
+    - `test/pncp.test.ts` decomposto em `test/pncp_fetch.test.ts` e `test/pncp_search.test.ts`;
+    - `test/multilevel_section_numbering.test.ts` decomposto em `test/numbering_reanchoring.test.ts` e `test/numbering_anomaly_scanners.test.ts`;
+    - `test/inspect.test.ts` e `test/registry.test.ts` enquadrados com extração de `test/registry_matching.test.ts`.
+  - **Extensão da Lei 9 (Teto Estrito $\le 500$ Linhas) no `scripts/check_lines.ts`:**
+    - Atualização do verificador de conformidade para auditar 100% dos arquivos `.ts` em `test/`, `tests_live/`, `scripts/` e `src/tools/juris/` (83 arquivos auditados, 0 violações).
+  - **Atualização do `ENGINEERING.md` e `AGENTS.md`:**
+    - Registro formal da governança modular de testes na Lei 9 e no Definition of Done (DoD).
+  - **Expansão do `ROADMAP.md` (Marco 7.10):**
+    - Sincronização da tabela da esteira `v1.4.5` a `v1.4.18+` em Lockstep Estrito com o `DocGov`, incluindo Onda 2 (Grandes Cortes Estaduais: `TCE-MG`, `TCE-PR`, `TCE-RJ`, `TCE-RS`, `TCE-PE`, `TCE-BA`, `TCE-SC`, `TCE-AM`) e Onda 3 (os 5 TCMs: `TCM-SP`, `TCM-RIO`, `TCM-BA`, `TCM-GO`, `TCM-PA`).
+
 ## [1.4.4] - 2026-11-07
 
 ### Adicionado
