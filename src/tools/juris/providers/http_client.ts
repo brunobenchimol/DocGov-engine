@@ -282,6 +282,8 @@ export function parseCanonicalAcordaoRef(
     const tceMatch = upper.match(/\bTCE[-_]?([A-Z]{2})\b/);
     if (tceMatch) {
       court = `TCE-${tceMatch[1]}`;
+    } else if (/\bTCESP\b/.test(upper) || /\b(?:SUMULA|SUM)[-_]?TCESP\b/.test(upper)) {
+      court = "TCE-SP";
     } else if (/\bTCDF\b/.test(upper)) {
       court = "TCDF";
     } else if (/\bSTJ\b/.test(upper)) {

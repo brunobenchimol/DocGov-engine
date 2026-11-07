@@ -328,7 +328,7 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     expect(routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
     expect(routingInfo.unimplemented_uf_requested).toBeNull();
     expect(routingInfo.fallback_notice).toBeNull();
-    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF"]);
+    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP"]);
     expect(selectedProviders.map((p) => p.courtId)).toEqual(["TCU", "STJ", "STF"]);
   });
 
@@ -350,7 +350,7 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     expect(resAm.routingInfo.unimplemented_uf_requested).toBe("AM");
     expect(resAm.routingInfo.fallback_notice).toContain("Conector estadual para UF 'AM' ainda não implementado");
     expect(resAm.routingInfo.fallback_notice).toContain("Graceful Fallback");
-    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF"]);
+    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP"]);
   });
 
   it("deve respeitar courts explícitos informados pelo usuário", () => {
