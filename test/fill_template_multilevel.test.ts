@@ -17,9 +17,6 @@ import {
 describe("Testes Unitários: fill_docx_template (Auto-Inspeção, Listas Multinível Híbridas e Conversão Markdown)", () => {
   const { tempDir, cleanup } = createSuiteTempDir("fill_template_multilevel");
 
-  beforeAll(async () => {
-  });
-
   afterAll(() => {
     cleanup();
   });
