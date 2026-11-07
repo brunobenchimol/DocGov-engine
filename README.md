@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.2)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.3)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -150,7 +150,7 @@ A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do doc
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.2`):** Inclusão mandatória do campo `"engine_version": "1.4.2"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.3`):** Inclusão mandatória do campo `"engine_version": "1.4.3"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
