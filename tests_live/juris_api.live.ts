@@ -117,7 +117,15 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
       // Sonda 2 (Isolada): fetchJuris online + Fatiamento Anatômico
       // ------------------------------------------------------------------------
       const startS2 = Date.now();
-      const targetId = firstHitId || (prov.courtId === "TCU" ? "ACORDAO-COMPLETO-255-2023-Plenario" : `Acórdão 100/2023-${prov.courtId}`);
+      const targetId =
+        firstHitId ||
+        (prov.courtId === "TCU"
+          ? "ACORDAO-COMPLETO-255-2023-Plenario"
+          : prov.courtId === "AGU"
+          ? "PARECER-CNLCA-001-2021"
+          : prov.courtId === "TCE-SP"
+          ? "SUMULA-TCESP-50"
+          : `Acórdão 100/2023-${prov.courtId}`);
       try {
         const fetchRes = await fetchJuris({
           caseDir: liveCaseDir,
