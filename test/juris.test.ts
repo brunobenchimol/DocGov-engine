@@ -748,6 +748,73 @@ describe("Jurisprudência v1.4.0 — Compilador Tático OpenXML (Assert 29.6)", 
     expect(mapped.indexacao).toContain("Ente Público");
     expect(mapped.indexacao).toContain("Lei 13.467/2017");
   });
+
+  it("Jurisprudência v1.4.3 — AguProvider: deve integrar conector AGU, catálogo curado, auto-trigger e trava anti-alucinação", async () => {
+    const agu = defaultJurisdictionRegistry.get("AGU")!;
+    expect(agu).toBeDefined();
+    expect(agu.courtId).toBe("AGU");
+    expect(agu.tier).toBe("FEDERAL");
+    expect(agu.defaultFederal).toBe(false);
+
+    // 1. Auto-trigger contextual por palavras-chave de normas e pareceres
+    const routeNormativa = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "impugnação baseada em orientação normativa da AGU sobre prorrogação"
+    );
+    expect(routeNormativa.routingInfo.executed_courts).toContain("AGU");
+
+    const routeParecer = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "parecer referencial da cnlca dispensa de licitação"
+    );
+    expect(routeParecer.routingInfo.executed_courts).toContain("AGU");
+
+    const routeSumula = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "aplicação da súmula da AGU aos contratos federais"
+    );
+    expect(routeSumula.routingInfo.executed_courts).toContain("AGU");
+
+    // 2. Roteamento explícito
+    const routeExplicit = defaultJurisdictionRegistry.resolveRouting(["AGU"]);
+    expect(routeExplicit.routingInfo.executed_courts).toEqual(["AGU"]);
+
+    // 3. Reconhecimento de padrões de ID (idPatterns)
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("ON-AGU-050-2014")).toBe("AGU");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-ON-0046-2014")).toBe("AGU");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("SUMULA-AGU-072")).toBe("AGU");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-SUMULA-34")).toBe("AGU");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("PARECER-CNLCA-001-2024")).toBe("AGU");
+
+    // 4. Busca no catálogo curado oficial
+    const searchResults = await agu.search("prorrogação serviços contínuos vigência");
+    expect(searchResults.length).toBeGreaterThan(0);
+    const item50 = searchResults.find((r) => r.id.includes("050") || r.id.includes("50"));
+    expect(item50).toBeDefined();
+    expect(item50?.court).toBe("AGU");
+    expect(item50?.tese).toContain("serviço contínuo");
+
+    // 5. Fetch determinístico no catálogo curado (suportando lookup canônico e aliases)
+    const fetched50 = await agu.fetch("ON-AGU-050-2014");
+    expect(fetched50).not.toBeNull();
+    expect(fetched50?.exists).toBe(true);
+    expect(fetched50?.rawTextOrJson.numero).toBe("50");
+
+    const fetched46 = await agu.fetch("AGU-ON-0046-2014");
+    expect(fetched46).not.toBeNull();
+    expect(fetched46?.exists).toBe(true);
+    expect(fetched46?.rawTextOrJson.numero).toBe("46");
+
+    // 6. Trava anti-alucinação estrita
+    const invalidId = await agu.fetch("AGU-ON-999999");
+    expect(invalidId).toBeNull();
+    expect(() => assertAuthenticAcordao(false, "AGU-ON-999999", "AGU")).toThrow(
+      /\[ANTI_HALLUCINATION_BLOCK\]/
+    );
+  });
 });
 
 

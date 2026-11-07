@@ -14,6 +14,7 @@ import { TcePaProvider } from "./providers/tce_pa_provider.ts";
 import { TceCeProvider } from "./providers/tce_ce_provider.ts";
 import { TcdfProvider } from "./providers/tcdf_provider.ts";
 import { TstProvider } from "./providers/tst_provider.ts";
+import { AguProvider } from "./providers/agu_provider.ts";
 
 export class JurisdictionProviderRegistry {
   private providers = new Map<string, JurisdictionProvider>();
@@ -23,6 +24,7 @@ export class JurisdictionProviderRegistry {
     this.register(new StjProvider());
     this.register(new StfProvider());
     this.register(new TstProvider());
+    this.register(new AguProvider());
     this.register(new TcePaProvider());
     this.register(new TceCeProvider());
     this.register(new TcdfProvider());
