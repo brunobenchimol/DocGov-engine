@@ -8,6 +8,27 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.4] - 2026-11-07
+
+### Adicionado
+- **Conector Estadual TCE-SP (`src/tools/juris/providers/tce_sp_provider.ts`) e Catálogo Curado (`tce_sp_catalog.ts`) (Marco 7.9):**
+  - Conector nativo dedicado ao **Tribunal de Contas do Estado de São Paulo (`TCE-SP` / UF: "SP")**, cobrindo o Repertório Oficial de Súmulas do TCE-SP (Súmulas nº 1 a 52) e busca live de acórdãos, decisões, deliberações plenárias e boletins de jurisprudência no portal oficial (`https://www.tce.sp.gov.br/jurisprudencia/pesquisar`).
+  - **Estratégia de Resiliência Dupla:**
+    - *Live Primary:* Consulta e parsing estruturado de HTML em `https://www.tce.sp.gov.br/jurisprudencia/pesquisar?acao=Executa` com mapeamento direto de trechos localizados, processos e acórdãos em formato leve (< 7000ms);
+    - *Catálogo Curado Determinístico (`tce_sp_catalog.ts`):* Base canônica imutável com as Súmulas de alto valor para compras públicas, TIC e finanças (Súmula 14 — disponibilidade vs propriedade prévia; Súmula 15 — vedação a carta de fabricante/compromisso de terceiro; Súmulas 20, 21, 22, 23, 24 — limitação de 50% em qualificação operacional; Súmulas 25, 27, 30, 33 — vedação a carona em ARP; Súmula 44 — inexequibilidade e contraditório; Súmula 50 — recuperação judicial; Súmula 51 — alcance da inidoneidade vs impedimento), assegurando execução determinística e instantânea (< 5ms) offline/airgap ou sob instabilidades de rede governamental.
+  - **Higiene Estrita de Auto-Trigger e idPatterns (Zero Falso-Positivo entre UFs):**
+    - `autoTriggerKeywords` exige menção explícita a `tce-sp`, `tcesp`, `tribunal de contas de são paulo` ou `súmula <N> do tce-sp`, impedindo que buscas genéricas por números de súmula em outras UFs acionem indevidamente a corte paulista;
+    - `idPatterns` restrito a prefixos inequívocos (`SUMULA-TCESP-...`, `TCE-SP-TC-...`, `TC-...`, `TCESP`), prevenindo colisões de números processuais.
+  - **Fatiamento Anatômico nas 6 Macro-Partes / 10 Sub-Camadas:**
+    - Camadas 1A a 6A mapeadas integralmente com colegiado Tribunal Pleno / Câmaras, Conselheiro Relator e entidade canônica `ORGAO_CONTRATANTE` (preservando estritamente a Lei 5 de Neutralidade Institucional Absoluta);
+    - Camada 5A (Dispositivo) com precedência decisória para alinhamento tático no `RelevanceScorer` (`FAVORABLE` para enunciados autorizativos e `ADVERSE_DISTINGUISHING_REQUIRED` para restrições ou vedações peremptórias).
+  - **Compatibilidade Rigorosa com a Suíte .NET (`DocGov` Sub-Assert 29.9):**
+    - Suporte a `DOCGOV_JURIS_TCESP_URL`, `DOCGOV_TCE_SP_BASE_URL` ou `DOCGOV_JURIS_BASE_URL` no modo mock;
+    - Suporte canônico ao acórdão paradigma de TIC `TCE-SP-TC-000123-2024` com tolerância dupla a payloads mockados (`items`, `results` ou `{ exists: true, rawTextOrJson }`);
+    - Trava anti-alucinação imediata (`[ANTI_HALLUCINATION_BLOCK]`) barrando com fail-fast identificadores inexistentes (ex.: `TCE-SP-999999` ou `SUMULA-TCESP-999`).
+  - **Teto Estrito MCP (< 900 bytes):** Retornos sintéticos em conformidade com a Lei 2 (790 bytes na busca live e 641 bytes no fatiamento anatômico).
+  - **Sonda Online de Contrato:** Integração ao runner `bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP`, validando search e fetch online em < 3.5s.
+
 ## [1.4.3] - 2026-11-06
 
 ### Adicionado

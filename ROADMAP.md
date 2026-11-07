@@ -232,8 +232,12 @@
 - [x] **7.8. Patch `v1.4.3` — Conector Federal AGU / CGU com Resiliência Dupla (Orientações Normativas, Súmulas Vinculantes e Pareceres Referenciais CNLCA):**
   - Mapeamento direto de Orientações Normativas da Advocacia-Geral da União (ONs da AGU nº 01 a 107+), Súmulas da AGU (Súmula nº 01 a 87+) e Pareceres Referenciais da CNLCA/CGU com estratégia de Resiliência Dupla (`agu_catalog.ts` + `agu_provider.ts`), fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas e precedência vinculante na Camada 5A.
 
-- [ ] **7.9. Patches `v1.4.4` a `v1.4.12` — Expansão Progressiva das Ondas Estaduais (1 Conector por Patch Release):**
-  - Implementação incremental dos Tribunais de Contas Estaduais e Municipais remanescentes no padrão plug-and-play da `v1.4.1`, com 1 release por estado (`v1.4.4`: `TCE-SP`, `v1.4.5`: `TCE-RJ`, `v1.4.6`: `TCE-MG`, `v1.4.7`: `TCE-PR`, `v1.4.8`: `TCE-RS`, `v1.4.9`: `TCE-SC`, `v1.4.10`: `TCE-BA`, `v1.4.11`: `TCE-PE`, `v1.4.12`: `TCM-SP` / `TCM-RJ`).
+- [x] **7.9. Patch `v1.4.4` — Conector Estadual TCE-SP com Resiliência Dupla (Súmulas Vinculantes nº 1 a 52, Pesquisa Live e Sub-Assert 29.9):**
+  - Conector estadual dedicado para o Tribunal de Contas do Estado de São Paulo (`TCE-SP`, `uf: "SP"`), cobrindo o Repertório Oficial de Súmulas (Súmulas nº 1 a 52 com foco em licitações e contratos: Súmulas 14, 15, 20, 21, 22, 24, 25, 27, 30, 33, 44, 50, 51), busca live no portal oficial (`tce.sp.gov.br/jurisprudencia/pesquisar`) e Catálogo Curado Determinístico (`tce_sp_catalog.ts`).
+  - Ativação contextual rigorosa por palavras-chave (`autoTriggerKeywords`) com higiene estrita anti-falso-positivo, suporte a modo mock via `DOCGOV_JURIS_TCESP_URL` para o Sub-Assert 29.9 do `JurisMockServer.cs` no `.NET`, fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas e trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
+
+- [ ] **7.10. Patches `v1.4.5` a `v1.4.12` — Expansão Progressiva das Ondas Estaduais (1 Conector por Patch Release):**
+  - Implementação incremental dos Tribunais de Contas Estaduais e Municipais remanescentes no padrão plug-and-play da `v1.4.1`, com 1 release por estado (`v1.4.5`: `TCE-RJ`, `v1.4.6`: `TCE-MG`, `v1.4.7`: `TCE-PR`, `v1.4.8`: `TCE-RS`, `v1.4.9`: `TCE-SC`, `v1.4.10`: `TCE-BA`, `v1.4.11`: `TCE-PE`, `v1.4.12`: `TCM-SP` / `TCM-RJ`).
 
 ---
 
