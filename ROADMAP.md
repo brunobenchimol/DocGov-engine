@@ -229,8 +229,8 @@
     - Exposição do campo `stance_alignment: "FAVORABLE" | "ADVERSE_DISTINGUISHING_REQUIRED" | "NEUTRAL"` e exibição do badge visual `⚠️ [ADVERSO — EXIGE DISTINGUISHING]` na tabela ranqueada de `juris_search_results.md`.
   - **Filtro Anti-Ruído no `StfProvider`:** Injeção de cláusula `must` administrativa e cláusula `must_not` para ruídos tributários `(ICMS AND ISS) OR bitributação` na query do Elasticsearch, exclusão do campo pesado `inteiro_teor_texto` no `_source` da busca reduzindo o tráfego de rede de ~870 KB para ~15 KB, e penalidade de ruído tributário/penal (`-25 pts`) no scorer para expurgar precedentes irrelevantes (como ADI 1945 sobre software de prateleira) do topo dos resultados de compras públicas.
 
-- [ ] **7.8. Patch `v1.4.3` — Conectores Nativos AGU/CGU (Orientações Normativas, Pareceres Vinculantes e Relatórios de Auditoria):**
-  - Mapeamento direto de Orientações Normativas da Advocacia-Geral da União (ONs da AGU) e relatórios/guias de conformidade da Controladoria-Geral da União (CGU).
+- [x] **7.8. Patch `v1.4.3` — Conector Federal AGU / CGU com Resiliência Dupla (Orientações Normativas, Súmulas Vinculantes e Pareceres Referenciais CNLCA):**
+  - Mapeamento direto de Orientações Normativas da Advocacia-Geral da União (ONs da AGU nº 01 a 107+), Súmulas da AGU (Súmula nº 01 a 87+) e Pareceres Referenciais da CNLCA/CGU com estratégia de Resiliência Dupla (`agu_catalog.ts` + `agu_provider.ts`), fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas e precedência vinculante na Camada 5A.
 
 - [ ] **7.9. Patches `v1.4.4` a `v1.4.12` — Expansão Progressiva das Ondas Estaduais (1 Conector por Patch Release):**
   - Implementação incremental dos Tribunais de Contas Estaduais e Municipais remanescentes no padrão plug-and-play da `v1.4.1`, com 1 release por estado (`v1.4.4`: `TCE-SP`, `v1.4.5`: `TCE-RJ`, `v1.4.6`: `TCE-MG`, `v1.4.7`: `TCE-PR`, `v1.4.8`: `TCE-RS`, `v1.4.9`: `TCE-SC`, `v1.4.10`: `TCE-BA`, `v1.4.11`: `TCE-PE`, `v1.4.12`: `TCM-SP` / `TCM-RJ`).

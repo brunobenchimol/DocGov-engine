@@ -8,6 +8,26 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.3] - 2026-11-06
+
+### Adicionado
+- **Conector Federal AGU / CGU (`src/tools/juris/providers/agu_provider.ts`) e Catálogo Curado (`agu_catalog.ts`) (Marco 7.8):**
+  - Mapeamento direto e autônomo das **Orientações Normativas (ONs da AGU nº 01 a 107+)**, **Súmulas vinculantes da AGU (Súmula nº 01 a 87+)** e **Pareceres Referenciais da CNLCA/CGU** sobre vigência, prorrogação contratual em serviços contínuos, limites legais de alteração (art. 125 da Lei nº 14.133/2021), parâmetros de contratação direta por dispensa de licitação (art. 75) e vedação a pagamento antecipado sem garantia idônea.
+  - **Estratégia de Resiliência Dupla:**
+    - *Live Primary:* Parsing rápido do HTML oficial do portal `gov.br/agu` (`/onsagu` e `/sumula`) com suporte completo aos cabeçalhos de navegador e isolamento de requisições;
+    - *Catálogo Normativo Curado:* Submódulo determinístico (`agu_catalog.ts`) contendo o dataset oficial imutável de alto valor para contratações públicas (ONs 01/2009, 46/2014, 50/2014, 84/2024, 107/2026, Súmulas 34, 72, 87 e Pareceres CNLCA 01/2021, 01/2024), assegurando execução instantânea offline/airgap ou sob instabilidades governamentais (ex.: erro 503 no CONUNI).
+  - **Ativação Contextual Plug-and-Play (`autoTriggerKeywords`):** Convocação automática da AGU quando a query textual envolve orientações normativas, súmulas da AGU, pareceres referenciais da CNLCA, CGU, CONUNI ou DECOR, mantendo `defaultFederal: false` para não inflar pesquisas ordinárias.
+  - **Fatiamento Anatômico nas 6 Macro-Partes / 10 Sub-Camadas:**
+    - Camada 1A/1B: Enquadramento institucional em `AGU`, colegiado `Advogado-Geral da União` ou `CNLCA/CGU/AGU` e entidade `ADMINISTRAÇÃO_PÚBLICA_FEDERAL`;
+    - Camada 5A (Dispositivo) com precedência máxima: Projeção do comando normativo vinculante na camada 5A, permitindo ao `RelevanceScorer` classificar comandos autorizativos ("é lícita", "prescinde", "não está adstrita", "dispensada") como `IMPROCEDENTE / MANUTENCAO_CERTAME` (`FAVORABLE`) e restrições peremptórias ("é vedado", "determina-se", "abstenção") como `PROCEDENTE / DETERMINACAO` (`ADVERSE_DISTINGUISHING_REQUIRED`);
+    - Camada 6A (Fecho & Quórum): Atribuição de eficácia vinculante federal nos termos do art. 40 da Lei Complementar nº 73/1993 com pontuação máxima de quórum (10 pts).
+  - **Compatibilidade Rigorosa com a Suíte .NET (`DocGov`):**
+    - Resolução de URL por `DOCGOV_JURIS_AGU_URL`, `DOCGOV_AGU_BASE_URL` ou `DOCGOV_JURIS_BASE_URL`;
+    - Regex universal de IDs suportando variações de prefixos (`ON-AGU-...`, `AGU-ON-...`, `SUMULA-AGU-...`, `PARECER-CNLCA-...`) e números de 1 a 6 dígitos;
+    - Trava anti-alucinação estrita que barra IDs inválidos ou inexistentes (ex.: `AGU-ON-999999`) com `[ANTI_HALLUCINATION_BLOCK]`.
+  - **Script de Verificação de Teto Físico (`scripts/check_lines.ts`):** Auditoria automatizada garantindo conformidade com a Lei 9 ($\le 500$ linhas) em 100% dos submódulos do domínio de jurisprudência.
+  - **Teto Estrito MCP (< 900 bytes):** Retorno sintético enxuto tanto na busca (775 bytes) quanto no fatiamento (703 bytes).
+
 ## [1.4.2] - 2026-11-02
 
 ### Adicionado

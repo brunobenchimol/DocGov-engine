@@ -193,7 +193,7 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Realiza a busca multi-query sob demanda em APIs oficiais de controle externo e tribunais superiores (TCU, STJ, STF e TCEs de 1ª Onda: PA, CE, DF), com expansor Statutory Bridge (Lei 13.303/2016 <-> Lei 14.133/2021) e ranking determinístico (0..100 pts) combinando 5 pesos táticos (aderência léxica, alinhamento com stance DEFENSE/ATTACK, regime estatais, colegiado e contemporaneidade), com Graceful Fallback para UFs não implementadas e geração de state/juris_search_results.json e .md com retorno sintético MCP < 900 bytes.\n" +
+        "Realiza a busca multi-query sob demanda em APIs oficiais de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU e TCEs de 1ª Onda: PA, CE, DF), com expansor Statutory Bridge (Lei 13.303/2016 <-> Lei 14.133/2021) e ranking determinístico (0..100 pts) combinando 5 pesos táticos (aderência léxica, alinhamento com stance DEFENSE/ATTACK, regime estatais, colegiado e contemporaneidade), com Graceful Fallback para UFs não implementadas e geração de state/juris_search_results.json e .md com retorno sintético MCP < 900 bytes.\n" +
         "- Quando usar (Pré-condição): Ideal para Co-Autoria/Workbench Mode e pesquisa jurídica sob demanda para fundamentar pareceres, defesas ou impugnações.\n" +
         "- Pós-condição & Próximo Passo: Grava em disco os precedentes ordenados por relevance_score. Próximo passo recomendado: inspecionar o arquivo Markdown gerado e acionar 'fetch_juris' para autenticar e fatiar os leading cases selecionados.",
       inputSchema: {
@@ -214,7 +214,7 @@ export function getMcpToolsDefinition() {
             type: "array",
             items: { type: "string" },
             description:
-              "Lista opcional de cortes a consultar (ex.: ['TCU', 'STJ', 'STF', 'TCE-PA']). Se omitido e uf omitida, pesquisa a camada federal (TCU, STJ, STF).",
+              "Lista opcional de cortes a consultar (ex.: ['TCU', 'STJ', 'STF', 'TST', 'AGU', 'TCE-PA']). Se omitido e uf omitida, pesquisa a camada federal (TCU, STJ, STF).",
           },
           uf: {
             type: "string",
