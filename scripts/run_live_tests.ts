@@ -2,6 +2,7 @@ import { appendFileSync, existsSync } from "node:fs";
 import { runPncpLiveProbes, type LiveProbeResult } from "../tests_live/pncp_api.live.ts";
 import { runGitHubUpdaterLiveProbes } from "../tests_live/github_updater.live.ts";
 import { runJurisLiveProbes } from "../tests_live/juris_api.live.ts";
+import { defaultJurisdictionRegistry } from "../src/tools/juris/provider_registry.ts";
 
 /**
  * Runner Central de Testes Online de Contrato de API (Live API Smoke Tests)
@@ -28,7 +29,7 @@ async function main() {
   }
 
   console.log("================================================================================");
-  console.log(`🌐 DOCGOV-ENGINE: LIVE API CONTRACT SMOKE TESTS (Suite: ${suite.toUpperCase()}${court ? ` | Court: ${court}` : ""})`);
+  console.log(`🌐 DOCGOV-ENGINE: LIVE API CONTRACT SMOKE TESTS (Suite: ${suite.toUpperCase()}${court && court !== "ALL" ? ` | Court: ${court}` : ""})`);
   console.log("================================================================================");
   console.log("Aviso: Esta suite executa requisições HTTPS REAIS contra pncp.gov.br, api.github.com e portais de jurisprudência.\n");
 
@@ -48,7 +49,11 @@ async function main() {
   }
 
   if (suite === "all" || suite === "juris") {
-    console.log(`\n⚖️ Executando sondas de contrato de Jurisprudência${court ? ` (Filtro: ${court})` : " (TCU / Cortes)"}...`);
+    const isAllCourts = !court || court === "ALL";
+    const courtsLabel = isAllCourts
+      ? `Auto-Discovery (${defaultJurisdictionRegistry.getAllCourts().join(", ")})`
+      : `Filtro: ${court}`;
+    console.log(`\n⚖️ Executando sondas de contrato de Jurisprudência [${courtsLabel}]...`);
     const jurisResults = await runJurisLiveProbes(court);
     results.push(...jurisResults);
   }
