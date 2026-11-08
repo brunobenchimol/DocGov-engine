@@ -117,19 +117,39 @@ export class TceMgProvider implements JurisdictionProvider {
     const startTime = performance.now();
     const catalogHits = searchTceMgCatalog(query, limit);
 
+    // Acionamento instantâneo do catálogo curado para queries com menção direta a súmula ou consulta
+    const hasDirectNormativeMatch =
+      /\bs[úu]mula\s*(?:n[º°o]\s*)?\d{1,3}\b/i.test(query) ||
+      /\bconsulta\s*(?:n[º°o]\s*)?\d{4,7}\b/i.test(query);
+
+    if (hasDirectNormativeMatch && catalogHits.length > 0) {
+      const hits = catalogHits.map((c) => this.mapCatalogItemToResult(c));
+      return {
+        hits,
+        diagnostic: {
+          court: "TCE-MG",
+          status: "ok",
+          hits: hits.length,
+          latency_ms: Math.round(performance.now() - startTime),
+          error: null,
+        },
+      };
+    }
+
     try {
       const { cleanQuery, shortQuery } = sanitizeQueryForCourt(query);
       const queryTerm = shortQuery || cleanQuery || query;
       const liveUrl = `${baseUrl}/Home/Busca`;
 
-      // Chamada live com timeout defensivo estrito (7000ms)
+      // Chamada live com timeout defensivo estrito (3000ms, zero retries para evitar hang de rede)
       const res = await executeJurisHttpRequest(liveUrl, {
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
         },
         body: `txtAssunto=${encodeURIComponent(queryTerm)}&page=1`,
-        timeoutMs: 7000,
+        timeoutMs: 3000,
+        retries: 0,
       });
       const latencyMs = Math.round(performance.now() - startTime);
 
@@ -272,14 +292,15 @@ export class TceMgProvider implements JurisdictionProvider {
     }
 
     // 3. Consulta Live de Processo/Consulta no Portal TCJuris (/Home/Detalhes/{id})
-    const procMatch = idOrRef.match(/(\d{6,7})/);
+    // Exige prefixo explícito de processo ou consulta para evitar chamada de rede em IDs alucinados
+    const procMatch = idOrRef.match(/^(?:TCE[-_]?MG[-_]?)?(?:PROC|PROCESSO|CONSULTA)[-_](\d{4,7})$/i);
     if (procMatch) {
       const procNum = procMatch[1];
       const baseUrl = this.getBaseUrl();
       const detalhesUrl = `${baseUrl}/Home/Detalhes/${encodeURIComponent(procNum)}`;
 
       try {
-        const res = await executeJurisHttpRequest(detalhesUrl, { timeoutMs: 7000 });
+        const res = await executeJurisHttpRequest(detalhesUrl, { timeoutMs: 3000, retries: 0 });
         if (res.ok && typeof res.text === "string" && !res.text.includes("Ocorreu um erro")) {
           const parsed = this.parseHtmlProcessDetails(res.text, procNum);
           if (parsed) {
