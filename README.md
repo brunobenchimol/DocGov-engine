@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.5)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.6)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -229,7 +229,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Parâmetros: `caseDir`, `query` (*obrigatórios*), `status`, `uf`, `modalidade`, `limit` (*opcionais*).
 
 9. **`search_juris`**
-   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
+   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
    - Persiste Ficha de Triagem Rápida em `state/juris_search_results.json` e painel em `.md` com retorno sintético MCP conciso (< 900 bytes).
    - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `stance`, `regime`, `limit` (*opcionais*).
 
@@ -592,8 +592,11 @@ bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP
 # Tribunal de Contas do Estado de Minas Gerais (TCE-MG — Súmulas e Consultas Normativas)
 bun scripts/run_live_tests.ts --suite=juris --court=TCE-MG
 
+# Tribunal de Contas do Estado do Paraná (TCE-PR — Prejulgados, Súmulas e Consultas)
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-PR
+
 # Multi-Corte (Filtro por lista separada por vírgula)
-bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP,TCE-MG
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP,TCE-MG,TCE-PR
 
 # Execução explícita de todas as cortes via flag
 bun scripts/run_live_tests.ts --suite=juris --court=ALL
