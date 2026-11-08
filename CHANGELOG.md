@@ -8,6 +8,26 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.5] - 2026-11-07
+
+### Adicionado
+- **Conector Estadual TCE-MG (`src/tools/juris/providers/tce_mg_provider.ts`) e Catálogo Curado (`tce_mg_catalog.ts`) (Marco 7.10):**
+  - Conector nativo dedicado ao **Tribunal de Contas do Estado de Minas Gerais (`TCE-MG` / UF: "MG")**, integrando o Repertório Oficial de Súmulas e Consultas do Tribunal Pleno dotadas de força normativa e eficácia vinculante conforme art. 76 da Lei Orgânica do TCE-MG (LC Estadual nº 102/2008), além de busca live no portal TCJuris (`https://tcjuris.tce.mg.gov.br`).
+  - **Estratégia de Resiliência Dupla:**
+    - *Live Primary:* Consulta defensiva ao endpoint oficial do TCJuris (`/Home/Busca` e `/Home/Detalhes/{id}`) com timeout estrito de 3000ms e zero retries;
+    - *Catálogo Curado Determinístico (`tce_mg_catalog.ts`):* Base canônica imutável com as principais Súmulas e Consultas Normativas do Tribunal Pleno (Súmula 114 — parcelamento obrigatório do objeto divisível; Súmula 126 — manutenção de frota, quarteirização e vedação a credenciamento prévio; Súmula 88 — dever de licitar e fracionamento de despesa; Súmula 79 — formalismo moderado na homologação; Consulta 1.160.667 — adesão carona a atas sob leis pretéritas na vigência da Lei 14.133/2021; Consulta 1.177.447 — ilegalidade de cobrança de taxa de carona por gerenciador ou consórcio público; Consulta 1.119.769 — consórcio público e adesão posterior de não consorciados; Consulta 1.148.573 — habilitação econômico-financeira e proporcionalidade de índices contábeis; Consulta 1.092.348 — qualificação técnica operacional limitada a 50% e vedação a vínculo prévio; Consulta 1.077.234 — desdobramento federativo de sanções de impedimento vs inidoneidade; Consulta 1.007.492 — serviços de TIC com medição por resultados, SLA e vedação a homem-hora puro).
+  - **Higiene Estrita de Auto-Trigger e idPatterns (Zero Falso-Positivo entre UFs):**
+    - `autoTriggerKeywords` exige menção explícita a termos mineiros (`tce-mg`, `tcemg`, `tribunal de contas de minas gerais`, `minas gerais`, `belo horizonte`, `mapjuris`, `tcjuris`, `cemig`, `copasa`, `prodemge`, `lei 14.184`, `decreto 48.723`, `súmula <N> do tce-mg`), prevenindo falso-positivo com buscas genéricas;
+    - `idPatterns` e `normalizeTceMgId` com suporte a prefixos inequívocos (`SUMULA-TCEMG-...`, `CONSULTA-TCEMG-...`, `TCE-MG-CONSULTA-...`, `TCE-MG-...`, `TCEMG`).
+  - **Compatibilidade Rigorosa com a Suíte .NET (`DocGov` Assert 29.10):**
+    - Suporte a `DOCGOV_JURIS_TCEMG_URL`, `DOCGOV_TCE_MG_BASE_URL` ou `DOCGOV_JURIS_BASE_URL` no modo mock;
+    - Suporte canônico ao formato de consulta mockada `TCE-MG-CONSULTA-123456` e trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`) barrando com fail-fast identificadores inexistentes (ex.: `TCE-MG-999999`).
+  - **Fatiamento Anatômico nas 6 Macro-Partes / 10 Sub-Camadas:**
+    - Camadas 1A a 6A estruturadas com colegiado Tribunal Pleno, Conselheiro Relator e entidade genérica `ORGAO_CONTRATANTE` (Lei 5 de Neutralidade Institucional);
+    - Camada 5A (Dispositivo) com precedência decisória para alinhamento tático no `RelevanceScorer`.
+  - **Teto Estrito MCP (< 900 bytes):** Retornos sintéticos em conformidade com a Lei 2 (814 bytes na busca live e 672 bytes no fatiamento anatômico).
+  - **Sonda Online de Contrato:** Integração ao runner `bun scripts/run_live_tests.ts --suite=juris --court=TCE-MG` com 100% de aprovação (Sondas 1 e 2 em 0.30s).
+
 ### Modificado
 - **Hardening Estrutural de Governança de Testes e Extensão da Lei 9:**
   - Decomposição modular de 6 monólitos históricos de teste que ultrapassavam o teto físico:

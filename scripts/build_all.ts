@@ -49,11 +49,13 @@ export async function buildAll(options: BuildAllOptions = {}): Promise<BuildAllR
     const shouldBuildLinux = !options.currentOnly || process.platform === "linux";
     const shouldBuildWin = !options.currentOnly || process.platform === "win32";
 
+    const bunBin = process.execPath || "bun";
+
     if (shouldBuildLinux) {
       log("📦 Compilando binário Linux x64 (./bin/docgov-engine)...");
       const outLinux = join(binDir, "docgov-engine");
       const proc = Bun.spawnSync([
-        "bun",
+        bunBin,
         "build",
         "./src/index.ts",
         "--compile",
@@ -73,7 +75,7 @@ export async function buildAll(options: BuildAllOptions = {}): Promise<BuildAllR
       log("📦 Compilando binário Windows x64 (./bin/docgov-engine.exe)...");
       const outWin = join(binDir, "docgov-engine.exe");
       const proc = Bun.spawnSync([
-        "bun",
+        bunBin,
         "build",
         "./src/index.ts",
         "--compile",

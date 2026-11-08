@@ -239,7 +239,7 @@
 - [ ] **7.10. Esteira Incremental de Conectores Jurisdicionais (`v1.4.5` a `v1.4.18+` — Sincronia 1:1 com o `DocGov`):**
   - **Política:** 1 Conector / Tribunal = 1 Patch Release em Lockstep Estrito com o `DocGov`.
   - **Onda 2 — Grandes Cortes Estaduais (`v1.4.5` a `v1.4.12`):**
-    - [ ] `v1.4.5`: **`TCE-MG`** (`tce_mg_provider.ts` — `UF: "MG"`, Súmulas e Consultas Normativas do TCE-MG)
+    - [x] `v1.4.5`: **`TCE-MG`** (`tce_mg_provider.ts` — `UF: "MG"`, Súmulas e Consultas Normativas do TCE-MG)
     - [ ] `v1.4.6`: **`TCE-PR`** (`tce_pr_provider.ts` — `UF: "PR"`, Súmulas, Acórdãos e Prejulgados do TCE-PR)
     - [ ] `v1.4.7`: **`TCE-RJ`** (`tce_rj_provider.ts` — `UF: "RJ"`, Súmulas e Deliberações do TCE-RJ)
     - [ ] `v1.4.8`: **`TCE-RS`** (`tce_rs_provider.ts` — `UF: "RS"`, Súmulas e Jurisprudência do TCE-RS)

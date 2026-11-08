@@ -20,11 +20,11 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     expect(routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
     expect(routingInfo.unimplemented_uf_requested).toBeNull();
     expect(routingInfo.fallback_notice).toBeNull();
-    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP"]);
+    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG"]);
     expect(selectedProviders.map((p) => p.courtId)).toEqual(["TCU", "STJ", "STF"]);
   });
 
-  it("deve incluir o TCE respectivo para UFs implementadas (PA, CE, DF, SP)", () => {
+  it("deve incluir o TCE respectivo para UFs implementadas (PA, CE, DF, SP, MG)", () => {
     const resPa = defaultJurisdictionRegistry.resolveRouting(undefined, "PA");
     expect(resPa.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-PA"]);
     expect(resPa.routingInfo.unimplemented_uf_requested).toBeNull();
@@ -37,6 +37,9 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
 
     const resSp = defaultJurisdictionRegistry.resolveRouting(undefined, "SP");
     expect(resSp.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-SP"]);
+
+    const resMg = defaultJurisdictionRegistry.resolveRouting(undefined, "MG");
+    expect(resMg.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-MG"]);
   });
 
   it("deve aplicar Graceful Fallback sem falhar quando solicitada UF não implementada (ex: AM, PR)", () => {
@@ -45,7 +48,7 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     expect(resAm.routingInfo.unimplemented_uf_requested).toBe("AM");
     expect(resAm.routingInfo.fallback_notice).toContain("Conector estadual para UF 'AM' ainda não implementado");
     expect(resAm.routingInfo.fallback_notice).toContain("Graceful Fallback");
-    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP"]);
+    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG"]);
   });
 
   it("deve respeitar courts explícitos informados pelo usuário", () => {
