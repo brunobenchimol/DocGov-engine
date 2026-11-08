@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.3)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.5)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Versão `v1.4.1` (Geração 4 — Motor de Jurisprudência & Conectores Plug-and-Play)
+## 2. Destaques da Série `v1.4.x` — Versão Atual `v1.4.5` (Geração 4 — Motor de Jurisprudência & Conectores Plug-and-Play)
 
-A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do docgov-engine**, introduzindo a arquitetura plug-and-play de pesquisa, validação e fatiamento anatômico de jurisprudência oficial sob demanda, aliada a um compilador tático OpenXML e testes online cirúrgicos por corte:
+A versão **`v1.4.5`** (e a série **`v1.4.x`**) consolida a **Geração 4 do docgov-engine**, introduzindo a arquitetura plug-and-play de pesquisa, validação e fatiamento anatômico de jurisprudência oficial sob demanda, aliada a um compilador tático OpenXML, catálogo normativo curado determinístico e testes online com auto-discovery dinâmico por corte:
 
 ### 🚀 Principais Inovações da Geração 4 (`v1.4.0` / `v1.4.1`):
 1. **9ª Ferramenta MCP `search_juris` & CLI `--search-juris` (Triagem Rápida & Ranking):**
@@ -109,12 +109,13 @@ A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do doc
 5. **Arquitetura 100% Plug-and-Play de Provedores (`JurisdictionProviderRegistry`):**
    - Desacoplamento integral de cortes e UFs: novos tribunais são registrados declarativamente com metadados (`tier`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
    - Política evolutiva canônica: **1 Conector / UF = 1 Patch Release**.
-   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**) e Estadual (**TCE-PA**, **TCE-CE**, **TCDF**).
+   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**, **AGU**) e Estadual/Distrital (**TCE-PA**, **TCE-CE**, **TCDF**, **TCE-SP**, **TCE-MG**).
+   - **Resiliência Dupla:** Conectores com *Live Primary* (busca em APIs oficiais públicas) e *Catálogo Normativo Curado Local* (Súmulas e Consultas vinculantes determinísticas instantâneas).
    - **Graceful Fallback:** Caso solicitada UF não implementada (ex.: `AM` ou `PR`), o motor executa automaticamente a camada federal e reporta `unimplemented_uf_requested` no payload sintético sem travar a execução.
 6. **Compilador Tático OpenXML (Lockstep C# Assert 29.6):**
    - Compilação sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
-7. **Seletor de Tribunal Isolado (`--court=<ID>`) em Live Tests:**
-   - Permite executar sondas de contrato HTTPS reais contra APIs públicas de tribunais específicos (`--court=STF`, `--court=TCU`, `--court=TCE-PA`, etc.) com relatórios isolados de latência e payload.
+7. **Auto-Discovery Dinâmico e Seletor de Tribunal (`--court=<ID>`) em Live Tests:**
+   - Varre dinamicamente todos os conectores registrados no `JurisdictionProviderRegistry` (`bun run test:live:juris`), executando 21 sondas (2 sondas por corte + 1 de Graceful Fallback) com diagnóstico claro de origem (`[API Live Direta]`, `[Híbrido]`, `[Fallback Curado Local]`), ou permite auditoria cirúrgica de tribunais específicos (`--court=TCE-MG`, `--court=TCE-SP,TCE-MG`, `--court=ALL`).
 
 ---
 
@@ -150,7 +151,7 @@ A versão **`v1.4.1`** (e o marco **`v1.4.0`**) consolida a **Geração 4 do doc
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.3`):** Inclusão mandatória do campo `"engine_version": "1.4.3"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.5`):** Inclusão mandatória do campo `"engine_version": "1.4.5"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -228,7 +229,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Parâmetros: `caseDir`, `query` (*obrigatórios*), `status`, `uf`, `modalidade`, `limit` (*opcionais*).
 
 9. **`search_juris`**
-   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, TCE-PA, TCE-CE, TCDF) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
+   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
    - Persiste Ficha de Triagem Rápida em `state/juris_search_results.json` e painel em `.md` com retorno sintético MCP conciso (< 900 bytes).
    - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `stance`, `regime`, `limit` (*opcionais*).
 
@@ -325,7 +326,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--fetch-juris` | Resolução canônica e fatiamento anatômico estrutural de acórdão via `--id` (e opcionalmente `--court`). |
 | `--query <termo>` | Termo ou expressão de busca textual (usado com `--search-pncp` e `--search-juris`). |
 | `--pncp <id_ou_url>` | Identificador PNCP canônico (`CNPJ-tipo-sequencial/ano`) ou link da contratação no PNCP. |
-| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,TCE-PA,TCE-CE,TCDF`). |
+| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCE-CE,TCDF,TCE-SP,TCE-MG`). |
 | `--court <id>` | Sigla da corte/tribunal de destino (usado com `--fetch-juris`). |
 | `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática de TCE no Juris. |
 | `--id <acordao>` | Identificador ou citação canônica do acórdão/processo (usado com `--fetch-juris`). |
@@ -486,11 +487,17 @@ bun test
 Para focar no domínio em desenvolvimento ou acelerar ciclos de micro-commit, execute apenas a suíte correspondente:
 
 ```bash
-# 1. Jurisprudência, Statutory Bridge, Slicing Anatômico e Conectores
-bun test test/juris.test.ts
+# 0. Auditoria física de linhas (Lei 9 <= 500 linhas em src/tools/juris, test, tests_live e scripts)
+bun run check:lines
+
+# 1. Jurisprudência (Core/Scorer, Roteamento/Tools, Slicer Anatômico, Cortes Federais e Cortes Estaduais)
+bun test test/juris/core_and_scorer.test.ts test/juris/routing_and_tools.test.ts test/juris/anatomical_slicer.test.ts
+bun test test/juris/federal_courts.test.ts
+bun test test/juris/state_courts.test.ts
+bun test test/juris/state_courts.test.ts -t "TCE-MG"
 
 # 2. Portal Nacional de Contratações Públicas (PNCP)
-bun test test/pncp.test.ts
+bun test test/pncp_search.test.ts test/pncp_fetch.test.ts
 
 # 3. Ingestão de Pastas, Bootstrap de Casos e Salvaguardas
 bun test test/bootstrap.test.ts test/bootstrap_guardrails.test.ts
@@ -502,7 +509,8 @@ bun test test/inspect.test.ts test/inspect_text_md.test.ts
 bun test test/budget_auditor.test.ts test/spreadsheet.test.ts
 
 # 6. Engenharia Reversa e Preenchimento de Templates OpenXML
-bun test test/build_template.test.ts test/fill_template.test.ts
+bun test test/build_template_contracts.test.ts test/build_template_tables.test.ts
+bun test test/fill_template_injection.test.ts test/fill_template_multilevel.test.ts
 
 # 7. Parecer de Auditoria Executivo e Notas Técnicas Comparativas
 bun test test/audit.test.ts test/technical_note.test.ts
@@ -514,7 +522,7 @@ bun test test/structural_diff.test.ts test/semantic_diff.test.ts
 bun test test/pdf_exporter.test.ts
 
 # 10. Cache Global de Templates e Registro de Minutas
-bun test test/registry.test.ts
+bun test test/registry.test.ts test/registry_matching.test.ts
 
 # 11. Dispatcher MCP (JSON-RPC stdio) e Self-Discovery Normativo
 bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts
@@ -531,7 +539,7 @@ As suítes de **Live Smoke Tests** executam requisições HTTPS REAIS contra os 
 # Executar todas as sondas de rede (PNCP + GitHub + Jurisprudência)
 bun run test:live
 
-# Executar apenas a suíte completa de Jurisprudência (todos os 6 tribunais)
+# Executar a suíte de Jurisprudência com Auto-Discovery Dinâmico (todos os 10 conectores + Fallback gracioso = 21 sondas)
 bun run test:live:juris
 
 # Executar apenas as sondas da API oficial do PNCP (pncp.gov.br)
@@ -541,9 +549,17 @@ bun run test:live:pncp
 bun run test:live:updater
 ```
 
+#### 🔍 Rastreabilidade e Diagnóstico Real de Origem no Relatório Executivo
+O runner `test:live:juris` avalia cada conector e explicita no relatório executivo o diagnóstico exato da resposta:
+- `[API Live Direta]`: Resposta obtida diretamente da API REST/JSON ou portal web oficial do tribunal;
+- `[Híbrido (Live + Curado)]`: Resultados combinados entre a API oficial ao vivo e o catálogo normativo local;
+- `[Fallback Curado Local]`: Atendimento pelo catálogo determinístico curado (Súmulas/Consultas/Orientações Normativas) quando o portal externo exige sessão/CAPTCHA ou a query foca em enunciados sumulados;
+- `[Catálogo Normativo Curado]`: Extração e fatiamento anatômico de enunciado normativo curado em `fetchJuris`;
+- `[Graceful Fallback]`: Confirmação de degradação graciosa para UF não implementada (ex.: `AC`), acionando a camada federal e gerando `fallback_notice`.
+
 #### 🚀 Isolamento Cirúrgico por Tribunal (`--court=<ID>`) (Copiar e Colar)
 
-Para auditar individualmente um único conector sem executar consultas contra as demais cortes, utilize o runner com a flag `--court`:
+Para auditar individualmente um único conector (ou grupo de cortes) sem executar consultas contra as demais, utilize o runner com a flag `--court` (< 3s por corte):
 
 ```bash
 # Tribunal de Contas da União (TCU)
@@ -558,6 +574,9 @@ bun scripts/run_live_tests.ts --suite=juris --court=STF
 # Tribunal Superior do Trabalho (TST — Terceirização e Súmula 331)
 bun scripts/run_live_tests.ts --suite=juris --court=TST
 
+# Advocacia-Geral da União (AGU — Pareceres Vinculantes, Orientações Normativas e Súmulas)
+bun scripts/run_live_tests.ts --suite=juris --court=AGU
+
 # Tribunal de Contas do Estado do Pará (TCE-PA)
 bun scripts/run_live_tests.ts --suite=juris --court=TCE-PA
 
@@ -566,6 +585,18 @@ bun scripts/run_live_tests.ts --suite=juris --court=TCE-CE
 
 # Tribunal de Contas do Distrito Federal (TCDF)
 bun scripts/run_live_tests.ts --suite=juris --court=TCDF
+
+# Tribunal de Contas do Estado de São Paulo (TCE-SP — Súmulas e Decisões)
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP
+
+# Tribunal de Contas do Estado de Minas Gerais (TCE-MG — Súmulas e Consultas Normativas)
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-MG
+
+# Multi-Corte (Filtro por lista separada por vírgula)
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP,TCE-MG
+
+# Execução explícita de todas as cortes via flag
+bun scripts/run_live_tests.ts --suite=juris --court=ALL
 ```
 
 ---

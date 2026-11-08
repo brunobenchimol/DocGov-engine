@@ -11,6 +11,12 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 ## [1.4.5] - 2026-11-07
 
 ### Adicionado
+- **Auto-Discovery Dinâmico de Conectores no Runner Online `test:live:juris` (`tests_live/juris_api.live.ts` e `scripts/run_live_tests.ts`):**
+  - Descoberta automática de todos os conectores ativos através de `defaultJurisdictionRegistry.getAllProviders()` ao executar `bun run test:live:juris` (sem `--court` ou com `--court=ALL`), eliminando sondas fixas e homologando automaticamente qualquer nova corte adicionada ao registro;
+  - Execução de 21 sondas de rede (2 sondas por conector: `searchJuris` com `liveSmokeQuery` + `fetchJuris` com fatiamento anatômico do top hit ou fallback canônico + 1 Sonda Dinâmica de `Graceful Fallback`);
+  - **Diagnóstico Transparente de Origem:** Exibição explícita do canal de resposta de cada corte no relatório executivo (`[API Live Direta]`, `[Híbrido (Live + Curado)]`, `[Fallback Curado Local]`, `[Catálogo Normativo Curado]` e `[Graceful Fallback]`), com latência real da API e bytes do envelope MCP (< 900B);
+  - **Filtro Multi-Corte e Pontual:** Suporte a execução por tribunal isolado (`--court=TCE-MG`) com tempo de resposta < 3s, múltiplas cortes separadas por vírgula (`--court=TCE-SP,TCE-MG`) ou execução explícita de todas (`--court=ALL`);
+  - **Sonda Dinâmica de Graceful Fallback:** Resolução em tempo de execução da primeira UF brasileira ainda não suportada via `defaultJurisdictionRegistry.getSupportedUfs()` (atualmente `AC`), garantindo perenidade do teste conforme novas UFs forem adicionadas.
 - **Conector Estadual TCE-MG (`src/tools/juris/providers/tce_mg_provider.ts`) e Catálogo Curado (`tce_mg_catalog.ts`) (Marco 7.10):**
   - Conector nativo dedicado ao **Tribunal de Contas do Estado de Minas Gerais (`TCE-MG` / UF: "MG")**, integrando o Repertório Oficial de Súmulas e Consultas do Tribunal Pleno dotadas de força normativa e eficácia vinculante conforme art. 76 da Lei Orgânica do TCE-MG (LC Estadual nº 102/2008), além de busca live no portal TCJuris (`https://tcjuris.tce.mg.gov.br`).
   - **Estratégia de Resiliência Dupla:**

@@ -14,6 +14,11 @@ on:
           - pncp
           - updater
           - juris
+      court:
+        description: "Tribunal ou lista separada por vírgula (opcional para juris: ex. TCU, TCE-MG, TCE-SP, ALL)"
+        required: false
+        default: ""
+        type: string
 
   # Execução periódica automática (toda segunda-feira às 12:00 UTC / 09:00 BRT)
   schedule:
@@ -37,4 +42,9 @@ jobs:
         run: bun install
 
       - name: Executar Sondas de Contrato Online
-        run: bun run ./scripts/run_live_tests.ts --suite=${{ inputs.suite || 'all' }}
+        run: |
+          if [ -n "${{ inputs.court }}" ]; then
+            bun run ./scripts/run_live_tests.ts --suite=${{ inputs.suite || 'juris' }} --court=${{ inputs.court }}
+          else
+            bun run ./scripts/run_live_tests.ts --suite=${{ inputs.suite || 'all' }}
+          fi
