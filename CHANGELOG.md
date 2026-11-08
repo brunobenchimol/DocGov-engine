@@ -8,6 +8,25 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.4.6] - 2026-11-08
+
+### Adicionado
+- **Conector Estadual TCE-PR (`src/tools/juris/providers/tce_pr_provider.ts`) e Catálogo Curado (`tce_pr_catalog.ts`) (Marco 7.10):**
+  - Conector nativo dedicado ao **Tribunal de Contas do Estado do Paraná (`TCE-PR` / UF: "PR")**, integrando o Repertório Oficial de Prejulgados Vinculantes, Súmulas e Consultas com Força Normativa do Tribunal Pleno conforme LC Estadual nº 113/2005 (Lei Orgânica do TCE-PR), além de busca live no portal ViaJuris (`https://viajuris.tce.pr.gov.br`).
+  - **Estratégia de Resiliência Dupla:**
+    - *Live Primary:* Consulta direta ao endpoint AJAX oficial do ViaJuris (`POST /Pesquisa/PesquisaAcordaos/Buscar`) com timeout defensivo de 3500ms, zero retries e parsing estruturado de ementas, relatórios, números de processo/acórdão e links oficiais para visualização e download de PDFs;
+    - *Catálogo Curado Determinístico (`tce_pr_catalog.ts`):* Base canônica imutável com 9 precedentes de alto valor normativo: Prejulgado 28 (parcelamento do objeto em TIC, lote único e indivisibilidade técnica no ETP sob as Leis 14.133/2021 e 13.303/2016); Prejulgado 25 (limites de qualificação econômico-financeira, índices de liquidez, patrimônio líquido de até 10% e vedação a cumulação com capital social); Prejulgado 06 (limites de terceirização de mão de obra e fiscalização trabalhista); Prejulgado 26 (inexigibilidade para serviços jurídicos e contábeis, notória especialização e singularidade); Prejulgado 11 (excepcionalidade de pagamento antecipado e indispensabilidade de garantia contratual); Súmula 05 (vedação a taxa negativa ou taxa zero em gerenciamento de frotas e vales-alimentação); Súmula 08 (regularidade fiscal e trabalhista restrita à habilitação); Consulta 2804/2024 (formalismo moderado e saneamento de certidões vencidas com conselho profissional ativo sob a Lei 14.133/2021); Consulta 3154/2023 (limites de 50%/200% para adesão carona a atas de registro de preços e prévio ETP).
+  - **Higiene Estrita de Auto-Trigger e idPatterns (Zero Falso-Positivo entre UFs):**
+    - `autoTriggerKeywords` com regex cirúrgica ativada por termos inequívocos (`tce-pr`, `tce/pr`, `tcepr`, `tribunal de contas do estado do parana`, `tribunal de contas do parana`, `viajuris`, `prejulgado ... tce-pr`, `sumula ... tce-pr`, `curitiba`, `celepar`, `sanepar`, `copel`, `lei estadual 15.608`, `decreto estadual 10.086`), com exclusão proposital do termo isolado "parana" para prevenir falso-positivo em endereços genéricos;
+    - `idPatterns` e `normalizeTcePrId` com suporte bidirecional robusto a `TCE-PR-PREJULGADO-<N>`, `PREJULGADO-TCEPR-<N>`, `SUMULA-TCEPR-<N>`, `TCE-PR-SUMULA-<N>`, `TCE-PR-CONSULTA-<N>-<ANO>` e `TCE-PR-ACORDAO-<N>-<ANO>`.
+  - **Compatibilidade Rigorosa com a Suíte .NET (`DocGov` Sub-Assert 29.11):**
+    - Suporte a `DOCGOV_JURIS_TCE_PR_URL` (com aliases `DOCGOV_JURIS_TCEPR_URL` e `DOCGOV_TCE_PR_BASE_URL`) no modo mock;
+    - Suporte canônico a payloads JSON do `JurisMockServer` e trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`) barrando com fail-fast identificadores inexistentes (ex.: `TCE-PR-999999`).
+  - **Fatiamento Anatômico nas 6 Macro-Partes / 10 Sub-Camadas:**
+    - Camadas 1A a 6A estruturadas com Tribunal Pleno, Conselheiro Relator e entidade genérica `ORGAO_CONTRATANTE` (Lei 5 de Neutralidade Institucional);
+    - Camada 5A (Dispositivo) com precedência decisória para alinhamento tático `FAVORABLE` sob `stance: "DEFENSE"` para o Prejulgado 28 (lote único de software).
+  - **Teto Estrito MCP (< 900 bytes):** Retornos sintéticos em conformidade com a Lei 2 (814 bytes na busca e 672 bytes no fatiamento anatômico).
+
 ## [1.4.5] - 2026-11-07
 
 ### Adicionado

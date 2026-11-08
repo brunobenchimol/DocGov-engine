@@ -20,11 +20,11 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
     expect(routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
     expect(routingInfo.unimplemented_uf_requested).toBeNull();
     expect(routingInfo.fallback_notice).toBeNull();
-    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG"]);
+    expect(routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG", "PR"]);
     expect(selectedProviders.map((p) => p.courtId)).toEqual(["TCU", "STJ", "STF"]);
   });
 
-  it("deve incluir o TCE respectivo para UFs implementadas (PA, CE, DF, SP, MG)", () => {
+  it("deve incluir o TCE respectivo para UFs implementadas (PA, CE, DF, SP, MG, PR)", () => {
     const resPa = defaultJurisdictionRegistry.resolveRouting(undefined, "PA");
     expect(resPa.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-PA"]);
     expect(resPa.routingInfo.unimplemented_uf_requested).toBeNull();
@@ -40,15 +40,18 @@ describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallbac
 
     const resMg = defaultJurisdictionRegistry.resolveRouting(undefined, "MG");
     expect(resMg.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-MG"]);
+
+    const resPr = defaultJurisdictionRegistry.resolveRouting(undefined, "PR");
+    expect(resPr.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF", "TCE-PR"]);
   });
 
-  it("deve aplicar Graceful Fallback sem falhar quando solicitada UF não implementada (ex: AM, PR)", () => {
+  it("deve aplicar Graceful Fallback sem falhar quando solicitada UF não implementada (ex: AM, RJ)", () => {
     const resAm = defaultJurisdictionRegistry.resolveRouting(undefined, "AM");
     expect(resAm.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
     expect(resAm.routingInfo.unimplemented_uf_requested).toBe("AM");
     expect(resAm.routingInfo.fallback_notice).toContain("Conector estadual para UF 'AM' ainda não implementado");
     expect(resAm.routingInfo.fallback_notice).toContain("Graceful Fallback");
-    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG"]);
+    expect(resAm.routingInfo.supported_ufs).toEqual(["PA", "CE", "DF", "SP", "MG", "PR"]);
   });
 
   it("deve respeitar courts explícitos informados pelo usuário", () => {
