@@ -46,7 +46,7 @@ export const TCE_PR_CURATED_CATALOG: TcePrNormativeItem[] = [
     enunciado:
       "O dever de parcelamento em soluções de tecnologia da informação deve ceder diante da demonstração técnica e econômica no ETP de que o agrupamento em lote único preserva a integridade da arquitetura, garante suporte unificado e evita perda de economia de escala.",
     dispositivo:
-      "Fixa com força normativa vinculante a viabilidade de licitação em lote único para soluções integradas de tecnologia da informação quando justificada a indivisibilidade técnica e a necessidade de governança unificada no Estudo Técnico Preliminar.",
+      "Fixa com força normativa vinculante que é lícita e autorizada a licitação em lote único para soluções integradas de tecnologia da informação quando justificada no Estudo Técnico Preliminar a indivisibilidade técnica e a necessidade de governança unificada.",
     historico:
       "Aprovado na Sessão do Tribunal Pleno de 20/03/2024 (Acórdão TC-001234/24-TCE-PR-Pleno).",
     fundamentacao:
