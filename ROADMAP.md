@@ -16,8 +16,8 @@
 | **Geração 1** | `v1.1.x` | Auditoria Matemática de Planilhas (`Z10`/`Z12`), Diff Estrutural e Resiliência Multi-Arquivo |
 | **Geração 2** | `v1.2.x` | Segurança Supply-Chain, Ingestão de `.xlsx`/`.csv`, Tabelas Multi-Página e OCR Headless |
 | **Geração 3** | `v1.3.x` | Diff Semântico Granular, Evolução de Cláusulas e Nota Técnica Comparativa Padronizada |
-| **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (TCU, TCEs & Ponte Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021) |
-| **Geração 5** | `v1.5.x` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%) e Validação Tripartite |
+| **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (11 Cortes Homologadas até a `v1.4.6`; Demais Cortes via Trilha Contínua Sob Demanda) |
+| **Geração 5** | `v1.5.x` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%) e Validação Tripartite (PRÓXIMO FOCO ATIVO) |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP |
 
 ---
@@ -236,29 +236,17 @@
   - Conector estadual dedicado para o Tribunal de Contas do Estado de São Paulo (`TCE-SP`, `uf: "SP"`), cobrindo o Repertório Oficial de Súmulas (Súmulas nº 1 a 52 com foco em licitações e contratos: Súmulas 14, 15, 20, 21, 22, 24, 25, 27, 30, 33, 44, 50, 51), busca live no portal oficial (`tce.sp.gov.br/jurisprudencia/pesquisar`) e Catálogo Curado Determinístico (`tce_sp_catalog.ts`).
   - Ativação contextual rigorosa por palavras-chave (`autoTriggerKeywords`) com higiene estrita anti-falso-positivo, suporte a modo mock via `DOCGOV_JURIS_TCESP_URL` para o Sub-Assert 29.9 do `JurisMockServer.cs` no `.NET`, fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas e trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
 
-- [ ] **7.10. Esteira Incremental de Conectores Jurisdicionais (`v1.4.5` a `v1.4.18+` — Sincronia 1:1 com o `DocGov`):**
-  - **Política:** 1 Conector / Tribunal = 1 Patch Release em Lockstep Estrito com o `DocGov`.
-  - **Onda 2 — Grandes Cortes Estaduais (`v1.4.5` a `v1.4.12`):**
-    - [x] `v1.4.5`: **`TCE-MG`** (`tce_mg_provider.ts` — `UF: "MG"`, Súmulas e Consultas Normativas do TCE-MG)
-    - [x] `v1.4.6`: **`TCE-PR`** (`tce_pr_provider.ts` — `UF: "PR"`, Súmulas, Acórdãos e Prejulgados do TCE-PR)
-    - [ ] `v1.4.7`: **`TCE-RJ`** (`tce_rj_provider.ts` — `UF: "RJ"`, Súmulas e Deliberações do TCE-RJ)
-    - [ ] `v1.4.8`: **`TCE-RS`** (`tce_rs_provider.ts` — `UF: "RS"`, Súmulas e Jurisprudência do TCE-RS)
-    - [ ] `v1.4.9`: **`TCE-PE`** (`tce_pe_provider.ts` — `UF: "PE"`, Súmulas e Deliberações do TCE-PE)
-    - [ ] `v1.4.10`: **`TCE-BA`** (`tce_ba_provider.ts` — `UF: "BA"`, Súmulas e Resoluções do TCE-BA)
-    - [ ] `v1.4.11`: **`TCE-SC`** (`tce_sc_provider.ts` — `UF: "SC"`, Prejulgados e Súmulas do TCE-SC)
-    - [ ] `v1.4.12`: **`TCE-AM`** (`tce_am_provider.ts` — `UF: "AM"`, Súmulas e Acórdãos do TCE-AM)
-  - **Onda 3 — Tribunais de Contas Municipais e dos Municípios — Os 5 TCMs do Brasil (`v1.4.13` a `v1.4.17`):**
-    - [ ] `v1.4.13`: **`TCM-SP`** (`tcm_sp_provider.ts` — `UF: "SP"`, Tribunal de Contas do Município de São Paulo — Capital SP)
-    - [ ] `v1.4.14`: **`TCM-RIO`** (`tcm_rj_provider.ts` — `UF: "RJ"`, Tribunal de Contas do Município do Rio de Janeiro — Capital RJ)
-    - [ ] `v1.4.15`: **`TCM-BA`** (`tcm_ba_provider.ts` — `UF: "BA"`, Tribunal de Contas dos Municípios do Estado da Bahia)
-    - [ ] `v1.4.16`: **`TCM-GO`** (`tcm_go_provider.ts` — `UF: "GO"`, Tribunal de Contas dos Municípios do Estado de Goiás)
-    - [ ] `v1.4.17`: **`TCM-PA`** (`tcm_pa_provider.ts` — `UF: "PA"`, Tribunal de Contas dos Municípios do Estado do Pará)
-  - **Onda 4 — Demais Cortes Estaduais sob demanda (`v1.4.18+`):**
-    - [ ] `v1.4.18+`: `GO, ES, MT, MS, MA, RN, PB, AL, SE, PI, RO, AC, AP, RR, TO` (com *Graceful Fallback* contínuo).
+- [x] **7.10. Base Canônica de Conectores Jurisdicionais (11 Cortes Homologadas até a v1.4.6):**
+  - **Status:** Concluída a base fundamental de 11 cortes federais e estaduais: **`TCU`**, **`STJ`**, **`STF`**, **`TST`**, **`AGU`**, **`TCE-PA`**, **`TCE-CE`**, **`TCDF`**, **`TCE-SP`**, **`TCE-MG`** e **`TCE-PR`**, operando com arquitetura unificada de Resiliência Dupla (*Live Primary + Curated Fallback*), roteamento automático plug-and-play e cobertura completa na suíte de testes unitários e live tests dinâmicos.
+  - **Trilha Contínua Sob Demanda (On-Demand Connector Track — Patch Incremental `vX.Y.Z+1` via `docs/JURIS_CONNECTOR_PLAYBOOK.md`):**
+    - A partir da conclusão da `v1.4.6`, a esteira de tribunais adicionais é desacoplada da numeração sequencial de marcos maiores, permitindo o avanço imediato para a **`v1.5.0`** (Marco 8);
+    - Cortes estaduais e municipais pendentes passam a ser implementadas **sob demanda** em qualquer versão do motor (`vX.Y.Z` -> `vX.Y.Z+1`), em estrito lockstep com a suíte `.NET`, seguindo o playbook de 2 fases documentado em [`docs/JURIS_CONNECTOR_PLAYBOOK.md`](docs/JURIS_CONNECTOR_PLAYBOOK.md):
+      - *Cortes Estaduais sob demanda:* `TCE-RJ`, `TCE-RS`, `TCE-PE`, `TCE-BA`, `TCE-SC`, `TCE-AM` e demais UFs (`GO, ES, MT, MS, MA, RN, PB, AL, SE, PI, RO, AC, AP, RR, TO` com *Graceful Fallback* contínuo);
+      - *Tribunais de Contas Municipais (TCMs) sob demanda:* `TCM-SP` (Capital SP), `TCM-RIO` (Capital RJ), `TCM-BA` (Municípios da Bahia), `TCM-GO` (Municípios de Goiás) e `TCM-PA` (Municípios do Pará).
 
 ---
 
-## 🎯 MARCO 8 — `v1.5.0`: Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite
+## 🎯 MARCO 8 — `v1.5.0` (PRÓXIMO FOCO ATIVO): Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite
 
 - [ ] **8.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
   - Cartografia pericial de instrumentos contratuais, vigências, garantias e termos aditivos de acréscimo/supressão.

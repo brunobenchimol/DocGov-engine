@@ -92,3 +92,9 @@ Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do 
 - [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
 - [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas;
 - [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
+
+### 5. Trilha Contínua de Conectores Jurisdicionais (On-Demand Connector Track)
+Sempre que o usuário solicitar a adição de um novo tribunal de contas estadual ou municipal (*"Vamos implementar o conector <CORTE>"*), o agente DEVE seguir estritamente o playbook documentado em `docs/JURIS_CONNECTOR_PLAYBOOK.md`:
+1. **Fase 1 (Planejamento e Sondagem):** `/plan` obrigatório com leitura seletiva restrita (`tce_pr_provider.ts` e `tce_pr_catalog.ts`), sondagem real via terminal (`curl`) e elaboração do plano sem editar código;
+2. **Fase 2 (Execução):** 4 Micro-Commits atômicos (MC-1 Catálogo, MC-2 Provider/Registry, MC-3 Testes/check_lines, MC-4 Release/Bump de Patch `vX.Y.Z+1`).
+
