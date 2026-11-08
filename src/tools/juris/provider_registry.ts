@@ -15,6 +15,7 @@ import { TceCeProvider } from "./providers/tce_ce_provider.ts";
 import { TcdfProvider } from "./providers/tcdf_provider.ts";
 import { TceSpProvider } from "./providers/tce_sp_provider.ts";
 import { TceMgProvider } from "./providers/tce_mg_provider.ts";
+import { TcePrProvider } from "./providers/tce_pr_provider.ts";
 import { TstProvider } from "./providers/tst_provider.ts";
 import { AguProvider } from "./providers/agu_provider.ts";
 
@@ -32,6 +33,7 @@ export class JurisdictionProviderRegistry {
     this.register(new TcdfProvider());
     this.register(new TceSpProvider());
     this.register(new TceMgProvider());
+    this.register(new TcePrProvider());
   }
 
   public register(provider: JurisdictionProvider): void {
