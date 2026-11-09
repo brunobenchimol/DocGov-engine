@@ -50,13 +50,10 @@ import {
   formatSearchPncpSyntheticResult,
 } from "../tools/pncp.ts";
 import {
-  searchJuris,
-  formatSearchJurisSyntheticResult,
-  fetchJuris,
-  formatFetchJurisSyntheticResult,
   compileDefenseCounterReasoningDocx,
   compileAttackChallengeDocx,
 } from "../tools/juris/index.ts";
+import { dispatchModularTool } from "./tool_dispatchers.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import {
@@ -422,53 +419,9 @@ export async function handleCallToolRequest(request: {
         };
       }
 
-      if (toolName === "search_juris") {
-        const args = (request.params.arguments || {}) as any;
-        if (!args.query) {
-          throw new Error("Parâmetro obrigatório 'query' não fornecido para search_juris.");
-        }
-        const res = await searchJuris({
-          query: args.query,
-          caseDir: args.caseDir,
-          courts: args.courts,
-          uf: args.uf,
-          stance: args.stance,
-          regime: args.regime,
-          colegiado: args.colegiado,
-          limit: args.limit,
-        });
-        const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
-      }
-
-      if (toolName === "fetch_juris") {
-        const args = (request.params.arguments || {}) as any;
-        if (!args.acordaoIdOrUrl) {
-          throw new Error("Parâmetro obrigatório 'acordaoIdOrUrl' não fornecido para fetch_juris.");
-        }
-        const res = await fetchJuris({
-          acordaoIdOrUrl: args.acordaoIdOrUrl,
-          caseDir: args.caseDir,
-          shortname: args.shortname,
-          topicFilter: args.topicFilter,
-          stance: args.stance,
-        });
-        const synthetic = formatFetchJurisSyntheticResult(res);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+      const modularRes = await dispatchModularTool(toolName, request.params.arguments || {});
+      if (modularRes) {
+        return modularRes;
       }
     } catch (err: any) {
       return {

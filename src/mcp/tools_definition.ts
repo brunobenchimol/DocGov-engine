@@ -287,5 +287,70 @@ export function getMcpToolsDefinition() {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
+    {
+      name: "docgov_audit_contract_execution",
+      description:
+        "Auditoria determinística e fiscalização contínua de contratos administrativos, limites de aditamento (25%/50% isolados, sem compensação), batimento quadripartite [TR <-> Proposta <-> ARP <-> Contrato/Fatura] com bloqueio de aditivo direto em ARP, e validação de interregno de 12 meses em reajustes/repactuações (Gen5 Marco 8).\n" +
+        "- Quando usar: Para auditar aditamentos, detectar sobrepreço ou reajustes irregulares.\n" +
+        "- Pós-condição: Grava relatorio_fiscalizacao_contratual.json e dossie_fiscalizacao_contratual.md em disco com payload sintético MCP < 900 bytes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          contractJsonPath: {
+            type: "string",
+            description: "Caminho para o JSON de dados contratuais e histórico de aditivos/faturamento.",
+          },
+          caseDir: {
+            type: "string",
+            description: "Diretório do caso DocGov (ex.: 'cases/meu_caso').",
+          },
+          outputDir: {
+            type: "string",
+            description: "Diretório de saída para os relatórios detalhados.",
+          },
+          auditType: {
+            type: "string",
+            enum: ["FULL", "ADDENDUM_LIMITS", "TRIPARTITE_MATCH", "READJUSTMENT"],
+            description: "Foco ou tipo da auditoria (padrão: FULL).",
+          },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    {
+      name: "docgov_govern_arp",
+      description:
+        "Motor determinístico de governança de Ata de Registro de Preços (ARP) e gestão de caronas: livro-razão com travas de 50% individual e 200% global acumulada, matriz de compatibilidade federativa/jurídica, condicionantes de TIC, auditoria de vigência (12+12m) e compilação nativa OpenXML DOCX/PDF de notas de adesão e estudos de vantajosidade (Gen5 Marco 8).\n" +
+        "- Quando usar: Para processar ou instruir pedidos de adesão a ARP (visão Gerenciador ou Carona).\n" +
+        "- Pós-condição: Grava dossie_governanca_arp.json, visao_governanca_arp.md e DOCX/PDF compilados com payload sintético MCP < 900 bytes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          arpJsonPath: {
+            type: "string",
+            description: "Caminho para o JSON de dados da ARP e solicitação de adesão.",
+          },
+          caseDir: {
+            type: "string",
+            description: "Diretório do caso DocGov (ex.: 'cases/meu_caso').",
+          },
+          outputDir: {
+            type: "string",
+            description: "Diretório de saída para os artefatos compilados.",
+          },
+          compilationMode: {
+            type: "string",
+            enum: ["ARP_ADHESION_GRANT_NOTE", "ARP_ADVANTAGE_STUDY", "NONE"],
+            description: "Modo documental de compilação OpenXML/PDF.",
+          },
+          outputFormat: {
+            type: "string",
+            enum: ["docx", "pdf", "both"],
+            description: "Formato do documento compilado (padrão: both).",
+          },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
   ];
 }

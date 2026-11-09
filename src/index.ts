@@ -38,11 +38,25 @@ export * from "./tools/technical_note.ts";
 export * from "./tools/pncp.ts";
 export * from "./tools/juris/index.ts";
 
-// 7. Servidor MCP e Especificação Técnica (--dump-spec)
+// 7. Fiscalização Contratual, Aditivos e Governança de ARP (Gen5)
+export * from "./contracts/types.ts";
+export * from "./contracts/addendum_auditor.ts";
+export * from "./contracts/tripartite_matcher.ts";
+export * from "./contracts/readjustment_auditor.ts";
+export * from "./contracts/audit_contract_execution.ts";
+export * from "./arp/types.ts";
+export * from "./arp/ledger_engine.ts";
+export * from "./arp/compatibility_matrix.ts";
+export * from "./arp/arp_compiler.ts";
+export * from "./arp/govern_arp.ts";
+export * from "./mcp/tool_dispatchers.ts";
+export * from "./cli/contracts_cli.ts";
+
+// 8. Servidor MCP e Especificação Técnica (--dump-spec)
 export * from "./mcp/spec.ts";
 export * from "./mcp/server.ts";
 
-// 8. Modo CLI
+// 9. Modo CLI
 export * from "./cli/index.ts";
 
 // ============================================================================
@@ -76,6 +90,10 @@ if (import.meta.main) {
     args.includes("--search-pncp") ||
     args.includes("--search-juris") ||
     args.includes("--fetch-juris") ||
+    args.includes("audit-contract") ||
+    args.includes("--audit-contract") ||
+    args.includes("govern-arp") ||
+    args.includes("--govern-arp") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||

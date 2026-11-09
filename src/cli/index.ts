@@ -24,6 +24,7 @@ import {
   compileAttackChallengeDocx,
 } from "../tools/juris/index.ts";
 import { handleConnectorsCli, handleMaintenanceCli } from "./connectors_cli.ts";
+import { handleContractsCli } from "./contracts_cli.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import type { TechnicalNoteData } from "../types/index.ts";
@@ -57,6 +58,8 @@ Uso:
   docgov-engine --search-pncp --case-dir <dir> --query <termos> [--status <todas|recebendo_proposta|encerradas>] [--uf <UF>] [--modalidade <termo>] [--limit <1..20>]
   docgov-engine --search-juris [--case-dir <dir>] --query <termos> [--courts <TCU,TCE-PA...>] [--uf <UF>] [--stance <DEFENSE|ATTACK|BOTH>] [--limit <n>]
   docgov-engine --fetch-juris [--case-dir <dir>] --id <acordao> [--shortname <nome>] [--topic <filtro>] [--stance <DEFENSE|ATTACK|BOTH>]
+  docgov-engine audit-contract --contract-json <dados.json> [--case-dir <dir>] [--output-dir <dir>] [--type <FULL|ADDENDUM_LIMITS|...>]
+  docgov-engine govern-arp --arp-json <arp.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <GRANT_NOTE|ADVANTAGE_STUDY>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release
@@ -68,6 +71,11 @@ Uso:
 
   // 0c) Modos de Manutenção e Atualização (--dump-spec, --internal-bg-copy, --update)
   if (await handleMaintenanceCli(args)) {
+    return;
+  }
+
+  // 0d) Modos Gen5 de Fiscalização Contratual e Governança de ARP (audit-contract, govern-arp)
+  if (await handleContractsCli(args)) {
     return;
   }
 

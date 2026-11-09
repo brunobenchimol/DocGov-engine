@@ -147,8 +147,8 @@ export async function governArpExecution(
     compiled_pdf_path: compiledPdfPath ? compiledPdfPath.replace(/\\/g, "/") : undefined,
     next_step_hint:
       blocking_tags.length > 0
-        ? `Adesão indeferida (${blocking_tags.join(", ")}). Inspecione ${visaoMdPath.replace(/\\/g, "/")}.`
-        : `Adesão regular e livro-razão atualizado. Consulte ${dossierJsonPath.replace(/\\/g, "/")}.`,
+        ? `Adesão indeferida (${blocking_tags.length} óbices legais). Inspecione a visão de governança gerada.`
+        : "Adesão regular e livro-razão atualizado.",
   };
 
   return { dossier, synthetic };

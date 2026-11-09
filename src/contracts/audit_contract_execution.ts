@@ -131,8 +131,8 @@ export async function auditContractExecution(
     dossier_md_path: dossierMdPath.replace(/\\/g, "/"),
     next_step_hint:
       blocking_tags.length > 0
-        ? `Bloqueio determinístico ativo (${blocking_tags.join(", ")}). Inspecione ${dossierMdPath.replace(/\\/g, "/")}.`
-        : `Auditoria concluída com conformidade plena. Relatório em ${reportJsonPath.replace(/\\/g, "/")}.`,
+        ? `Bloqueio determinístico ativo (${blocking_tags.length} apontamentos). Inspecione o dossiê pericial gerado.`
+        : "Auditoria concluída com conformidade plena.",
   };
 
   return { report, synthetic };
