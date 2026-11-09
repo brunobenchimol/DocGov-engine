@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.4.6)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.5.0)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -151,7 +151,7 @@ A versão **`v1.4.5`** (e a série **`v1.4.x`**) consolida a **Geração 4 do do
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.4.5`):** Inclusão mandatória do campo `"engine_version": "1.4.5"` na raiz do payload JSON sintético retornado por todas as 10 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.0`):** Inclusão mandatória do campo `"engine_version": "1.5.0"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -174,9 +174,9 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
 
 ---
 
-## 4. Ciclo de Vida do Caso: 10 Ferramentas Nativas Integradas
+## 4. Ciclo de Vida do Caso: 12 Ferramentas Nativas Integradas
 
-O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **10 ferramentas fundamentais**:
+O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **12 ferramentas fundamentais**:
 
 ### A) Modo Servidor MCP (Padrão / `--mcp`)
 
@@ -237,6 +237,16 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
     - Download oficial e fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas pelo `AnatomicalSlicer` com trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
     - Grava o Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e o Inteiro Teor Estruturado no Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md`).
     - Parâmetros: `acordaoIdOrUrl` (*obrigatório*), `caseDir`, `court`, `shortname`, `topicFilter`, `stance` (*opcionais*).
+
+11. **`docgov_audit_contract_execution`**
+    - Auditoria determinística e fiscalização contínua de contratos administrativos, limites de aditamento (25%/50% isolados, sem compensação mútua), batimento quadripartite (`[TR <-> Proposta <-> ARP <-> Contrato/Fatura]`) com bloqueio de aditivo direto em ARP, consensualidade em estatais e monitoramento de reajustes/repactuações com interregno de 12 meses.
+    - Grava `relatorio_fiscalizacao_contratual.json` e `dossie_fiscalizacao_contratual.md` em disco com payload sintético MCP < 900 bytes.
+    - Parâmetros: `contractJsonPath` (*obrigatório*), `caseDir`, `outputDir`, `auditType` (*opcionais*).
+
+12. **`docgov_govern_arp`**
+    - Motor determinístico de governança de Ata de Registro de Preços e gestão de caronas: livro-razão com travas de 50% individual e 200% global acumulada, matriz de compatibilidade federativa/jurídica (vedação de carona ascendente e simetria 14.133 vs 13.303), condicionantes de TIC, auditoria de vigência (12+12m) e compilação nativa OpenXML DOCX/PDF de notas técnicas de adesão e estudos de vantajosidade.
+    - Grava `dossie_governanca_arp.json`, `visao_governanca_arp.md` e minutas DOCX/PDF com payload sintético MCP < 900 bytes.
+    - Parâmetros: `arpJsonPath` (*obrigatório*), `caseDir`, `outputDir`, `compilationMode`, `outputFormat` (*opcionais*).
 
 ---
 
