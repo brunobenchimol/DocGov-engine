@@ -8,6 +8,35 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-11-08
+
+### Adicionado
+- **Geração 5 (Marco 8) — Fiscalização Contratual, Aditivos 25%/50%, Batimento Quadripartite, Reajustes/Repactuações e Governança de ARP:**
+  - **Auditoria de Limites de Aditamento e Vedações Rígidas (`src/contracts/addendum_auditor.ts`):**
+    - Cálculo isolado de acréscimos e supressões (25% para compras, serviços e obras; 50% para reformas de edifícios ou equipamentos — Art. 125 da Lei nº 14.133/2021 e Art. 81 da Lei nº 13.303/2016);
+    - Vedação matemática expressa de compensação mútua entre acréscimos e supressões para mascarar estouro de limite (`[ADDENDUM_COMPENSATION_FORBIDDEN]`);
+    - Bloqueio determinístico imediato de aditamento quantitativo aplicado diretamente sobre a Ata de Registro de Preços (`[ILLEGAL_ARP_ADDENDUM_BLOCK]`);
+    - Validação de consensualidade obrigatória em contratos de empresas estatais da Lei 13.303/2016 (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`);
+    - Emissão de tags canônicas `[ADDENDUM_LIMIT_EXCEEDED_25PCT]` e `[ADDENDUM_LIMIT_EXCEEDED_50PCT]`.
+  - **Motor de Batimento Quadripartite e Detecção de Sobrepreço (`src/contracts/tripartite_matcher.ts`):**
+    - Cruzamento encadeado de conformidade: `[TR / Edital] <-> [Proposta Vencedora] <-> [ARP] <-> [Contrato Derivado / OS / Fatura]`;
+    - Detecção automatizada de divergência de preço unitário (contratado/faturado > proposta/TR), superfaturamento quantitativo (faturado > homologado/contratado), pagamento antecipado sem garantia e supressão arbitrária (`[TRIPARTITE_OVERPRICING_DETECTED]`).
+  - **Monitoramento de Reajustes e Repactuações (`src/contracts/readjustment_auditor.ts`):**
+    - Verificação do interregno legal mínimo de 12 meses (365 dias) contado da data-base do orçamento ou da CCT anterior (`[READJUSTMENT_INTERREGNUM_VIOLATION_12M]`);
+    - Exigência de comprovação formal de CCT homologada para repactuações de mão de obra exclusiva;
+    - Memória de cálculo auditável de reajuste por índices (IPCA, INPC, IGP-M, ICT).
+  - **Motor de Governança Determinística de ARP e Gestão de Caronas (`src/arp/`):**
+    - *Livro-Razão Automatizado (`src/arp/ledger_engine.ts`):* Travas matemáticas estritas de 50% individual por item (`[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]`) e 200% global acumulado de caronas sobre o quantitativo registrado (`[ARP_GLOBAL_LIMIT_EXCEEDED_200PCT]`), preservando intacto o saldo próprio do Gerenciador e Participantes;
+    - *Matriz de Compatibilidade Jurídica e Federativa (`src/arp/compatibility_matrix.ts`):* Verificação de simetria de regime (14.133 vs 13.303 — `[ARP_REGIME_ASYMMETRY_BLOCK]`), bloqueio de adesão ascendente vedada de União/Estados em atas municipais (`[ARP_FEDERATIVE_ASCENDING_BLOCK]`), e condicionantes de soluções de TIC em lote único/guarda-chuva sem memória de cálculo (`[ARP_ICT_UMBRELLA_LOT_BLOCK]`);
+    - *Vigência e Desacoplamento Contratual:* Monitoramento da vigência da ARP (12+12 meses), trava de renovação de quantitativos no 2º ano sem previsão editalícia (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`) e validação do desacoplamento autônomo dos contratos derivados celebrados dentro da validade da ata (vigência de até 5 anos / 60 meses);
+    - *Compilador Nativo OpenXML DOCX e PDF (`src/arp/arp_compiler.ts`):* Geração editorial A4 de `Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf` (visão Órgão Gerenciador) e `Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf` (visão Órgão Aderente/Carona).
+  - **Exposição MCP e CLI com Teto Estrito de Payload (< 900 bytes):**
+    - Ferramentas MCP `docgov_audit_contract_execution` e `docgov_govern_arp` com retorno sintético em stdout estritamente abaixo de 900 bytes (Lei 2);
+    - Comandos CLI `audit-contract` e `govern-arp` (com aliases `--audit-contract` e `--govern-arp`);
+    - Modularização de dispatchers (`src/mcp/tool_dispatchers.ts` e `src/cli/contracts_cli.ts`) preservando `src/mcp/server.ts` (449 linhas) e `src/cli/index.ts` (476 linhas) confortavelmente sob o teto da Lei 9 (<= 500 linhas);
+    - Atualização de `--dump-spec` e sincronização integral de especificações técnicas;
+    - Interoperabilidade Lockstep certificada para o Assert 30 da suíte C# `DocGov`.
+
 ## [1.4.6] - 2026-11-08
 
 ### Adicionado

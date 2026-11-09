@@ -301,11 +301,11 @@ describe("Testes Unitários v1.3.5: Busca Textual Multi-Query no PNCP (search_pn
     }
   });
 
-  test("15. MCP: ferramenta search_pncp deve estar registrada nas 10 ferramentas do servidor MCP", async () => {
+  test("15. MCP: ferramenta search_pncp deve estar registrada nas ferramentas do servidor MCP", async () => {
     const { getMcpToolsDefinition } = await import("../src/mcp/server.ts");
     const tools = getMcpToolsDefinition();
 
-    expect(tools.length).toBe(10);
+    expect(tools.length).toBeGreaterThanOrEqual(10);
 
     const searchTool = tools.find((t) => t.name === "search_pncp");
     expect(searchTool).toBeDefined();

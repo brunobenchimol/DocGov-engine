@@ -246,36 +246,39 @@
 
 ---
 
-## 🎯 MARCO 8 — `v1.5.0` (PRÓXIMO FOCO ATIVO): Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite
+## ✅ MARCO 8 — `v1.5.0` (CONCLUÍDO): Núcleo de Auditoria e Fiscalização Contratual Contínua, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas) e Validação Tripartite
 
-- [ ] **8.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
+- [x] **8.1. Ingestão e Mapeamento de Contratos e Termos Aditivos:**
   - Cartografia pericial de instrumentos contratuais, vigências, garantias e termos aditivos de acréscimo/supressão.
-  - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços e 50% para reformas, conforme Lei nº 14.133/2021).
+  - Cálculo determinístico de limites legais de aditamento (25% para compras/serviços/obras e 50% para reformas, conforme Lei nº 14.133/2021 e Lei nº 13.303/2016).
+  - Vedação matemática absoluta de compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`).
+  - Consensualidade obrigatória no regime das Estatais (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`).
 
-- [ ] **8.2. Motor de Validação Cruzada Tripartite e Quadripartite:**
+- [x] **8.2. Motor de Validação Cruzada Tripartite e Quadripartite:**
   - Encadeamento determinístico de conformidade documental: `[TR / Edital] <-> [Proposta Vencedora] <-> [Ata de Registro de Preços (ARP)] <-> [Contrato Derivado / OS / Fatura]`.
-  - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada, os valores registrados na Ata e as cláusulas pactuadas no contrato administrativo ou ordem de fornecimento.
+  - Verificação automatizada de conformidade entre os itens exigidos no Termo de Referência, os preços cotados na proposta classificada, os valores registrados na Ata e as cláusulas pactuadas no contrato administrativo ou ordem de fornecimento (`[TRIPARTITE_OVERPRICING_DETECTED]`).
   - Detecção de desvios de objeto, itens suprimidos sem amparo e divergências de especificação técnica.
-  - **Bloqueio Determinístico de Aditivo Direto sobre ARP:** Alerta e bloqueio de tentativas ilegais de aplicar aditivo quantitativo de 25% diretamente sobre a Ata de Registro de Preços (vedação expressa da jurisprudência do TCU e Art. 86 da Lei 14.133/2021 — aditamentos quantitativos são permitidos exclusivamente sobre os contratos derivados celebrados).
+  - **Bloqueio Determinístico de Aditivo Direto sobre ARP:** Alerta e bloqueio de tentativas ilegais de aplicar aditivo quantitativo de 25% diretamente sobre a Ata de Registro de Preços (`[ILLEGAL_ARP_ADDENDUM_BLOCK]`).
 
-- [ ] **8.3. Monitoramento e Histórico de Reajustes / Repactuações:**
-  - Rastreamento de índices inflacionários contratuais (IPCA, INPC, IGP-M) e memória de cálculo de repactuação de mão de obra exclusiva.
+- [x] **8.3. Monitoramento e Histórico de Reajustes / Repactuações:**
+  - Rastreamento de índices inflacionários contratuais (IPCA, INPC, IGP-M, ICT) e memória de cálculo de repactuação de mão de obra exclusiva.
+  - Validação do interregno mínimo legal de 12 meses (365 dias) e comprovação de CCT (`[READJUSTMENT_INTERREGNUM_VIOLATION_12M]`).
 
-- [ ] **8.4. Motor Determinístico de Governança de Atas de Registro de Preços (ARP & Gestão de Caronas):**
+- [x] **8.4. Motor Determinístico de Governança de Atas de Registro de Preços (ARP & Gestão de Caronas):**
   - **Controle Matemático de Limites de Adesão ("Carona" — Art. 86, §§ 4º e 5º da Lei 14.133/2021 e RILC/Lei 13.303/2016):**
-    - *Trava Individual (50%):* Bloqueio determinístico caso um único órgão não participante solicite adesão superior a **50%** do quantitativo registrado por item;
-    - *Trava Global Acumulada (200% / Dobro):* Livro-razão automatizado para auxiliar o **Órgão Gerenciador** no controle de todas as anuências concedidas, bloqueando novas caronas quando o somatório atingir **200% (o dobro)** do quantitativo originalmente registrado na ARP (preservando intacto o saldo próprio do Gerenciador e Participantes).
+    - *Trava Individual (50%):* Bloqueio determinístico caso um único órgão não participante solicite adesão superior a **50%** do quantitativo registrado por item (`[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]`);
+    - *Trava Global Acumulada (200% / Dobro):* Livro-razão automatizado bloqueando novas caronas quando o somatório atingir **200% (o dobro)** do quantitativo originalmente registrado na ARP (`[ARP_GLOBAL_LIMIT_EXCEEDED_200PCT]`), preservando intacto o saldo próprio do Gerenciador e Participantes.
   - **Matriz de Compatibilidade Jurídica e Federativa entre Órgãos (`[Gerenciador] <-> [Aderente]`):**
-    - Verificação de simetria de regime legal (**Estatais / Lei 13.303/2016 + RILC** vs. **Administração Direta / Lei 14.133/2021**);
-    - Bloqueio de adesão ascendente vedada (União e Estados aderindo a ARP Municipal — Art. 86, § 3º da Lei nº 14.133/2021);
-    - Validação de requisitos específicos para carona em Atas de TIC (conforme normativos de contratação de soluções de TIC).
+    - Verificação de simetria de regime legal (**Estatais / Lei 13.303/2016 + RILC** vs. **Administração Direta / Lei 14.133/2021** — `[ARP_REGIME_ASYMMETRY_BLOCK]`);
+    - Bloqueio de adesão ascendente vedada (União e Estados aderindo a ARP Municipal — Art. 86, § 3º e § 8º da Lei nº 14.133/2021 — `[ARP_FEDERATIVE_ASCENDING_BLOCK]`);
+    - Validação de requisitos específicos para carona em Atas de TIC em lote único/guarda-chuva sem memória de cálculo (`[ARP_ICT_UMBRELLA_LOT_BLOCK]`).
   - **Gestão de Vigência (`1 + 1 Ano`), Renovação de Saldos e Burn-Down da Ata:**
     - Monitoramento da vigência da ARP (12 meses prorrogáveis por mais 12 meses);
-    - Auditoria de previsão editalícia para renovação de quantitativos no 2º ano da vigência da Ata;
-    - Rastreamento do desacoplamento entre a vigência da ARP e a vigência (de até 5 anos) dos contratos dela derivados.
+    - Auditoria de previsão editalícia e comprovação de vantajosidade para renovação de quantitativos no 2º ano da vigência da Ata (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`);
+    - Rastreamento do desacoplamento entre a vigência da ARP e a vigência autônoma (de até 5 anos / 60 meses) dos contratos dela derivados.
   - **Compilação Documental Nativa de ARP (`ARP_ADHESION_GRANT_NOTE` e `ARP_ADVANTAGE_STUDY` em `.docx`/`.pdf`):**
-    - *Para o Órgão Gerenciador (`Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf`):* Geração automatizada do despacho/nota técnica de anuência ou negativa fundamentada de pedido de carona, estampando a memória de cálculo do livro-razão da Ata (quantitativo original registrado, consumo acumulado de adesões anteriores, verificação da trava individual de 50% e do teto global de 200%, compatibilidade jurídica/federativa do órgão solicitante e saldo remanescente após o abate);
-    - *Para o Órgão Aderente / "Carona" (`Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf`):* Geração automatizada do estudo técnico e jurídico de instrução de adesão, comprovando a identidade de necessidade técnica, a simetria de regime legal (`Lei 13.303/2016 + RILC` vs. `Lei 14.133/2021`), a vantajosidade econômica comparativa perante os preços de mercado/PNCP, a justificativa para não realização de licitação própria (ou adesão a lote único) e a anuência formal do fornecedor e do órgão gerenciador.
+    - *Para o Órgão Gerenciador (`Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf`):* Geração automatizada do despacho/nota técnica de anuência ou negativa fundamentada de pedido de carona com extrato do livro-razão e travas;
+    - *Para o Órgão Aderente / "Carona" (`Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf`):* Geração automatizada do estudo técnico preliminar simplificado de adesão, vantajosidade comparativa de preços PNCP/mercado e justificativa.
 
 ---
 
