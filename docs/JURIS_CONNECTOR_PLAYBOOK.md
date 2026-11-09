@@ -86,3 +86,17 @@ Após aprovação do plano, execute a sequência atômica de commits:
 - Crie a tag anotada: `git tag -a vX.Y.Z+1 -m "Release vX.Y.Z+1: conector estadual <CORTE> com Resiliência Dupla"`
 - Envie: `git push origin <branch> ; git push origin vX.Y.Z+1`
 - Monitore a esteira automatizada no GitHub Actions (`gh run watch`) sem realizar uploads manuais locais (Lei 7).
+
+---
+
+## 4. Fila de Conectores Pendentes e Prioridade de Homologação (On-Demand Track)
+
+A esteira de integração jurisdicional segue a ordem estratégica pactuada no `ROADMAP.md` para pareamento com a suíte de testes do ecossistema:
+
+| Prioridade | Grupo / Onda | Cortes / Tribunais de Contas | Estratégia de Provedor & Status |
+| :--- | :--- | :--- | :--- |
+| **Base Concluída** | **Camada Federal + Onda 1 & 2** (11 Cortes) | `TCU`, `STJ`, `STF`, `TST`, `AGU`, `TCE-PA`, `TCE-CE`, `TCDF`, `TCE-SP`, `TCE-MG`, `TCE-PR` | **Homologados 100%** (*Live Primary + Curated Fallback*, Súmulas vinculantes e Sub-Asserts C#) |
+| **Prioridade 1** | **Onda 3 — Tribunais Municipais** (5 TCMs) | `TCM-PA` (Municípios PA), `TCM-SP` (Capital SP), `TCM-RIO` (Capital RJ), `TCM-BA` (Municípios BA), `TCM-GO` (Municípios GO) | **Próximos da Fila** (Resiliência Dupla, higiene de auto-trigger sem colisão com TCE homônimo) |
+| **Prioridade 2** | **Onda 2 Restante — Grandes Cortes** (6 TCEs) | `TCE-RJ`, `TCE-RS`, `TCE-PE`, `TCE-BA`, `TCE-SC`, `TCE-AM` | **Sob Demanda** (Prejulgados normativos, consultas e APIs REST/Elasticsearch) |
+| **Prioridade 3** | **Onda 4 — Demais 15 TCEs Estaduais** | `TCE-GO`, `TCE-ES`, `TCE-MT`, `TCE-MS`, `TCE-MA`, `TCE-RN`, `TCE-PB`, `TCE-AL`, `TCE-SE`, `TCE-PI`, `TCE-RO`, `TCE-AC`, `TCE-AP`, `TCE-RR`, `TCE-TO` | **Graceful Fallback Ativo** (Homologáveis sob demanda conforme solicitações do usuário ou novos casos) |
+

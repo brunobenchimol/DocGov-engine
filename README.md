@@ -87,11 +87,24 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.4.x` — Versão Atual `v1.4.5` (Geração 4 — Motor de Jurisprudência & Conectores Plug-and-Play)
+## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.0` (Geração 5 — Fiscalização Contratual, Aditivos e Governança de ARP)
 
-A versão **`v1.4.5`** (e a série **`v1.4.x`**) consolida a **Geração 4 do docgov-engine**, introduzindo a arquitetura plug-and-play de pesquisa, validação e fatiamento anatômico de jurisprudência oficial sob demanda, aliada a um compilador tático OpenXML, catálogo normativo curado determinístico e testes online com auto-discovery dinâmico por corte:
+A versão **`v1.5.0`** consolida a **Geração 5 do docgov-engine**, introduzindo ferramentas determinísticas de auditoria de execução contratual, limites de aditamento de 25%/50% sem compensação, batimento quadripartite, monitoramento de reajustes e governança estrita de Atas de Registro de Preços (ARP), expandindo a suíte para **12 ferramentas MCP**:
 
-### 🚀 Principais Inovações da Geração 4 (`v1.4.0` / `v1.4.1`):
+### 🚀 Principais Inovações da Geração 5 (`v1.5.0` — Marco 8):
+1. **11ª Ferramenta MCP `docgov_audit_contract_execution` & CLI `--audit-contract` (Fiscalização Contratual, Aditivos e Reajustes):**
+   - **Limites Legais de Aditamento Sem Compensação:** Cálculo isolado de acréscimos e supressões de 25% (obras, compras e serviços em geral) e 50% (reforma de edifício ou de equipamento) nos termos do Art. 125 da Lei nº 14.133/2021 e Art. 81 da Lei nº 13.303/2016. Vedação matemática absoluta de compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`).
+   - **Consensualidade Obrigatória no Regime das Estatais:** Bloqueio determinístico de alterações unilaterais em empresas estatais sem comprovação de acordo bilateral (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`).
+   - **Bloqueio Determinístico de Aditivo em ARP:** Bloqueio mandatório se o instrumento alvo de aditivo quantitativo for diretamente uma Ata de Registro de Preços (`[ILLEGAL_ARP_ADDENDUM_BLOCK]`).
+   - **Batimento Cruzado Tripartite e Quadripartite:** Confronto integral `[TR/Edital] <-> [Proposta] <-> [ARP] <-> [Contrato / OS / Fatura]`, detectando sobrepreço unitário/global (`[TRIPARTITE_OVERPRICING_DETECTED]`), desvios de especificação e pagamentos antecipados sem garantia.
+   - **Monitoramento de Reajustes e Repactuações:** Validação estrita do interregno mínimo de 12 meses (365 dias) a partir da data-base do orçamento ou da CCT (`[READJUSTMENT_INTERREGNUM_VIOLATION_12M]`).
+2. **12ª Ferramenta MCP `docgov_govern_arp` & CLI `--govern-arp` (Governança Determinística de ARP e Caronas):**
+   - **Travas matemáticas de carona de 50% individual e 200% global acumulada (o dobro):** Trava individual por item de 50% para órgãos não participantes (`[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]`) e livro-razão de controle global bloqueando adesões acumuladas que excedam 200% (o dobro) do quantitativo registrado na Ata (`[ARP_GLOBAL_LIMIT_EXCEEDED_200PCT]`), resguardando os quantitativos do órgão gerenciador e participantes.
+   - **Matriz de compatibilidade jurídica e federativa:** Verificação de simetria legal entre órgãos (`Lei 14.133` vs `Lei 13.303` — `[ARP_REGIME_ASYMMETRY_BLOCK]`), bloqueio ascendente vedado (União e Estados aderindo a ARP Municipal — Art. 86, § 3º e § 8º da Lei nº 14.133/2021 — `[ARP_FEDERATIVE_ASCENDING_BLOCK]`) e condicionantes de TIC em lote único (`[ARP_ICT_UMBRELLA_LOT_BLOCK]`).
+   - **Vigência 12+12 meses e renovação de saldo:** Monitoramento da vigência da ARP (12 meses prorrogáveis por igual período), auditoria de cláusula editalícia e comprovação de vantagem econômica para renovação de saldos no 2º ano (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`), e rastreamento do desacoplamento da vigência autônoma de contratos derivados (de até 5 anos / 60 meses).
+   - **Compilação nativa OpenXML `.docx`/`.pdf` de ARP:** Geração automatizada de `Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf` (para o órgão gerenciador) e `Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf` (para o órgão aderente).
+
+### 🏛️ Destaques da Geração 4 (`v1.4.x` — 11 Cortes Homologadas & Conectores Plug-and-Play):
 1. **9ª Ferramenta MCP `search_juris` & CLI `--search-juris` (Triagem Rápida & Ranking):**
    - Busca textual sob demanda em APIs oficiais de controle externo com suporte a multi-query paralela com separador pipe `|` (`Promise.all`).
    - **Estágio 1 do Funil:** Extrai apenas a Ficha de Triagem Rápida (`Cabeçalho + Ementa + Dispositivo`) sem download antecipado de textos longos.
@@ -109,13 +122,13 @@ A versão **`v1.4.5`** (e a série **`v1.4.x`**) consolida a **Geração 4 do do
 5. **Arquitetura 100% Plug-and-Play de Provedores (`JurisdictionProviderRegistry`):**
    - Desacoplamento integral de cortes e UFs: novos tribunais são registrados declarativamente com metadados (`tier`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
    - Política evolutiva canônica: **1 Conector / UF = 1 Patch Release**.
-   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**, **AGU**) e Estadual/Distrital (**TCE-PA**, **TCE-CE**, **TCDF**, **TCE-SP**, **TCE-MG**).
+   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**, **AGU**) e Estadual/Distrital (**TCE-PA**, **TCE-CE**, **TCDF**, **TCE-SP**, **TCE-MG**, **TCE-PR**).
    - **Resiliência Dupla:** Conectores com *Live Primary* (busca em APIs oficiais públicas) e *Catálogo Normativo Curado Local* (Súmulas e Consultas vinculantes determinísticas instantâneas).
-   - **Graceful Fallback:** Caso solicitada UF não implementada (ex.: `AM` ou `PR`), o motor executa automaticamente a camada federal e reporta `unimplemented_uf_requested` no payload sintético sem travar a execução.
+   - **Graceful Fallback:** Caso solicitada UF não implementada (ex.: `RJ` ou `RS`), o motor executa automaticamente a camada federal e reporta `unimplemented_uf_requested` no payload sintético sem travar a execução.
 6. **Compilador Tático OpenXML (Lockstep C# Assert 29.6):**
    - Compilação sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
 7. **Auto-Discovery Dinâmico e Seletor de Tribunal (`--court=<ID>`) em Live Tests:**
-   - Varre dinamicamente todos os conectores registrados no `JurisdictionProviderRegistry` (`bun run test:live:juris`), executando 21 sondas (2 sondas por corte + 1 de Graceful Fallback) com diagnóstico claro de origem (`[API Live Direta]`, `[Híbrido]`, `[Fallback Curado Local]`), ou permite auditoria cirúrgica de tribunais específicos (`--court=TCE-MG`, `--court=TCE-SP,TCE-MG`, `--court=ALL`).
+   - Varre dinamicamente todos os conectores registrados no `JurisdictionProviderRegistry` (`bun run test:live:juris`), executando 23 sondas (2 sondas por corte em 11 cortes + 1 de Graceful Fallback) com diagnóstico claro de origem (`[API Live Direta]`, `[Híbrido]`, `[Fallback Curado Local]`), ou permite auditoria cirúrgica de tribunais específicos (`--court=TCE-MG`, `--court=TCE-SP,TCE-MG`, `--court=ALL`).
 
 ---
 
@@ -141,7 +154,10 @@ A versão **`v1.4.5`** (e a série **`v1.4.x`**) consolida a **Geração 4 do do
    - `generate_audit_docx` & `generate_technical_note_docx`: relatórios executivos e notas comparativas em layout vertical corrido A4 (zero tabelas `<w:tbl>`).
 5. **Conectores Externos Oficiais (PNCP & Jurisprudência):**
    - `fetch_pncp` e `search_pncp`: descoberta e download determinístico de contratações públicas de referência do Portal Nacional de Contratações Públicas (IN SEGES/ME nº 65/2021) com isolamento estrito em subpastas e resolução de redirects.
-   - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores.
+   - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores (11 cortes homologadas).
+6. **Fiscalização Contratual, Aditivos e Governança de ARP (Geração 5):**
+   - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite e reajustes/repactuações com interregno de 12 meses.
+   - `docgov_govern_arp`: governança determinística de Atas de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica/federativa e compilação de notas técnicas OpenXML.
 
 > ℹ️ **Histórico Completo de Versões Anteriores:** Para a cronologia detalhada de cada marco, patch e correção histórica (da `v0.0.1` à versão atual), consulte o arquivo canônico [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -266,10 +282,6 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 # Inspecionar comparando com versão anterior (Diff Estrutural e Semântico Multi-Versão)
 ./docgov-engine --inspect edital_v2.pdf --diff edital_v1.pdf
 
-# 2. Inspecionar estrutura de um arquivo (.docx ou .pdf) gerando Cartografia, Radar Z1..Z14 e Dossiê de Hotspots
-./docgov-engine --inspect edital_licitacao.pdf --out state/estrutura_edital.json
-./docgov-engine --inspect modelo_etp.docx --out state/estrutura_etp.json --compact
-
 # 3. Construir template parametrizado a partir de um .docx bruto + slots_manifest.json
 ./docgov-engine --build-template --source modelo_etp.docx --manifest slots_manifest.json --out template.docx --save-to-registry --template-id etp_padrao_v1
 
@@ -309,6 +321,12 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 ./docgov-engine --update
 ./docgov-engine --force-update
 
+# 11. Auditar Execução Contratual, Aditivos e Batimento Tripartite (Geração 5)
+./docgov-engine --audit-contract --contract-json state/contrato_execucao.json --type FULL --output-dir state/
+
+# 12. Governar Ata de Registro de Preços, Caronas e Vantajosidade (Geração 5)
+./docgov-engine --govern-arp --arp-json state/arp_registro.json --mode FULL --output-dir state/
+
 # Verificar a versão instalada e exibir ajuda
 ./docgov-engine -v
 ./docgov-engine -h
@@ -334,9 +352,16 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--fetch-pncp` | Obtém metadados, itens e arquivos de uma contratação específica no PNCP via `--pncp`. |
 | `--search-juris` | Executa busca jurisprudencial federada multissistema com relevância, controvérsia e ponte normativa. |
 | `--fetch-juris` | Resolução canônica e fatiamento anatômico estrutural de acórdão via `--id` (e opcionalmente `--court`). |
+| `--audit-contract` / `audit-contract` | Executa auditoria determinística de execução contratual, aditivos de 25%/50% sem compensação, reajustes e batimento tripartite/quadripartite a partir de `--contract-json`. |
+| `--govern-arp` / `govern-arp` | Executa governança de Ata de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica e compilação de notas técnicas a partir de `--arp-json`. |
+| `--contract-json <caminho>` | Caminho do arquivo JSON de dados contratuais para auditoria (usado com `--audit-contract`). |
+| `--arp-json <caminho>` | Caminho do arquivo JSON da Ata de Registro de Preços para governança e controle de caronas (usado com `--govern-arp`). |
+| `--type <tipo>` | Tipo de auditoria contratual (`FULL`, `ADDENDUM_LIMITS`, `TRIPARTITE_MATCH`, `READJUSTMENT` — padrão: `FULL`). |
+| `--mode <modo>` | Modo de governança de ARP (`FULL`, `LIMITS_LEDGER`, `COMPATIBILITY_MATRIX`, `COMPILER` — padrão: `FULL`). |
+| `--output-dir <dir>` | Diretório de destino para gravação de relatórios e artefatos em disco (usado com `--audit-contract` e `--govern-arp`). |
 | `--query <termo>` | Termo ou expressão de busca textual (usado com `--search-pncp` e `--search-juris`). |
 | `--pncp <id_ou_url>` | Identificador PNCP canônico (`CNPJ-tipo-sequencial/ano`) ou link da contratação no PNCP. |
-| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCE-CE,TCDF,TCE-SP,TCE-MG`). |
+| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCE-CE,TCDF,TCE-SP,TCE-MG,TCE-PR`). |
 | `--court <id>` | Sigla da corte/tribunal de destino (usado com `--fetch-juris`). |
 | `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática de TCE no Juris. |
 | `--id <acordao>` | Identificador ou citação canônica do acórdão/processo (usado com `--fetch-juris`). |
@@ -497,7 +522,7 @@ bun test
 Para focar no domínio em desenvolvimento ou acelerar ciclos de micro-commit, execute apenas a suíte correspondente:
 
 ```bash
-# 0. Auditoria física de linhas (Lei 9 <= 500 linhas em src/tools/juris, test, tests_live e scripts)
+# 0. Auditoria física de linhas (Lei 9 <= 500 linhas em 100% do repositório: src/, test/, tests_live/ e scripts/)
 bun run check:lines
 
 # 1. Jurisprudência (Core/Scorer, Roteamento/Tools, Slicer Anatômico, Cortes Federais e Cortes Estaduais)
@@ -536,6 +561,9 @@ bun test test/registry.test.ts test/registry_matching.test.ts
 
 # 11. Dispatcher MCP (JSON-RPC stdio) e Self-Discovery Normativo
 bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts
+
+# 12. Fiscalização Contratual e Governança de ARP (Geração 5)
+bun test test/contracts/addendum_limits.test.ts test/contracts/tripartite_and_readjustment.test.ts test/arp/arp_ledger_limits.test.ts test/arp/arp_matrix_and_compiler.test.ts test/contracts_arp_mcp_cli.test.ts
 ```
 
 ---
@@ -549,7 +577,7 @@ As suítes de **Live Smoke Tests** executam requisições HTTPS REAIS contra os 
 # Executar todas as sondas de rede (PNCP + GitHub + Jurisprudência)
 bun run test:live
 
-# Executar a suíte de Jurisprudência com Auto-Discovery Dinâmico (todos os 10 conectores + Fallback gracioso = 21 sondas)
+# Executar a suíte de Jurisprudência com Auto-Discovery Dinâmico (todos os 11 conectores + Fallback gracioso = 23 sondas)
 bun run test:live:juris
 
 # Executar apenas as sondas da API oficial do PNCP (pncp.gov.br)
