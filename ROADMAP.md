@@ -19,7 +19,7 @@
 | **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (11 Cortes Homologadas até a `v1.4.6`; Demais Cortes via Trilha Contínua Sob Demanda) | `[CONCLUÍDO]` |
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[PRÓXIMO FOCO ATIVO]` |
-| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º — Fase Externa (Julgamento de Propostas, Inexequibilidade Art. 59 / Súmula 262, Habilitação Técnica 50% / Súmula 263 e Índices Contábeis) & Contratação Direta (Inexigibilidade Súmula 255, Dispensa Anti-Fracionamento e Oportunidade de Negócio Estatal Art. 28 §3º II) | `[PLANEJADO]` |
+| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º — Fase Externa (Julgamento de Propostas, Inexequibilidade Art. 59 / Súmula 262, Habilitação Técnica 50% / Súmula 263, Auditoria Forense Anti-Fraude de ACT [CNAE/CNPJ/QSA/Diligência Art. 64] e Índices Contábeis) & Contratação Direta (Inexigibilidade Súmula 255, Dispensa Anti-Fracionamento e Oportunidade de Negócio Estatal Art. 28 §3º II) | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -98,6 +98,15 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
     - Teto máximo de 10% do valor estimado para exigência de Patrimônio Líquido ou Capital Social mínimo;
     - Vedação absoluta de exigência cumulativa de Capital Social e Patrimônio Líquido (`[CUMULATIVE_CAPITAL_AND_EQUITY_BLOCK]`).
 
+- [ ] **9.2.B. Motor Forense de Autenticidade, Veracidade Material e Diligência de ACT (Art. 64 da Lei 14.133/2021, Art. 56, § 2º da Lei 13.303/2016 e Acórdãos TCU 1.385/2016 e 1.211/2021-Plenário):**
+  - **Vetor 1 (Incompatibilidade de Porte e CNAE do Emissor/Licitante):** Cruzamento público de CNPJ (`BrasilAPI` / Receita Federal com fallback mockado) verificando se o emissor do ACT (ex.: MEI/ME de ramo alheio como padaria/varejo) possui CNAE, natureza jurídica e capital social compatíveis com o volume de TI/serviços atestado (`[ACT_ISSUER_CNAE_OR_SCALE_MISMATCH_SUSPICION]`);
+  - **Vetor 2 (Cronologia Impossível e Status Cadastral do CNPJ):** Cruzamento entre Data de Abertura, Data de Baixa/Inaptidão/Suspensão do CNPJ e o período de execução ou data de assinatura do ACT (`[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]`);
+  - **Vetor 3 (Rastreabilidade de Emissor Público no PNCP):** Verificação de existência do Contrato/ARP/Empenho citado quando o emissor do ACT for órgão público ou estatal (`[ACT_PUBLIC_CONTRACT_UNVERIFIED_IN_PNCP]`);
+  - **Vetor 4 (Conflito Societário QSA, Parentesco e Contato):** Cruzamento de sócios/administradores em comum, mesmo endereço/CEP ou e-mail corporativo inválido/gratuito entre emissor e licitante (`[ACT_RELATED_PARTY_SELF_ATTESTATION_ALERT]`);
+  - **Vetor 5 (Plágio Literal do Edital / Copy-Paste Trap):** Similaridade textual determinística (token LCS/Jaccard) detectando quando um ACT pretérito copia literalmente frases e especificações do TR do edital atual (`[ACT_LITERAL_EDITAL_PLAGIARISM_DETECTED]`);
+  - **Vetor 6 (Plausibilidade Volumétrica Tempo vs. Esforço):** Auditoria da razão `Volume de UST/Horas/Itens ÷ Prazo de Execução` frente ao porte da licitante (`[ACT_IMPLAUSIBLE_VOLUME_TIME_RATIO_ALERT]`);
+  - **Vetor 7 (Metadados Forenses de PDF e Assinatura Digital):** Divergência temporal entre a data impressa no texto do ACT e a data de criação do PDF / assinatura digital ICP-Brasil/Gov.br sem ressalva de 2ª via (`[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]`).
+
 - [ ] **9.3. Auditoria Determinística de Contratação Direta (Inexigibilidade e Dispensa):**
   - **Inexigibilidade de Licitação (Art. 74 da Lei 14.133/2021 e Art. 30 da Lei 13.303/2016):**
     - Verificação de inviabilidade de competição, singularidade do serviço e notória especialização;
@@ -111,7 +120,10 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 - [ ] **9.5. Compilação Documental Nativa `.docx`/`.pdf` da Fase Externa e Contratação Direta:**
   - `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`: Minuta técnica padronizada de julgamento de conformidade de propostas, admissibilidade de atestados e resultado de diligências;
-  - `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`: Peça de instrução processual para contratações diretas, atestando a presença de todos os requisitos legais e a razoabilidade dos preços pactuados.
+  - `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`: Peça de instrução processual para contratações diretas, atestando a presença de todos os requisitos legais e a razoabilidade dos preços pactuados;
+  - `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf`: Minutas formais de diligência investigativa de veracidade de atestados em duas vias canônicas:
+    - *Via A (Ao Emissor do ACT):* E-mail/Ofício de confirmação de autenticidade endereçado aos contatos oficiais cadastrados na Receita Federal;
+    - *Via B (À Licitante — Lastro Material Obrigatório):* Requisição formal de apresentação de Notas Fiscais Eletrônicas (NF-e/NFS-e com chave de 44 dígitos), Contrato assinado à época, Ordens de Serviço e comprovantes de recolhimento fiscal/trabalhista (SEFIP/eSocial) ou bancários.
 
 ---
 
