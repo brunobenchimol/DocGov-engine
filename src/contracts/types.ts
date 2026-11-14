@@ -1,7 +1,15 @@
 // ============================================================================
-// Tipos e Interfaces: Fiscalização Contratual, Aditivos, PAS e Cesta (Gen5.5)
-// docgov-engine v1.5.5 — src/contracts/types.ts
+// Tipos e Interfaces: Fiscalização Contratual, Aditivos, PAS e Cesta (Gen5.6)
+// docgov-engine v1.5.6 — src/contracts/types.ts
 // ============================================================================
+
+import type {
+  RawPasFederativeFields,
+  PasFederativeAnalysisSummary,
+  PasDosimetryCalibrationSummary,
+} from "./pas_federative_types.ts";
+
+export * from "./pas_federative_types.ts";
 
 export type ContractObjectType =
   | "PURCHASE"
@@ -127,7 +135,7 @@ export interface RawSlaGlosaInput {
   openedFormalPas?: boolean;
 }
 
-export interface RawPasSanctionInput {
+export interface RawPasSanctionInput extends RawPasFederativeFields {
   process_id?: string;
   processId?: string;
   id?: string;
@@ -216,7 +224,7 @@ export interface RawRebalanceRequest {
   requestedValue?: number;
 }
 
-export interface RawContractInput {
+export interface RawContractInput extends RawPasFederativeFields {
   contract_id?: string;
   contractId?: string;
   contract_type?: ContractObjectType;
@@ -262,6 +270,8 @@ export interface RawContractInput {
   pas_sanctions?: RawPasSanctionInput | RawPasSanctionInput[];
   pasSanctions?: RawPasSanctionInput | RawPasSanctionInput[];
   pas?: RawPasSanctionInput | RawPasSanctionInput[];
+  pas_evaluation?: RawPasSanctionInput | RawPasSanctionInput[];
+  pasEvaluation?: RawPasSanctionInput | RawPasSanctionInput[];
   sla_glosa?: RawSlaGlosaInput | RawSlaGlosaInput[];
   slaGlosa?: RawSlaGlosaInput | RawSlaGlosaInput[];
   price_basket?: RawPriceBasketItem | RawPriceBasketItem[];
@@ -307,6 +317,9 @@ export interface PasSanctionAnalysisItem {
   contradictory_15_days_ok: boolean;
   guarantee_modality?: string;
   insurer_notification_ok: boolean;
+  competent_audit_court?: string;
+  federative_adequacy?: PasFederativeAnalysisSummary;
+  dosimetry_calibration?: PasDosimetryCalibrationSummary;
   justification?: string;
 }
 
@@ -403,6 +416,7 @@ export interface ContractAuditReport {
   pas_sanctions_analysis?: {
     processes_analyzed: number;
     violations_count: number;
+    competent_audit_court?: string;
     processes: PasSanctionAnalysisItem[];
   };
   price_basket_analysis?: {

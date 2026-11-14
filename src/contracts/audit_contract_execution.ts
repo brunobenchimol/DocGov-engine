@@ -213,6 +213,7 @@ export async function auditContractExecution(
     pas_sanctions_analysis: {
       processes_analyzed: pasRes.processes_analyzed,
       violations_count: pasRes.violations_count,
+      competent_audit_court: pasRes.competent_audit_court,
       processes: pasRes.processes,
     },
     price_basket_analysis: basketRes.price_basket_analysis,
@@ -284,10 +285,23 @@ function generateDossierMarkdown(report: ContractAuditReport): string {
   lines.push(`- **Violações de Interregno/CCT:** ${report.readjustment_analysis.violations_count}`);
 
   if (report.pas_sanctions_analysis && report.pas_sanctions_analysis.processes_analyzed > 0) {
-    lines.push(`\n## 4. Processo Administrativo Sancionador (PAS), Glosa ANS/IMR e Garantias`);
-    lines.push(`- **Processos/Glosas Analisados:** ${report.pas_sanctions_analysis.processes_analyzed} | **Violações:** ${report.pas_sanctions_analysis.violations_count}`);
+    lines.push(`\n## 4. Processo Administrativo Sancionador (PAS), Adequação Federativa, Glosa ANS/IMR e Garantias`);
+    lines.push(
+      `- **Processos/Glosas Analisados:** ${report.pas_sanctions_analysis.processes_analyzed} | **Violações:** ${report.pas_sanctions_analysis.violations_count}` +
+        (report.pas_sanctions_analysis.competent_audit_court
+          ? ` | **Corte de Contas Competente:** \`${report.pas_sanctions_analysis.competent_audit_court}\``
+          : "")
+    );
     report.pas_sanctions_analysis.processes.forEach((p) => {
-      lines.push(`- **${p.process_id}:** Sugestão=\`${p.recommended_sanction}\` (${p.recommended_scope}) | Multa=${p.fine_pct !== undefined ? `${p.fine_pct}%` : "N/A"} | Contraditório 15d=${p.contradictory_15_days_ok ? "OK" : "VIOLADO"} | Seguradora=${p.insurer_notification_ok ? "OK" : "PENDENTE"}${p.justification ? ` | ${p.justification}` : ""}`);
+      const fedInfo = p.federative_adequacy
+        ? ` | Esfera=${p.federative_adequacy.sphere} | Corte=${p.federative_adequacy.competent_audit_court} | EscopoOK=${p.federative_adequacy.territorial_scope_ok ? "OK" : "BLOQ"} | Cadastros=${p.federative_adequacy.registries_ok ? "OK" : "OMISSÃO"}`
+        : "";
+      const calInfo = p.dosimetry_calibration
+        ? ` | CalibragemLINDB=${p.dosimetry_calibration.calibrated_with_precedents && p.dosimetry_calibration.lindb_art22_vectors_weighed ? "OK" : "PENDENTE"} | Proporcional=${p.dosimetry_calibration.proportionality_ok ? "OK" : "OUTLIER"}`
+        : "";
+      lines.push(
+        `- **${p.process_id}:** Sugestão=\`${p.recommended_sanction}\` (${p.recommended_scope}) | Multa=${p.fine_pct !== undefined ? `${p.fine_pct}%` : "N/A"} | Contraditório 15d=${p.contradictory_15_days_ok ? "OK" : "VIOLADO"} | Seguradora=${p.insurer_notification_ok ? "OK" : "PENDENTE"}${fedInfo}${calInfo}${p.justification ? ` | ${p.justification}` : ""}`
+      );
     });
   }
 

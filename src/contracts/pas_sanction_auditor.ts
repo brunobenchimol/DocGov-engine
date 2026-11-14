@@ -1,9 +1,13 @@
 // ============================================================================
-// Auditoria Determinística de PAS, Glosa ANS/IMR vs. Multa e Garantias (Gen5.5)
-// docgov-engine v1.5.5 — src/contracts/pas_sanction_auditor.ts
-// Arts. 102 e 155 a 163 da Lei 14.133/2021; Art. 83 da Lei 13.303/2016
+// Auditoria Determinística de PAS, Glosa ANS/IMR vs. Multa e Garantias (Gen5.6)
+// docgov-engine v1.5.6 — src/contracts/pas_sanction_auditor.ts
+// Arts. 102 e 155 a 163 da Lei 14.133/2021; Art. 38 e 83 da Lei 13.303/2016
 // ============================================================================
 
+import {
+  evaluatePasFederativeAndDosimetry,
+  resolveCompetentAuditCourt,
+} from "./pas_federative_dosimetry.ts";
 import type {
   RawContractInput,
   RawPasSanctionInput,
@@ -15,6 +19,7 @@ export interface PasSanctionAuditResult {
   blocking_tags: string[];
   processes_analyzed: number;
   violations_count: number;
+  competent_audit_court: string;
   processes: PasSanctionAnalysisItem[];
 }
 
@@ -27,12 +32,21 @@ function resolveDosimetry(
   item: RawPasSanctionInput,
   penaltyType: string,
   finePct: number | undefined,
-  isPureRemuneratoryGlosa: boolean
+  isPureRemuneratoryGlosa: boolean,
+  isLei13303: boolean
 ): { recommended_sanction: string; recommended_scope: string; duration_note?: string } {
   if (isPureRemuneratoryGlosa) {
     return {
       recommended_sanction: "NONE_REMUNERATORY_GLOSA_ONLY",
       recommended_scope: "CONTRACT_BILLING",
+    };
+  }
+
+  if (isLei13303 && (penaltyType.includes("SUSPENS") || penaltyType.includes("IMPEDIMENTO"))) {
+    return {
+      recommended_sanction: "SUSPENSAO_TEMPORARIA_13303",
+      recommended_scope: "OWN_ENTITY",
+      duration_note: "Até 2 anos (24 meses) restrita à própria Estatal (Art. 83, III Lei 13.303/2016)",
     };
   }
 
@@ -93,7 +107,23 @@ export function auditPasSanctionsAndGuarantees(
     ...toArray(input.pas_sanctions),
     ...toArray(input.pasSanctions),
     ...toArray(input.pas),
+    ...toArray(input.pas_evaluation),
+    ...toArray(input.pasEvaluation),
   ];
+
+  if (
+    rawPasList.length === 0 &&
+    (input.dosimetry_evaluation ||
+      input.dosimetryEvaluation ||
+      input.dosimetry_benchmark ||
+      input.dosimetryBenchmark ||
+      input.sanction_type ||
+      input.sanctionType ||
+      input.registries_commanded ||
+      input.registriesCommanded)
+  ) {
+    rawPasList.push(input as RawPasSanctionInput);
+  }
 
   const rootSlaList: RawSlaGlosaInput[] = [
     ...toArray(input.sla_glosa),
@@ -172,7 +202,11 @@ export function auditPasSanctionsAndGuarantees(
     }
 
     // 2. Validação de Piso (0,5%) e Teto (30%) de Multa
+    const itemRegime = (item.legal_regime || item.legalRegime || legalRegime).toUpperCase();
+    const itemIsLei13303 = itemRegime.includes("13303") || itemRegime.includes("ESTATAL");
     const penaltyType = (
+      item.sanction_type ||
+      item.sanctionType ||
       item.penalty_type ||
       item.penaltyType ||
       item.proposed_sanction ||
@@ -180,11 +214,29 @@ export function auditPasSanctionsAndGuarantees(
       ""
     ).toUpperCase();
 
+    const benchObj =
+      item.dosimetry_evaluation ||
+      item.dosimetryEvaluation ||
+      item.dosimetry_benchmark ||
+      item.dosimetryBenchmark ||
+      input.dosimetry_evaluation ||
+      input.dosimetryEvaluation ||
+      input.dosimetry_benchmark ||
+      input.dosimetryBenchmark;
+
     const rawFinePct =
       item.proposed_fine_pct ??
       item.proposedFinePct ??
       item.fine_pct ??
-      item.finePct;
+      item.finePct ??
+      item.multa_pct ??
+      item.multaPct ??
+      benchObj?.proposed_fine_pct ??
+      benchObj?.proposedFinePct ??
+      benchObj?.fine_pct ??
+      benchObj?.finePct ??
+      benchObj?.multa_pct ??
+      benchObj?.multaPct;
 
     const itemContractVal = Number(item.contract_value ?? item.contractValue ?? rootContractValue);
     const fineVal = item.fine_value ?? item.fineValue;
@@ -205,7 +257,7 @@ export function auditPasSanctionsAndGuarantees(
         !penaltyType.includes("FINE");
 
       if (!explicitNonFineZero) {
-        const belowFloor = !isLei13303 && effectiveFinePct < 0.5;
+        const belowFloor = !itemIsLei13303 && effectiveFinePct < 0.5;
         const aboveCeiling = effectiveFinePct > 30.0;
         if (belowFloor || aboveCeiling) {
           fineWithinLegalBounds = false;
@@ -281,17 +333,31 @@ export function auditPasSanctionsAndGuarantees(
       );
     }
 
-    // 5. Dosimetria Determinística
+    // 5. Dosimetria Determinística + Adequação Federativa & LINDB Art. 22 (Gen5.6)
     const dosimetry = resolveDosimetry(
       item,
       penaltyType,
       effectiveFinePct,
+      isPureRemuneratoryGlosa,
+      itemIsLei13303
+    );
+
+    const fedDosimetry = evaluatePasFederativeAndDosimetry(
+      item,
+      input,
+      effectiveFinePct,
       isPureRemuneratoryGlosa
     );
+    for (const tag of fedDosimetry.blocking_tags) {
+      blockingTagsSet.add(tag);
+      itemHasViolation = true;
+    }
+    reasons.push(...fedDosimetry.reasons);
 
     const proposedScope = (item.sanction_scope || item.sanctionScope || "").toUpperCase();
     const debarmentYears = Number(item.debarment_years ?? item.debarmentYears ?? 0);
     if (
+      fedDosimetry.blocking_tags.length === 0 &&
       dosimetry.recommended_sanction === "IMPEDIMENTO_LICITAR_CONTRATAR" &&
       (proposedScope === "ALL_SPHERES" || debarmentYears > 3)
     ) {
@@ -312,7 +378,7 @@ export function auditPasSanctionsAndGuarantees(
       recommended_sanction: dosimetry.recommended_sanction,
       recommended_scope: dosimetry.recommended_scope,
       fine_pct: effectiveFinePct,
-      legal_floor_pct: legalFloorPct,
+      legal_floor_pct: itemIsLei13303 ? 0.0 : 0.5,
       legal_ceiling_pct: legalCeilingPct,
       fine_within_legal_bounds: fineWithinLegalBounds,
       remuneratory_glosa_value: remuneratoryGlosaValue,
@@ -321,14 +387,26 @@ export function auditPasSanctionsAndGuarantees(
       contradictory_15_days_ok: contradictory15DaysOk,
       guarantee_modality: modality || (hasSuretyBond ? "SURETY_BOND" : undefined),
       insurer_notification_ok: insurerNotificationOk,
+      competent_audit_court: fedDosimetry.competent_audit_court,
+      federative_adequacy: fedDosimetry.federative_adequacy,
+      dosimetry_calibration: fedDosimetry.dosimetry_calibration,
       justification: reasons.length > 0 ? reasons.join("; ") : undefined,
     });
   }
+
+  const rootCourt =
+    processes[0]?.competent_audit_court ||
+    resolveCompetentAuditCourt(
+      input.sphere ?? input.esfera,
+      input.uf,
+      input.municipality ?? input.municipio
+    );
 
   return {
     blocking_tags: Array.from(blockingTagsSet),
     processes_analyzed: processes.length,
     violations_count: violationsCount,
+    competent_audit_court: rootCourt,
     processes,
   };
 }
