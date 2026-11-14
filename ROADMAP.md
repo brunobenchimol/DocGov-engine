@@ -19,7 +19,9 @@
 | **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (11 Cortes Homologadas até a `v1.4.6`; Demais Cortes via Trilha Contínua Sob Demanda) | `[CONCLUÍDO]` |
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
-| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º — Fase Externa (Julgamento de Propostas, Inexequibilidade Art. 59 / Súmula 262, Habilitação Técnica 50% / Súmula 263, Auditoria Forense Anti-Fraude de ACT [CNAE/CNPJ/QSA/Diligência Art. 64] e Índices Contábeis) & Contratação Direta (Inexigibilidade Súmula 255, Dispensa Anti-Fracionamento e Oportunidade de Negócio Estatal Art. 28 §3º II) | `[PRÓXIMO FOCO ATIVO]` |
+| **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[PRÓXIMO FOCO ATIVO]` |
+| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Modelos de Mão de Obra sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), Exequibilidade de Perfis de TI, Conversibilidade de Atestados, Motor Forense Anti-Fraude de ACT (7 Vetores + CNPJ/CNAE) e Contratação Direta / Oportunidade de Negócio Estatal | `[PLANEJADO]` |
+| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador) & Julgamento de Obras e Serviços de Engenharia (Inexequibilidade 75%/85%, BDI Acórdão TCU 2.622/2013 e SINAPI/SICRO) | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -53,24 +55,50 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º — Fase Externa da Licitação & Contratação Direta (Geração 6 — PRÓXIMO FOCO ATIVO)
+## 🎯 MARCO 8.6 — `v1.5.6`: Adequação Federativa do PAS (Estadual/Municipal/Estatal) e Calibragem Jurisprudencial da Dosimetria (Geração 5.6 — PRÓXIMO FOCO ATIVO)
 
-- [ ] **9.1. Motor de Julgamento de Propostas, Inexequibilidade e Diligência Obrigatória:**
-  - **Cálculo Determinístico de Limiar de Inexequibilidade Relativa:**
-    - Aplicação do critério legal de presunção de inexequibilidade em obras e serviços de engenharia ($< 75\%$ do valor orçado pela Administração — Art. 59, § 4º da Lei nº 14.133/2021);
-    - Trava jurisprudencial vinculante da **Súmula TCU nº 262** (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`): proibição expressa de desclassificação sumária de proposta sem a oportunidade prévia de diligência e comprovação de exequibilidade dos custos pelo licitante;
-    - Exigência automática de garantia adicional correspondente à diferença entre 85% do valor orçado e o valor da proposta para ofertas entre 75% e 85% (Art. 59, § 5º).
+- [ ] **8.6.1. Adequação Federativa e Jurisdicional do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente:**
+  - **Alcance Territorial Estrito do Impedimento de Licitar:**
+    - Validação do alcance territorial estrito da penalidade de impedimento de licitar e contratar (Art. 156, § 4º da Lei nº 14.133/2021 restrito à esfera do ente sancionador Estadual ou Municipal), bloqueando extensões territoriais indevidas (`[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`);
+    - Segregação de regime sancionatório nas Empresas Estatais: aplicação da suspensão temporária de participação em licitação e impedimento de contratar por prazo não superior a 2 anos (Art. 83, III c/c Art. 38 da Lei nº 13.303/2016), vedando a imposição indevida do regime da Lei 14.133/2021 (`[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`).
+  - **Competência Exclusiva da Autoridade Sancionadora:**
+    - Validação da competência privativa da autoridade sancionadora conforme a esfera federativa (Secretário Estadual, Secretário Municipal ou Ministro de Estado para a Declaração de Inidoneidade — Art. 156, § 6º da Lei nº 14.133/2021), bloqueando decisões proferidas por autoridade incompetente (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`).
+  - **Vinculação e Registro Obrigatório no Tribunal de Contas Competente:**
+    - Vinculação obrigatória ao Tribunal de Contas da jurisdição (`TCE-<UF>` na esfera estadual ou `TCM-<UF>` / `TCE-<UF>` na esfera municipal);
+    - Comando de publicidade e registro obrigatório da sanção no CEIS, CNEP, PNCP e sistema eletrônico do respectivo TCE/TCM (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`).
 
-- [ ] **9.2. Validador Determinístico de Habilitação Técnica e Econômico-Financeira:**
-  - **Limites de Qualificação Técnico-Operacional e Técnico-Profissional:**
-    - Teto máximo de exigência de atestados fixado em no máximo 50% dos quantitativos dos itens de maior relevância e valor significativo ($\ge 4\%$ do valor total — Art. 67, §§ 1º e 2º da Lei nº 14.133/2021 e Súmula TCU nº 263);
-    - Admissão mandatória de somatório de atestados para comprovação de capacidade técnica (`[SUM_OF_CERTIFICATES_MANDATORY_BLOCK]`), salvo justificativa técnica excepcional expressa no edital.
+- [ ] **8.6.2. Calibragem Jurisprudencial e Proporcionalidade da Dosimetria (Art. 156, § 1º da Lei 14.133/2021 e Art. 22, §§ 2º e 3º da LINDB):**
+  - **Ancoragem da Penalidade em Precedentes Jurisprudenciais Sancionadores:**
+    - Cruzamento e ancoragem da penalidade proposta com parâmetros e médias/medianas de multas e sanções aplicadas pelo respectivo Tribunal de Contas (`TCE/TCM/TCU` via integração com `search_juris` e catálogo de dosimetria) para infrações de natureza, porte e gravidade semelhantes, coibindo valores arbitrários;
+    - Emissão de `[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]` quando a dosimetria carecer de memória comparativa de precedentes ou `[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]` quando o valor ou prazo da sanção desviar da faixa jurisprudencial mediana sem agravantes comprovadas.
+
+---
+
+## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — PLANEJADO)
+
+- [ ] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
+  - **Matriz de Descaracterização de DEMO:**
+    - Bloqueio determinístico de gatilhos de subordinação direta, controle de frequência/ponto, pessoalidade nominal ou pagamento fixo mensal sem vinculação a resultados em contratos de `UST`, `HST`, `Hora-Técnica`, `PF` e `SQUADs` (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`).
+  - **Métricas de Faturamento de TI e Travas Normativas:**
+    - Validação de Unidade de Serviço Técnico (`UST`, `USM`, `UNS`) contra equivalência espúria de homem-hora puro sem catálogo de complexidade e produto (Súmula TCU nº 269 -> `[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]`);
+    - Hora de Serviço Técnico (`HST` / `Hora-Técnica`) com teto prévio estimativo e vinculação mandatória a Ordens de Serviço (`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]`);
+    - Pontos de Função (`PF` — IFPUG / NESMA / SNAP) com regras de contagem e `SQUADs` ágeis atrelados a entregáveis de sprints e Acordos de Nível de Serviço (ANS).
+  - **Exequibilidade Paramétrica de Propostas de TI e Diligência Obrigatória:**
+    - Comparação paramétrica do valor implícito da UST, PF, Hora-Técnica ou Squad frente ao piso salarial e encargos sociais dos perfis profissionais mínimos exigidos no TR (`[ICT_PROPOSAL_BELOW_PROFILE_FLOOR_INEXEQUIBLE]`);
+    - Trava jurisprudencial vinculante da **Súmula TCU nº 262** (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`): vedação absoluta de desclassificação sumária por inexequibilidade sem oportunidade prévia de diligência formal para comprovação da exequibilidade de custos pelo licitante.
+
+- [ ] **9.2.A. Habilitação Técnico-Operacional e Qualificação Econômico-Financeira em TIC:**
+  - **Conversibilidade de Métricas e Regras de Capacidade Técnica (Súmula TCU nº 263):**
+    - Admissão de conversibilidade paramétrica de atestados entre métricas correlatas de TI (`UST <-> Horas <-> PF <-> Postos`) e bloqueio de exigência restritiva de métrica exclusiva (`[ICT_ACT_RIGID_METRIC_RESTRICTION_BLOCK]`);
+    - Teto máximo de exigência de atestados fixado em no máximo 50% dos quantitativos dos itens de maior relevância e valor significativo (`[TECH_CAPACITY_EXCEEDS_50PCT_BLOCK]`);
+    - Vedação de exigência de capacidade técnico-operacional sobre parcelas irrelevantes ou inferiores a 4% do valor total estimado (`[IRRELEVANT_PARCEL_BELOW_4PCT_BLOCK]`);
+    - Admissão mandatória de somatório de atestados técnicos (`[SUM_OF_CERTIFICATES_MANDATORY_BLOCK]`).
   - **Auditoria Contábil de Índices Econômico-Financeiros:**
     - Cálculo de Índices de Liquidez Geral (`ILG`), Liquidez Corrente (`ILC`), Solvência Geral (`ISG`) e Endividamento Geral (`EG`);
     - Teto máximo de 10% do valor estimado para exigência de Patrimônio Líquido ou Capital Social mínimo;
     - Vedação absoluta de exigência cumulativa de Capital Social e Patrimônio Líquido (`[CUMULATIVE_CAPITAL_AND_EQUITY_BLOCK]`).
 
-- [ ] **9.2.B. Motor Forense de Autenticidade, Veracidade Material e Diligência de ACT (Art. 64 da Lei 14.133/2021, Art. 56, § 2º da Lei 13.303/2016 e Acórdãos TCU 1.385/2016 e 1.211/2021-Plenário):**
+- [ ] **9.2.B. Motor Forense Anti-Fraude de Autenticidade, Cruzamento Público de CNPJ e Diligência de ACT (Art. 64 da Lei 14.133/2021, Art. 56, § 2º da Lei 13.303/2016 e Acórdãos TCU 1.385/2016 e 1.211/2021-Plenário):**
   - **Vetor 1 (Incompatibilidade de Porte e CNAE do Emissor/Licitante):** Cruzamento público de CNPJ (`BrasilAPI` / Receita Federal com fallback mockado) verificando se o emissor do ACT (ex.: MEI/ME de ramo alheio como padaria/varejo) possui CNAE, natureza jurídica e capital social compatíveis com o volume de TI/serviços atestado (`[ACT_ISSUER_CNAE_OR_SCALE_MISMATCH_SUSPICION]`);
   - **Vetor 2 (Cronologia Impossível e Status Cadastral do CNPJ):** Cruzamento entre Data de Abertura, Data de Baixa/Inaptidão/Suspensão do CNPJ e o período de execução ou data de assinatura do ACT (`[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]`);
   - **Vetor 3 (Rastreabilidade de Emissor Público no PNCP):** Verificação de existência do Contrato/ARP/Empenho citado quando o emissor do ACT for órgão público ou estatal (`[ACT_PUBLIC_CONTRACT_UNVERIFIED_IN_PNCP]`);
@@ -83,19 +111,42 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
   - **Inexigibilidade de Licitação (Art. 74 da Lei 14.133/2021 e Art. 30 da Lei 13.303/2016):**
     - Verificação de inviabilidade de competição, singularidade do serviço e notória especialização;
     - Trava contra atestados de exclusividade genéricos ou emitidos por entidades sem legitimidade (`[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]` — Súmula TCU nº 255);
-    - Comprovação obrigatória de razoabilidade de preços praticados pelo fornecedor perante outros entes públicos ou privados (mínimo de 3 contratos/notas fiscais recentes — Art. 23, § 4º).
+    - Comprovação obrigatória de razoabilidade de preços praticados pelo fornecedor perante outros entes públicos ou privados com mínimo de 3 contratos/notas fiscais recentes (`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]`).
   - **Dispensa de Licitação por Valor (Art. 75, I e II da Lei 14.133/2021 e Art. 29, I e II da Lei 13.303/2016):**
-    - Motor anti-fracionamento de despesa no exercício financeiro para a mesma unidade gestora e mesma linha de fornecimento/serviço (código PDM / CATMAT / CATSER — `[EXPENSE_FRAGMENTATION_BLOCK]`).
+    - Motor anti-fracionamento de despesa no exercício financeiro para a mesma unidade gestora e mesma linha de fornecimento/serviço por código PDM / CATMAT / CATSER (`[EXPENSE_FRAGMENTATION_BLOCK]`).
 
 - [ ] **9.4. Regime Especial de Oportunidade de Negócio e Parcerias Estratégicas nas Estatais (Art. 28, § 3º, II da Lei 13.303/2016):**
-  - Checklist determinístico de requisitos para dispensa de licitação em oportunidades de negócio empresarial: comprovação de inviabilidade ou desvantagem de procedimento concorrencial comercial, justificação técnica da escolha do parceiro e matriz de compartilhamento de riscos e resultados econômicos.
+  - Checklist determinístico de requisitos para dispensa de licitação em oportunidades de negócio empresarial: comprovação de inviabilidade ou desvantagem de procedimento concorrencial comercial, justificação técnica da escolha do parceiro e matriz de compartilhamento de riscos e resultados econômicos (`[STATE_ENTERPRISE_PARTNERSHIP_UNJUSTIFIED_BLOCK]`).
 
 - [ ] **9.5. Compilação Documental Nativa `.docx`/`.pdf` da Fase Externa e Contratação Direta:**
   - `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`: Minuta técnica padronizada de julgamento de conformidade de propostas, admissibilidade de atestados e resultado de diligências;
-  - `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`: Peça de instrução processual para contratações diretas, atestando a presença de todos os requisitos legais e a razoabilidade dos preços pactuados;
   - `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf`: Minutas formais de diligência investigativa de veracidade de atestados em duas vias canônicas:
     - *Via A (Ao Emissor do ACT):* E-mail/Ofício de confirmação de autenticidade endereçado aos contatos oficiais cadastrados na Receita Federal;
-    - *Via B (À Licitante — Lastro Material Obrigatório):* Requisição formal de apresentação de Notas Fiscais Eletrônicas (NF-e/NFS-e com chave de 44 dígitos), Contrato assinado à época, Ordens de Serviço e comprovantes de recolhimento fiscal/trabalhista (SEFIP/eSocial) ou bancários.
+    - *Via B (À Licitante — Lastro Material Obrigatório):* Requisição formal de apresentação de Notas Fiscais Eletrônicas (NF-e/NFS-e com chave de 44 dígitos), Contrato assinado à época, Ordens de Serviço e comprovantes de recolhimento fiscal/trabalhista (SEFIP/eSocial) ou bancários;
+  - `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`: Peça de instrução processual para contratações diretas, atestando a presença de todos os requisitos legais e a razoabilidade dos preços pactuados.
+
+---
+
+## 🎯 MARCO 9.5 — `v1.6.5`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — PLANEJADO)
+
+- [ ] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017 e Art. 121 da Lei 14.133/2021):**
+  - **Auditoria Aritmética e Normativa dos Módulos 1 a 6:**
+    - *Módulo 1:* Composição da remuneração e salário-base vinculado à Convenção Coletiva de Trabalho (CCT);
+    - *Módulo 2:* Encargos previdenciários, FGTS, SAT/RAT e contribuições sociais;
+    - *Módulo 3:* Provisão para rescisão (férias, 13º e aviso prévio indenizado/trabalhado);
+    - *Módulo 4:* Custo de reposição de profissional ausente em regime de substituição;
+    - *Módulo 5:* Insumos de mão de obra (uniformes, EPIs, exames médicos e benefícios);
+    - *Módulo 6:* Custos indiretos, despesas administrativas, tributos (PIS/COFINS/ISS) e taxa de lucro;
+  - **Governança de Conta Vinculada vs. Pagamento pelo Fato Gerador:**
+    - Monitoramento das provisões retidas em Conta-Depósito Vinculada bloqueada para movimentação direta ou adoção do Pagamento pelo Fato Gerador com glosa preventiva.
+
+- [ ] **9.5.2. Motor de Obras e Serviços de Engenharia (Art. 59, §§ 4º e 5º da Lei 14.133/2021 e Acórdão TCU 2.622/2013):**
+  - **Inexequibilidade Relativa e Garantia Adicional em Engenharia:**
+    - Trava matemática de presunção de inexequibilidade relativa para ofertas abaixo de 75% do orçamento-base da Administração;
+    - Cálculo automático de exigência de garantia adicional para propostas classificadas entre 75% e 85% do valor orçado;
+  - **Auditoria de BDI e Tabelas Referenciais Oficiais:**
+    - Análise de faixas de Bonificação e Despesas Indiretas (BDI) segundo os parâmetros do Acórdão TCU nº 2.622/2013 para obras civis, rodoviárias, portuárias e materiais/equipamentos de natureza diferenciada;
+    - Cruzamento analítico com tabelas referenciais oficiais SINAPI e SICRO.
 
 ---
 
