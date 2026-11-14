@@ -290,15 +290,15 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_contract_execution",
       description:
-        "Auditoria determinística e fiscalização contínua de contratos administrativos, limites de aditamento (25%/50% isolados, sem compensação), batimento quadripartite [TR <-> Proposta <-> ARP <-> Contrato/Fatura] com bloqueio de aditivo direto em ARP, e validação de interregno de 12 meses em reajustes/repactuações (Gen5 Marco 8).\n" +
-        "- Quando usar (Pré-condição): Para auditar aditamentos, detectar sobrepreço ou reajustes irregulares.\n" +
-        "- Pós-condição & Próximo Passo: Grava relatorio_fiscalizacao_contratual.json e dossie_fiscalizacao_contratual.md em disco com payload sintético MCP < 900 bytes.",
+        "Auditoria determinística e fiscalização contínua de contratos administrativos: limites de aditamento (25%/50% isolados, sem compensação), batimento quadripartite [TR <-> Proposta <-> ARP <-> Contrato/Fatura] com bloqueio de aditivo direto em ARP, interregno de 12 meses em reajustes/repactuações (Gen5 Marco 8), além de Processo Administrativo Sancionador (PAS) com dosimetria, prazo de 15 dias úteis, segregação ANS/IMR vs. multa (0,5%-30%), notificação de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN 65/2021, CV > 25%), matriz de álea extraordinária e compilação DOCX/PDF (Gen5.5 Marco 8.5).\n" +
+        "- Quando usar (Pré-condição): Para auditar aditamentos, sobrepreço, reajustes, glosa ANS/IMR, dosimetria de sanções PAS, seguro-garantia, cesta de preços (IN 65/2021) ou reequilíbrio.\n" +
+        "- Pós-condição & Próximo Passo: Grava relatorio_fiscalizacao_contratual.json, dossie_fiscalizacao_contratual.md e minutas OpenXML (.docx/.pdf quando compilationMode != NONE) com payload sintético MCP < 900 bytes.",
       inputSchema: {
         type: "object",
         properties: {
           contractJsonPath: {
             type: "string",
-            description: "Caminho para o JSON de dados contratuais e histórico de aditivos/faturamento.",
+            description: "Caminho para o JSON de dados contratuais, histórico de aditivos/faturamento, PAS/ANS-IMR, cesta de preços e pleitos de reequilíbrio.",
           },
           caseDir: {
             type: "string",
@@ -306,12 +306,22 @@ export function getMcpToolsDefinition() {
           },
           outputDir: {
             type: "string",
-            description: "Diretório de saída para os relatórios detalhados.",
+            description: "Diretório de saída para os relatórios detalhados e artefatos compilados.",
           },
           auditType: {
             type: "string",
-            enum: ["FULL", "ADDENDUM_LIMITS", "TRIPARTITE_MATCH", "READJUSTMENT"],
-            description: "Foco ou tipo da auditoria (padrão: FULL).",
+            enum: ["FULL", "ADDENDUM_LIMITS", "TRIPARTITE_MATCH", "READJUSTMENT", "PAS_SANCTIONS", "PRICE_BASKET"],
+            description: "Foco ou tipo da auditoria contratual/sancionatória/estatística (padrão: FULL).",
+          },
+          compilationMode: {
+            type: "string",
+            enum: ["NONE", "PAS_NOTIFICATION", "SANCTION_DOSIMETRY_OPINION", "DOSIMETRY_OPINION", "BOTH"],
+            description: "Modo opcional de compilação documental OpenXML para Notificação Prévia de PAS e/ou Parecer de Dosimetria/Glosa ANS (padrão: NONE).",
+          },
+          outputFormat: {
+            type: "string",
+            enum: ["docx", "pdf", "both"],
+            description: "Formato de saída dos documentos compilados quando compilationMode != NONE (padrão: both).",
           },
         },
       },

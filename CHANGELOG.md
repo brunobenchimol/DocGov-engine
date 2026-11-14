@@ -8,6 +8,29 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.5.5] - 2026-11-13 — Marco 8.5 (Geração 5.5): PAS, Glosa ANS/IMR vs. Multa, Seguro-Garantia, Cesta de Preços IN 65/2021 & Álea Extraordinária
+
+### Added
+- **Auditoria Determinística de PAS, Glosa ANS/IMR vs. Multa e Garantias (`src/contracts/pas_sanction_auditor.ts`):**
+  - Segregação matemática e jurídica entre glosa remuneratória por ANS/IMR e penalidade sancionatória, emitindo `[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]` em tentativas de punição disfarçada ou aplicação de desconto fora das faixas do IMR sem PAS formal.
+  - Validação do piso legal de `0,5%` e teto de `30%` sobre o valor do contrato para multas na Lei 14.133/2021 (Art. 156, § 3º) e regime da Lei 13.303/2016 (`[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]`).
+  - Motor de dosimetria graduada determinística (`ADVERTENCIA`, `MULTA`, `IMPEDIMENTO_LICITAR_CONTRATAR` até 3 anos restrito ao ente sancionador, e `DECLARACAO_INIDONEIDADE` de 3 a 6 anos exclusiva para infrações graves do Art. 155, VIII a XII).
+  - Verificação obrigatória de abertura formal do PAS / notificação prévia e concessão de prazo mínimo de **15 dias úteis** para contraditório (Arts. 157 e 158 da Lei 14.133/2021), emitindo `[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]`.
+  - Verificação de notificação formal à seguradora e vigência de apólice em contratos garantidos por Seguro-Garantia (Art. 102 Lei 14.133), emitindo `[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]`.
+- **Motor Estatístico Anti-Outlier de Cesta de Preços & Álea Extraordinária (`src/contracts/price_basket_auditor.ts`):**
+  - Cálculo determinístico sobre amostras de cotação (IN SEGES/ME nº 65/2021 & RILC): Média Aritmética ($\mu$), Mediana, Desvio Padrão ($\sigma$), Coeficiente de Variação ($CV = (\sigma/\mu)\times 100$), limites de expurgo ($\mu \pm \sigma$) e Média Saneada.
+  - Bloqueio determinístico de uso da média simples em alta dispersão (`CV > 25%` -> `[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]`).
+  - Auditoria de matriz de risco em pleitos de reequilíbrio econômico-financeiro / álea extraordinária (`[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]`).
+- **Compilador Nativo OpenXML DOCX/PDF de PAS e Dosimetria (`src/contracts/contract_compiler.ts`):**
+  - Geração determinística em layout editorial corporativo A4 com tipografia limpa para `Notificacao_Previa_Descumprimento_e_PAS.docx/.pdf` (`PAS_NOTIFICATION`) e `Parecer_Dosimetria_Sancao_ou_Glosa_ANS.docx/.pdf` (`SANCTION_DOSIMETRY_OPINION` e alias canônico `DOSIMETRY_OPINION`), ou ambos (`BOTH`).
+- **Suíte Unitária & Lockstep (`test/contracts/gen5_5_pas_and_basket.test.ts`):**
+  - Cobertura integral dos sub-asserts `30.9a`, `30.9b`, `30.10`, `30.11a`, `30.11b` e `30.12`, mantendo 100% de compatibilidade com schemas `snake_case` e `camelCase` e garantindo payload sintético MCP estritamente `< 900 bytes`.
+
+### Changed
+- **Evolução sem Inflação de Tools MCP (`docgov_audit_contract_execution` & CLI `audit-contract`):**
+  - Preservação das 12 ferramentas MCP canônicas e retrocompatibilidade total com a `v1.5.0`, estendendo `src/contracts/audit_contract_execution.ts`, `src/cli/contracts_cli.ts` (`--mode`, `--format`) e `src/mcp/tool_dispatchers.ts` (`compilationMode`, `outputFormat`).
+  - Atualização de autodescoberta e documentação sincronizada (`--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, `getMcpToolsDefinition()`, `README.md`, `ROADMAP.md` e `VERSION = "1.5.5"`).
+
 ## [1.5.0] - 2026-11-08
 
 ### Adicionado

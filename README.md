@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.5.0)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.5.5)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,11 +87,11 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.0` (Geração 5 — Fiscalização Contratual, Aditivos e Governança de ARP)
+## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.5` (Geração 5.5 — PAS, ANS/IMR, Garantias & Cesta IN 65/2021)
 
-A versão **`v1.5.0`** consolida a **Geração 5 do docgov-engine**, introduzindo ferramentas determinísticas de auditoria de execução contratual, limites de aditamento de 25%/50% sem compensação, batimento quadripartite, monitoramento de reajustes e governança estrita de Atas de Registro de Preços (ARP), expandindo a suíte para **12 ferramentas MCP**:
+A versão **`v1.5.5`** evolui a **Geração 5 do docgov-engine** sem inflação de ferramentas MCP (mantendo as **12 ferramentas canônicas**), adicionando ao motor `docgov_audit_contract_execution` a suíte **Marco 8.5 (Geração 5.5)**: Processo Administrativo Sancionador (PAS) com dosimetria e contraditório de 15 dias úteis, segregação matemática/jurídica entre glosa ANS/IMR e multa sancionatória (`0,5%` a `30%`), governança de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN SEGES 65/2021, `CV > 25%`), auditoria de álea extraordinária e compilação nativa OpenXML DOCX/PDF de notificações prévias e pareceres de dosimetria.
 
-### 🚀 Principais Inovações da Geração 5 (`v1.5.0` — Marco 8):
+### 🚀 Principais Inovações da Geração 5.5 (`v1.5.5` — Marco 8.5) e Geração 5 (`v1.5.0` — Marco 8):
 1. **11ª Ferramenta MCP `docgov_audit_contract_execution` & CLI `--audit-contract` (Fiscalização Contratual, Aditivos e Reajustes):**
    - **Limites Legais de Aditamento Sem Compensação:** Cálculo isolado de acréscimos e supressões de 25% (obras, compras e serviços em geral) e 50% (reforma de edifício ou de equipamento) nos termos do Art. 125 da Lei nº 14.133/2021 e Art. 81 da Lei nº 13.303/2016. Vedação matemática absoluta de compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`).
    - **Consensualidade Obrigatória no Regime das Estatais:** Bloqueio determinístico de alterações unilaterais em empresas estatais sem comprovação de acordo bilateral (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`).
@@ -155,8 +155,8 @@ A versão **`v1.5.0`** consolida a **Geração 5 do docgov-engine**, introduzind
 5. **Conectores Externos Oficiais (PNCP & Jurisprudência):**
    - `fetch_pncp` e `search_pncp`: descoberta e download determinístico de contratações públicas de referência do Portal Nacional de Contratações Públicas (IN SEGES/ME nº 65/2021) com isolamento estrito em subpastas e resolução de redirects.
    - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores (11 cortes homologadas).
-6. **Fiscalização Contratual, Aditivos e Governança de ARP (Geração 5):**
-   - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite e reajustes/repactuações com interregno de 12 meses.
+6. **Fiscalização Contratual, Aditivos, PAS/ANS-IMR, Cesta de Preços IN 65/2021 e Governança de ARP (Gerações 5 & 5.5):**
+   - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite, reajustes com interregno de 12 meses, PAS com contraditório mínimo de 15 dias úteis e dosimetria, segregação glosa ANS/IMR vs. multa (`0,5%`–`30%`), notificação de Seguro-Garantia, saneamento estatístico de cesta de preços (`CV <= 25%`), álea extraordinária e compilação OpenXML DOCX/PDF de notificações e pareceres de dosimetria.
    - `docgov_govern_arp`: governança determinística de Atas de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica/federativa e compilação de notas técnicas OpenXML.
 
 > ℹ️ **Histórico Completo de Versões Anteriores:** Para a cronologia detalhada de cada marco, patch e correção histórica (da `v0.0.1` à versão atual), consulte o arquivo canônico [`CHANGELOG.md`](CHANGELOG.md).
@@ -167,7 +167,7 @@ A versão **`v1.5.0`** consolida a **Geração 5 do docgov-engine**, introduzind
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.0`):** Inclusão mandatória do campo `"engine_version": "1.5.0"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.5`):** Inclusão mandatória do campo `"engine_version": "1.5.5"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -321,8 +321,8 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 ./docgov-engine --update
 ./docgov-engine --force-update
 
-# 11. Auditar Execução Contratual, Aditivos e Batimento Tripartite (Geração 5)
-./docgov-engine --audit-contract --contract-json state/contrato_execucao.json --type FULL --output-dir state/
+# 11. Auditar Execução Contratual, PAS, ANS/IMR e Cesta de Preços IN 65/2021 (Geração 5 & 5.5)
+./docgov-engine audit-contract --contract-json state/contrato_execucao.json --type FULL --mode BOTH --format both --output-dir state/
 
 # 12. Governar Ata de Registro de Preços, Caronas e Vantajosidade (Geração 5)
 ./docgov-engine --govern-arp --arp-json state/arp_registro.json --mode FULL --output-dir state/
@@ -562,8 +562,8 @@ bun test test/registry.test.ts test/registry_matching.test.ts
 # 11. Dispatcher MCP (JSON-RPC stdio) e Self-Discovery Normativo
 bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts
 
-# 12. Fiscalização Contratual e Governança de ARP (Geração 5)
-bun test test/contracts/addendum_limits.test.ts test/contracts/tripartite_and_readjustment.test.ts test/arp/arp_ledger_limits.test.ts test/arp/arp_matrix_and_compiler.test.ts test/contracts_arp_mcp_cli.test.ts
+# 12. Fiscalização Contratual, PAS/ANS-IMR, Cesta IN 65/2021 e Governança de ARP (Gerações 5 & 5.5)
+bun test test/contracts/ test/arp/ test/contracts_arp_mcp_cli.test.ts
 ```
 
 ---

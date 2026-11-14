@@ -58,7 +58,7 @@ Uso:
   docgov-engine --search-pncp --case-dir <dir> --query <termos> [--status <todas|recebendo_proposta|encerradas>] [--uf <UF>] [--modalidade <termo>] [--limit <1..20>]
   docgov-engine --search-juris [--case-dir <dir>] --query <termos> [--courts <TCU,TCE-PA...>] [--uf <UF>] [--stance <DEFENSE|ATTACK|BOTH>] [--limit <n>]
   docgov-engine --fetch-juris [--case-dir <dir>] --id <acordao> [--shortname <nome>] [--topic <filtro>] [--stance <DEFENSE|ATTACK|BOTH>]
-  docgov-engine audit-contract --contract-json <dados.json> [--case-dir <dir>] [--output-dir <dir>] [--type <FULL|ADDENDUM_LIMITS|...>]
+  docgov-engine audit-contract --contract-json <dados.json> [--case-dir <dir>] [--output-dir <dir>] [--type <FULL|ADDENDUM_LIMITS|...>] [--mode <NONE|PAS_NOTIFICATION|SANCTION_DOSIMETRY_OPINION|DOSIMETRY_OPINION|BOTH>] [--format <docx|pdf|both>]
   docgov-engine govern-arp --arp-json <arp.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <GRANT_NOTE|ADVANTAGE_STUDY>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)

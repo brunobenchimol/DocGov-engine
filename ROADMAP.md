@@ -18,8 +18,8 @@
 | **Geração 3** | `v1.3.x` | Diff Semântico Granular, Evolução de Cláusulas e Nota Técnica Comparativa Padronizada | `[CONCLUÍDO]` |
 | **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (11 Cortes Homologadas até a `v1.4.6`; Demais Cortes via Trilha Contínua Sob Demanda) | `[CONCLUÍDO]` |
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
-| **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[PRÓXIMO FOCO ATIVO]` |
-| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º — Fase Externa (Julgamento de Propostas, Inexequibilidade Art. 59 / Súmula 262, Habilitação Técnica 50% / Súmula 263, Auditoria Forense Anti-Fraude de ACT [CNAE/CNPJ/QSA/Diligência Art. 64] e Índices Contábeis) & Contratação Direta (Inexigibilidade Súmula 255, Dispensa Anti-Fracionamento e Oportunidade de Negócio Estatal Art. 28 §3º II) | `[PLANEJADO]` |
+| **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
+| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º — Fase Externa (Julgamento de Propostas, Inexequibilidade Art. 59 / Súmula 262, Habilitação Técnica 50% / Súmula 263, Auditoria Forense Anti-Fraude de ACT [CNAE/CNPJ/QSA/Diligência Art. 64] e Índices Contábeis) & Contratação Direta (Inexigibilidade Súmula 255, Dispensa Anti-Fracionamento e Oportunidade de Negócio Estatal Art. 28 §3º II) | `[PRÓXIMO FOCO ATIVO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -49,39 +49,11 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 - [x] **Marco 6 — `v1.3.0` a `v1.3.11`:** Diff semântico token-level, Nota Técnica Comparativa em Word/PDF, guardrails de escopo (`ENG-10`), conectores PNCP (`fetch_pncp` e `search_pncp`), conversor de tabelas Markdown para `<w:tbl>`, reancoragem de prefixos multinível e teto físico da Lei 9 ($\le 500$ linhas).
 - [x] **Marco 7 — `v1.4.0` a `v1.4.6`:** Motor de jurisprudência sob demanda (`search_juris` e `fetch_juris`), matriz normativa `Statutory Bridge` (Lei 13.303 $\leftrightarrow$ Lei 14.133), ranking de relevância (`0..100 pts`), fatiamento anatômico em 10 camadas, trava anti-alucinação e homologação de 11 Cortes Oficiais.
 - [x] **Marco 8 — `v1.5.0`:** Núcleo de fiscalização contratual (`docgov_audit_contract_execution` / `--audit-contract`), limites de aditamento de 25%/50% sem compensação, batimento quadripartite, reajustes/repactuações e governança determinística de ARP (`docgov_govern_arp` / `--govern-arp`) com travas de carona 50%/200%, compatibilidade jurídica/federativa e compilação OpenXML.
+- [x] **Marco 8.5 — `v1.5.5`:** Processo Administrativo Sancionador (PAS) com dosimetria graduada e contraditório de 15 dias úteis, segregação ANS/IMR vs. multa sancionatória (`0,5%`–`30%`), governança de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN SEGES 65/2021, `CV <= 25%`), matriz de álea extraordinária e compilação OpenXML DOCX/PDF de notificações prévias e pareceres de dosimetria.
 
 ---
 
-## 🎯 MARCO 8.5 — `v1.5.5`: Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (Geração 5.5 — PRÓXIMO FOCO ATIVO)
-
-- [ ] **8.5.1. Calculadora de Glosa por ANS/IMR vs. Multa e Dosimetria de Sanções (PAS):**
-  - **Distinção Conceitual e Operacional Estrita:** Segregação matemática entre Glosa por Inexecução Parcial (faturamento proporcional com base em Acordo de Nível de Serviço — ANS / Instrumento de Medição de Resultado — IMR) e Aplicação de Sanção Administrativa (Arts. 155 a 163 da Lei nº 14.133/2021 e Art. 83 da Lei nº 13.303/2016).
-  - **Dosimetria Determinística de Penalidades:**
-    - *Advertência:* Para descumprimentos de menor gravidade sem prejuízo financeiro direto;
-    - *Multa Compensatória e Moratória:* Cálculo parametrizado de percentuais (0,5% a 30% sobre o valor do contrato ou da fatura/parcela inadimplida);
-    - *Impedimento de Licitar e Contratar:* Prazo de até 3 anos no âmbito da Administração Pública direta e indireta do ente federativo;
-    - *Declaração de Inidoneidade:* Prazo de 3 a 6 anos com eficácia perante toda a Administração Pública nacional.
-  - **Checklist Processual de Contraditório e Ampla Defesa:**
-    - Verificação de expedição de Notificação Prévia de Descumprimento com concessão do prazo legal de 15 (quinze) dias úteis para defesa prévia;
-    - Intimação obrigatória da seguradora em contratos garantidos por Seguro-Garantia (Art. 102 da Lei nº 14.133/2021) para opção de assunção da execução contratual;
-    - Cálculo determinístico de limites de retenção cautelar preventiva sobre créditos devidos à contratada.
-
-- [ ] **8.5.2. Motor Estatístico Anti-Outlier de Cesta de Preços (IN SEGES/ME nº 65/2021 e RILC) no `budget_auditor`:**
-  - **Tratamento Matemático da Cesta de Preços (Mínimo de 3 Fontes Válidas):**
-    - Ingestão determinística de amostras de pesquisa de mercado (painel de preços PNCP, compras públicas similares, tabelas oficiais e cotações diretas);
-    - Cálculo exato em centavos inteiros (`BigInt`) de Média aritmética, Mediana, Desvio Padrão ($\sigma$) e Coeficiente de Variação ($CV = \sigma / \mu$);
-    - **Trava de Alta Dispersão (`[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]`):** Emissão mandatória de alerta determinístico quando o Coeficiente de Variação ultrapassar 25% ($CV > 25\%$), impondo o uso da Mediana como valor de referência para neutralizar distorções estatísticas (critério jurisprudencial consolidado do TCU e Art. 3º da IN 65/2021);
-    - Expurgo automatizado de cotações inexequíveis ou excessivamente elevadas através de método interquartílico (IQR).
-  - **Auditoria de Reequilíbrio Econômico-Financeiro (Álea Extraordinária):**
-    - Segregação analítica entre inflação ordinária (coberta por Reajuste por índice contratual) e desequilíbrios provocados por fatos imprevisíveis ou previsíveis de consequências incalculáveis (Art. 124, II, "d" da Lei nº 14.133/2021 e Art. 81, VI da Lei nº 13.303/2016).
-
-- [ ] **8.5.3. Compilação Documental Nativa OpenXML `.docx`/`.pdf` de Sanções e Glosas:**
-  - `Notificacao_Previa_Descumprimento_e_PAS.docx/.pdf`: Peça formal de notificação e instauração do PAS com especificação de cláusulas infringidas, cálculo de glosa/multa proposta e prazo legal de defesa;
-  - `Parecer_Dosimetria_Sancao_ou_Glosa_ANS.docx/.pdf`: Relatório conclusivo de fiscalização com matriz de dosimetria, análise de justificativas apresentadas e recomendação de penalidade ou glosa direta.
-
----
-
-## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º — Fase Externa da Licitação & Contratação Direta (Geração 6 — PLANEJADO)
+## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º — Fase Externa da Licitação & Contratação Direta (Geração 6 — PRÓXIMO FOCO ATIVO)
 
 - [ ] **9.1. Motor de Julgamento de Propostas, Inexequibilidade e Diligência Obrigatória:**
   - **Cálculo Determinístico de Limiar de Inexequibilidade Relativa:**
