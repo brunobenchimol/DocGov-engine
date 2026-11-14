@@ -362,5 +362,65 @@ export function getMcpToolsDefinition() {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
+    {
+      name: "docgov_evaluate_bidding_proposals",
+      description:
+        "Audita e julga propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), exequibilidade paramétrica de perfis de TI (Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG) e Motor Forense Anti-Fraude de ACT em 7 vetores (Art. 64 Lei 14.133/2021), compilando Parecer de Julgamento e Ofício de Diligência (Via A Emissor RFB e Via B Licitante). Retorno sintético < 900 bytes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          proposalJsonPath: { type: "string", description: "Caminho do JSON de proposta/habilitação/ACT." },
+          bidding_json_path: { type: "string", description: "Alias para proposalJsonPath." },
+          input_json_path: { type: "string", description: "Alias para proposalJsonPath." },
+          biddingJsonPath: { type: "string", description: "Alias para proposalJsonPath." },
+          outputDir: { type: "string", description: "Diretório de saída dos dossiês e peças compiladas." },
+          output_dir: { type: "string", description: "Alias para outputDir." },
+          caseDir: { type: "string", description: "Diretório raiz do caso DocGov." },
+          case_dir: { type: "string", description: "Alias para caseDir." },
+          evaluationStance: {
+            type: "string",
+            enum: ["DEFENSE", "ATTACK"],
+            description: "Postura de julgamento (padrão: DEFENSE).",
+          },
+          evaluation_stance: { type: "string", enum: ["DEFENSE", "ATTACK"] },
+          compilationMode: {
+            type: "string",
+            enum: ["PROPOSAL_JUDGMENT_OPINION", "ACT_DILIGENCE_LETTER", "JUDGMENT_OPINION", "ACT_DILIGENCE_REPORT", "BOTH", "NONE"],
+            description: "Modo documental OpenXML/PDF.",
+          },
+          compilation_mode: { type: "string" },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"] },
+          output_format: { type: "string", enum: ["docx", "pdf", "both"] },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
+    {
+      name: "docgov_audit_direct_contracting",
+      description:
+        "Audita Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos do fornecedor), Dispensa por Valor com controle anti-fracionamento anual por UG e ramo (PDM/CATMAT/CATSER) e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei 13.303/2016), compilando Parecer de Instrução Processual DOCX/PDF. Retorno sintético < 900 bytes.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          directContractingJsonPath: { type: "string", description: "Caminho do JSON da contratação direta." },
+          direct_json_path: { type: "string", description: "Alias para directContractingJsonPath." },
+          input_json_path: { type: "string", description: "Alias para directContractingJsonPath." },
+          directJsonPath: { type: "string", description: "Alias para directContractingJsonPath." },
+          outputDir: { type: "string", description: "Diretório de saída dos dossiês e parecer compilado." },
+          output_dir: { type: "string", description: "Alias para outputDir." },
+          caseDir: { type: "string", description: "Diretório raiz do caso DocGov." },
+          case_dir: { type: "string", description: "Alias para caseDir." },
+          compilationMode: {
+            type: "string",
+            enum: ["DIRECT_CONTRACTING_OPINION", "NONE"],
+            description: "Modo documental OpenXML/PDF.",
+          },
+          compilation_mode: { type: "string" },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"] },
+          output_format: { type: "string", enum: ["docx", "pdf", "both"] },
+        },
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
+    },
   ];
 }

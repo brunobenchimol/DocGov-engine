@@ -60,6 +60,8 @@ Uso:
   docgov-engine --fetch-juris [--case-dir <dir>] --id <acordao> [--shortname <nome>] [--topic <filtro>] [--stance <DEFENSE|ATTACK|BOTH>]
   docgov-engine audit-contract --contract-json <dados.json> [--case-dir <dir>] [--output-dir <dir>] [--type <FULL|ADDENDUM_LIMITS|...>] [--mode <NONE|PAS_NOTIFICATION|SANCTION_DOSIMETRY_OPINION|DOSIMETRY_OPINION|BOTH>] [--format <docx|pdf|both>]
   docgov-engine govern-arp --arp-json <arp.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <GRANT_NOTE|ADVANTAGE_STUDY>]
+  docgov-engine evaluate-proposals --bidding-json <proposta.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <PROPOSAL_JUDGMENT_OPINION|ACT_DILIGENCE_LETTER|BOTH|NONE>] [--format <docx|pdf|both>]
+  docgov-engine audit-direct-contracting --direct-json <direta.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <DIRECT_CONTRACTING_OPINION|NONE>] [--format <docx|pdf|both>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release

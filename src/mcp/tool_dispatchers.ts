@@ -14,6 +14,14 @@ import {
   serializeSyntheticAuditResult,
 } from "../contracts/audit_contract_execution.ts";
 import { governArpExecution } from "../arp/govern_arp.ts";
+import {
+  evaluateBiddingProposals,
+  serializeBiddingSyntheticResult,
+} from "../bidding/index.ts";
+import {
+  auditDirectContracting,
+  serializeDirectContractingSyntheticResult,
+} from "../direct_contracting/index.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 
 export async function dispatchModularTool(
@@ -103,6 +111,65 @@ export async function dispatchModularTool(
         {
           type: "text",
           text: JSON.stringify(synthetic, null, 2),
+        },
+      ],
+    };
+  }
+
+  // 5. Ferramenta Gen6: Seleção do Fornecedor 360º TIC & ACT Forense
+  if (
+    toolName === "docgov_evaluate_bidding_proposals" ||
+    toolName === "evaluate_bidding_proposals"
+  ) {
+    const inputTarget =
+      args.proposalJsonPath ||
+      args.bidding_json_path ||
+      args.input_json_path ||
+      args.biddingJsonPath ||
+      args.inputPath ||
+      args.input ||
+      args;
+    const { synthetic } = await evaluateBiddingProposals(inputTarget, {
+      caseDir: args.caseDir || args.case_dir,
+      outputDir: args.outputDir || args.output_dir,
+      evaluationStance: args.evaluationStance || args.evaluation_stance,
+      compilationMode: args.compilationMode || args.compilation_mode || args.mode,
+      outputFormat: args.outputFormat || args.output_format || args.format,
+    });
+    return {
+      content: [
+        {
+          type: "text",
+          text: serializeBiddingSyntheticResult(synthetic),
+        },
+      ],
+    };
+  }
+
+  // 6. Ferramenta Gen6: Contratação Direta & Oportunidade Estatal
+  if (
+    toolName === "docgov_audit_direct_contracting" ||
+    toolName === "audit_direct_contracting"
+  ) {
+    const inputTarget =
+      args.directContractingJsonPath ||
+      args.direct_json_path ||
+      args.input_json_path ||
+      args.directJsonPath ||
+      args.inputPath ||
+      args.input ||
+      args;
+    const { synthetic } = await auditDirectContracting(inputTarget, {
+      caseDir: args.caseDir || args.case_dir,
+      outputDir: args.outputDir || args.output_dir,
+      compilationMode: args.compilationMode || args.compilation_mode || args.mode,
+      outputFormat: args.outputFormat || args.output_format || args.format,
+    });
+    return {
+      content: [
+        {
+          type: "text",
+          text: serializeDirectContractingSyntheticResult(synthetic),
         },
       ],
     };
