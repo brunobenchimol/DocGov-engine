@@ -1,6 +1,6 @@
 // ============================================================================
-// Dispatchers Modulares de Ferramentas MCP (Gen5 e Jurisprudência)
-// docgov-engine v1.5.0 — src/mcp/tool_dispatchers.ts
+// Dispatchers Modulares de Ferramentas MCP (Gen5.5 e Jurisprudência)
+// docgov-engine v1.5.5 — src/mcp/tool_dispatchers.ts
 // ============================================================================
 
 import {
@@ -17,13 +17,15 @@ export async function dispatchModularTool(
   toolName: string,
   args: Record<string, any> = {}
 ): Promise<{ content: Array<{ type: "text"; text: string }> } | null> {
-  // 1. Ferramenta Gen5: Fiscalização Contratual, Aditivos e Batimento
+  // 1. Ferramenta Gen5 / Gen5.5: Fiscalização Contratual, Aditivos, PAS e Cesta
   if (toolName === "docgov_audit_contract_execution" || toolName === "audit_contract_execution") {
     const inputTarget = args.contractJsonPath || args.inputPath || args.contractPath || args.input || args;
     const { synthetic } = await auditContractExecution(inputTarget, {
       caseDir: args.caseDir,
       outputDir: args.outputDir,
       auditType: args.auditType || args.type,
+      compilationMode: args.compilationMode || args.mode,
+      outputFormat: args.outputFormat || args.format,
     });
     return {
       content: [

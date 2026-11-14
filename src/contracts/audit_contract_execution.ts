@@ -1,23 +1,114 @@
 // ============================================================================
-// Orquestrador: Auditoria e Fiscalização Contratual Contínua (Gen5)
-// docgov-engine v1.5.0 — src/contracts/audit_contract_execution.ts
+// Orquestrador: Auditoria e Fiscalização Contratual Contínua (Gen5.5)
+// docgov-engine v1.5.5 — src/contracts/audit_contract_execution.ts
 // Ferramenta MCP: docgov_audit_contract_execution | CLI: audit-contract
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { dirname, join, relative, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { auditContractAddendums } from "./addendum_auditor.ts";
 import { matchTripartiteExecution } from "./tripartite_matcher.ts";
 import { auditReadjustmentsAndRepactuations } from "./readjustment_auditor.ts";
+import { auditPasSanctionsAndGuarantees } from "./pas_sanction_auditor.ts";
+import { auditPriceBasketAndRebalance } from "./price_basket_auditor.ts";
+import { compileContractExecutionArtifacts } from "./contract_compiler.ts";
 import type {
   RawContractInput,
   AuditContractOptions,
   ContractAuditReport,
   AuditContractSyntheticResult,
 } from "./types.ts";
+
+function toCompactPath(absPath: string): string {
+  const normAbs = absPath.replace(/\\/g, "/");
+  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
+  if (normAbs.startsWith(`${normCwd}/`)) {
+    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
+    if (rel && rel.length < normAbs.length) return rel;
+  }
+  return normAbs;
+}
+
+function buildCompactSyntheticResult(
+  report: ContractAuditReport,
+  reportJsonPath: string,
+  dossierMdPath: string
+): AuditContractSyntheticResult {
+  const compiledNames = Object.values(report.compiled_artifacts || {})
+    .filter((v): v is string => Boolean(v))
+    .map((p) => basename(p));
+
+  const s = report.adherence_summary;
+  const synthetic: AuditContractSyntheticResult = {
+    status: report.status,
+    engine_version: report.engine_version,
+    contract_id: report.contract_id,
+    legal_regime: report.legal_regime,
+    blocking_tags: report.blocking_tags,
+    adherence_summary: {
+      gross_increase_pct: s.gross_increase_pct,
+      gross_decrease_pct: s.gross_decrease_pct,
+      legal_limit_pct: s.legal_limit_pct,
+      tripartite_overpricing_count: s.tripartite_overpricing_count,
+      readjustment_violations_count: s.readjustment_violations_count,
+      ...(s.pas_violations_count ? { pas_violations_count: s.pas_violations_count } : {}),
+      ...(s.price_basket_warnings_count
+        ? { price_basket_warnings_count: s.price_basket_warnings_count }
+        : {}),
+      ...(s.rebalance_violations_count
+        ? { rebalance_violations_count: s.rebalance_violations_count }
+        : {}),
+    },
+    report_json_path: toCompactPath(reportJsonPath),
+    dossier_md_path: toCompactPath(dossierMdPath),
+    ...(compiledNames.length > 0 ? { compiled_artifacts: compiledNames } : {}),
+    next_step_hint:
+      report.blocking_tags.length > 0
+        ? `Bloqueio ativo (${report.blocking_tags.length} apontamento(s)). Inspecione o dossiê.`
+        : "Auditoria concluída com conformidade plena.",
+  };
+
+  const sizeOf = (obj: unknown) =>
+    Buffer.byteLength(JSON.stringify(obj, null, 2), "utf-8");
+
+  if (sizeOf(synthetic) >= 880 && synthetic.compiled_artifacts) {
+    delete synthetic.compiled_artifacts;
+  }
+  if (sizeOf(synthetic) >= 880) {
+    synthetic.next_step_hint = "Veja dossie_fiscalizacao_contratual.md.";
+  }
+  if (sizeOf(synthetic) >= 880) {
+    synthetic.adherence_summary = {
+      gross_increase_pct: s.gross_increase_pct,
+      gross_decrease_pct: s.gross_decrease_pct,
+      legal_limit_pct: s.legal_limit_pct,
+      tripartite_overpricing_count: s.tripartite_overpricing_count,
+      readjustment_violations_count: s.readjustment_violations_count,
+    };
+  }
+  if (sizeOf(synthetic) >= 880) {
+    synthetic.report_json_path = basename(reportJsonPath);
+    synthetic.dossier_md_path = basename(dossierMdPath);
+    synthetic.next_step_hint = "Veja dossiê.";
+  }
+  if (sizeOf(synthetic) >= 880) {
+    synthetic.adherence_summary = {
+      gross_increase_pct: s.gross_increase_pct,
+      gross_decrease_pct: s.gross_decrease_pct,
+      legal_limit_pct: s.legal_limit_pct,
+      tripartite_overpricing_count: 0,
+      readjustment_violations_count: 0,
+    };
+    delete (synthetic.adherence_summary as any).tripartite_overpricing_count;
+    delete (synthetic.adherence_summary as any).readjustment_violations_count;
+    delete (synthetic.adherence_summary as any).gross_decrease_pct;
+  }
+
+  return synthetic;
+}
 
 export async function auditContractExecution(
   inputOrPath: RawContractInput | string,
@@ -35,19 +126,28 @@ export async function auditContractExecution(
 
   const contractId = rawData.contract_id || rawData.contractId || "CONTRATO_GENERICO";
   const legalRegime = rawData.legal_regime || rawData.legalRegime || "LEI_14133";
-  const objectType = rawData.object_type || rawData.objectType || rawData.contract_type || rawData.contractType || "SERVICE";
+  const objectType =
+    rawData.object_type ||
+    rawData.objectType ||
+    rawData.contract_type ||
+    rawData.contractType ||
+    "SERVICE";
   const targetInstrument = rawData.target_instrument || rawData.targetInstrument || "CONTRACT";
 
-  // Execução dos 3 módulos determinísticos
+  // Execução dos 5 módulos determinísticos (Gen5 + Gen5.5)
   const addendumRes = auditContractAddendums(rawData);
   const tripartiteRes = matchTripartiteExecution(rawData);
   const readjustmentRes = auditReadjustmentsAndRepactuations(rawData);
+  const pasRes = auditPasSanctionsAndGuarantees(rawData);
+  const basketRes = auditPriceBasketAndRebalance(rawData);
 
   // Consolidação de tags de bloqueio determinísticas
   const blockingTagsSet = new Set<string>();
   addendumRes.blocking_tags.forEach((t) => blockingTagsSet.add(t));
   tripartiteRes.blocking_tags.forEach((t) => blockingTagsSet.add(t));
   readjustmentRes.blocking_tags.forEach((t) => blockingTagsSet.add(t));
+  pasRes.blocking_tags.forEach((t) => blockingTagsSet.add(t));
+  basketRes.blocking_tags.forEach((t) => blockingTagsSet.add(t));
   const blocking_tags = Array.from(blockingTagsSet);
 
   const status: "success" | "blocked" | "warning" =
@@ -84,6 +184,11 @@ export async function auditContractExecution(
       compensation_attempted: addendumRes.compensation_attempted,
       tripartite_overpricing_count: tripartiteRes.divergent_items_count,
       readjustment_violations_count: readjustmentRes.violations_count,
+      pas_violations_count: pasRes.violations_count,
+      price_basket_warnings_count:
+        basketRes.price_basket_analysis.high_dispersion_warnings_count,
+      rebalance_violations_count:
+        basketRes.extraordinary_rebalance_analysis.violations_count,
     },
     addendums_analysis: {
       total_increase: addendumRes.total_increase,
@@ -105,7 +210,40 @@ export async function auditContractExecution(
       violations_count: readjustmentRes.violations_count,
       events: readjustmentRes.events,
     },
+    pas_sanctions_analysis: {
+      processes_analyzed: pasRes.processes_analyzed,
+      violations_count: pasRes.violations_count,
+      processes: pasRes.processes,
+    },
+    price_basket_analysis: basketRes.price_basket_analysis,
+    extraordinary_rebalance_analysis: basketRes.extraordinary_rebalance_analysis,
   };
+
+  // Compilação opcional DOCX/PDF (Marco 8.5)
+  const compilationMode =
+    options.compilationMode ||
+    options.mode ||
+    rawData.compilation_mode ||
+    rawData.compilationMode ||
+    rawData.mode ||
+    "NONE";
+  const outputFormat =
+    options.outputFormat ||
+    options.format ||
+    rawData.output_format ||
+    rawData.outputFormat ||
+    rawData.format ||
+    "both";
+
+  const compiledArtifacts = await compileContractExecutionArtifacts(
+    report,
+    outDir,
+    compilationMode,
+    outputFormat
+  );
+  if (compiledArtifacts) {
+    report.compiled_artifacts = compiledArtifacts;
+  }
 
   const reportJsonPath = join(outDir, "relatorio_fiscalizacao_contratual.json");
   writeFileSync(reportJsonPath, JSON.stringify(report, null, 2), "utf8");
@@ -114,27 +252,7 @@ export async function auditContractExecution(
   const dossierMdPath = join(outDir, "dossie_fiscalizacao_contratual.md");
   writeFileSync(dossierMdPath, dossierMd, "utf8");
 
-  const synthetic: AuditContractSyntheticResult = {
-    status,
-    engine_version: VERSION,
-    contract_id: contractId,
-    legal_regime: legalRegime,
-    blocking_tags,
-    adherence_summary: {
-      gross_increase_pct: addendumRes.gross_increase_pct,
-      gross_decrease_pct: addendumRes.gross_decrease_pct,
-      legal_limit_pct: addendumRes.legal_limit_pct,
-      tripartite_overpricing_count: tripartiteRes.divergent_items_count,
-      readjustment_violations_count: readjustmentRes.violations_count,
-    },
-    report_json_path: reportJsonPath.replace(/\\/g, "/"),
-    dossier_md_path: dossierMdPath.replace(/\\/g, "/"),
-    next_step_hint:
-      blocking_tags.length > 0
-        ? `Bloqueio determinístico ativo (${blocking_tags.length} apontamentos). Inspecione o dossiê pericial gerado.`
-        : "Auditoria concluída com conformidade plena.",
-  };
-
+  const synthetic = buildCompactSyntheticResult(report, reportJsonPath, dossierMdPath);
   return { report, synthetic };
 }
 
@@ -164,6 +282,26 @@ function generateDossierMarkdown(report: ContractAuditReport): string {
   lines.push(`\n## 3. Reajustes e Repactuações`);
   lines.push(`- **Eventos Analisados:** ${report.readjustment_analysis.events_analyzed}`);
   lines.push(`- **Violações de Interregno/CCT:** ${report.readjustment_analysis.violations_count}`);
+
+  if (report.pas_sanctions_analysis && report.pas_sanctions_analysis.processes_analyzed > 0) {
+    lines.push(`\n## 4. Processo Administrativo Sancionador (PAS), Glosa ANS/IMR e Garantias`);
+    lines.push(`- **Processos/Glosas Analisados:** ${report.pas_sanctions_analysis.processes_analyzed} | **Violações:** ${report.pas_sanctions_analysis.violations_count}`);
+    report.pas_sanctions_analysis.processes.forEach((p) => {
+      lines.push(`- **${p.process_id}:** Sugestão=\`${p.recommended_sanction}\` (${p.recommended_scope}) | Multa=${p.fine_pct !== undefined ? `${p.fine_pct}%` : "N/A"} | Contraditório 15d=${p.contradictory_15_days_ok ? "OK" : "VIOLADO"} | Seguradora=${p.insurer_notification_ok ? "OK" : "PENDENTE"}${p.justification ? ` | ${p.justification}` : ""}`);
+    });
+  }
+
+  const basketCount = report.price_basket_analysis?.items_analyzed || 0;
+  const rebalCount = report.extraordinary_rebalance_analysis?.events_analyzed || 0;
+  if (basketCount > 0 || rebalCount > 0) {
+    lines.push(`\n## 5. Cesta de Preços (IN 65/2021) e Reequilíbrio / Matriz de Riscos`);
+    report.price_basket_analysis?.items.forEach((b) => {
+      lines.push(`- **Cesta ${b.item_id}:** Média=${b.mean} | Mediana=${b.median} | Desvio Padrão=${b.std_dev} | CV=${b.cv_pct}% | Média Saneada=${b.sanitized_mean} | Método Recomendado=\`${b.recommended_method}\` (${b.recommended_reference_price})`);
+    });
+    report.extraordinary_rebalance_analysis?.events.forEach((e) => {
+      lines.push(`- **Reequilíbrio ${e.id}:** Natureza=\`${e.event_nature}\` | Risco=\`${e.risk_allocated_to}\` | Elegível=${e.eligible_for_revision ? "SIM" : "NÃO"}${e.reason ? ` | ${e.reason}` : ""}`);
+    });
+  }
 
   return lines.join("\n");
 }

@@ -1,6 +1,6 @@
 // ============================================================================
-// Handlers CLI: Fiscalização Contratual e Governança de ARP (Gen5)
-// docgov-engine v1.5.0 — src/cli/contracts_cli.ts
+// Handlers CLI: Fiscalização Contratual e Governança de ARP (Gen5.5)
+// docgov-engine v1.5.5 — src/cli/contracts_cli.ts
 // Comandos: audit-contract (--audit-contract) e govern-arp (--govern-arp)
 // ============================================================================
 
@@ -8,6 +8,7 @@ import { resolveWorkspacePath } from "../utils/paths.ts";
 import { auditContractExecution } from "../contracts/audit_contract_execution.ts";
 import { governArpExecution } from "../arp/govern_arp.ts";
 import type { ArpCompilationMode } from "../arp/types.ts";
+import type { ContractCompilationMode } from "../contracts/types.ts";
 
 function extractArg(args: string[], flags: string[]): string | undefined {
   for (const flag of flags) {
@@ -57,12 +58,16 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
     const outputDir = extractArg(args, ["--output-dir", "--output", "-o"]);
     const caseDir = extractArg(args, ["--case-dir", "-c"]);
     const auditType = extractArg(args, ["--type", "--audit-type"]) as any;
+    const compilationMode = extractArg(args, ["--mode", "--compilation-mode"]) as ContractCompilationMode;
+    const outputFormat = extractArg(args, ["--format", "--output-format"]) as "docx" | "pdf" | "both" | undefined;
 
     try {
       const { synthetic } = await auditContractExecution(inputPath, {
         caseDir,
         outputDir,
         auditType,
+        compilationMode,
+        outputFormat,
       });
       console.log(JSON.stringify(synthetic, null, 2));
       return true;
