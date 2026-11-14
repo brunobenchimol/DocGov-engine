@@ -42,11 +42,15 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
 
   const isEvaluateProposals =
     args.includes("evaluate-proposals") ||
-    args.includes("--evaluate-proposals");
+    args.includes("--evaluate-proposals") ||
+    args.includes("--bidding-json") ||
+    args.includes("--proposal-json");
 
   const isAuditDirect =
     args.includes("audit-direct-contracting") ||
-    args.includes("--audit-direct-contracting");
+    args.includes("--audit-direct-contracting") ||
+    args.includes("--direct-json") ||
+    args.includes("--direct-contracting-json");
 
   if (!isAuditContract && !isGovernArp && !isEvaluateProposals && !isAuditDirect) {
     return false;
@@ -187,6 +191,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
     let inputPath = extractArg(args, [
       "--input",
       "--direct-json",
+      "--direct-contracting-json",
       "-i",
     ]);
     if (!inputPath) {

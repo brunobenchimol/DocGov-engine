@@ -1,12 +1,14 @@
 import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, readFileSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import JSZip from "jszip";
 import {
   evaluateBiddingProposals,
   serializeBiddingSyntheticResult,
 } from "../src/bidding/index.ts";
+import { runCli } from "../src/cli/index.ts";
 
 const tempDirs: string[] = [];
 function makeTmpDir(): string {
@@ -212,4 +214,63 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
     const serialized = serializeBiddingSyntheticResult(synthetic);
     expect(Buffer.byteLength(serialized, "utf-8")).toBeLessThan(900);
   }, 30000);
+
+  it("deve rotear evaluate-proposals via runCli e entrypoint src/index.ts sem cair no servidor MCP", async () => {
+    const outDir = makeTmpDir();
+    const jsonIn = join(outDir, "proposta_cli.json");
+    writeFileSync(
+      jsonIn,
+      JSON.stringify({
+        process_id: "PROC-CLI-TIC-01",
+        bidder_name: "EMPRESA_CLI_TESTE",
+        has_hidden_labor_dedication_trap: true,
+      }),
+      "utf-8"
+    );
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => logs.push(args.map(String).join(" "));
+    try {
+      await runCli([
+        "evaluate-proposals",
+        "--bidding-json",
+        jsonIn,
+        "--output-dir",
+        outDir,
+        "--mode",
+        "NONE",
+      ]);
+    } finally {
+      console.log = origLog;
+    }
+
+    const cliOut = JSON.parse(logs.join("\n"));
+    expect(cliOut.process_id).toBe("PROC-CLI-TIC-01");
+    expect(cliOut.blocking_tags).toContain("[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]");
+
+    const subOutDir = makeTmpDir();
+    const entryRes = spawnSync(
+      process.execPath,
+      [
+        "run",
+        resolve(import.meta.dir, "..", "src", "index.ts"),
+        "evaluate-proposals",
+        "--bidding-json",
+        jsonIn,
+        "--output-dir",
+        subOutDir,
+        "--mode",
+        "NONE",
+      ],
+      { encoding: "utf-8", timeout: 10000 }
+    );
+    expect(entryRes.status).toBe(0);
+    const subParsed = JSON.parse(entryRes.stdout.trim());
+    expect(subParsed.process_id).toBe("PROC-CLI-TIC-01");
+    expect(existsSync(join(subOutDir, "dossie_julgamento_proposta_tic.json"))).toBe(true);
+    expect(existsSync(join(subOutDir, "relatorio_julgamento_tic.json"))).toBe(true);
+    expect(existsSync(join(subOutDir, "visao_julgamento_proposta_tic.md"))).toBe(true);
+    expect(existsSync(join(subOutDir, "dossie_julgamento_tic.md"))).toBe(true);
+  }, 15000);
 });

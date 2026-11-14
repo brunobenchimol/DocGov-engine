@@ -49,6 +49,8 @@ export * from "./arp/ledger_engine.ts";
 export * from "./arp/compatibility_matrix.ts";
 export * from "./arp/arp_compiler.ts";
 export * from "./arp/govern_arp.ts";
+export * from "./bidding/index.ts";
+export * from "./direct_contracting/index.ts";
 export * from "./mcp/tool_dispatchers.ts";
 export * from "./cli/contracts_cli.ts";
 
@@ -94,6 +96,14 @@ if (import.meta.main) {
     args.includes("--audit-contract") ||
     args.includes("govern-arp") ||
     args.includes("--govern-arp") ||
+    args.includes("evaluate-proposals") ||
+    args.includes("--evaluate-proposals") ||
+    args.includes("--bidding-json") ||
+    args.includes("--proposal-json") ||
+    args.includes("audit-direct-contracting") ||
+    args.includes("--audit-direct-contracting") ||
+    args.includes("--direct-json") ||
+    args.includes("--direct-contracting-json") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||

@@ -1,11 +1,13 @@
 import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtempSync, rmSync, existsSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import {
   auditDirectContracting,
   serializeDirectContractingSyntheticResult,
 } from "../src/direct_contracting/index.ts";
+import { runCli } from "../src/cli/index.ts";
 
 const tempDirs: string[] = [];
 function makeTmpDir(): string {
@@ -100,4 +102,64 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(approved.dossier.status).toBe("success");
     expect(approved.dossier.decision).toBe("APPROVED");
   });
+
+  it("deve rotear audit-direct-contracting via runCli e entrypoint src/index.ts sem cair no servidor MCP", async () => {
+    const outDir = makeTmpDir();
+    const jsonIn = join(outDir, "direta_cli.json");
+    writeFileSync(
+      jsonIn,
+      JSON.stringify({
+        process_id: "PROC-CLI-DIR-01",
+        modality: "INEXIGIBILITY",
+        exclusivity_certificate_valid: false,
+        price_proof_invoices_count: 1,
+      }),
+      "utf-8"
+    );
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (...args: any[]) => logs.push(args.map(String).join(" "));
+    try {
+      await runCli([
+        "audit-direct-contracting",
+        "--direct-json",
+        jsonIn,
+        "--output-dir",
+        outDir,
+        "--mode",
+        "NONE",
+      ]);
+    } finally {
+      console.log = origLog;
+    }
+
+    const cliOut = JSON.parse(logs.join("\n"));
+    expect(cliOut.process_id).toBe("PROC-CLI-DIR-01");
+    expect(cliOut.blocking_tags).toContain("[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]");
+
+    const subOutDir = makeTmpDir();
+    const entryRes = spawnSync(
+      process.execPath,
+      [
+        "run",
+        resolve(import.meta.dir, "..", "src", "index.ts"),
+        "audit-direct-contracting",
+        "--direct-json",
+        jsonIn,
+        "--output-dir",
+        subOutDir,
+        "--mode",
+        "NONE",
+      ],
+      { encoding: "utf-8", timeout: 10000 }
+    );
+    expect(entryRes.status).toBe(0);
+    const subParsed = JSON.parse(entryRes.stdout.trim());
+    expect(subParsed.process_id).toBe("PROC-CLI-DIR-01");
+    expect(existsSync(join(subOutDir, "dossie_contratacao_direta.json"))).toBe(true);
+    expect(existsSync(join(subOutDir, "relatorio_contratacao_direta.json"))).toBe(true);
+    expect(existsSync(join(subOutDir, "visao_contratacao_direta.md"))).toBe(true);
+    expect(existsSync(join(subOutDir, "dossie_contratacao_direta.md"))).toBe(true);
+  }, 15000);
 });
