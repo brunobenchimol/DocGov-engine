@@ -1,6 +1,6 @@
 // ============================================================================
-// Tipos e Interfaces: Fiscalização Contratual, Aditivos e Batimento (Gen5)
-// docgov-engine v1.5.0 — src/contracts/types.ts
+// Tipos e Interfaces: Fiscalização Contratual, Aditivos, PAS e Cesta (Gen5.5)
+// docgov-engine v1.5.5 — src/contracts/types.ts
 // ============================================================================
 
 export type ContractObjectType =
@@ -16,6 +16,14 @@ export type ContractObjectType =
 export type LegalRegime = "LEI_14133" | "LEI_13303" | "LEI_8666" | string;
 
 export type TargetInstrument = "CONTRACT" | "ARP" | string;
+
+export type ContractCompilationMode =
+  | "PAS_NOTIFICATION"
+  | "SANCTION_DOSIMETRY_OPINION"
+  | "DOSIMETRY_OPINION"
+  | "BOTH"
+  | "NONE"
+  | string;
 
 export interface RawAddendumItem {
   id?: string;
@@ -94,6 +102,120 @@ export interface RawReadjustmentItem {
   applied_percentage?: number;
 }
 
+export interface RawSlaGlosaInput {
+  indicator_id?: string;
+  indicatorId?: string;
+  achieved_score?: number;
+  achievedScore?: number;
+  invoice_gross_value?: number;
+  invoiceGrossValue?: number;
+  discount_pct?: number;
+  discountPct?: number;
+  glosa_value?: number;
+  glosaValue?: number;
+  within_imr_bands?: boolean;
+  withinImrBands?: boolean;
+  classified_as?: string;
+  classifiedAs?: string;
+  is_punitive_disguised_as_glosa?: boolean;
+  isPunitiveDisguisedAsGlosa?: boolean;
+  is_imr_classified_as_sanction?: boolean;
+  isImrClassifiedAsSanction?: boolean;
+  ans_glosa_applied_as_punitive_sanction?: boolean;
+  ansGlosaAppliedAsPunitiveSanction?: boolean;
+  opened_formal_pas?: boolean;
+  openedFormalPas?: boolean;
+}
+
+export interface RawPasSanctionInput {
+  process_id?: string;
+  processId?: string;
+  id?: string;
+  infraction_article?: string;
+  infractionArticle?: string;
+  infraction_severity?: "LOW" | "MEDIUM" | "HIGH" | "VERY_HIGH" | string;
+  infractionSeverity?: string;
+  penalty_type?: string;
+  penaltyType?: string;
+  proposed_sanction?: string;
+  proposedSanction?: string;
+  sanction_scope?: "FEDERATIVE_ENTITY" | "ALL_SPHERES" | string;
+  sanctionScope?: string;
+  debarment_years?: number;
+  debarmentYears?: number;
+  proposed_fine_pct?: number;
+  proposedFinePct?: number;
+  fine_pct?: number;
+  finePct?: number;
+  fine_value?: number;
+  fineValue?: number;
+  contract_value?: number;
+  contractValue?: number;
+  opened_formal_pas?: boolean;
+  openedFormalPas?: boolean;
+  prior_notification_sent?: boolean;
+  priorNotificationSent?: boolean;
+  defense_deadline_business_days?: number;
+  defenseDeadlineBusinessDays?: number;
+  contradictory_days?: number;
+  contradictoryDays?: number;
+  guarantee_modality?: string;
+  guaranteeModality?: string;
+  has_surety_bond?: boolean;
+  hasSuretyBond?: boolean;
+  claim_or_default_detected?: boolean;
+  claimOrDefaultDetected?: boolean;
+  surety_insurer_notified?: boolean;
+  suretyInsurerNotified?: boolean;
+  insurer_notified?: boolean;
+  insurerNotified?: boolean;
+  policy_expired?: boolean;
+  policyExpired?: boolean;
+  ans_glosa_applied_as_punitive_sanction?: boolean;
+  ansGlosaAppliedAsPunitiveSanction?: boolean;
+  is_punitive_disguised_as_glosa?: boolean;
+  isPunitiveDisguisedAsGlosa?: boolean;
+  is_imr_classified_as_sanction?: boolean;
+  isImrClassifiedAsSanction?: boolean;
+  within_imr_bands?: boolean;
+  withinImrBands?: boolean;
+  sla_glosa?: RawSlaGlosaInput;
+  slaGlosa?: RawSlaGlosaInput;
+}
+
+export interface RawPriceBasketItem {
+  item_id?: string;
+  itemId?: string;
+  description?: string;
+  quotes?: number[];
+  cotacoes?: number[];
+  samples?: number[];
+  selected_metric?: string;
+  selectedMetric?: string;
+  selected_method?: string;
+  selectedMethod?: string;
+  claimed_reference_price?: number;
+  claimedReferencePrice?: number;
+  proposed_unit_price?: number;
+  proposedUnitPrice?: number;
+}
+
+export interface RawRebalanceRequest {
+  id?: string;
+  event_description?: string;
+  eventDescription?: string;
+  event_nature?: string;
+  eventNature?: string;
+  is_extraordinary_unforeseeable?: boolean;
+  isExtraordinaryUnforeseeable?: boolean;
+  is_ordinary_inflation?: boolean;
+  isOrdinaryInflation?: boolean;
+  risk_allocated_to?: string;
+  riskAllocatedTo?: string;
+  requested_value?: number;
+  requestedValue?: number;
+}
+
 export interface RawContractInput {
   contract_id?: string;
   contractId?: string;
@@ -135,12 +257,85 @@ export interface RawContractInput {
   reajustes?: RawReadjustmentItem[];
   readjustment?: RawReadjustmentItem;
   reajuste?: RawReadjustmentItem;
+  pas_sanction?: RawPasSanctionInput | RawPasSanctionInput[];
+  pasSanction?: RawPasSanctionInput | RawPasSanctionInput[];
+  pas_sanctions?: RawPasSanctionInput | RawPasSanctionInput[];
+  pasSanctions?: RawPasSanctionInput | RawPasSanctionInput[];
+  pas?: RawPasSanctionInput | RawPasSanctionInput[];
+  sla_glosa?: RawSlaGlosaInput | RawSlaGlosaInput[];
+  slaGlosa?: RawSlaGlosaInput | RawSlaGlosaInput[];
+  price_basket?: RawPriceBasketItem | RawPriceBasketItem[];
+  priceBasket?: RawPriceBasketItem | RawPriceBasketItem[];
+  cesta_precos?: RawPriceBasketItem | RawPriceBasketItem[];
+  rebalance_claim?: RawRebalanceRequest | RawRebalanceRequest[];
+  rebalanceClaim?: RawRebalanceRequest | RawRebalanceRequest[];
+  rebalance_request?: RawRebalanceRequest | RawRebalanceRequest[];
+  rebalanceRequest?: RawRebalanceRequest | RawRebalanceRequest[];
+  rebalance_requests?: RawRebalanceRequest | RawRebalanceRequest[];
+  rebalanceRequests?: RawRebalanceRequest | RawRebalanceRequest[];
+  reequilibrio?: RawRebalanceRequest | RawRebalanceRequest[];
+  compilation_mode?: ContractCompilationMode;
+  compilationMode?: ContractCompilationMode;
+  mode?: ContractCompilationMode;
+  output_format?: "docx" | "pdf" | "both";
+  outputFormat?: "docx" | "pdf" | "both";
+  format?: "docx" | "pdf" | "both";
 }
 
 export interface AuditContractOptions {
   caseDir?: string;
   outputDir?: string;
-  auditType?: "FULL" | "ADDENDUM_LIMITS" | "TRIPARTITE_MATCH" | "READJUSTMENT";
+  auditType?: "FULL" | "ADDENDUM_LIMITS" | "TRIPARTITE_MATCH" | "READJUSTMENT" | "PAS_SANCTIONS" | "PRICE_BASKET" | string;
+  compilationMode?: ContractCompilationMode;
+  mode?: ContractCompilationMode;
+  outputFormat?: "docx" | "pdf" | "both";
+  format?: "docx" | "pdf" | "both";
+}
+
+export interface PasSanctionAnalysisItem {
+  process_id: string;
+  proposed_sanction?: string;
+  recommended_sanction: string;
+  recommended_scope: string;
+  fine_pct?: number;
+  legal_floor_pct: number;
+  legal_ceiling_pct: number;
+  fine_within_legal_bounds: boolean;
+  remuneratory_glosa_value?: number;
+  sla_glosa_misclassified: boolean;
+  defense_deadline_business_days?: number;
+  contradictory_15_days_ok: boolean;
+  guarantee_modality?: string;
+  insurer_notification_ok: boolean;
+  justification?: string;
+}
+
+export interface PriceBasketAnalysisItem {
+  item_id: string;
+  description?: string;
+  quotes_count: number;
+  mean: number;
+  median: number;
+  std_dev: number;
+  cv_pct: number;
+  lower_bound: number;
+  upper_bound: number;
+  outliers_removed: number[];
+  sanitized_mean: number;
+  high_dispersion: boolean;
+  selected_metric?: string;
+  recommended_method: string;
+  recommended_reference_price: number;
+}
+
+export interface RebalanceAnalysisItem {
+  id: string;
+  event_description?: string;
+  event_nature: string;
+  risk_allocated_to: string;
+  extraordinary_unforeseeable: boolean;
+  eligible_for_revision: boolean;
+  reason?: string;
 }
 
 export interface ContractAuditReport {
@@ -158,6 +353,9 @@ export interface ContractAuditReport {
     compensation_attempted: boolean;
     tripartite_overpricing_count: number;
     readjustment_violations_count: number;
+    pas_violations_count?: number;
+    price_basket_warnings_count?: number;
+    rebalance_violations_count?: number;
   };
   addendums_analysis: {
     total_increase: number;
@@ -202,6 +400,27 @@ export interface ContractAuditReport {
       justification?: string;
     }>;
   };
+  pas_sanctions_analysis?: {
+    processes_analyzed: number;
+    violations_count: number;
+    processes: PasSanctionAnalysisItem[];
+  };
+  price_basket_analysis?: {
+    items_analyzed: number;
+    high_dispersion_warnings_count: number;
+    items: PriceBasketAnalysisItem[];
+  };
+  extraordinary_rebalance_analysis?: {
+    events_analyzed: number;
+    violations_count: number;
+    events: RebalanceAnalysisItem[];
+  };
+  compiled_artifacts?: {
+    pas_notification_docx_path?: string;
+    pas_notification_pdf_path?: string;
+    dosimetry_opinion_docx_path?: string;
+    dosimetry_opinion_pdf_path?: string;
+  };
 }
 
 export interface AuditContractSyntheticResult {
@@ -216,8 +435,12 @@ export interface AuditContractSyntheticResult {
     legal_limit_pct: number;
     tripartite_overpricing_count: number;
     readjustment_violations_count: number;
+    pas_violations_count?: number;
+    price_basket_warnings_count?: number;
+    rebalance_violations_count?: number;
   };
   report_json_path: string;
   dossier_md_path: string;
+  compiled_artifacts?: string[];
   next_step_hint: string;
 }
