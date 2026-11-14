@@ -8,6 +8,26 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.5.6] - 2026-11-14 — Marco 8.6 (Geração 5.6): Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente & Calibragem Jurisprudencial da Dosimetria (LINDB Art. 22)
+
+### Added
+- **Adequação Federativa e Jurisdicional do PAS (`src/contracts/pas_federative_dosimetry.ts` & `src/contracts/pas_federative_types.ts`):**
+  - **Alcance Territorial Estrito do Impedimento (Art. 156, § 4º Lei 14.133/2021):** Bloqueio de entes Estaduais ou Municipais que pretendam alcance nacional/União/todas as esferas ou prazo superior a 36 meses (`[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`).
+  - **Regime Sancionatório Estrito das Empresas Estatais (Art. 83, III e Art. 38 Lei 13.303/2016):** Restrição à suspensão temporária com a própria estatal por até 24 meses, bloqueando prazos superiores, invocação de `DECLARACAO_INIDONEIDADE` da Lei 14.133 ou extensão indevida além da entidade sancionadora (`[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`).
+  - **Competência Exclusiva e Parecer Conclusivo para Inidoneidade (Art. 156, § 6º):** Exigência estrita de Ministro de Estado, Secretário Estadual/Municipal ou Autoridade Máxima de Autarquia/Fundação acompanhada de parecer jurídico conclusivo (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`).
+  - **Resolução Determinística de Corte de Contas Competente (`competent_audit_court`) e Remessa Obrigatória (Art. 161):** Mapeamento determinístico (`FEDERAL` -> `TCU`; `STATE` -> `TCDF`/`TCE-<UF>`; `MUNICIPAL` -> `TCM-SP`, `TCM-RIO`, `TCM-PA`, `TCM-BA`, `TCM-GO`, demais `TCE-<UF>`) e conferência de comando expresso em `CEIS`, `CNEP`, `PNCP` e `<TCE/TCM>` (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`).
+- **Calibragem Jurisprudencial da Dosimetria (`Art. 156, § 1º` + `LINDB Art. 22, §§ 2º e 3º`):**
+  - Verificação de ancoragem em precedentes sancionadores da Corte de Contas e ponderação dos vetores da LINDB Art. 22 (`[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]`).
+  - Detecção determinística de outliers desproporcionais de multa ou prazo acima da faixa referencial/mediana sem agravantes formalmente comprovadas (`[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]`).
+- **Enriquecimento OpenXML/PDF (`src/contracts/contract_compiler.ts`):**
+  - Inclusão do **Quadro de Enquadramento Jurisdicional e Federativo** e do **Quadro de Calibragem Jurisprudencial da Dosimetria (LINDB Art. 22 / Art. 156, § 1º)** em `Notificacao_Previa_Descumprimento_e_PAS.docx/.pdf` e `Parecer_Dosimetria_Sancao_ou_Glosa_ANS.docx/.pdf`.
+- **Suíte Unitária & Lockstep (`test/contracts/pas_federative_v156.test.ts`):**
+  - Cobertura integral dos sub-asserts `30.13a` a `30.16`, mantendo 100% de retrocompatibilidade com a `v1.5.5`, payload MCP `< 900 bytes` e teto físico de 500 linhas (Lei 9).
+
+### Changed
+- **Sincronização Self-Discovery & Governança (Leis 4, 8 e 9):**
+  - Atualização em lockstep da versão `1.5.6` em `package.json`, `src/constants/index.ts` (`VERSION` e `DOCX_ENGINE_INSTRUCTIONS`), `src/mcp/spec.ts`, `src/mcp/tools_definition.ts`, `docs/especificacao_motor.md`, `README.md` e `ROADMAP.md`, mantendo exatamente 12 ferramentas MCP.
+
 ## [1.5.5] - 2026-11-13 — Marco 8.5 (Geração 5.5): PAS, Glosa ANS/IMR vs. Multa, Seguro-Garantia, Cesta de Preços IN 65/2021 & Álea Extraordinária
 
 ### Added

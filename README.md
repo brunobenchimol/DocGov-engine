@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.5.5)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.5.6)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,12 +87,13 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.5` (Geração 5.5 — PAS, ANS/IMR, Garantias & Cesta IN 65/2021)
+## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.6` (Geração 5.6 — PAS Federativo & Dosimetria LINDB Art. 22)
 
-A versão **`v1.5.5`** evolui a **Geração 5 do docgov-engine** sem inflação de ferramentas MCP (mantendo as **12 ferramentas canônicas**), adicionando ao motor `docgov_audit_contract_execution` a suíte **Marco 8.5 (Geração 5.5)**: Processo Administrativo Sancionador (PAS) com dosimetria e contraditório de 15 dias úteis, segregação matemática/jurídica entre glosa ANS/IMR e multa sancionatória (`0,5%` a `30%`), governança de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN SEGES 65/2021, `CV > 25%`), auditoria de álea extraordinária e compilação nativa OpenXML DOCX/PDF de notificações prévias e pareceres de dosimetria.
+A versão **`v1.5.6`** evolui a **Geração 5 do docgov-engine** sem inflação de ferramentas MCP (mantendo as **12 ferramentas canônicas**), adicionando ao motor `docgov_audit_contract_execution` a suíte **Marco 8.6 (Geração 5.6)**: adequação federativa e jurisdicional do PAS (Estadual, Municipal e Empresas Estatais da Lei 13.303/2016) com resolução determinística do Tribunal de Contas competente (`TCU`, `TCDF`, `TCE-<UF>`, `TCM-<UF>`), remessa obrigatória (`CEIS`, `CNEP`, `PNCP`, `<TCE/TCM>`), validação de competência exclusiva e parecer conclusivo na declaração de inidoneidade (Art. 156, § 6º), e calibragem jurisprudencial da dosimetria ancorada em precedentes e vetores da LINDB Art. 22 com quadros estruturados OpenXML/PDF.
 
-### 🚀 Principais Inovações da Geração 5.5 (`v1.5.5` — Marco 8.5) e Geração 5 (`v1.5.0` — Marco 8):
-1. **11ª Ferramenta MCP `docgov_audit_contract_execution` & CLI `--audit-contract` (Fiscalização Contratual, Aditivos e Reajustes):**
+### 🚀 Principais Inovações da Geração 5.6 (`v1.5.6` — Marco 8.6), Geração 5.5 (`v1.5.5` — Marco 8.5) e Geração 5 (`v1.5.0` — Marco 8):
+1. **11ª Ferramenta MCP `docgov_audit_contract_execution` & CLI `--audit-contract` (Fiscalização Contratual, Aditivos, Reajustes, PAS Federativo e Dosimetria):**
+   - **Adequação Federativa do PAS & Dosimetria LINDB Art. 22 (Marco 8.6):** Alcance territorial estrito do impedimento (Art. 156, § 4º — `[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`), regime estrito das Estatais `<= 24` meses sem inidoneidade (Art. 83, III Lei 13.303 — `[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`), competência exclusiva e parecer jurídico conclusivo na inidoneidade (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`), resolução de `competent_audit_court` e cadastros `CEIS`/`CNEP`/`PNCP`/`TCE-TCM` (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`), e calibragem jurisprudencial LINDB Art. 22 com detecção de outliers (`[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]` e `[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]`).
    - **Limites Legais de Aditamento Sem Compensação:** Cálculo isolado de acréscimos e supressões de 25% (obras, compras e serviços em geral) e 50% (reforma de edifício ou de equipamento) nos termos do Art. 125 da Lei nº 14.133/2021 e Art. 81 da Lei nº 13.303/2016. Vedação matemática absoluta de compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`).
    - **Consensualidade Obrigatória no Regime das Estatais:** Bloqueio determinístico de alterações unilaterais em empresas estatais sem comprovação de acordo bilateral (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`).
    - **Bloqueio Determinístico de Aditivo em ARP:** Bloqueio mandatório se o instrumento alvo de aditivo quantitativo for diretamente uma Ata de Registro de Preços (`[ILLEGAL_ARP_ADDENDUM_BLOCK]`).
@@ -167,7 +168,7 @@ A versão **`v1.5.5`** evolui a **Geração 5 do docgov-engine** sem inflação 
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.5`):** Inclusão mandatória do campo `"engine_version": "1.5.5"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.6`):** Inclusão mandatória do campo `"engine_version": "1.5.6"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**

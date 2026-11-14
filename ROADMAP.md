@@ -19,8 +19,8 @@
 | **Geração 4** | `v1.4.x` | Motor Determinístico Sob Demanda de Pesquisa, Validação e Fatiamento Anatômico de Jurisprudência (11 Cortes Homologadas até a `v1.4.6`; Demais Cortes via Trilha Contínua Sob Demanda) | `[CONCLUÍDO]` |
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
-| **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[PRÓXIMO FOCO ATIVO]` |
-| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Modelos de Mão de Obra sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), Exequibilidade de Perfis de TI, Conversibilidade de Atestados, Motor Forense Anti-Fraude de ACT (7 Vetores + CNPJ/CNAE) e Contratação Direta / Oportunidade de Negócio Estatal | `[PLANEJADO]` |
+| **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
+| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Modelos de Mão de Obra sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), Exequibilidade de Perfis de TI, Conversibilidade de Atestados, Motor Forense Anti-Fraude de ACT (7 Vetores + CNPJ/CNAE) e Contratação Direta / Oportunidade de Negócio Estatal | `[PRÓXIMO FOCO ATIVO]` |
 | **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador) & Julgamento de Obras e Serviços de Engenharia (Inexequibilidade 75%/85%, BDI Acórdão TCU 2.622/2013 e SINAPI/SICRO) | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
@@ -41,7 +41,7 @@
 
 ---
 
-## ✅ STATUS BASE CONSOLIDADO E HOMOLOGADO (`v1.0.0` a `v1.5.0`)
+## ✅ STATUS BASE CONSOLIDADO E HOMOLOGADO (`v1.0.0` a `v1.5.6`)
 
 As capacidades fundamentais do motor foram consolidadas e testadas com 100% de aprovação (detalhes exaustivos no [`CHANGELOG.md`](CHANGELOG.md)):
 
@@ -52,29 +52,11 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 - [x] **Marco 7 — `v1.4.0` a `v1.4.6`:** Motor de jurisprudência sob demanda (`search_juris` e `fetch_juris`), matriz normativa `Statutory Bridge` (Lei 13.303 $\leftrightarrow$ Lei 14.133), ranking de relevância (`0..100 pts`), fatiamento anatômico em 10 camadas, trava anti-alucinação e homologação de 11 Cortes Oficiais.
 - [x] **Marco 8 — `v1.5.0`:** Núcleo de fiscalização contratual (`docgov_audit_contract_execution` / `--audit-contract`), limites de aditamento de 25%/50% sem compensação, batimento quadripartite, reajustes/repactuações e governança determinística de ARP (`docgov_govern_arp` / `--govern-arp`) com travas de carona 50%/200%, compatibilidade jurídica/federativa e compilação OpenXML.
 - [x] **Marco 8.5 — `v1.5.5`:** Processo Administrativo Sancionador (PAS) com dosimetria graduada e contraditório de 15 dias úteis, segregação ANS/IMR vs. multa sancionatória (`0,5%`–`30%`), governança de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN SEGES 65/2021, `CV <= 25%`), matriz de álea extraordinária e compilação OpenXML DOCX/PDF de notificações prévias e pareceres de dosimetria.
+- [x] **Marco 8.6 — `v1.5.6`:** Adequação Federativa e Jurisdicional do PAS (Estadual/Municipal/Estatal junto a TCU/TCDF/TCE/TCM, regime estrito da Lei 13.303/2016 e competência privativa para Declaração de Inidoneidade com parecer jurídico conclusivo), cadastros obrigatórios (`CEIS`/`CNEP`/`PNCP`), calibragem jurisprudencial da dosimetria (LINDB Art. 22 e Lei 14.133 Art. 156, § 1º) e Quadros Federativo e de Dosimetria em DOCX/PDF.
 
 ---
 
-## 🎯 MARCO 8.6 — `v1.5.6`: Adequação Federativa do PAS (Estadual/Municipal/Estatal) e Calibragem Jurisprudencial da Dosimetria (Geração 5.6 — PRÓXIMO FOCO ATIVO)
-
-- [ ] **8.6.1. Adequação Federativa e Jurisdicional do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente:**
-  - **Alcance Territorial Estrito do Impedimento de Licitar:**
-    - Validação do alcance territorial estrito da penalidade de impedimento de licitar e contratar (Art. 156, § 4º da Lei nº 14.133/2021 restrito à esfera do ente sancionador Estadual ou Municipal), bloqueando extensões territoriais indevidas (`[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`);
-    - Segregação de regime sancionatório nas Empresas Estatais: aplicação da suspensão temporária de participação em licitação e impedimento de contratar por prazo não superior a 2 anos (Art. 83, III c/c Art. 38 da Lei nº 13.303/2016), vedando a imposição indevida do regime da Lei 14.133/2021 (`[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`).
-  - **Competência Exclusiva da Autoridade Sancionadora:**
-    - Validação da competência privativa da autoridade sancionadora conforme a esfera federativa (Secretário Estadual, Secretário Municipal ou Ministro de Estado para a Declaração de Inidoneidade — Art. 156, § 6º da Lei nº 14.133/2021), bloqueando decisões proferidas por autoridade incompetente (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`).
-  - **Vinculação e Registro Obrigatório no Tribunal de Contas Competente:**
-    - Vinculação obrigatória ao Tribunal de Contas da jurisdição (`TCE-<UF>` na esfera estadual ou `TCM-<UF>` / `TCE-<UF>` na esfera municipal);
-    - Comando de publicidade e registro obrigatório da sanção no CEIS, CNEP, PNCP e sistema eletrônico do respectivo TCE/TCM (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`).
-
-- [ ] **8.6.2. Calibragem Jurisprudencial e Proporcionalidade da Dosimetria (Art. 156, § 1º da Lei 14.133/2021 e Art. 22, §§ 2º e 3º da LINDB):**
-  - **Ancoragem da Penalidade em Precedentes Jurisprudenciais Sancionadores:**
-    - Cruzamento e ancoragem da penalidade proposta com parâmetros e médias/medianas de multas e sanções aplicadas pelo respectivo Tribunal de Contas (`TCE/TCM/TCU` via integração com `search_juris` e catálogo de dosimetria) para infrações de natureza, porte e gravidade semelhantes, coibindo valores arbitrários;
-    - Emissão de `[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]` quando a dosimetria carecer de memória comparativa de precedentes ou `[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]` quando o valor ou prazo da sanção desviar da faixa jurisprudencial mediana sem agravantes comprovadas.
-
----
-
-## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — PLANEJADO)
+## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — PRÓXIMO FOCO ATIVO)
 
 - [ ] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
   - **Matriz de Descaracterização de DEMO:**
