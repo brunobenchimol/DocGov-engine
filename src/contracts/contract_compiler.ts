@@ -1,6 +1,6 @@
 // ============================================================================
-// Compilador Nativo OpenXML DOCX e PDF: PAS, Dosimetria e Glosa ANS (Gen5.5)
-// docgov-engine v1.5.5 — src/contracts/contract_compiler.ts
+// Compilador Nativo OpenXML DOCX e PDF: PAS, Dosimetria e Glosa ANS (Gen5.6)
+// docgov-engine v1.5.6 — src/contracts/contract_compiler.ts
 // Modos: PAS_NOTIFICATION, SANCTION_DOSIMETRY_OPINION / DOSIMETRY_OPINION, BOTH
 // ============================================================================
 
@@ -105,6 +105,144 @@ function pCallout(title: string, message: string, isBlock = false): string {
   </w:p>`;
 }
 
+function pSimpleTable(headers: string[], rows: string[][]): string {
+  const cols = Math.max(headers.length, 1);
+  const totalWidth = 9072;
+  const colWidth = Math.floor(totalWidth / cols);
+  const gridCols = Array.from({ length: cols }, () => `<w:gridCol w:w="${colWidth}"/>`).join("");
+
+  const renderRow = (cells: string[], isHeader: boolean): string => {
+    const shd = isHeader ? `<w:shd w:val="clear" w:color="auto" w:fill="E2E8F0"/>` : "";
+    const bTag = isHeader ? "<w:b/>" : "";
+    const txtColor = isHeader ? "1E3A8A" : "1F2937";
+    const tcs = Array.from({ length: cols }, (_, idx) => {
+      const val = cells[idx] ?? "";
+      return `<w:tc>
+        <w:tcPr><w:tcW w:w="${colWidth}" w:type="dxa"/>${shd}</w:tcPr>
+        <w:p><w:pPr><w:spacing w:before="40" w:after="40" w:line="240" w:lineRule="auto"/></w:pPr><w:r><w:rPr>${bTag}<w:sz w:val="19"/><w:szCs w:val="19"/><w:color w:val="${txtColor}"/></w:rPr><w:t>${escapeXml(val)}</w:t></w:r></w:p>
+      </w:tc>`;
+    }).join("");
+    return `<w:tr>${tcs}</w:tr>`;
+  };
+
+  return `<w:tbl>
+    <w:tblPr>
+      <w:tblW w:w="${totalWidth}" w:type="dxa"/>
+      <w:tblBorders>
+        <w:top w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        <w:left w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        <w:bottom w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        <w:right w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        <w:insideH w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+        <w:insideV w:val="single" w:sz="4" w:space="0" w:color="CBD5E1"/>
+      </w:tblBorders>
+    </w:tblPr>
+    <w:tblGrid>${gridCols}</w:tblGrid>
+    ${renderRow(headers, true)}
+    ${rows.map((r) => renderRow(r, false)).join("\n")}
+  </w:tbl>`;
+}
+
+function buildFederativeAndDosimetryXmlSections(report: ContractAuditReport): string[] {
+  const parts: string[] = [];
+  const pasList = report.pas_sanctions_analysis?.processes || [];
+  const defaultCourt = report.pas_sanctions_analysis?.competent_audit_court || "TCU";
+
+  parts.push(pHeading("Quadro de Enquadramento Jurisdicional e Federativo (Remessa CEIS / CNEP / PNCP)", 2));
+  parts.push(
+    pBody(
+      "Enquadramento Federativo e Jurisdicional quanto ao alcance territorial, autoridade competente e remessa obrigatória aos cadastros de controle externo (CEIS, CNEP, PNCP e Corte de Contas competente)."
+    )
+  );
+
+  const fedRows: string[][] =
+    pasList.length > 0
+      ? pasList.map((p) => {
+          const f = p.federative_adequacy;
+          const court = f?.competent_audit_court || p.competent_audit_court || defaultCourt;
+          const sphereLabel = f
+            ? `${f.sphere}${f.uf ? `/${f.uf}` : ""}${f.municipality ? ` (${f.municipality})` : f.sphere === "MUNICIPAL" ? " (MUNICIPIO_GENERICO)" : ""}`
+            : `FEDERAL (ORGAO_CONTRATANTE)`;
+          const scopeStatus = f
+            ? `${f.sanction_scope_claimed || p.recommended_scope} | Território=${f.territorial_scope_ok ? "CONFORME" : "BLOQUEADO"} | Estatal=${f.state_enterprise_regime_ok ? "CONFORME" : "BLOQUEADO"}`
+            : p.recommended_scope;
+          const authStatus = f
+            ? `${f.signing_authority_role || "N/A"} | Comp=${f.authority_competent_ok ? "OK" : "BLOQ"} | Parecer=${f.conclusive_legal_opinion_ok ? "OK" : "AUSENTE"}`
+            : "N/A";
+          const regStatus = f
+            ? `Obrigatórios: CEIS, CNEP, PNCP, ${court} | Status=${f.registries_ok ? "COMANDADOS" : `OMISSÃO (${f.missing_registries.join(", ")})`}`
+            : `CEIS, CNEP, PNCP, ${court}`;
+          return [p.process_id, `${sphereLabel} / ${f?.legal_regime || report.legal_regime}`, court, `${scopeStatus} | Autoridade: ${authStatus}`, regStatus];
+        })
+      : [
+          [
+            "PAS-PADRAO",
+            `ORGAO_CONTRATANTE / ${report.legal_regime}`,
+            defaultCourt,
+            "Alcance restrito ao ente sancionador (Art. 156 § 4º)",
+            `CEIS, CNEP, PNCP, ${defaultCourt}`,
+          ],
+        ];
+
+  parts.push(
+    pSimpleTable(
+      ["Processo", "Esfera / Regime", "Corte Competente", "Alcance Territorial & Autoridade", "Remessa Obrigatória"],
+      fedRows
+    )
+  );
+
+  parts.push(
+    pHeading(
+      "Quadro de Calibragem Jurisprudencial da Dosimetria (Art. 156, § 1º da Lei nº 14.133/2021 e Art. 22, §§ 2º e 3º da LINDB)",
+      2
+    )
+  );
+  parts.push(
+    pBody(
+      "Análise de calibragem da sanção à luz dos precedentes da Corte de Contas e dos vetores da LINDB Art. 22 §§ 2º e 3º e Art. 156 § 1º da Lei nº 14.133/2021 (natureza, gravidade, danos, primariedade, atenuantes e agravantes comprovadas)."
+    )
+  );
+
+  const dosRows: string[][] =
+    pasList.length > 0
+      ? pasList.map((p) => {
+          const d = p.dosimetry_calibration;
+          const precedents =
+            d && d.precedent_ids.length > 0 ? d.precedent_ids.join(", ") : "Sem precedente formal";
+          const faixa =
+            d?.benchmark_range_pct
+              ? `${d.benchmark_range_pct[0]}% a ${d.benchmark_range_pct[1]}% (Mediana ${d.benchmark_median_pct ?? "N/A"}%)`
+              : d?.benchmark_median_pct !== undefined
+                ? `Mediana ${d.benchmark_median_pct}%`
+                : "Não parametrizada";
+          const vectors = d
+            ? `Precedentes=${d.calibrated_with_precedents ? "OK" : "AUSENTE"} | LINDB Art. 22=${d.lindb_art22_vectors_weighed ? "PONDERADA" : "OMITIDA"}`
+            : "LINDB Art. 22 / Art. 156 § 1º";
+          const diag = d
+            ? `Agravantes=${d.aggravating_factors_proven ? "COMPROVADAS" : "NÃO COMPROVADAS"} | ${d.outlier_detected ? "OUTLIER DESPROPORCIONAL" : "PROPORCIONAL"}`
+            : "PROPORCIONAL";
+          return [p.process_id, p.fine_pct !== undefined ? `${p.fine_pct}%` : p.recommended_sanction, precedents, faixa, `${vectors} | ${diag}`];
+        })
+      : [
+          [
+            "PAS-PADRAO",
+            "N/A",
+            "Precedentes da Corte de Contas",
+            "Faixa proporcional (Art. 156 § 1º)",
+            "LINDB Art. 22 ponderada | Conforme",
+          ],
+        ];
+
+  parts.push(
+    pSimpleTable(
+      ["Processo", "Penalidade", "Precedentes de Referência", "Faixa / Mediana", "LINDB Art. 22 & Proporcionalidade"],
+      dosRows
+    )
+  );
+
+  return parts;
+}
+
 async function emitCompiledDocument(
   parts: string[],
   outputPath: string,
@@ -158,6 +296,8 @@ export async function compilePasNotificationDocx(
   parts.push(pHeading("3. Comunicação à Seguradora e Garantias (Art. 102)", 2));
   parts.push(pBody("Havendo apólice de Seguro-Garantia vigente, expeça-se comunicação formal concomitante à Seguradora sobre a expectativa de sinistro e abertura do PAS."));
 
+  parts.push(...buildFederativeAndDosimetryXmlSections(report));
+
   return emitCompiledDocument(parts, outputPath, options.outputFormat || "both");
 }
 
@@ -188,6 +328,8 @@ export async function compileSanctionDosimetryOpinionDocx(
       parts.push(pBody(`• Item ${b.item_id}: Média=${b.mean} | Mediana=${b.median} | Desvio Padrão=${b.std_dev} | CV=${b.cv_pct}% | Média Saneada=${b.sanitized_mean} | Recomendado=${b.recommended_method} (${b.recommended_reference_price})`));
     });
   }
+
+  parts.push(...buildFederativeAndDosimetryXmlSections(report));
 
   parts.push(pHeading("3. Conclusão e Enquadramento Jurídico", 2));
   if (report.blocking_tags.length > 0) {
