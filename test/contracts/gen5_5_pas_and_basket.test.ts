@@ -6,12 +6,27 @@
 import { describe, it, expect } from "bun:test";
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import JSZip from "jszip";
 import { auditPasSanctionsAndGuarantees } from "../../src/contracts/pas_sanction_auditor.ts";
 import { auditPriceBasketAndRebalance } from "../../src/contracts/price_basket_auditor.ts";
 import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 import { handleContractsCli } from "../../src/cli/contracts_cli.ts";
 import { handleCallTool } from "../../src/mcp/server.ts";
 import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
+
+async function assertValidOpcDocxPackage(docxPath: string): Promise<void> {
+  const zip = await JSZip.loadAsync(readFileSync(docxPath));
+  const contentTypesXml = await zip.file("[Content_Types].xml")?.async("string");
+  const rootRelsXml = await zip.file("_rels/.rels")?.async("string");
+  expect(contentTypesXml).toBeDefined();
+  expect(contentTypesXml).toContain("http://schemas.openxmlformats.org/package/2006/content-types");
+  expect(contentTypesXml).toContain("application/vnd.openxmlformats-package.relationships+xml");
+  expect(contentTypesXml).not.toContain("application/vnd.openxmlformats-officedocument.relationships+xml");
+  expect(rootRelsXml).toBeDefined();
+  expect(rootRelsXml).toContain("http://schemas.openxmlformats.org/package/2006/relationships");
+  expect(zip.file("word/document.xml")).not.toBeNull();
+  expect(zip.file("word/styles.xml")).not.toBeNull();
+}
 
 describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (Marco 8.5)", () => {
   it("Sub-Assert 30.9a: deve disparar simultaneamente as 4 tags críticas de PAS, Glosa, Multa > 30% e Seguro-Garantia", () => {
@@ -176,6 +191,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
     expect(existsSync(notifPdf)).toBe(true);
     expect(statSync(notifDocx).size).toBeGreaterThan(1000);
     expect(statSync(notifPdf).size).toBeGreaterThan(500);
+    await assertValidOpcDocxPackage(notifDocx);
   }, 15000);
 
   it("Sub-Assert 30.11b: deve compilar Parecer de Dosimetria (DOSIMETRY_OPINION) em DOCX e PDF", async () => {
@@ -224,6 +240,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
     expect(existsSync(opinionPdf)).toBe(true);
     expect(statSync(opinionDocx).size).toBeGreaterThan(1000);
     expect(statSync(opinionPdf).size).toBeGreaterThan(500);
+    await assertValidOpcDocxPackage(opinionDocx);
   }, 15000);
 
   it("Sub-Assert 30.12: deve respeitar < 900B no MCP/CLI e propagar todas as tags para JSON e MD", async () => {
