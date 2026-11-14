@@ -73,14 +73,16 @@ function buildCompactSyntheticResult(
 
   const sizeOf = (obj: unknown) =>
     Buffer.byteLength(JSON.stringify(obj, null, 2), "utf-8");
+  const minSizeOf = (obj: unknown) =>
+    Buffer.byteLength(JSON.stringify(obj), "utf-8");
 
-  if (sizeOf(synthetic) >= 880 && synthetic.compiled_artifacts) {
+  if (sizeOf(synthetic) > 850 && synthetic.compiled_artifacts) {
     delete synthetic.compiled_artifacts;
   }
-  if (sizeOf(synthetic) >= 880) {
+  if (sizeOf(synthetic) > 850) {
     synthetic.next_step_hint = "Veja dossie_fiscalizacao_contratual.md.";
   }
-  if (sizeOf(synthetic) >= 880) {
+  if (sizeOf(synthetic) > 850) {
     synthetic.adherence_summary = {
       gross_increase_pct: s.gross_increase_pct,
       gross_decrease_pct: s.gross_decrease_pct,
@@ -89,25 +91,44 @@ function buildCompactSyntheticResult(
       readjustment_violations_count: s.readjustment_violations_count,
     };
   }
-  if (sizeOf(synthetic) >= 880) {
+  if (sizeOf(synthetic) > 850) {
     synthetic.report_json_path = basename(reportJsonPath);
     synthetic.dossier_md_path = basename(dossierMdPath);
     synthetic.next_step_hint = "Veja dossiê.";
   }
-  if (sizeOf(synthetic) >= 880) {
+  if (sizeOf(synthetic) > 850) {
     synthetic.adherence_summary = {
-      gross_increase_pct: s.gross_increase_pct,
-      gross_decrease_pct: s.gross_decrease_pct,
       legal_limit_pct: s.legal_limit_pct,
-      tripartite_overpricing_count: 0,
-      readjustment_violations_count: 0,
     };
-    delete (synthetic.adherence_summary as any).tripartite_overpricing_count;
-    delete (synthetic.adherence_summary as any).readjustment_violations_count;
-    delete (synthetic.adherence_summary as any).gross_decrease_pct;
+  }
+
+  // Quando há muitas tags longas (ex.: estresse de 12+ tags), compacta em JSON minificado mantendo todas as tags
+  if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 850) {
+      delete synthetic.next_step_hint;
+    }
+    if (minSizeOf(synthetic) > 850) {
+      delete synthetic.adherence_summary;
+    }
+    if (minSizeOf(synthetic) > 850) {
+      delete synthetic.legal_regime;
+    }
+    if (minSizeOf(synthetic) > 850 && synthetic.contract_id.length > 24) {
+      synthetic.contract_id = synthetic.contract_id.slice(0, 24);
+    }
   }
 
   return synthetic;
+}
+
+export function serializeSyntheticAuditResult(
+  synthetic: AuditContractSyntheticResult
+): string {
+  const pretty = JSON.stringify(synthetic, null, 2);
+  if (Buffer.byteLength(pretty, "utf-8") <= 850) {
+    return pretty;
+  }
+  return JSON.stringify(synthetic);
 }
 
 export async function auditContractExecution(

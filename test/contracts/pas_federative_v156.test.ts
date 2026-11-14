@@ -361,4 +361,137 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     expect(pdfText).toContain("Art. 22");
     expect(pdfText).toContain("CEIS");
   }, 20000);
+
+  it("Estresse Combinado 12 Tags (6 da v1.5.5 + 6 da v1.5.6): mantém payload MCP stdio < 900 bytes sem truncar tags nem JSON em disco", async () => {
+    const outDir = join(getEphemeralInspectDir(), `test_gen56_stress12_${Date.now()}`);
+    mkdirSync(outDir, { recursive: true });
+    const jsonPath = join(outDir, "stress_12_tags.json");
+    writeFileSync(
+      jsonPath,
+      JSON.stringify({
+        contract_id: "CONTRATO_ESTRESSE_12_TAGS_2026",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICOS",
+        original_value: 1000000,
+        has_surety_bond: true,
+        pas_sanctions: [
+          {
+            process_id: "PAS-GLOSA-01",
+            is_imr_classified_as_sanction: true,
+            penalty_type: "MULTA",
+            opened_formal_pas: true,
+            defense_deadline_business_days: 15,
+            insurer_notified: true,
+          },
+          {
+            process_id: "PAS-MULTA-02",
+            sanction_type: "MULTA",
+            fine_pct: 35,
+            opened_formal_pas: true,
+            defense_deadline_business_days: 5,
+            has_surety_bond: true,
+            insurer_notified: false,
+          },
+          {
+            process_id: "PAS-FED-03",
+            sphere: "MUNICIPAL",
+            uf: "PA",
+            municipality: "MUNICIPIO_GENERICO",
+            legal_regime: "LEI_14133",
+            sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR",
+            sanction_scope_claimed: "NATIONAL",
+            duration_months: 48,
+            fine_pct: 25,
+            registries_commanded: ["CEIS"],
+            opened_formal_pas: true,
+            defense_deadline_business_days: 15,
+            insurer_notified: true,
+            dosimetry_benchmark: {
+              juris_precedent_id: "TCE-PA-2025",
+              benchmark_range_pct: [2, 5],
+              benchmark_median_pct: 3.5,
+              aggravating_factors_proven: false,
+              lindb_art22_weighed: true,
+            },
+          },
+          {
+            process_id: "PAS-ESTATAL-04",
+            sphere: "STATE",
+            uf: "SP",
+            legal_regime: "LEI_13303",
+            sanction_type: "DECLARACAO_INIDONEIDADE",
+            duration_months: 36,
+            opened_formal_pas: true,
+            defense_deadline_business_days: 15,
+            insurer_notified: true,
+          },
+          {
+            process_id: "PAS-INID-05",
+            sphere: "STATE",
+            uf: "PA",
+            legal_regime: "LEI_14133",
+            sanction_type: "DECLARACAO_INIDONEIDADE",
+            signing_authority_role: "FISCAL_CONTRATO",
+            has_conclusive_legal_opinion: false,
+            fine_pct: 10,
+            opened_formal_pas: true,
+            defense_deadline_business_days: 15,
+            insurer_notified: true,
+            dosimetry_benchmark: {
+              lindb_art22_weighed: false,
+              has_jurisprudential_calibration: false,
+            },
+          },
+        ],
+        price_basket: [
+          { item_id: "ITEM-1", quotes: [100, 110, 500], selected_method: "MEAN" },
+        ],
+        rebalance_requests: [
+          {
+            id: "REQ-1",
+            event_nature: "EXTRAORDINARY_UNFORESEEN",
+            risk_allocated_to: "CONTRACTOR",
+            request_accepted: true,
+          },
+        ],
+      }),
+      "utf-8"
+    );
+
+    const mcpRes: any = await handleCallTool("docgov_audit_contract_execution", {
+      contractJsonPath: jsonPath,
+      outputDir: outDir,
+    });
+    const rawStdout = mcpRes.content[0].text;
+    const byteLen = Buffer.byteLength(rawStdout, "utf-8");
+    expect(byteLen).toBeLessThan(900);
+    expect(byteLen).toBeLessThanOrEqual(850);
+
+    const parsed = JSON.parse(rawStdout);
+    const expected12Tags = [
+      "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]",
+      "[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]",
+      "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]",
+      "[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]",
+      "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]",
+      "[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]",
+      "[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]",
+      "[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]",
+      "[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]",
+      "[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]",
+      "[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]",
+      "[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]",
+    ];
+    for (const tag of expected12Tags) {
+      expect(parsed.blocking_tags).toContain(tag);
+    }
+
+    const reportJson = JSON.parse(
+      readFileSync(join(outDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
+    );
+    expect(reportJson.blocking_tags.length).toBeGreaterThanOrEqual(12);
+    for (const tag of expected12Tags) {
+      expect(reportJson.blocking_tags).toContain(tag);
+    }
+  });
 });

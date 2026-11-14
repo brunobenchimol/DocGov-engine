@@ -5,7 +5,10 @@
 // ============================================================================
 
 import { resolveWorkspacePath } from "../utils/paths.ts";
-import { auditContractExecution } from "../contracts/audit_contract_execution.ts";
+import {
+  auditContractExecution,
+  serializeSyntheticAuditResult,
+} from "../contracts/audit_contract_execution.ts";
 import { governArpExecution } from "../arp/govern_arp.ts";
 import type { ArpCompilationMode } from "../arp/types.ts";
 import type { ContractCompilationMode } from "../contracts/types.ts";
@@ -69,7 +72,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
         compilationMode,
         outputFormat,
       });
-      console.log(JSON.stringify(synthetic, null, 2));
+      console.log(serializeSyntheticAuditResult(synthetic));
       return true;
     } catch (err: any) {
       console.error(`Erro ao executar auditoria contratual: ${err.message}`);

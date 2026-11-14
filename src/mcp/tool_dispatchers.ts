@@ -9,7 +9,10 @@ import {
   fetchJuris,
   formatFetchJurisSyntheticResult,
 } from "../tools/juris/index.ts";
-import { auditContractExecution } from "../contracts/audit_contract_execution.ts";
+import {
+  auditContractExecution,
+  serializeSyntheticAuditResult,
+} from "../contracts/audit_contract_execution.ts";
 import { governArpExecution } from "../arp/govern_arp.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 
@@ -31,7 +34,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: JSON.stringify(synthetic, null, 2),
+          text: serializeSyntheticAuditResult(synthetic),
         },
       ],
     };

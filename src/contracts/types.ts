@@ -441,14 +441,14 @@ export interface AuditContractSyntheticResult {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   contract_id: string;
-  legal_regime: string;
+  legal_regime?: string;
   blocking_tags: string[];
-  adherence_summary: {
-    gross_increase_pct: number;
-    gross_decrease_pct: number;
+  adherence_summary?: {
+    gross_increase_pct?: number;
+    gross_decrease_pct?: number;
     legal_limit_pct: number;
-    tripartite_overpricing_count: number;
-    readjustment_violations_count: number;
+    tripartite_overpricing_count?: number;
+    readjustment_violations_count?: number;
     pas_violations_count?: number;
     price_basket_warnings_count?: number;
     rebalance_violations_count?: number;
@@ -456,5 +456,5 @@ export interface AuditContractSyntheticResult {
   report_json_path: string;
   dossier_md_path: string;
   compiled_artifacts?: string[];
-  next_step_hint: string;
+  next_step_hint?: string;
 }
