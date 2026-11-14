@@ -20,8 +20,8 @@
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
-| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Modelos de Mão de Obra sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), Exequibilidade de Perfis de TI, Conversibilidade de Atestados, Motor Forense Anti-Fraude de ACT (7 Vetores + CNPJ/CNAE) e Contratação Direta / Oportunidade de Negócio Estatal | `[PRÓXIMO FOCO ATIVO]` |
-| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador) & Julgamento de Obras e Serviços de Engenharia (Inexequibilidade 75%/85%, BDI Acórdão TCU 2.622/2013 e SINAPI/SICRO) | `[PLANEJADO]` |
+| **Geração 6** | `v1.6.0` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Modelos de Mão de Obra sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), Exequibilidade de Perfis de TI, Conversibilidade de Atestados, Motor Forense Anti-Fraude de ACT (7 Vetores + CNPJ/CNAE) e Contratação Direta / Oportunidade de Negócio Estatal | `[CONCLUÍDO]` |
+| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador) & Julgamento de Obras e Serviços de Engenharia (Inexequibilidade 75%/85%, BDI Acórdão TCU 2.622/2013 e SINAPI/SICRO) | `[PRÓXIMO FOCO ATIVO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -56,9 +56,9 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## 🎯 MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — PRÓXIMO FOCO ATIVO)
+## ✅ MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — CONCLUÍDO)
 
-- [ ] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
+- [x] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
   - **Matriz de Descaracterização de DEMO:**
     - Bloqueio determinístico de gatilhos de subordinação direta, controle de frequência/ponto, pessoalidade nominal ou pagamento fixo mensal sem vinculação a resultados em contratos de `UST`, `HST`, `Hora-Técnica`, `PF` e `SQUADs` (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`).
   - **Métricas de Faturamento de TI e Travas Normativas:**
@@ -69,7 +69,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
     - Comparação paramétrica do valor implícito da UST, PF, Hora-Técnica ou Squad frente ao piso salarial e encargos sociais dos perfis profissionais mínimos exigidos no TR (`[ICT_PROPOSAL_BELOW_PROFILE_FLOOR_INEXEQUIBLE]`);
     - Trava jurisprudencial vinculante da **Súmula TCU nº 262** (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`): vedação absoluta de desclassificação sumária por inexequibilidade sem oportunidade prévia de diligência formal para comprovação da exequibilidade de custos pelo licitante.
 
-- [ ] **9.2.A. Habilitação Técnico-Operacional e Qualificação Econômico-Financeira em TIC:**
+- [x] **9.2.A. Habilitação Técnico-Operacional e Qualificação Econômico-Financeira em TIC:**
   - **Conversibilidade de Métricas e Regras de Capacidade Técnica (Súmula TCU nº 263):**
     - Admissão de conversibilidade paramétrica de atestados entre métricas correlatas de TI (`UST <-> Horas <-> PF <-> Postos`) e bloqueio de exigência restritiva de métrica exclusiva (`[ICT_ACT_RIGID_METRIC_RESTRICTION_BLOCK]`);
     - Teto máximo de exigência de atestados fixado em no máximo 50% dos quantitativos dos itens de maior relevância e valor significativo (`[TECH_CAPACITY_EXCEEDS_50PCT_BLOCK]`);
@@ -80,7 +80,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
     - Teto máximo de 10% do valor estimado para exigência de Patrimônio Líquido ou Capital Social mínimo;
     - Vedação absoluta de exigência cumulativa de Capital Social e Patrimônio Líquido (`[CUMULATIVE_CAPITAL_AND_EQUITY_BLOCK]`).
 
-- [ ] **9.2.B. Motor Forense Anti-Fraude de Autenticidade, Cruzamento Público de CNPJ e Diligência de ACT (Art. 64 da Lei 14.133/2021, Art. 56, § 2º da Lei 13.303/2016 e Acórdãos TCU 1.385/2016 e 1.211/2021-Plenário):**
+- [x] **9.2.B. Motor Forense Anti-Fraude de Autenticidade, Cruzamento Público de CNPJ e Diligência de ACT (Art. 64 da Lei 14.133/2021, Art. 56, § 2º da Lei 13.303/2016 e Acórdãos TCU 1.385/2016 e 1.211/2021-Plenário):**
   - **Vetor 1 (Incompatibilidade de Porte e CNAE do Emissor/Licitante):** Cruzamento público de CNPJ (`BrasilAPI` / Receita Federal com fallback mockado) verificando se o emissor do ACT (ex.: MEI/ME de ramo alheio como padaria/varejo) possui CNAE, natureza jurídica e capital social compatíveis com o volume de TI/serviços atestado (`[ACT_ISSUER_CNAE_OR_SCALE_MISMATCH_SUSPICION]`);
   - **Vetor 2 (Cronologia Impossível e Status Cadastral do CNPJ):** Cruzamento entre Data de Abertura, Data de Baixa/Inaptidão/Suspensão do CNPJ e o período de execução ou data de assinatura do ACT (`[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]`);
   - **Vetor 3 (Rastreabilidade de Emissor Público no PNCP):** Verificação de existência do Contrato/ARP/Empenho citado quando o emissor do ACT for órgão público ou estatal (`[ACT_PUBLIC_CONTRACT_UNVERIFIED_IN_PNCP]`);
@@ -89,7 +89,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
   - **Vetor 6 (Plausibilidade Volumétrica Tempo vs. Esforço):** Auditoria da razão `Volume de UST/Horas/Itens ÷ Prazo de Execução` frente ao porte da licitante (`[ACT_IMPLAUSIBLE_VOLUME_TIME_RATIO_ALERT]`);
   - **Vetor 7 (Metadados Forenses de PDF e Assinatura Digital):** Divergência temporal entre a data impressa no texto do ACT e a data de criação do PDF / assinatura digital ICP-Brasil/Gov.br sem ressalva de 2ª via (`[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]`).
 
-- [ ] **9.3. Auditoria Determinística de Contratação Direta (Inexigibilidade e Dispensa):**
+- [x] **9.3. Auditoria Determinística de Contratação Direta (Inexigibilidade e Dispensa):**
   - **Inexigibilidade de Licitação (Art. 74 da Lei 14.133/2021 e Art. 30 da Lei 13.303/2016):**
     - Verificação de inviabilidade de competição, singularidade do serviço e notória especialização;
     - Trava contra atestados de exclusividade genéricos ou emitidos por entidades sem legitimidade (`[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]` — Súmula TCU nº 255);
@@ -97,10 +97,10 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
   - **Dispensa de Licitação por Valor (Art. 75, I e II da Lei 14.133/2021 e Art. 29, I e II da Lei 13.303/2016):**
     - Motor anti-fracionamento de despesa no exercício financeiro para a mesma unidade gestora e mesma linha de fornecimento/serviço por código PDM / CATMAT / CATSER (`[EXPENSE_FRAGMENTATION_BLOCK]`).
 
-- [ ] **9.4. Regime Especial de Oportunidade de Negócio e Parcerias Estratégicas nas Estatais (Art. 28, § 3º, II da Lei 13.303/2016):**
+- [x] **9.4. Regime Especial de Oportunidade de Negócio e Parcerias Estratégicas nas Estatais (Art. 28, § 3º, II da Lei 13.303/2016):**
   - Checklist determinístico de requisitos para dispensa de licitação em oportunidades de negócio empresarial: comprovação de inviabilidade ou desvantagem de procedimento concorrencial comercial, justificação técnica da escolha do parceiro e matriz de compartilhamento de riscos e resultados econômicos (`[STATE_ENTERPRISE_PARTNERSHIP_UNJUSTIFIED_BLOCK]`).
 
-- [ ] **9.5. Compilação Documental Nativa `.docx`/`.pdf` da Fase Externa e Contratação Direta:**
+- [x] **9.5. Compilação Documental Nativa `.docx`/`.pdf` da Fase Externa e Contratação Direta:**
   - `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`: Minuta técnica padronizada de julgamento de conformidade de propostas, admissibilidade de atestados e resultado de diligências;
   - `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf`: Minutas formais de diligência investigativa de veracidade de atestados em duas vias canônicas:
     - *Via A (Ao Emissor do ACT):* E-mail/Ofício de confirmação de autenticidade endereçado aos contatos oficiais cadastrados na Receita Federal;

@@ -8,6 +8,20 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-11-14 — Marco 9 (Geração 6): Seleção do Fornecedor 360º em TIC sem DEMO, Exequibilidade de Perfis de TI, Conversibilidade, Motor Forense Anti-Fraude de ACT (7 Vetores) & Contratação Direta / Oportunidade Estatal
+
+### Added
+- **Tool MCP #13 `docgov_evaluate_bidding_proposals` & CLI `evaluate-proposals` (`src/bidding/`):**
+  - **Modelos de Execução de TIC sem DEMO & Exequibilidade (`ict_execution_models.ts`):** Matriz de descaracterização de alocação disfarçada de mão de obra (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`), travas de `UST`/`USM`/`UNS` (Súmula TCU 269 -> `[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]`), `HST`/`Hora-Técnica` com teto prévio fechado em OS (`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]`), `PF`/`SQUADs` vinculados a entregáveis/ANS e exequibilidade paramétrica de perfis profissionais de TI com trava vinculante da Súmula TCU 262 (`[ICT_PROPOSAL_BELOW_PROFILE_FLOOR_INEXEQUIBLE]` e `[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`).
+  - **Habilitação Técnica (Conversibilidade) & Econômico-Financeira (`qualification_evaluator.ts`):** Conversibilidade paramétrica entre métricas correlatas (`UST <-> Horas <-> PF <-> Postos <-> Chamados`, `[ICT_ACT_RIGID_METRIC_RESTRICTION_BLOCK]`), travas Súmula TCU 263 (teto 50%, relevância mínima 4%, somatório obrigatório de atestados) e auditoria contábil de `ILG`, `ILC`, `ISG`, `EG`, teto de 10% e vedação cumulativa `CS + PL` (`[CUMULATIVE_CAPITAL_AND_EQUITY_BLOCK]`).
+  - **Motor Forense Anti-Fraude de ACT — 7 Vetores Determinísticos (`act_forensic_auditor.ts`):** Vetor 1 (Porte/CNAE), Vetor 2 (Cronologia/Status CNPJ), Vetor 3 (Rastreabilidade PNCP), Vetor 4 (Conflito Societário QSA/Contato), Vetor 5 (Plágio Literal do Edital via Jaccard), Vetor 6 (Plausibilidade Volumétrica Esforço vs. Tempo) e Vetor 7 (Metadados PDF/ICP-Brasil).
+  - **Compilação OpenXML DOCX/PDF (`bidding_docx_compiler.ts`):** Geração de `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf` e `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf` com tabelas `<w:tbl>`, **Via A** (ao Emissor na Receita Federal) e **Via B** (à Licitante exigindo NF-e/NFS-e de 44 dígitos, Contrato, OS e SEFIP/eSocial).
+- **Tool MCP #14 `docgov_audit_direct_contracting` & CLI `audit-direct-contracting` (`src/direct_contracting/`):**
+  - **Inexigibilidade & Dispensa por Valor (`direct_contracting_auditor.ts`):** Súmula TCU 255 (`[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]`), comprovação mínima de 3 NFs/contratos do fornecedor no mercado (`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]`) e controle anti-fracionamento anual por UG e código `PDM / CATMAT / CATSER` (`[EXPENSE_FRAGMENTATION_BLOCK]`).
+  - **Oportunidade de Negócio e Parcerias Estratégicas em Estatais (Art. 28, § 3º, II da Lei 13.303/2016):** Validação de objeto social, singularidade do parceiro, inviabilidade concorrencial e matriz de riscos/receitas (`[STATE_ENTERPRISE_PARTNERSHIP_UNJUSTIFIED_BLOCK]`), com compilação de `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`.
+- **Suítes Unitárias Modulares & Governança (Leis 2, 4, 8 e 9):**
+  - Criação de `test/bidding_gen6.test.ts` e `test/direct_contracting_gen6.test.ts`, expansão de `scripts/check_lines.ts` para auditar `src/bidding` e `src/direct_contracting` e retorno sintético MCP estritamente `< 900 bytes`.
+
 ## [1.5.6] - 2026-11-14 — Marco 8.6 (Geração 5.6): Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente & Calibragem Jurisprudencial da Dosimetria (LINDB Art. 22)
 
 ### Added

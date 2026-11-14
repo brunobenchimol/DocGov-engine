@@ -365,7 +365,7 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_evaluate_bidding_proposals",
       description:
-        "Audita e julga propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), exequibilidade paramétrica de perfis de TI (Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG) e Motor Forense Anti-Fraude de ACT em 7 vetores (Art. 64 Lei 14.133/2021), compilando Parecer de Julgamento e Ofício de Diligência (Via A Emissor RFB e Via B Licitante). Retorno sintético < 900 bytes.",
+        "Quando usar: Para auditar e julgar propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), exequibilidade paramétrica de perfis de TI (Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG) e Motor Forense Anti-Fraude de ACT em 7 vetores (Art. 64 Lei 14.133/2021). Próximo Passo: Inspecione os dossiês JSON/MD e as peças compiladas (Parecer de Julgamento e Ofício de Diligência Via A/Via B) em outputDir. Retorno sintético < 900 bytes.",
       inputSchema: {
         type: "object",
         properties: {
@@ -380,17 +380,17 @@ export function getMcpToolsDefinition() {
           evaluationStance: {
             type: "string",
             enum: ["DEFENSE", "ATTACK"],
-            description: "Postura de julgamento (padrão: DEFENSE).",
+            description: "Postura de julgamento (DEFENSE ou ATTACK).",
           },
-          evaluation_stance: { type: "string", enum: ["DEFENSE", "ATTACK"] },
+          evaluation_stance: { type: "string", enum: ["DEFENSE", "ATTACK"], description: "Alias para evaluationStance." },
           compilationMode: {
             type: "string",
             enum: ["PROPOSAL_JUDGMENT_OPINION", "ACT_DILIGENCE_LETTER", "JUDGMENT_OPINION", "ACT_DILIGENCE_REPORT", "BOTH", "NONE"],
             description: "Modo documental OpenXML/PDF.",
           },
-          compilation_mode: { type: "string" },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"] },
-          output_format: { type: "string", enum: ["docx", "pdf", "both"] },
+          compilation_mode: { type: "string", description: "Alias para compilationMode." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída (docx, pdf ou both)." },
+          output_format: { type: "string", enum: ["docx", "pdf", "both"], description: "Alias para outputFormat." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -398,7 +398,7 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_direct_contracting",
       description:
-        "Audita Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos do fornecedor), Dispensa por Valor com controle anti-fracionamento anual por UG e ramo (PDM/CATMAT/CATSER) e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei 13.303/2016), compilando Parecer de Instrução Processual DOCX/PDF. Retorno sintético < 900 bytes.",
+        "Quando usar: Para auditar Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos do fornecedor), Dispensa por Valor com controle anti-fracionamento anual por UG e ramo (PDM/CATMAT/CATSER) e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei 13.303/2016). Próximo Passo: Inspecione o dossiê JSON/MD e o Parecer de Instrução Processual DOCX/PDF em outputDir. Retorno sintético < 900 bytes.",
       inputSchema: {
         type: "object",
         properties: {
@@ -415,9 +415,9 @@ export function getMcpToolsDefinition() {
             enum: ["DIRECT_CONTRACTING_OPINION", "NONE"],
             description: "Modo documental OpenXML/PDF.",
           },
-          compilation_mode: { type: "string" },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"] },
-          output_format: { type: "string", enum: ["docx", "pdf", "both"] },
+          compilation_mode: { type: "string", description: "Alias para compilationMode." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída (docx, pdf ou both)." },
+          output_format: { type: "string", enum: ["docx", "pdf", "both"], description: "Alias para outputFormat." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },

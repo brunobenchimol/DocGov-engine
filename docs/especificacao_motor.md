@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.5.6)
+# Especificação Técnica do Motor docgov-engine (v1.6.0)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.5.6`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.0`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -41,7 +41,7 @@ Documento normativo e especificação canônica do motor standalone `docgov-engi
 
 ---
 
-## 2. Ferramentas MCP Nativas (10 Tools)
+## 2. Ferramentas MCP Nativas (14 Tools)
 
 ### 2.1. bootstrap_case
 Inicializa a governança de pastas do caso (`inputs/`, `state/`, `templates/`, `output/`), descompacta e ingere automaticamente arquivos compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`) presentes em `uploadsDir`, na raiz do caso ou em `inputs/` (com classificação `libmagic msooxml`, defesa Anti-Zip Slip e achatamento de pastas), preserva nomes legíveis, move e deduplica automaticamente documentos soltos na raiz para `inputs/` (preservando `context.json`), infere extensões por magic bytes (`PK\x03\x04` para .docx e `%PDF` para .pdf), aceita `fileRenameMap` opcional, realiza auto-batismo de uploads anônimos (`media_*` -> `<TIPO>_<ORGAO>_<hash4>.<ext>`), detecta páginas escaneadas como imagem (`scanned_pages_detected`), inspeciona minutas `.docx`, editais/anexos `.pdf` e arquivos `.md`/`.txt` com isolamento `try/catch` por arquivo gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md`, `state/dossie_hotspots_<stem>.md`, `state/auditoria_orcamentaria_<stem>.json` e o consolidado multipeça `state/indice_mestre_caso.md` contendo o inventário de 100% dos arquivos com matriz cruzada Z1..Z14 e alertas globais. Retorna sumário executivo sintético (< 1 KB, margem segura < 920 bytes) com `master_index_path`, `unpacked_archives_count` e `extracted_files_count`.
@@ -291,6 +291,19 @@ Motor determinístico de governança de Ata de Registro de Preços e gestão de 
 - **Vigência e Desacoplamento:** Auditoria de vigência (12+12m), renovação no 2º ano (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`) e desacoplamento de contratos derivados (até 5 anos).
 - **Compilação Nativa OpenXML DOCX/PDF:** Modos `ARP_ADHESION_GRANT_NOTE` (`Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf`) e `ARP_ADVANTAGE_STUDY` (`Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf`).
 - **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `arp_number`, `decision`, `blocking_tags`, `ledger_summary`, `dossier_json_path`, `dossier_md_path`, caminhos compilados e `next_step_hint`.
+
+### 2.13. docgov_evaluate_bidding_proposals (CLI: evaluate-proposals)
+Motor determinístico da Fase Externa de TIC sem DEMO (Gen6 Marco 9 — `v1.6.0`).
+- **Modelos TIC sem DEMO & Exequibilidade:** Bloqueia descaracterização para alocação de postos (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`), UST = Hora-Homem pura (`[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]`), HST sem teto em OS (`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]`), PF/SQUAD sem vínculo com ANS e desclassificação sumária sem diligência (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`).
+- **Habilitação Técnica & Econômico-Financeira:** Conversibilidade de métricas em ACT (`[ICT_ACT_RIGID_METRIC_RESTRICTION_BLOCK]`), Súmula TCU 263 (50%, 4%, somatório) e índices `ILG/ILC/ISG/EG` com teto 10% e vedação `CS + PL`.
+- **Motor Forense Anti-Fraude de ACT (7 Vetores):** Porte/CNAE, Cronologia/Status CNPJ, Rastreabilidade PNCP, Conflito QSA/Contato, Plágio Literal do Edital, Volume/Prazo e Metadados PDF/ICP-Brasil.
+- **Compilação OpenXML DOCX/PDF:** Gera `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf` e `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf` (Via A ao Emissor na RFB e Via B à Licitante exigindo NF-e/NFS-e 44 dígitos, Contrato, OS e SEFIP/eSocial).
+
+### 2.14. docgov_audit_direct_contracting (CLI: audit-direct-contracting)
+Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — `v1.6.0`).
+- **Inexigibilidade (Art. 74 Lei 14.133 / Art. 30 Lei 13.303):** Bloqueio de atestado de exclusividade genérico (Súmula TCU 255 -> `[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]`) e exigência de mínimo de 3 NFs/contratos do fornecedor (`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]`).
+- **Dispensa por Valor (Art. 75 / Art. 29):** Controle anual anti-fracionamento por UG e ramo `PDM / CATMAT / CATSER` (`[EXPENSE_FRAGMENTATION_BLOCK]`).
+- **Oportunidade de Negócio Estatal (Art. 28, § 3º, II Lei 13.303/2016):** Validação de objeto social, singularidade do parceiro, inviabilidade concorrencial e matriz de riscos/receitas (`[STATE_ENTERPRISE_PARTNERSHIP_UNJUSTIFIED_BLOCK]`).
 
 ---
 
