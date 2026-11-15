@@ -21,11 +21,12 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
   acompanhada do snippet JSON canônico pronto para copiar e colar.
 
 ## Lei 4: Sincronia Obrigatória de Self-Discovery (Fonte Única da Verdade)
-- Qualquer alteração em parâmetro, ferramenta ou comportamento deve atualizar no mesmo commit:
-  1. A saída da flag `--dump-spec` (`generateEngineSpecMarkdown`);
+- Qualquer alteração em parâmetro, ferramenta, versão ou comportamento deve atualizar em estrito lockstep no mesmo ciclo/release:
+  1. A saída da flag `--dump-spec` (`generateEngineSpecMarkdown` e `docs/especificacao_motor.md`);
   2. As constantes `DOCX_ENGINE_INSTRUCTIONS` e `DOCX_WORKFLOW_GUIDE_TEXT`;
-  3. As descrições em `getMcpToolsDefinition()`;
-  4. Os textos de orientação `next_step_hint`.
+  3. As descrições e schemas em `getMcpToolsDefinition()`;
+  4. Os textos de orientação `next_step_hint`;
+  5. A documentação pública e o mapa arquitetural (`README.md`, `ROADMAP.md`, `CHANGELOG.md` e `docs/ARCHITECTURE_AND_MODULES.md`).
 
 ## Lei 5: Neutralidade Institucional Absoluta
 - É expressamente proibido usar nomes de órgãos, entidades, estados ou localidades específicos em código, testes, fixtures ou documentação.
@@ -37,9 +38,9 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
 
 ## Lei 7: Ritual de Qualidade e Release Automatizada via Pipeline Externo
 - Toda evolução exige:
-  1. Atualização do número de versão SemVer em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts` e testes correspondentes;
-  2. Aprovação de 100% dos testes automatizados no ambiente local (`bun test`);
-  3. Sincronização de especificações e documentação pública (`--dump-spec`, `README.md`, `CHANGELOG.md` e `ROADMAP.md`);
+  1. Atualização do número de versão SemVer em `package.json`, `src/constants/index.ts`, `src/mcp/spec.ts` e testes correspondentes (`test/version.test.ts`);
+  2. Aprovação de 100% dos testes automatizados no ambiente local (`bun test`, incluindo a trava de lockstep documental em `test/version.test.ts`);
+  3. Sincronização de especificações e documentação pública (`--dump-spec` -> `docs/especificacao_motor.md`, `docs/ARCHITECTURE_AND_MODULES.md`, `README.md`, `CHANGELOG.md` e `ROADMAP.md`);
   4. Git commit convencional, criação de tag anotada `vX.Y.Z` e envio (`git push origin <branch>` e `git push origin vX.Y.Z`).
 - **Autodescoberta de Pipeline Externo e Proibição de Upload Manual (Zero Local Release):**
   - O agente DEVE inspecionar se o repositório possui esteira automatizada externa de CI/CD (ex.: `.github/workflows/`, `.gitlab-ci.yml` ou equivalente).
@@ -85,13 +86,13 @@ Todo plano técnico elaborado pelo agente deve incluir explicitamente uma seçã
 Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do checklist abaixo:
 - [ ] **1. Testes Automatizados:** 100% de aprovação na suíte de testes (`bun test`);
 - [ ] **2. Teto MCP (Lei 2):** Resposta sintética de ferramentas MCP abaixo de 1024 bytes (folga preventiva garantida `< 900 bytes`);
-- [ ] **3. Self-Discovery (Lei 4):** `--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, prompts MCP e help da CLI sincronizados;
+- [ ] **3. Self-Discovery & Lockstep Documental (Lei 4 & Lei 7):** `--dump-spec` (`docs/especificacao_motor.md`), `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, prompts MCP, help da CLI, `docs/ARCHITECTURE_AND_MODULES.md` e `README.md` sincronizados com `VERSION`;
 - [ ] **4. Neutralidade Institucional (Lei 5):** Ausência de nomes específicos de órgãos/localidades;
 - [ ] **5. Micro-Commits Semânticos (Lei 8):** Fatiamento atômico registrado no Git;
 - [ ] **6. Memória Evolutiva (Lei 8):** `CHANGELOG.md` e `ROADMAP.md` atualizados e consistentes;
 - [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
 - [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas;
-- [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
+- [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `src/utils/pdf/`, `src/contracts/`, `src/arp/`, `src/bidding/`, `src/direct_contracting/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
 
 ### 5. Trilha Contínua de Conectores Jurisdicionais (On-Demand Connector Track)
 Sempre que o usuário solicitar a adição de um novo tribunal de contas estadual ou municipal (*"Vamos implementar o conector <CORTE>"*), o agente DEVE seguir estritamente o playbook documentado em `docs/JURIS_CONNECTOR_PLAYBOOK.md`:

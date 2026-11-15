@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.1)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.2)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,11 +87,26 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.5.x` e `v1.4.x` — Versão Atual `v1.5.6` (Geração 5.6 — PAS Federativo & Dosimetria LINDB Art. 22)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.2` (Geração 6 — Propostas, Contratação Direta, `unpdf@2.1+` & Perícia Forense Dual)
 
-A versão **`v1.5.6`** evolui a **Geração 5 do docgov-engine** sem inflação de ferramentas MCP (mantendo as **12 ferramentas canônicas**), adicionando ao motor `docgov_audit_contract_execution` a suíte **Marco 8.6 (Geração 5.6)**: adequação federativa e jurisdicional do PAS (Estadual, Municipal e Empresas Estatais da Lei 13.303/2016) com resolução determinística do Tribunal de Contas competente (`TCU`, `TCDF`, `TCE-<UF>`, `TCM-<UF>`), remessa obrigatória (`CEIS`, `CNEP`, `PNCP`, `<TCE/TCM>`), validação de competência exclusiva e parecer conclusivo na declaração de inidoneidade (Art. 156, § 6º), e calibragem jurisprudencial da dosimetria ancorada em precedentes e vetores da LINDB Art. 22 com quadros estruturados OpenXML/PDF.
+A versão **`v1.6.2`** consolida a **Geração 6 do `docgov-engine`** com **14 ferramentas MCP nativas**, adicionando julgamento completo da fase externa e recursal (`docgov_evaluate_bidding_proposals`), auditoria determinística de contratação direta (`docgov_audit_direct_contracting`), upgrade para **`unpdf@2.1+`**, **Ponte Multimodal `assets/`** para inspeção visual sem `@napi-rs/canvas` e **Perícia Forense Dual `PDF/DOCX`** com bloqueio anti-conluio integrado ao `bootstrap_case` — mantendo compatibilidade retroativa integral com os motores da **Geração 5** (`v1.5.0`–`v1.5.6`) e **Geração 4** (`v1.4.x`).
 
-### 🚀 Principais Inovações da Geração 5.6 (`v1.5.6` — Marco 8.6), Geração 5.5 (`v1.5.5` — Marco 8.5) e Geração 5 (`v1.5.0` — Marco 8):
+### 🚀 Principais Inovações da Geração 6 (`v1.6.0` / `v1.6.1` / `v1.6.2`):
+1. **13ª Ferramenta MCP `docgov_evaluate_bidding_proposals` & CLI `evaluate-proposals` (Fase Externa, TIC, Inexequibilidade, Conluio e Fase Recursal):**
+   - **Modelos de TIC sem DEMO & Conversibilidade de ACT:** Suporte determinístico a UST, HST, Hora-Técnica, Pontos de Função (PF) e SQUADs, além de análise de conversibilidade de Atestados de Capacidade Técnica (Súmula TCU 263) e qualificação econômico-financeira (`ILG`, `ILC`, `ISG`, `EG`).
+   - **Inexequibilidade `< 75%` / Garantia Adicional `75%..85%` & Jogo de Planilha:** Aplicação matemática do Art. 59, §§ 4º e 5º da Lei nº 14.133/2021 e Súmula TCU 262 (presunção relativa de inexequibilidade abaixo de 75%, garantia adicional entre 75% e 85%) e detecção de sobrepreço por jogo de planilha entre itens unitários.
+   - **Perícia Forense de ACT em 7 Vetores & Anti-Conluio em Lote:** Verificação de janela temporal (`> 180` dias), colisão de metadados `Author` com licitante, rastros de softwares editores (`[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]`) e auditoria cruzada de conluio entre propostas concorrentes.
+   - **Fase Recursal Administrativa (Art. 165 e Art. 168):** Avaliação e compilação OpenXML/PDF de Razões Recursais, Contrarrazões e Decisão fundamentada do Pregoeiro com encaminhamento à Autoridade Superior.
+2. **14ª Ferramenta MCP `docgov_audit_direct_contracting` & CLI `audit-direct-contracting` (Dispensa, Inexigibilidade e Parcerias Estatais):**
+   - **Inexigibilidade (Art. 74 / Súmula TCU 255) & Justificativa de Preço:** Verificação de exclusividade/notória especialização e exigência de no mínimo 3 notas fiscais ou contratos anteriores do próprio fornecedor, detectando sobrepreço (`[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]`) e cotações simuladas por metadados compartilhados (`[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]`).
+   - **Dispensa por Valor & Controle Anti-Fracionamento:** Somatório determinístico anual por Unidade Gestora (UG) e ramo do objeto (PDM/CATMAT/CATSER).
+   - **Oportunidade de Negócio / Parceria Estratégica em Estatais:** Validação de requisitos do Art. 28, § 3º, II da Lei nº 13.303/2016 e compilação do Parecer de Instrução Processual em `.docx`/`.pdf`.
+3. **Pipeline PDF `unpdf@2.1+`, Ponte Multimodal `assets/` & Perícia Forense Dual `PDF/DOCX` (`v1.6.2`):**
+   - **Classificação Multimodal em 5 Classes (`inspectPages`):** Classifica cada página em `BORN_DIGITAL`, `FULL_PAGE_SCAN`, `HYBRID_HEADER_SCAN_TRAP`, `EMBEDDED_VISUAL_ASSET` ou `OCR_LAYER_EMBEDDED`, preservando 100% da compilação standalone sem dependências nativas (`@napi-rs/canvas`).
+   - **Ponte Multimodal `assets/` com Filtro Anti-Brasão SHA-256:** Extrai imagens relevantes em pure-JS, descarta logotipos/brasões decorativos (dimensão mínima e SHA-256 repetido em `>= 3` páginas), materializa até `20` PNGs em `assets/<stem>/pag_XXX_img_YY.png` e injeta âncoras `[PAG_XXX | ASSET_IMG_YY | ...]` em `visao_auditoria_*.md` e `dossie_hotspots_*.md`.
+   - **Perícia Forense Dual `PDF/DOCX` (`getMeta` + `docProps`):** Extrai metadados de autoria/criação/assinatura digital em `.pdf` e `.docx` (`docProps/core.xml` + `docProps/app.xml`), detecta manipulação por editores (`Canva`, `iLovePDF`, `Sejda`, `Smallpdf`, `CorelDRAW`, `Photoshop`, etc. — `[PDF_EDITOR_MANIPULATION_TRACE]`) e sinaliza conluio cruzado (`[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]`) no `bootstrap_case` e `indice_mestre_caso.md`.
+
+### 🚀 Principais Inovações da Geração 5 (`v1.5.0` — `v1.5.6` — Marco 8 a Marco 8.6):
 1. **11ª Ferramenta MCP `docgov_audit_contract_execution` & CLI `--audit-contract` (Fiscalização Contratual, Aditivos, Reajustes, PAS Federativo e Dosimetria):**
    - **Adequação Federativa do PAS & Dosimetria LINDB Art. 22 (Marco 8.6):** Alcance territorial estrito do impedimento (Art. 156, § 4º — `[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`), regime estrito das Estatais `<= 24` meses sem inidoneidade (Art. 83, III Lei 13.303 — `[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`), competência exclusiva e parecer jurídico conclusivo na inidoneidade (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`), resolução de `competent_audit_court` e cadastros `CEIS`/`CNEP`/`PNCP`/`TCE-TCM` (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`), e calibragem jurisprudencial LINDB Art. 22 com detecção de outliers (`[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]` e `[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]`).
    - **Limites Legais de Aditamento Sem Compensação:** Cálculo isolado de acréscimos e supressões de 25% (obras, compras e serviços em geral) e 50% (reforma de edifício ou de equipamento) nos termos do Art. 125 da Lei nº 14.133/2021 e Art. 81 da Lei nº 13.303/2016. Vedação matemática absoluta de compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`).
@@ -156,9 +171,13 @@ A versão **`v1.5.6`** evolui a **Geração 5 do docgov-engine** sem inflação 
 5. **Conectores Externos Oficiais (PNCP & Jurisprudência):**
    - `fetch_pncp` e `search_pncp`: descoberta e download determinístico de contratações públicas de referência do Portal Nacional de Contratações Públicas (IN SEGES/ME nº 65/2021) com isolamento estrito em subpastas e resolução de redirects.
    - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores (11 cortes homologadas).
-6. **Fiscalização Contratual, Aditivos, PAS/ANS-IMR, Cesta de Preços IN 65/2021 e Governança de ARP (Gerações 5 & 5.5):**
-   - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite, reajustes com interregno de 12 meses, PAS com contraditório mínimo de 15 dias úteis e dosimetria, segregação glosa ANS/IMR vs. multa (`0,5%`–`30%`), notificação de Seguro-Garantia, saneamento estatístico de cesta de preços (`CV <= 25%`), álea extraordinária e compilação OpenXML DOCX/PDF de notificações e pareceres de dosimetria.
+6. **Fiscalização Contratual, Aditivos, PAS Federativo/LINDB Art. 22, Cesta de Preços e Governança de ARP (Geração 5):**
+   - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite, reajustes com interregno de 12 meses, PAS Federativo (`TCU`, `TCDF`, `TCE`, `TCM`, `CEIS`/`CNEP`/`PNCP`) com contraditório mínimo de 15 dias úteis e dosimetria LINDB Art. 22, segregação glosa ANS/IMR vs. multa (`0,5%`–`30%`), notificação de Seguro-Garantia, saneamento estatístico de cesta de preços (`CV <= 25%`), álea extraordinária e compilação OpenXML DOCX/PDF de notificações e pareceres de dosimetria.
    - `docgov_govern_arp`: governança determinística de Atas de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica/federativa e compilação de notas técnicas OpenXML.
+7. **Fase Externa/Recursal, Contratação Direta & Ponte Multimodal `unpdf@2.1+` (Geração 6):**
+   - `docgov_evaluate_bidding_proposals`: avaliação de TIC (UST/HST/PF/SQUAD), inexequibilidade `< 75%` e garantia adicional `75%..85%`, Jogo de Planilha, perícia forense de ACT em 7 vetores, anti-conluio em lote e fase recursal Art. 165/168.
+   - `docgov_audit_direct_contracting`: auditoria de inexigibilidade (Súmula TCU 255 / 3 NFs), dispensa por valor (anti-fracionamento anual por UG e PDM/CATMAT/CATSER) e parceria estratégica de estatais (Art. 28, § 3º, II da Lei 13.303/2016).
+   - Pipeline PDF `unpdf@2.1+` com classificação em 5 classes (`inspectPages`), materialização visual em `assets/` com filtro anti-brasão SHA-256 e perícia forense dual `PDF/DOCX`.
 
 > ℹ️ **Histórico Completo de Versões Anteriores:** Para a cronologia detalhada de cada marco, patch e correção histórica (da `v0.0.1` à versão atual), consulte o arquivo canônico [`CHANGELOG.md`](CHANGELOG.md).
 
@@ -168,7 +187,7 @@ A versão **`v1.5.6`** evolui a **Geração 5 do docgov-engine** sem inflação 
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.5.6`):** Inclusão mandatória do campo `"engine_version": "1.5.6"` na raiz do payload JSON sintético retornado por todas as 12 ferramentas MCP.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.2`):** Inclusão mandatória do campo `"engine_version": "1.6.2"` na raiz do payload JSON sintético retornado por todas as **14 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -191,24 +210,25 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
 
 ---
 
-## 4. Ciclo de Vida do Caso: 12 Ferramentas Nativas Integradas
+## 4. Ciclo de Vida do Caso: 14 Ferramentas Nativas Integradas
 
-O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **12 ferramentas fundamentais**:
+O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **14 ferramentas fundamentais**:
 
 ### A) Modo Servidor MCP (Padrão / `--mcp`)
 
 Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servidor MCP sobre `stdio` expondo as seguintes ferramentas:
 
 1. **`bootstrap_case`**
-   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `templates/`, `output/`), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita `fileRenameMap`.
+   - Cria a estrutura de diretórios do caso (`inputs/`, `state/`, `templates/`, `output/`, além de `assets/` quando houver imagens relevantes), preserva nomes legíveis ou auto-batiza anexos opacos (`media_*`), infere extensões via magic bytes, aceita `fileRenameMap`.
    - Descompacta pacotes compactados (`.zip`, `.tar`, `.tar.gz`, `.tgz`) via `libmagic msooxml` com defesa Anti-Zip Slip.
    - Copia de forma síncrona imediata os modelos `.docx` e documentos `.pdf` de `uploadsDir` para `inputs/`, extrai seus mapas estruturais (`state/estrutura_<nome>.json`), gera a **Visão Linear de Auditoria** (`state/visao_auditoria_<nome>.md`), o **Dossiê de Hotspots** (`state/dossie_hotspots_<nome>.md`), o relatório de **Auditoria Orçamentária** (`state/auditoria_orcamentaria_<nome>.json`, se houver tabelas de itens) e o **Índice Mestre do Caso** (`state/indice_mestre_caso.md`).
+   - **Perícia Forense Dual `PDF/DOCX` & Anti-Conluio (`v1.6.2`):** Executa inventário forense cruzado de autoria, timestamps, assinaturas digitais e editores (`Canva`, `iLovePDF`, `Sejda`, `Smallpdf`, `CorelDRAW`, `Photoshop`, etc.) em `.pdf` (`getMeta`) e `.docx` (`docProps/core.xml` + `docProps/app.xml`), sinalizando autoria compartilhada entre propostas/cotações (`[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]` / `[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]`).
    - Parâmetros: `caseDir` (*obrigatório*), `uploadsDir` (*opcional*), `fileRenameMap` (*opcional*).
 
 2. **`inspect_doc`**
    - Realiza a engenharia reversa de arquivos `.docx`, `.pdf`, `.xlsx`, `.csv`, `.md` ou `.txt`.
-   - **Para PDF:** Extrai todas as páginas, numera linhas com coordenada dupla `[PAG_XXX | LYYYY]`, reconstrói colunas com ` | `, constrói a Cartografia Estrutural em 3 camadas e o Radar das 14 Zonas (`Z1` a `Z14`), gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md`.
-   - **Para DOCX:** Mapeia parágrafos, tabelas, constrói `toc_map`, calcula `structure_fingerprint`, busca no Cache Global e gera `state/visao_auditoria_<stem>.md`.
+   - **Para PDF (`unpdf@2.1+` & Ponte Multimodal `assets/`):** Extrai todas as páginas, classifica-as em 5 classes via `inspectPages` (`BORN_DIGITAL`, `FULL_PAGE_SCAN`, `HYBRID_HEADER_SCAN_TRAP`, `EMBEDDED_VISUAL_ASSET`, `OCR_LAYER_EMBEDDED`), numera linhas com coordenada dupla `[PAG_XXX | LYYYY]`, reconstrói colunas com ` | `, aplica filtro anti-brasão SHA-256 materializando até `20` PNGs relevantes em `assets/<stem>/pag_XXX_img_YY.png` com âncoras `[PAG_XXX | ASSET_IMG_YY | ...]`, e constrói a Cartografia Estrutural em 3 camadas e o Radar das 14 Zonas (`Z1` a `Z14`), gerando `state/estrutura_<stem>.json`, `state/visao_auditoria_<stem>.md` e `state/dossie_hotspots_<stem>.md`.
+   - **Para DOCX:** Mapeia parágrafos, tabelas, extrai metadados forenses (`docProps`), constrói `toc_map`, calcula `structure_fingerprint`, busca no Cache Global e gera `state/visao_auditoria_<stem>.md`.
    - **Auditoria Orçamentária Automática:** Realiza checagem determinística em centavos de preços e quantitativos, alimentando o Radar Z10/Z12 e gerando `state/auditoria_orcamentaria_<stem>.json`.
    - **Diff Multi-Versão (`compareWithPath`):** Quando fornecido caminho de documento anterior/retificado, calcula as divergências textuais e estruturais com delta das 14 zonas em `state/diff_documental_<stem>.md` e `.json`.
    - Parâmetros: `filePath` (*obrigatório*, com alias retrocompatível `docxPath`), `compareWithPath` (*opcional*), `outputPath` (*opcional*), `compact` (*opcional*).
@@ -256,14 +276,24 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
     - Parâmetros: `acordaoIdOrUrl` (*obrigatório*), `caseDir`, `court`, `shortname`, `topicFilter`, `stance` (*opcionais*).
 
 11. **`docgov_audit_contract_execution`**
-    - Auditoria determinística e fiscalização contínua de contratos administrativos, limites de aditamento (25%/50% isolados, sem compensação mútua), batimento quadripartite (`[TR <-> Proposta <-> ARP <-> Contrato/Fatura]`) com bloqueio de aditivo direto em ARP, consensualidade em estatais e monitoramento de reajustes/repactuações com interregno de 12 meses.
-    - Grava `relatorio_fiscalizacao_contratual.json` e `dossie_fiscalizacao_contratual.md` em disco com payload sintético MCP < 900 bytes.
-    - Parâmetros: `contractJsonPath` (*obrigatório*), `caseDir`, `outputDir`, `auditType` (*opcionais*).
+    - Auditoria determinística e fiscalização contínua de contratos administrativos: limites de aditamento (25%/50% isolados, sem compensação mútua), batimento quadripartite (`[TR <-> Proposta <-> ARP <-> Contrato/Fatura]`) com bloqueio de aditivo direto em ARP, consensualidade em estatais, reajustes/repactuações com interregno de 12 meses, PAS Federativo (`TCU`, `TCDF`, `TCE`, `TCM`, `CEIS`/`CNEP`/`PNCP`) com dosimetria LINDB Art. 22, segregação ANS/IMR vs. multa (`0,5%`–`30%`), Seguro-Garantia, cesta de preços IN 65/2021 (`CV <= 25%`) e álea extraordinária.
+    - Grava `relatorio_fiscalizacao_contratual.json`, `dossie_fiscalizacao_contratual.md` e minutas OpenXML/PDF em disco com payload sintético MCP < 900 bytes.
+    - Parâmetros: `contractJsonPath`, `caseDir`, `outputDir`, `auditType`, `compilationMode`, `outputFormat` (*opcionais conforme fluxo*).
 
 12. **`docgov_govern_arp`**
     - Motor determinístico de governança de Ata de Registro de Preços e gestão de caronas: livro-razão com travas de 50% individual e 200% global acumulada, matriz de compatibilidade federativa/jurídica (vedação de carona ascendente e simetria 14.133 vs 13.303), condicionantes de TIC, auditoria de vigência (12+12m) e compilação nativa OpenXML DOCX/PDF de notas técnicas de adesão e estudos de vantajosidade.
     - Grava `dossie_governanca_arp.json`, `visao_governanca_arp.md` e minutas DOCX/PDF com payload sintético MCP < 900 bytes.
-    - Parâmetros: `arpJsonPath` (*obrigatório*), `caseDir`, `outputDir`, `compilationMode`, `outputFormat` (*opcionais*).
+    - Parâmetros: `arpJsonPath`, `caseDir`, `outputDir`, `compilationMode`, `outputFormat` (*opcionais conforme fluxo*).
+
+13. **`docgov_evaluate_bidding_proposals`**
+    - Auditoria e julgamento de propostas na Fase Externa de TIC sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), presunção relativa de inexequibilidade `< 75%` e garantia adicional `75%..85%` (Art. 59 §§ 4º e 5º e Súmula TCU 262), Jogo de Planilha, conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (`ILG`/`ILC`/`ISG`/`EG`), conluio por metadados entre propostas concorrentes, Perícia Forense de ACT em 7 vetores e Fase Recursal administrativa (Art. 165 e Art. 168).
+    - Grava dossiês JSON/MD e compila peças OpenXML/PDF (`PROPOSAL_JUDGMENT_OPINION`, `ACT_DILIGENCE_LETTER`, `APPEAL_REASONS`, `APPEAL_COUNTER_REASONS`, `PREGOEIRO_DECISION`, `APPEALS_BUNDLE`, `BOTH`, `ALL`) com payload sintético MCP < 900 bytes.
+    - Parâmetros: `proposalJsonPath` (aliases `biddingJsonPath`, `bidding_json_path`, `input_json_path`), `caseDir`, `outputDir`, `evaluationStance` (`DEFENSE` | `ATTACK`), `compilationMode`, `outputFormat`.
+
+14. **`docgov_audit_direct_contracting`**
+    - Auditoria determinística de Contratação Direta: Inexigibilidade (Art. 74, Súmula TCU 255, exigência de 3 NFs/contratos do fornecedor e bloqueio de sobrepreço), Dispensa por Valor com controle anti-fracionamento anual por UG e PDM/CATMAT/CATSER, e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei nº 13.303/2016), com detecção de cotações simuladas por metadados compartilhados.
+    - Grava dossiês JSON/MD e compila o Parecer de Instrução Processual OpenXML/PDF (`DIRECT_CONTRACTING_OPINION`) com payload sintético MCP < 900 bytes.
+    - Parâmetros: `directContractingJsonPath` (aliases `directJsonPath`, `direct_json_path`, `input_json_path`), `caseDir`, `outputDir`, `compilationMode`, `outputFormat`.
 
 ---
 
@@ -306,8 +336,8 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 ./docgov-engine --fetch-pncp --case-dir cases/caso_exemplo --pncp "00394460000141-1-000001/2026" --shortname edital_pncp
 
 # 8. Pesquisar e Extrair Jurisprudência com Análise Anatômica (Geração 4)
-# 8a. Pesquisa federada com ranking por relevância, análise de controvérsia e Statutory Bridge
-./docgov-engine --search-juris --query "padronização de marca TI" --courts "TCU,STJ,STF,TCE-PA" --stance DIVERGENTE
+# 8a. Pesquisa federada com ranking por relevância, postura tática e Statutory Bridge
+./docgov-engine --search-juris --query "padronização de marca TI" --courts "TCU,STJ,STF,TCE-PA" --stance DEFENSE --regime BOTH
 ./docgov-engine --search-juris --query "sobrepreço BDI engenharia" --uf PA --limit 5
 
 # 8b. Resolução canônica de acórdão e fatiamento anatômico estrutural (RELATORIO, VOTO, DISPOSITIVO)
@@ -322,11 +352,17 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 ./docgov-engine --update
 ./docgov-engine --force-update
 
-# 11. Auditar Execução Contratual, PAS, ANS/IMR e Cesta de Preços IN 65/2021 (Geração 5 & 5.5)
+# 11. Auditar Execução Contratual, PAS Federativo, ANS/IMR e Cesta IN 65/2021 (Geração 5)
 ./docgov-engine audit-contract --contract-json state/contrato_execucao.json --type FULL --mode BOTH --format both --output-dir state/
 
 # 12. Governar Ata de Registro de Preços, Caronas e Vantajosidade (Geração 5)
-./docgov-engine --govern-arp --arp-json state/arp_registro.json --mode FULL --output-dir state/
+./docgov-engine govern-arp --arp-json state/arp_registro.json --mode ARP_ADHESION_GRANT_NOTE --format both --output-dir state/
+
+# 13. Avaliar Propostas de Licitação, TIC, Inexequibilidade, Conluio e Recursos (Geração 6)
+./docgov-engine evaluate-proposals --bidding-json state/licitacao_propostas.json --stance DEFENSE --mode PROPOSAL_JUDGMENT_OPINION --format both --output-dir state/
+
+# 14. Auditar Contratação Direta — Dispensa, Inexigibilidade e Parcerias Estatais (Geração 6)
+./docgov-engine audit-direct-contracting --direct-json state/contratacao_direta.json --mode DIRECT_CONTRACTING_OPINION --format both --output-dir state/
 
 # Verificar a versão instalada e exibir ajuda
 ./docgov-engine -v
@@ -353,21 +389,25 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--fetch-pncp` | Obtém metadados, itens e arquivos de uma contratação específica no PNCP via `--pncp`. |
 | `--search-juris` | Executa busca jurisprudencial federada multissistema com relevância, controvérsia e ponte normativa. |
 | `--fetch-juris` | Resolução canônica e fatiamento anatômico estrutural de acórdão via `--id` (e opcionalmente `--court`). |
-| `--audit-contract` / `audit-contract` | Executa auditoria determinística de execução contratual, aditivos de 25%/50% sem compensação, reajustes e batimento tripartite/quadripartite a partir de `--contract-json`. |
+| `--audit-contract` / `audit-contract` | Executa auditoria determinística de execução contratual, aditivos de 25%/50% sem compensação, reajustes, batimento quadripartite, PAS Federativo e cesta de preços a partir de `--contract-json`. |
 | `--govern-arp` / `govern-arp` | Executa governança de Ata de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica e compilação de notas técnicas a partir de `--arp-json`. |
-| `--contract-json <caminho>` | Caminho do arquivo JSON de dados contratuais para auditoria (usado com `--audit-contract`). |
-| `--arp-json <caminho>` | Caminho do arquivo JSON da Ata de Registro de Preços para governança e controle de caronas (usado com `--govern-arp`). |
-| `--type <tipo>` | Tipo de auditoria contratual (`FULL`, `ADDENDUM_LIMITS`, `TRIPARTITE_MATCH`, `READJUSTMENT` — padrão: `FULL`). |
-| `--mode <modo>` | Modo de governança de ARP (`FULL`, `LIMITS_LEDGER`, `COMPATIBILITY_MATRIX`, `COMPILER` — padrão: `FULL`). |
-| `--output-dir <dir>` | Diretório de destino para gravação de relatórios e artefatos em disco (usado com `--audit-contract` e `--govern-arp`). |
+| `--evaluate-proposals` / `evaluate-proposals` | Avalia propostas na fase externa (TIC sem DEMO, inexequibilidade 75%/85%, Jogo de Planilha, perícia de ACT em 7 vetores, anti-conluio e fase recursal Art. 165/168) a partir de `--bidding-json`. |
+| `--audit-direct-contracting` / `audit-direct-contracting` | Audita contratação direta (inexigibilidade Súmula TCU 255, dispensa anti-fracionamento por UG/PDM e parceria estratégica Art. 28, § 3º, II da Lei 13.303) a partir de `--direct-json`. |
+| `--contract-json <caminho>` | Caminho do arquivo JSON de dados contratuais para auditoria (usado com `audit-contract`; aliases `--input`, `--contract`). |
+| `--arp-json <caminho>` | Caminho do arquivo JSON da Ata de Registro de Preços para governança (usado com `govern-arp`; aliases `--input`, `--arp`). |
+| `--bidding-json <caminho>` | Caminho do arquivo JSON da licitação/propostas/recursos (usado com `evaluate-proposals`; aliases `--proposal-json`, `--input`). |
+| `--direct-json <caminho>` | Caminho do arquivo JSON da contratação direta (usado com `audit-direct-contracting`; aliases `--direct-contracting-json`, `--input`). |
+| `--type <tipo>` | Tipo de auditoria contratual (`FULL`, `ADDENDUM_LIMITS`, `TRIPARTITE_MATCH`, `READJUSTMENT`, `PAS_SANCTIONS`, `PRICE_BASKET` — padrão: `FULL`). |
+| `--mode <modo>` | Modo de compilação documental: `audit-contract` (`NONE`, `PAS_NOTIFICATION`, `SANCTION_DOSIMETRY_OPINION`, `DOSIMETRY_OPINION`, `BOTH`); `govern-arp` (`ARP_ADHESION_GRANT_NOTE`, `ARP_ADVANTAGE_STUDY`, `GRANT_NOTE`, `ADVANTAGE_STUDY`, `NONE`); `evaluate-proposals` (`PROPOSAL_JUDGMENT_OPINION`, `ACT_DILIGENCE_LETTER`, `BOTH`, `APPEAL_REASONS`, `APPEAL_COUNTER_REASONS`, `PREGOEIRO_DECISION`, `APPEALS_BUNDLE`, `ALL`, `NONE`); `audit-direct-contracting` (`DIRECT_CONTRACTING_OPINION`, `NONE`). |
+| `--output-dir <dir>` | Diretório de destino para gravação de relatórios e artefatos em disco (usado com `audit-contract`, `govern-arp`, `evaluate-proposals` e `audit-direct-contracting`). |
 | `--query <termo>` | Termo ou expressão de busca textual (usado com `--search-pncp` e `--search-juris`). |
 | `--pncp <id_ou_url>` | Identificador PNCP canônico (`CNPJ-tipo-sequencial/ano`) ou link da contratação no PNCP. |
 | `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCE-CE,TCDF,TCE-SP,TCE-MG,TCE-PR`). |
 | `--court <id>` | Sigla da corte/tribunal de destino (usado com `--fetch-juris`). |
 | `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática de TCE no Juris. |
 | `--id <acordao>` | Identificador ou citação canônica do acórdão/processo (usado com `--fetch-juris`). |
-| `--stance <filtro>` | Filtro de posicionamento / controvérsia (`ALL`, `FAVORAVEL`, `CONTRARIO`, `DIVERGENTE`). |
-| `--regime <lei>` | Filtro de regime licitatório (`LEI_14133`, `LEI_8666`, `TODOS`). |
+| `--stance <postura>` | Postura tática no `--search-juris`, `--fetch-juris` e `evaluate-proposals` (`DEFENSE`, `ATTACK`, `BOTH`; na ferramenta `evaluate-proposals`: `DEFENSE`, `ATTACK`). |
+| `--regime <lei>` | Filtro de regime licitatório no `--search-juris` (`13303`, `14133`, `BOTH`). |
 | `--shortname <nome>` | Prefixo ou apelido legível para os arquivos gravados no caso. |
 | `--topic <termo>` | Tópico temático de interesse para focar o fatiamento anatômico no `--fetch-juris`. |
 | `--limit <n>` | Limite máximo de registros a retornar na consulta (padrão: 10). |
@@ -375,7 +415,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--new <caminho>` | Caminho do documento revisado/novo (.docx, .pdf ou .json) usado com `--diff-report`. |
 | `--note-json <caminho>` | Caminho do arquivo `nota_tecnica.json` (usado com `--generate-technical-note`). |
 | `--data <caminho>` | Caminho de dados adicionais/justificativas JSON para enriquecer o `--diff-report` (opcional). |
-| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject`, `--generate-audit-docx`, `--diff-report` e `--generate-technical-note` (padrão: `docx`). |
+| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject`, `--generate-audit-docx`, `--diff-report`, `--generate-technical-note`, `audit-contract`, `govern-arp`, `evaluate-proposals` e `audit-direct-contracting`. |
 | `--case-dir <dir>` | Caminho da pasta do caso (usado com `--bootstrap-case`, `--search-pncp`, `--fetch-pncp`, etc.). |
 | `--uploads-dir <dir>` | Caminho opcional da pasta `.user_uploaded` (usado com `--bootstrap-case`). |
 | `--audit-json <caminho>` | Caminho do arquivo `relatorio_auditoria.json` (usado com `--generate-audit-docx`). |
@@ -523,7 +563,7 @@ bun test
 Para focar no domínio em desenvolvimento ou acelerar ciclos de micro-commit, execute apenas a suíte correspondente:
 
 ```bash
-# 0. Auditoria física de linhas (Lei 9 <= 500 linhas em 100% do repositório: src/, test/, tests_live/ e scripts/)
+# 0. Auditoria física de linhas (Lei 9 <= 500 linhas em: src/tools/juris, src/utils/pdf, src/contracts, src/arp, src/bidding, src/direct_contracting, test, tests_live e scripts)
 bun run check:lines
 
 # 1. Jurisprudência (Core/Scorer, Roteamento/Tools, Slicer Anatômico, Cortes Federais e Cortes Estaduais)
@@ -560,11 +600,14 @@ bun test test/pdf_exporter.test.ts
 # 10. Cache Global de Templates e Registro de Minutas
 bun test test/registry.test.ts test/registry_matching.test.ts
 
-# 11. Dispatcher MCP (JSON-RPC stdio) e Self-Discovery Normativo
-bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts
+# 11. Dispatcher MCP (JSON-RPC stdio), Governança de Versão/Lockstep e Self-Discovery Normativo
+bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts test/version.test.ts
 
-# 12. Fiscalização Contratual, PAS/ANS-IMR, Cesta IN 65/2021 e Governança de ARP (Gerações 5 & 5.5)
+# 12. Fiscalização Contratual, PAS Federativo/LINDB Art. 22, Cesta IN 65/2021 e Governança de ARP (Geração 5)
 bun test test/contracts/ test/arp/ test/contracts_arp_mcp_cli.test.ts
+
+# 13. Fase Externa/Recursal, Contratação Direta & Ponte Multimodal unpdf@2.1+ / Perícia Dual (Geração 6)
+bun test test/bidding_gen6.test.ts test/direct_contracting_gen6.test.ts test/pdf_unpdf_v2_multimodal_forensics.test.ts
 ```
 
 ---
