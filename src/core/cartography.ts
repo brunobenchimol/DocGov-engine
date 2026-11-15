@@ -9,8 +9,10 @@ import type {
   ImpugnationZoneHit,
   ImpugnationZonesMap,
   DocumentCartography,
+  ExtractedPdfImageAsset,
 } from "../types/index.ts";
 import { VERSION } from "../constants/index.ts";
+import { formatAssetAnchorLine } from "../utils/pdf/forensic_cross_audit.ts";
 
 // ============================================================================
 // Cartografia Estrutural Determinística Sem IA & Radar das 14 Zonas (v0.8.1)
@@ -741,7 +743,8 @@ export function renderCartographyMarkdownBlock(
 export function generateHotspotsDossierMarkdown(
   docName: string,
   extraction: PdfExtractionResult,
-  cartography: DocumentCartography
+  cartography: DocumentCartography,
+  extractedImagesManifest?: Array<Omit<ExtractedPdfImageAsset, "png_data">>
 ): string {
   const lines: string[] = [];
   lines.push(`# Dossiê Executivo de Hotspots: ${docName}`);
@@ -809,10 +812,27 @@ export function generateHotspotsDossierMarkdown(
     (a, b) => a - b
   );
 
+  const assetsByPage = new Map<number, Array<Omit<ExtractedPdfImageAsset, "png_data">>>();
+  for (const asset of extractedImagesManifest || []) {
+    const list = assetsByPage.get(asset.page) || [];
+    list.push(asset);
+    assetsByPage.set(asset.page, list);
+  }
+  const emittedAssetPages = new Set<number>();
+
   if (triggerLineIndices.length === 0) {
     lines.push(
       "- *(Nenhum ponto de atenção ou zona de impugnação detectada nos parâmetros do radar)*"
     );
+    if (assetsByPage.size > 0) {
+      lines.push("");
+      lines.push("### Anexos Visuais Extraídos (Assets Multimodais)");
+      for (const pageNum of Array.from(assetsByPage.keys()).sort((a, b) => a - b)) {
+        for (const asset of assetsByPage.get(pageNum) || []) {
+          lines.push(`- ${formatAssetAnchorLine(asset)}`);
+        }
+      }
+    }
     lines.push("");
     return lines.join("\n").trim() + "\n";
   }
@@ -864,6 +884,20 @@ export function generateHotspotsDossierMarkdown(
     );
     lines.push("");
 
+    const blockPages = new Set<number>();
+    for (let i = block.start; i <= block.end; i++) {
+      blockPages.add(extraction.lines[i].page);
+    }
+    for (const pNum of Array.from(blockPages).sort((a, b) => a - b)) {
+      const pAssets = assetsByPage.get(pNum);
+      if (pAssets && pAssets.length > 0 && !emittedAssetPages.has(pNum)) {
+        emittedAssetPages.add(pNum);
+        for (const asset of pAssets) {
+          lines.push(`- ${formatAssetAnchorLine(asset)}`);
+        }
+      }
+    }
+
     for (let i = block.start; i <= block.end; i++) {
       const lineItem = extraction.lines[i];
       const triggersOnLine = triggersByLine.get(i);
@@ -884,6 +918,19 @@ export function generateHotspotsDossierMarkdown(
 
     lines.push("");
     lines.push("---");
+    lines.push("");
+  }
+
+  const remainingAssetPages = Array.from(assetsByPage.keys())
+    .filter((p) => !emittedAssetPages.has(p))
+    .sort((a, b) => a - b);
+  if (remainingAssetPages.length > 0) {
+    lines.push("### Anexos Visuais Adicionais (Páginas Escaneadas / Visuais)");
+    for (const pNum of remainingAssetPages) {
+      for (const asset of assetsByPage.get(pNum) || []) {
+        lines.push(`- ${formatAssetAnchorLine(asset)}`);
+      }
+    }
     lines.push("");
   }
 

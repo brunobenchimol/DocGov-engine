@@ -1,6 +1,7 @@
 import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { isPdfBuffer, extractPdfPages } from "../../utils/pdf.ts";
+import { materializeExtractedPdfImages } from "../../utils/pdf/forensic_cross_audit.ts";
 import {
   buildPdfCartography,
   buildDocxCartography,
@@ -188,13 +189,23 @@ export async function inspectPdfDocument(
 
   let auditViewPath: string | undefined;
   let dossieHotspotsPath: string | undefined;
+  let extractedImagesManifest =
+    extraction.extracted_images && extraction.extracted_images.length > 0
+      ? materializeExtractedPdfImages({
+          extractedImages: extraction.extracted_images,
+          outDir,
+          inScope,
+          baseStem,
+        })
+      : undefined;
 
   if (!options.skipAuditArtifacts) {
     auditViewPath = resolve(outDir, `visao_auditoria_${baseStem}.md`);
     let auditMd = generatePdfLinearAuditViewMarkdown(
       basename(resolvedDocx),
       extraction,
-      cartography
+      cartography,
+      extractedImagesManifest
     );
     if (budgetAudit.has_budget_table) {
       auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
@@ -205,7 +216,8 @@ export async function inspectPdfDocument(
     let dossieMd = generateHotspotsDossierMarkdown(
       basename(resolvedDocx),
       extraction,
-      cartography
+      cartography,
+      extractedImagesManifest
     );
     if (budgetAudit.has_budget_table) {
       dossieMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
@@ -240,6 +252,27 @@ export async function inspectPdfDocument(
     ...(dossieHotspotsPath ? { dossie_hotspots_path: dossieHotspotsPath } : {}),
     ...(extraction.scanned_pages_detected
       ? { scanned_pages_detected: extraction.scanned_pages_detected }
+      : {}),
+    ...(extraction.hybrid_scan_pages
+      ? { hybrid_scan_pages: extraction.hybrid_scan_pages }
+      : {}),
+    ...(extraction.page_inspection_summary
+      ? { page_inspection_summary: extraction.page_inspection_summary }
+      : {}),
+    ...(extractedImagesManifest && extractedImagesManifest.length > 0
+      ? { extracted_images_manifest: extractedImagesManifest }
+      : {}),
+    ...(typeof extraction.skipped_decorative_images_count === "number"
+      ? {
+          skipped_decorative_images_count:
+            extraction.skipped_decorative_images_count,
+        }
+      : {}),
+    ...(extraction.forensic_meta
+      ? {
+          forensic_meta: extraction.forensic_meta,
+          pdf_forensic_meta: extraction.forensic_meta,
+        }
       : {}),
     ...(extraction.ocr_applied
       ? { ocr_applied: true, ocr_pages: extraction.ocr_pages }

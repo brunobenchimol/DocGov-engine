@@ -493,6 +493,16 @@ export function formatInspectDocSyntheticResult(
     inspection.scanned_pages_detected.length > 0
       ? { scanned_pages: inspection.scanned_pages_detected }
       : {}),
+    ...(inspection.hybrid_scan_pages &&
+    inspection.hybrid_scan_pages.length > 0
+      ? { hybrid_scan_pages_count: inspection.hybrid_scan_pages.length }
+      : {}),
+    ...(inspection.extracted_images_manifest &&
+    inspection.extracted_images_manifest.length > 0
+      ? {
+          assets_extracted_count: inspection.extracted_images_manifest.length,
+        }
+      : {}),
     ...(inspection.ocr_applied ? { ocr_applied: true } : {}),
     ...(summaryItems.length > 0 ? { toc_summary: summaryItems } : {}),
     next_step_hint: nextHint,

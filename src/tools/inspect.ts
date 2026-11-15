@@ -26,6 +26,7 @@ import {
   extractCacheTemporalMetadata,
 } from "../core/registry.ts";
 import { isPdfBuffer } from "../utils/pdf.ts";
+import { extractDocxForensicMetaFromZip } from "../utils/pdf/docx_forensic_meta.ts";
 import { detectFileTypeSync } from "../utils/archives.ts";
 import { buildDocxCartography } from "../core/cartography.ts";
 import {
@@ -439,10 +440,13 @@ export async function inspectDocx(
     }
   }
 
+  const docxForensicMeta = await extractDocxForensicMetaFromZip(zip);
+
   const detectedTabular = detectTableSubtablesAndCheckboxes(tables);
 
   const rawResult: DocxInspectionResult = {
     doc_type: "docx",
+    forensic_meta: docxForensicMeta,
     outline_headings: docxCartography.outline_headings,
     page_signals: docxCartography.page_signals,
     impugnation_zones: docxCartography.impugnation_zones,

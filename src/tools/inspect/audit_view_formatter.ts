@@ -1,5 +1,6 @@
 import { relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
+import { formatAssetAnchorLine } from "../../utils/pdf/forensic_cross_audit.ts";
 import {
   buildDocxCartography,
   renderCartographyMarkdownBlock,
@@ -14,6 +15,7 @@ import type {
   TocFormCellItem,
   TocTableItem,
   DocxInspectionResult,
+  ExtractedPdfImageAsset,
   PdfExtractionResult,
 } from "../../types/index.ts";
 import { scanPostCompileIntegrityAlerts } from "./integrity_scanner.ts";
@@ -217,6 +219,20 @@ export function compactInspectionResult(
       : {}),
     ...(full.template_match ? { template_match: full.template_match } : {}),
     ...(full.audit_view_path ? { audit_view_path: full.audit_view_path } : {}),
+    ...(full.forensic_meta ? { forensic_meta: full.forensic_meta } : {}),
+    ...(full.pdf_forensic_meta ? { pdf_forensic_meta: full.pdf_forensic_meta } : {}),
+    ...(full.scanned_pages_detected
+      ? { scanned_pages_detected: full.scanned_pages_detected }
+      : {}),
+    ...(full.hybrid_scan_pages
+      ? { hybrid_scan_pages: full.hybrid_scan_pages }
+      : {}),
+    ...(full.page_inspection_summary
+      ? { page_inspection_summary: full.page_inspection_summary }
+      : {}),
+    ...(full.extracted_images_manifest
+      ? { extracted_images_manifest: full.extracted_images_manifest }
+      : {}),
     headers: full.headers.filter((h) => h.text.trim() !== ""),
     footers: full.footers.filter((f) => f.text.trim() !== ""),
     paragraphs: full.paragraphs.filter((p) => p.text.trim() !== ""),
@@ -252,7 +268,8 @@ export function toShortDocPath(p: string): string {
 export function generatePdfLinearAuditViewMarkdown(
   docName: string,
   extraction: PdfExtractionResult,
-  cartography: DocumentCartography
+  cartography: DocumentCartography,
+  extractedImagesManifest?: Array<Omit<ExtractedPdfImageAsset, "png_data">>
 ): string {
   const lines: string[] = [];
   lines.push(`# Visão Linear de Auditoria: ${docName}`);
@@ -288,6 +305,12 @@ export function generatePdfLinearAuditViewMarkdown(
     cartography.outline_headings.map((h) => h.coord)
   );
   const scannedSet = new Set(extraction.scanned_pages_detected || []);
+  const assetsByPage = new Map<number, Array<Omit<ExtractedPdfImageAsset, "png_data">>>();
+  for (const asset of extractedImagesManifest || []) {
+    const list = assetsByPage.get(asset.page) || [];
+    list.push(asset);
+    assetsByPage.set(asset.page, list);
+  }
 
   for (const page of extraction.pages) {
     lines.push(
@@ -297,6 +320,10 @@ export function generatePdfLinearAuditViewMarkdown(
       lines.push(
         "- **[ALERTA CRÍTICO: PÁGINA ESCANEADA COMO IMAGEM — SEM CAMADA DE TEXTO EXTRAÍVEL]**"
       );
+    }
+    const pageAssets = assetsByPage.get(page.pageNumber) || [];
+    for (const asset of pageAssets) {
+      lines.push(`- ${formatAssetAnchorLine(asset)}`);
     }
     if (page.lines.length === 0) {
       if (!scannedSet.has(page.pageNumber)) {

@@ -17,6 +17,7 @@ import {
   resolveTargetFileName,
 } from "../utils/naming.ts";
 import { isPdfBuffer } from "../utils/pdf.ts";
+import { renderForensicInventorySectionMarkdown } from "../utils/pdf/forensic_cross_audit.ts";
 import {
   detectFileType,
   extractArchiveBuffer,
@@ -36,6 +37,7 @@ import type {
   BootstrapCaseResult,
   BootstrapCaseInspectedPdf,
   BootstrapCaseSyntheticResult,
+  DocumentForensicMeta,
   UnpackedArchiveSummary,
 } from "../types/index.ts";
 
@@ -639,6 +641,7 @@ export async function bootstrapCase(
           tablesCount: compact.tables.length,
           paragraphsCount: compact.paragraphs.length,
           compactStructure: compact,
+          ...(compact.forensic_meta ? { forensic_meta: compact.forensic_meta } : {}),
           ...(compact.template_match ? { template_match: compact.template_match } : {}),
           ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
         });
@@ -684,6 +687,16 @@ export async function bootstrapCase(
             full.scanned_pages_detected.length > 0
               ? { scanned_pages_detected: full.scanned_pages_detected }
               : {}),
+            ...(full.hybrid_scan_pages && full.hybrid_scan_pages.length > 0
+              ? { hybrid_scan_pages: full.hybrid_scan_pages }
+              : {}),
+            ...(full.extracted_images_manifest &&
+            full.extracted_images_manifest.length > 0
+              ? {
+                  assets_extracted_count: full.extracted_images_manifest.length,
+                }
+              : {}),
+            ...(full.forensic_meta ? { forensic_meta: full.forensic_meta } : {}),
             pageCount: full.page_count ?? 0,
             lineCount: full.line_count ?? 0,
             outlineHeadingsCount: full.outline_headings?.length ?? 0,
@@ -849,6 +862,7 @@ export async function bootstrapCase(
       structureRelPath: relStructure,
       auditViewRelPath: relAudit,
       activeZonesCount: activeCount,
+      forensicMeta: docx.forensic_meta ?? docx.compactStructure.forensic_meta,
       impugnationZones: docx.compactStructure.impugnation_zones || {},
       pageSignals: docx.compactStructure.page_signals || [],
     });
@@ -888,6 +902,9 @@ export async function bootstrapCase(
       dossieRelPath: relDossie,
       activeZonesCount: pdf.activeZonesCount,
       scannedPages: pdf.scanned_pages_detected,
+      hybridScanPages: pdf.hybrid_scan_pages,
+      assetsExtractedCount: pdf.assets_extracted_count,
+      forensicMeta: pdf.forensic_meta,
       impugnationZones,
       pageSignals,
     });
@@ -959,6 +976,9 @@ export interface MasterIndexEntry {
   dossieRelPath?: string;
   activeZonesCount: number;
   scannedPages?: number[];
+  hybridScanPages?: number[];
+  assetsExtractedCount?: number;
+  forensicMeta?: DocumentForensicMeta;
   impugnationZones: Record<
     string,
     Array<{ coord: string; keyword: string; snippet: string; section?: string }>
@@ -1030,6 +1050,17 @@ export function generateCaseMasterIndexMarkdown(
     );
   }
   lines.push("");
+
+  lines.push(
+    ...renderForensicInventorySectionMarkdown(
+      sortedEntries.map((e) => ({
+        fileName: e.fileName,
+        forensicMeta: e.forensicMeta,
+        assetsExtractedCount: e.assetsExtractedCount,
+        hybridScanPages: e.hybridScanPages,
+      }))
+    )
+  );
 
   if (unpackedArchives && unpackedArchives.length > 0) {
     lines.push("### 📦 Pacotes Compactados Descompactados Automaticamente");
