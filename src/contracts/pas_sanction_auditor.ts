@@ -90,11 +90,27 @@ function resolveDosimetry(
   };
 }
 
+const ROOT_PAS_TRIGGER_KEYS = [
+  "dosimetry_evaluation", "dosimetryEvaluation", "dosimetry_benchmark", "dosimetryBenchmark",
+  "sanction_type", "sanctionType", "registries_commanded", "registriesCommanded",
+  "proposed_fine_pct", "proposedFinePct", "fine_pct", "finePct", "fine_percentage",
+  "multa_percentual", "proposed_fine_percentage", "multa_sancionatoria_proposta",
+  "signing_authority_role", "authority_role", "signing_authority", "signed_by",
+  "sla_glosa_misclassified", "is_sla_glosa", "glosa_ans_como_multa", "ans_imr",
+  "treated_as_penalty", "classified_as_penalty", "defense_business_days",
+  "defense_deadline_days", "defense_period_days", "prazo_defesa_dias_uteis",
+  "prazo_defesa_dias", "garantia", "surety_bond", "seguro_garantia",
+  "seguradora_notificada", "precedent_fines_pct", "precedent_median_pct",
+  "precedent_range_pct", "precedent_max_pct", "register_pncp", "register_ceis_cnep",
+  "notify_audit_court",
+];
+
 export function auditPasSanctionsAndGuarantees(
   input: RawContractInput
 ): PasSanctionAuditResult {
   const blockingTagsSet = new Set<string>();
   const processes: PasSanctionAnalysisItem[] = [];
+  const inAny = input as Record<string, any>;
 
   const legalRegime = (input.legal_regime || input.legalRegime || "LEI_14133").toUpperCase();
   const isLei13303 = legalRegime.includes("13303");
@@ -106,33 +122,16 @@ export function auditPasSanctionsAndGuarantees(
     ...toArray(input.pasSanction),
     ...toArray(input.pas_sanctions),
     ...toArray(input.pasSanctions),
+    ...toArray(inAny.pas_processes),
+    ...toArray(inAny.pasProcesses),
+    ...toArray(inAny.sanctions),
+    ...toArray(inAny.sancoes),
     ...toArray(input.pas),
     ...toArray(input.pas_evaluation),
     ...toArray(input.pasEvaluation),
   ];
 
-  if (
-    rawPasList.length === 0 &&
-    (input.dosimetry_evaluation ||
-      input.dosimetryEvaluation ||
-      input.dosimetry_benchmark ||
-      input.dosimetryBenchmark ||
-      input.sanction_type ||
-      input.sanctionType ||
-      input.registries_commanded ||
-      input.registriesCommanded ||
-      input.proposed_fine_pct !== undefined ||
-      input.proposedFinePct !== undefined ||
-      input.fine_pct !== undefined ||
-      input.finePct !== undefined ||
-      (input as any).fine_percentage !== undefined ||
-      (input as any).multa_percentual !== undefined ||
-      (input as any).proposed_fine_percentage !== undefined ||
-      input.signing_authority_role ||
-      (input as any).authority_role ||
-      (input as any).signing_authority ||
-      (input as any).signed_by)
-  ) {
+  if (rawPasList.length === 0 && ROOT_PAS_TRIGGER_KEYS.some((k) => inAny[k] !== undefined)) {
     rawPasList.push(input as RawPasSanctionInput);
   }
 
@@ -157,39 +156,45 @@ export function auditPasSanctionsAndGuarantees(
     input.initialValue ??
     input.current_value ??
     input.currentValue ??
-    0
+    (inAny.initial_value_cents !== undefined ? Number(inAny.initial_value_cents) / 100 : undefined) ??
+    (inAny.initialValueCents !== undefined ? Number(inAny.initialValueCents) / 100 : 0)
   );
 
   let violationsCount = 0;
 
   for (let i = 0; i < rawPasList.length; i++) {
     const item = rawPasList[i];
+    const itemAny = item as Record<string, any>;
     const processId = item.process_id || item.processId || item.id || `PAS-${i + 1}`;
     const sla = item.sla_glosa || item.slaGlosa;
+    const ansImr = itemAny.ans_imr || itemAny.ansImr || inAny.ans_imr || inAny.ansImr;
     const reasons: string[] = [];
     let itemHasViolation = false;
 
     // 1. Segregação ANS/IMR vs. Multa Punitiva
     const slaClassified = (sla?.classified_as || sla?.classifiedAs || "").toUpperCase();
+    const slaAny = (sla || {}) as Record<string, any>;
+    const isSlaGlosaFlag = Boolean(itemAny.is_sla_glosa === true || slaAny.is_sla_glosa === true || inAny.is_sla_glosa === true);
+    const classifiedPenaltyFlag = Boolean(
+      itemAny.classified_as_penalty === true || itemAny.treated_as_penalty === true ||
+      slaAny.classified_as_penalty === true || slaAny.treated_as_penalty === true ||
+      ansImr?.classificado_como_multa === true || ansImr?.classified_as_penalty === true || ansImr?.treated_as_penalty === true ||
+      inAny.classified_as_penalty === true || inAny.treated_as_penalty === true
+    );
     const slaMisclassified = Boolean(
-      item.ans_glosa_applied_as_punitive_sanction === true ||
-      item.ansGlosaAppliedAsPunitiveSanction === true ||
-      item.is_punitive_disguised_as_glosa === true ||
-      item.isPunitiveDisguisedAsGlosa === true ||
-      item.is_imr_classified_as_sanction === true ||
-      item.isImrClassifiedAsSanction === true ||
-      item.within_imr_bands === false ||
-      item.withinImrBands === false ||
-      sla?.ans_glosa_applied_as_punitive_sanction === true ||
-      sla?.ansGlosaAppliedAsPunitiveSanction === true ||
-      sla?.is_punitive_disguised_as_glosa === true ||
-      sla?.isPunitiveDisguisedAsGlosa === true ||
-      sla?.is_imr_classified_as_sanction === true ||
-      sla?.isImrClassifiedAsSanction === true ||
-      sla?.within_imr_bands === false ||
-      sla?.withinImrBands === false ||
-      slaClassified === "PUNITIVE_SANCTION" ||
-      slaClassified === "DIRECT_PUNITIVE_DISCOUNT"
+      item.ans_glosa_applied_as_punitive_sanction === true || item.ansGlosaAppliedAsPunitiveSanction === true ||
+      item.is_punitive_disguised_as_glosa === true || item.isPunitiveDisguisedAsGlosa === true ||
+      item.is_imr_classified_as_sanction === true || item.isImrClassifiedAsSanction === true ||
+      item.within_imr_bands === false || item.withinImrBands === false ||
+      itemAny.sla_glosa_misclassified === true || itemAny.glosa_ans_como_multa === true ||
+      inAny.sla_glosa_misclassified === true || inAny.glosa_ans_como_multa === true ||
+      (isSlaGlosaFlag && classifiedPenaltyFlag) || classifiedPenaltyFlag ||
+      sla?.ans_glosa_applied_as_punitive_sanction === true || sla?.ansGlosaAppliedAsPunitiveSanction === true ||
+      sla?.is_punitive_disguised_as_glosa === true || sla?.isPunitiveDisguisedAsGlosa === true ||
+      sla?.is_imr_classified_as_sanction === true || sla?.isImrClassifiedAsSanction === true ||
+      sla?.within_imr_bands === false || sla?.withinImrBands === false ||
+      slaAny.sla_glosa_misclassified === true || slaAny.glosa_ans_como_multa === true ||
+      slaClassified === "PUNITIVE_SANCTION" || slaClassified === "DIRECT_PUNITIVE_DISCOUNT"
     );
 
     if (slaMisclassified) {
@@ -238,16 +243,18 @@ export function auditPasSanctionsAndGuarantees(
     const rawFinePct =
       item.proposed_fine_pct ??
       item.proposedFinePct ??
-      (item as any).proposed_fine_percentage ??
-      (item as any).proposedFinePercentage ??
+      itemAny.proposed_fine_percentage ??
+      itemAny.proposedFinePercentage ??
       item.fine_pct ??
       item.finePct ??
-      (item as any).fine_percentage ??
-      (item as any).finePercentage ??
+      itemAny.fine_percentage ??
+      itemAny.finePercentage ??
       item.multa_pct ??
       item.multaPct ??
-      (item as any).multa_percentual ??
-      (item as any).multaPercentual ??
+      itemAny.multa_percentual ??
+      itemAny.multaPercentual ??
+      itemAny.multa_sancionatoria_proposta?.percentual ??
+      itemAny.multa_sancionatoria_proposta?.fine_pct ??
       benchObj?.proposed_fine_pct ??
       benchObj?.proposedFinePct ??
       (benchObj as any)?.proposed_fine_percentage ??
@@ -260,9 +267,11 @@ export function auditPasSanctionsAndGuarantees(
       benchObj?.multaPct ??
       (benchObj as any)?.multa_percentual ??
       (benchObj as any)?.multaPercentual ??
-      (input as any).fine_percentage ??
-      (input as any).multa_percentual ??
-      (input as any).proposed_fine_percentage;
+      inAny.fine_percentage ??
+      inAny.multa_percentual ??
+      inAny.proposed_fine_percentage ??
+      inAny.multa_sancionatoria_proposta?.percentual ??
+      inAny.multa_sancionatoria_proposta?.fine_pct;
 
     const itemContractVal = Number(item.contract_value ?? item.contractValue ?? rootContractValue);
     const fineVal = item.fine_value ?? item.fineValue;
@@ -302,9 +311,32 @@ export function auditPasSanctionsAndGuarantees(
     const defDaysRaw =
       item.defense_deadline_business_days ??
       item.defenseDeadlineBusinessDays ??
+      itemAny.defense_business_days ??
+      itemAny.defenseBusinessDays ??
+      itemAny.defense_deadline_days ??
+      itemAny.defenseDeadlineDays ??
+      itemAny.defense_period_days ??
+      itemAny.defensePeriodDays ??
       item.contradictory_days ??
-      item.contradictoryDays;
+      item.contradictoryDays ??
+      itemAny.prazo_defesa_dias_uteis ??
+      itemAny.prazo_defesa_dias ??
+      inAny.defense_deadline_business_days ??
+      inAny.defense_business_days ??
+      inAny.defense_deadline_days ??
+      inAny.defense_period_days ??
+      inAny.contradictory_days ??
+      inAny.prazo_defesa_dias_uteis ??
+      inAny.prazo_defesa_dias;
     const defDays = defDaysRaw !== undefined ? Number(defDaysRaw) : undefined;
+    const defDaysType = String(
+      itemAny.defense_days_type ?? itemAny.defenseDaysType ?? itemAny.tipo_prazo_defesa ??
+      inAny.defense_days_type ?? inAny.tipo_prazo_defesa ?? ""
+    ).toUpperCase();
+    const isCalendarDaysViolation =
+      (defDaysType === "CALENDAR" || defDaysType === "CORRIDOS" || defDaysType === "DIAS_CORRIDOS") &&
+      defDays !== undefined &&
+      defDays <= 15;
 
     const isPureRemuneratoryGlosa = Boolean(
       sla &&
@@ -321,7 +353,8 @@ export function auditPasSanctionsAndGuarantees(
       if (
         openedFormalPas === false ||
         priorNotifSent === false ||
-        (defDays !== undefined && defDays < 15)
+        (defDays !== undefined && defDays < 15) ||
+        isCalendarDaysViolation
       ) {
         contradictory15DaysOk = false;
         blockingTagsSet.add("[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]");
@@ -333,10 +366,23 @@ export function auditPasSanctionsAndGuarantees(
     }
 
     // 4. Seguro-Garantia e Notificação à Seguradora (Art. 102)
-    const modality = (item.guarantee_modality || item.guaranteeModality || "").toUpperCase();
+    const garantiaObj =
+      itemAny.garantia || itemAny.surety_bond || itemAny.suretyBond ||
+      inAny.garantia || inAny.surety_bond || inAny.suretyBond;
+    const hasGarantiaFlag = Boolean(
+      garantiaObj && (garantiaObj.seguradora_notificada !== undefined || garantiaObj.insurer_notified !== undefined)
+    );
+    const modality = String(
+      item.guarantee_modality || item.guaranteeModality || garantiaObj?.modality || garantiaObj?.modalidade || ""
+    ).toUpperCase();
     const hasSuretyBond = Boolean(
       item.has_surety_bond ??
       item.hasSuretyBond ??
+      itemAny.seguro_garantia ??
+      itemAny.seguroGarantia ??
+      inAny.has_surety_bond ??
+      inAny.seguro_garantia ??
+      (hasGarantiaFlag ? true : undefined) ??
       (modality === "SURETY_BOND" || modality === "SEGURO_GARANTIA")
     );
     const claimDetected = item.claim_or_default_detected ?? item.claimOrDefaultDetected ?? true;
@@ -344,7 +390,14 @@ export function auditPasSanctionsAndGuarantees(
       item.surety_insurer_notified ??
       item.suretyInsurerNotified ??
       item.insurer_notified ??
-      item.insurerNotified;
+      item.insurerNotified ??
+      itemAny.seguradora_notificada ??
+      itemAny.seguradoraNotificada ??
+      garantiaObj?.seguradora_notificada ??
+      garantiaObj?.insurer_notified ??
+      inAny.surety_insurer_notified ??
+      inAny.insurer_notified ??
+      inAny.seguradora_notificada;
     const policyExpired = Boolean(item.policy_expired ?? item.policyExpired);
 
     let insurerNotificationOk = true;

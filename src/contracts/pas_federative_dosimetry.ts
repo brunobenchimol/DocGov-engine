@@ -5,11 +5,15 @@
 // Art. 38 e Art. 83, III da Lei 13.303/2016; Art. 22 §§ 2º e 3º da LINDB.
 // ============================================================================
 
-import type {
-  RawDosimetryBenchmarkInput,
-  PasFederativeAnalysisSummary,
-  PasDosimetryCalibrationSummary,
-  PasFederativeAndDosimetryResult,
+import {
+  DOSIMETRY_TRIGGER_KEYS,
+  normalizeToken,
+  normalizeSphere,
+  resolveBenchmarkMetrics,
+  type RawDosimetryBenchmarkInput,
+  type PasFederativeAnalysisSummary,
+  type PasDosimetryCalibrationSummary,
+  type PasFederativeAndDosimetryResult,
 } from "./pas_federative_types.ts";
 
 export * from "./pas_federative_types.ts";
@@ -37,42 +41,6 @@ const ALWAYS_OVERBROAD_IMPEDIMENT_SPHERES = new Set([
 const UNION_SPHERES = new Set(["UNION", "UNIAO", "FEDERAL"]);
 const TCM_STATE_UFS = new Set(["PA", "BA", "GO"]);
 
-const DOSIMETRY_TRIGGER_KEYS = [
-  "dosimetry_evaluation", "dosimetryEvaluation", "dosimetry_benchmark", "dosimetryBenchmark",
-  "juris_precedent_id", "jurisPrecedentId", "benchmark_precedents", "benchmarkPrecedents",
-  "benchmark_median_pct", "benchmarkMedianPct", "median_pct", "medianPct",
-  "benchmark_range_pct", "benchmarkRangePct", "reference_range_pct", "referenceRangePct",
-  "benchmark_max_pct", "benchmarkMaxPct", "benchmark_median_months", "benchmarkMedianMonths",
-  "benchmark_max_months", "benchmarkMaxMonths", "lindb_art22_weighed", "lindbArt22Weighed",
-  "art156_par1_weighed", "art156Par1Weighed", "has_jurisprudential_calibration",
-  "hasJurisprudentialCalibration", "aggravating_factors_proven", "aggravatingFactorsProven",
-  "is_primary_offender", "isPrimaryOffender", "concrete_damage_proven", "concreteDamageProven",
-  "nature_and_gravity_weighed", "natureAndGravityWeighed",
-  "case_peculiarities_weighed", "casePeculiaritiesWeighed",
-];
-
-function normalizeToken(val: string | undefined): string {
-  if (!val) return "";
-  return val
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .trim()
-    .toUpperCase()
-    .replace(/[\s\-/]+/g, "_");
-}
-
-function normalizeSphere(sphereRaw?: string, ufRaw?: string, munRaw?: string): string {
-  const tok = normalizeToken(sphereRaw);
-  if (tok === "MUNICIPAL" || tok === "MUNICIPIO") return "MUNICIPAL";
-  if (tok === "STATE" || tok === "ESTADUAL" || tok === "ESTADO" || tok === "DISTRITAL") {
-    return "STATE";
-  }
-  if (tok === "FEDERAL" || tok === "UNIAO" || tok === "UNION") return "FEDERAL";
-  if (munRaw && munRaw.trim()) return "MUNICIPAL";
-  if (ufRaw && ufRaw.trim()) return "STATE";
-  return "FEDERAL";
-}
-
 export function resolveCompetentAuditCourt(
   sphereRaw?: string,
   ufRaw?: string,
@@ -92,44 +60,6 @@ export function resolveCompetentAuditCourt(
   if (TCM_STATE_UFS.has(uf)) return `TCM-${uf}`;
   if (uf === "DF") return "TCDF";
   return uf ? `TCE-${uf}` : "TCU";
-}
-
-function extractPrecedentIds(bench: RawDosimetryBenchmarkInput): string[] {
-  const ids: string[] = [];
-  const rawSingle = bench.juris_precedent_id ?? bench.jurisPrecedentId;
-  if (Array.isArray(rawSingle)) {
-    rawSingle.forEach((v) => typeof v === "string" && v.trim() && ids.push(v.trim()));
-  } else if (typeof rawSingle === "string" && rawSingle.trim()) {
-    ids.push(rawSingle.trim());
-  }
-  const rawList = bench.benchmark_precedents ?? bench.benchmarkPrecedents;
-  if (Array.isArray(rawList)) {
-    for (const entry of rawList) {
-      if (typeof entry === "string" && entry.trim()) ids.push(entry.trim());
-      else if (entry && typeof entry === "object") {
-        const label = entry.id || entry.summary;
-        if (label && String(label).trim()) ids.push(String(label).trim());
-      }
-    }
-  }
-  return Array.from(new Set(ids));
-}
-
-function parseRangePct(
-  rawRange: [number, number] | { min?: number; max?: number } | undefined
-): [number, number] | undefined {
-  if (!rawRange) return undefined;
-  if (Array.isArray(rawRange) && rawRange.length >= 2) {
-    const a = Number(rawRange[0]);
-    const b = Number(rawRange[1]);
-    return !isNaN(a) && !isNaN(b) ? [a, b] : undefined;
-  }
-  if (!Array.isArray(rawRange) && typeof rawRange === "object") {
-    const a = rawRange.min !== undefined ? Number(rawRange.min) : undefined;
-    const b = rawRange.max !== undefined ? Number(rawRange.max) : undefined;
-    return a !== undefined && b !== undefined && !isNaN(a) && !isNaN(b) ? [a, b] : undefined;
-  }
-  return undefined;
 }
 
 export function evaluatePasFederativeAndDosimetry(
@@ -199,8 +129,24 @@ export function evaluatePasFederativeAndDosimetry(
     rootInput.conclusiveLegalOpinion;
 
   const rawRegistries =
-    item.registries_commanded ?? item.registriesCommanded ?? item.mandatory_registries ?? item.mandatoryRegistries;
-  const courtNotifiedFlag = item.external_control_court_notified ?? item.externalControlCourtNotified;
+    item.registries_commanded ??
+    item.registriesCommanded ??
+    item.mandatory_registries ??
+    item.mandatoryRegistries ??
+    rootInput.registries_commanded ??
+    rootInput.registriesCommanded;
+  const registerPncp = item.register_pncp ?? item.registerPncp ?? rootInput.register_pncp ?? rootInput.registerPncp;
+  const registerCeisCnep =
+    item.register_ceis_cnep ?? item.registerCeisCnep ?? rootInput.register_ceis_cnep ?? rootInput.registerCeisCnep;
+  const registerCeis = item.register_ceis ?? item.registerCeis ?? rootInput.register_ceis ?? rootInput.registerCeis;
+  const registerCnep = item.register_cnep ?? item.registerCnep ?? rootInput.register_cnep ?? rootInput.registerCnep;
+  const notifyAuditCourt =
+    item.notify_audit_court ?? item.notifyAuditCourt ?? rootInput.notify_audit_court ?? rootInput.notifyAuditCourt;
+  const courtNotifiedFlag =
+    item.external_control_court_notified ??
+    item.externalControlCourtNotified ??
+    rootInput.external_control_court_notified ??
+    rootInput.externalControlCourtNotified;
 
   const blockingTags: string[] = [];
   const reasons: string[] = [];
@@ -275,18 +221,36 @@ export function evaluatePasFederativeAndDosimetry(
     }
 
     // 4. Cadastros Obrigatórios (CEIS, CNEP, PNCP e Corte de Contas Competente)
-    if (Array.isArray(rawRegistries) || courtNotifiedFlag === false) {
-      const normCommanded = commandedList.map((c) => normalizeToken(c));
-      const normCourt = normalizeToken(competentCourt);
-      for (const req of requiredRegistries) {
-        if (req === competentCourt && courtNotifiedFlag === true) continue;
-        const normReq = normalizeToken(req);
-        const matched = normCommanded.some(
-          (c) => c === normReq || (req === competentCourt && c.includes(normCourt))
-        );
-        if (!matched) missingRegistries.push(req);
+    const hasExplicitRegistryFlags =
+      registerPncp === false ||
+      registerCeisCnep === false ||
+      registerCeis === false ||
+      registerCnep === false ||
+      notifyAuditCourt === false ||
+      courtNotifiedFlag === false;
+    if (Array.isArray(rawRegistries) || hasExplicitRegistryFlags) {
+      if (Array.isArray(rawRegistries)) {
+        const normCommanded = commandedList.map((c) => normalizeToken(c));
+        const normCourt = normalizeToken(competentCourt);
+        for (const req of requiredRegistries) {
+          if (req === competentCourt && (courtNotifiedFlag === true || notifyAuditCourt === true)) continue;
+          if (req === "PNCP" && registerPncp === true) continue;
+          if ((req === "CEIS" || req === "CNEP") && registerCeisCnep === true) continue;
+          const normReq = normalizeToken(req);
+          const matched = normCommanded.some(
+            (c) => c === normReq || (req === competentCourt && c.includes(normCourt))
+          );
+          if (!matched) missingRegistries.push(req);
+        }
       }
-      if (courtNotifiedFlag === false && !missingRegistries.includes(competentCourt)) {
+      if (registerPncp === false && !missingRegistries.includes("PNCP")) missingRegistries.push("PNCP");
+      if (registerCeisCnep === false) {
+        if (!missingRegistries.includes("CEIS")) missingRegistries.push("CEIS");
+        if (!missingRegistries.includes("CNEP")) missingRegistries.push("CNEP");
+      }
+      if (registerCeis === false && !missingRegistries.includes("CEIS")) missingRegistries.push("CEIS");
+      if (registerCnep === false && !missingRegistries.includes("CNEP")) missingRegistries.push("CNEP");
+      if ((courtNotifiedFlag === false || notifyAuditCourt === false) && !missingRegistries.includes(competentCourt)) {
         missingRegistries.push(competentCourt);
       }
       if (missingRegistries.length > 0) {
@@ -329,19 +293,15 @@ export function evaluatePasFederativeAndDosimetry(
     benchAny.multa_pct ??
     benchAny.multaPct ??
     benchAny.multa_percentual ??
-    benchAny.multaPercentual;
+    benchAny.multaPercentual ??
+    benchAny.multa_sancionatoria_proposta?.percentual ??
+    benchAny.multa_sancionatoria_proposta?.fine_pct;
   const resolvedFinePct =
     rawFallbackFine !== undefined && !isNaN(Number(rawFallbackFine))
       ? Number(rawFallbackFine)
       : undefined;
 
-  const precedentIds = extractPrecedentIds(bench);
-  const parsedRange = parseRangePct(
-    bench.benchmark_range_pct ?? bench.benchmarkRangePct ?? benchAny.reference_range_pct ?? benchAny.referenceRangePct
-  );
-  const rawMedianPct =
-    bench.benchmark_median_pct ?? bench.benchmarkMedianPct ?? benchAny.median_pct ?? benchAny.medianPct;
-  const rawMaxPct = bench.benchmark_max_pct ?? bench.benchmarkMaxPct;
+  const { precedentIds, parsedRange, rawMedianPct, rawMaxPct } = resolveBenchmarkMetrics(benchAny);
   const rawMedianMonths = bench.benchmark_median_months ?? bench.benchmarkMedianMonths;
   const rawMaxMonths = bench.benchmark_max_months ?? bench.benchmarkMaxMonths;
 

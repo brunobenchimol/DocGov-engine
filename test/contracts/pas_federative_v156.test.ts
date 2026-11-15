@@ -9,6 +9,7 @@ import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "no
 import { join } from "node:path";
 import JSZip from "jszip";
 import { auditPasSanctionsAndGuarantees } from "../../src/contracts/pas_sanction_auditor.ts";
+import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 import { resolveCompetentAuditCourt } from "../../src/contracts/pas_federative_dosimetry.ts";
 import { handleCallTool } from "../../src/mcp/server.ts";
 import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
@@ -28,17 +29,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     const resScope = auditPasSanctionsAndGuarantees({
       contract_id: "CT-86-TERR-01",
       legal_regime: "LEI_14133",
-      pas_evaluation: {
-        sphere: "MUNICIPAL",
-        uf: "PA",
-        municipality: "MUNICIPIO_GENERICO",
-        sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR",
-        sanction_scope_claimed: "NATIONAL",
-        duration_months: 24,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "MUNICIPAL", uf: "PA", municipality: "MUNICIPIO_GENERICO", sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR", sanction_scope_claimed: "NATIONAL", duration_months: 24, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resScope.blocking_tags).toEqual(["[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]"]);
     expect(resScope.competent_audit_court).toBe("TCM-PA");
@@ -46,32 +37,14 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
 
     const resDuration = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_14133",
-      pas_evaluation: {
-        sphere: "STATE",
-        uf: "MG",
-        sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR",
-        sanction_scope_claimed: "FEDERATIVE_ENTITY",
-        duration_months: 48,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "STATE", uf: "MG", sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR", sanction_scope_claimed: "FEDERATIVE_ENTITY", duration_months: 48, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resDuration.blocking_tags).toEqual(["[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]"]);
     expect(resDuration.competent_audit_court).toBe("TCE-MG");
 
     const resOk = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_14133",
-      pas_evaluation: {
-        sphere: "STATE",
-        uf: "PA",
-        sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR",
-        sanction_scope_claimed: "FEDERATIVE_ENTITY",
-        duration_months: 24,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "STATE", uf: "PA", sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR", sanction_scope_claimed: "FEDERATIVE_ENTITY", duration_months: 24, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resOk.blocking_tags).toHaveLength(0);
     expect(resOk.processes[0].federative_adequacy?.territorial_scope_ok).toBe(true);
@@ -80,45 +53,19 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   it("Sub-Assert 30.13b: deve aplicar regime estrito de Estatais (Lei 13.303 <= 24m sem inidoneidade)", () => {
     const resOver24 = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_13303",
-      pas_evaluation: {
-        sphere: "FEDERAL",
-        sanction_type: "SUSPENSAO_TEMPORARIA",
-        sanction_scope_claimed: "OWN_ENTITY",
-        duration_months: 36,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "FEDERAL", sanction_type: "SUSPENSAO_TEMPORARIA", sanction_scope_claimed: "OWN_ENTITY", duration_months: 36, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resOver24.blocking_tags).toEqual(["[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]"]);
 
     const resDebarment13303 = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_13303",
-      pas_evaluation: {
-        sphere: "STATE",
-        uf: "PR",
-        sanction_type: "DECLARACAO_INIDONEIDADE",
-        duration_months: 24,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "STATE", uf: "PR", sanction_type: "DECLARACAO_INIDONEIDADE", duration_months: 24, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
-    expect(resDebarment13303.blocking_tags).toContain(
-      "[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]"
-    );
+    expect(resDebarment13303.blocking_tags).toContain("[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]");
 
     const resValid13303 = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_13303",
-      pas_evaluation: {
-        sphere: "FEDERAL",
-        sanction_type: "SUSPENSAO_TEMPORARIA",
-        sanction_scope_claimed: "OWN_ENTITY",
-        duration_months: 18,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "FEDERAL", sanction_type: "SUSPENSAO_TEMPORARIA", sanction_scope_claimed: "OWN_ENTITY", duration_months: 18, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resValid13303.blocking_tags).toHaveLength(0);
     expect(resValid13303.processes[0].recommended_sanction).toBe("SUSPENSAO_TEMPORARIA_13303");
@@ -127,17 +74,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   it("Sub-Assert 30.14a: deve bloquear declaração de inidoneidade por autoridade incompetente ou sem parecer jurídico", () => {
     const resIncompetent = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_14133",
-      pas_evaluation: {
-        sphere: "STATE",
-        uf: "PA",
-        sanction_type: "DECLARACAO_INIDONEIDADE",
-        duration_months: 48,
-        signing_authority_role: "FISCAL_CONTRATO",
-        has_conclusive_legal_opinion: false,
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "STATE", uf: "PA", sanction_type: "DECLARACAO_INIDONEIDADE", duration_months: 48, signing_authority_role: "FISCAL_CONTRATO", has_conclusive_legal_opinion: false, opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resIncompetent.blocking_tags).toEqual(["[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]"]);
     expect(resIncompetent.processes[0].federative_adequacy?.authority_competent_ok).toBe(false);
@@ -145,18 +82,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
 
     const resValid = auditPasSanctionsAndGuarantees({
       legal_regime: "LEI_14133",
-      pas_evaluation: {
-        sphere: "STATE",
-        uf: "PA",
-        sanction_type: "DECLARACAO_INIDONEIDADE",
-        duration_months: 48,
-        signing_authority_role: "SECRETARIO_ESTADUAL",
-        has_conclusive_legal_opinion: true,
-        registries_commanded: ["CEIS", "CNEP", "PNCP", "TCE-PA"],
-        opened_formal_pas: true,
-        prior_notification_sent: true,
-        defense_deadline_business_days: 15,
-      },
+      pas_evaluation: { sphere: "STATE", uf: "PA", sanction_type: "DECLARACAO_INIDONEIDADE", duration_months: 48, signing_authority_role: "SECRETARIO_ESTADUAL", has_conclusive_legal_opinion: true, registries_commanded: ["CEIS", "CNEP", "PNCP", "TCE-PA"], opened_formal_pas: true, prior_notification_sent: true, defense_deadline_business_days: 15 },
     });
     expect(resValid.blocking_tags).toHaveLength(0);
     expect(resValid.processes[0].federative_adequacy?.authority_competent_ok).toBe(true);
@@ -496,4 +422,74 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     expect(opinionPdfText).toContain("3. Conclus");
     expect(opinionPdfText).not.toMatch(/\bPROPORCIONAL\b/);
   }, 20000);
+
+  it("Aliases Naturais dos Agentes (price_basket objeto, precedent_fines_pct, sla_glosa_misclassified, defense_business_days, register_pncp, garantia e reequilibrio): todas as tags disparam de primeira", async () => {
+    const outDir = join(getEphemeralInspectDir(), `test_natural_aliases_${Date.now()}`);
+    mkdirSync(outDir, { recursive: true });
+    const { report, synthetic } = await auditContractExecution(
+      {
+        contract_id: "CT-AGENT-ALIASES-01",
+        legal_regime: "LEI_14133",
+        sphere: "STATE",
+        uf: "PA",
+        pas_processes: [
+          {
+            process_id: "PAS-ALIAS-01",
+            sla_glosa_misclassified: true,
+            defense_business_days: 10,
+            register_pncp: false,
+            garantia: { seguradora_notificada: false },
+            multa_sancionatoria_proposta: { percentual: 25 },
+            precedent_fines_pct: [2.0, 3.5, 5.0],
+            aggravating_factors_proven: false,
+            lindb_art22_weighed: true,
+          },
+        ],
+        price_basket: { cotacoes: [390000, 405000, 410000, 780000] },
+        reequilibrio: { alocacao_matriz_riscos: "CONTRATADA" },
+      } as any,
+      { outputDir: outDir, compilationMode: "NONE" }
+    );
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(900);
+    for (const tag of [
+      "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]",
+      "[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]",
+      "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]",
+      "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]",
+      "[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]",
+      "[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]",
+      "[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]",
+    ]) {
+      expect(report.blocking_tags).toContain(tag);
+    }
+    const cal = report.pas_sanctions_analysis?.processes[0]?.dosimetry_calibration;
+    expect(cal?.benchmark_median_pct).toBe(3.5);
+    expect(cal?.benchmark_range_pct).toEqual([2, 5]);
+    expect(report.price_basket_analysis?.items_analyzed).toBe(1);
+
+    const { report: rep2 } = await auditContractExecution(
+      {
+        contract_id: "CT-AGENT-ALIASES-02",
+        legal_regime: "LEI_14133",
+        sphere: "FEDERAL",
+        ans_imr: { classificado_como_multa: true },
+        defense_deadline_days: 15,
+        defense_days_type: "CALENDAR",
+        register_ceis_cnep: false,
+        notify_audit_court: false,
+        price_basket_items: { cotacoes: [{ valor: 100 }, { valor: 110 }, { valor: 500 }] },
+        risk_matrix_events: [{ risco_alocado: "CONTRACTOR" }],
+      } as any,
+      { outputDir: outDir, compilationMode: "NONE" }
+    );
+    for (const tag of [
+      "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]",
+      "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]",
+      "[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]",
+      "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]",
+      "[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]",
+    ]) {
+      expect(rep2.blocking_tags).toContain(tag);
+    }
+  });
 });

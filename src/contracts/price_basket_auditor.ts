@@ -31,16 +31,77 @@ function toArray<T>(val: T | T[] | undefined): T[] {
   return Array.isArray(val) ? val : [val];
 }
 
+function extractNumericQuote(q: unknown): number {
+  if (typeof q === "number" || typeof q === "string") return Number(q);
+  if (q && typeof q === "object") {
+    const obj = q as Record<string, unknown>;
+    return Number(obj.valor ?? obj.value ?? obj.price ?? obj.preco ?? obj.cotacao ?? obj.unit_price ?? NaN);
+  }
+  return NaN;
+}
+
+function isQuoteLeaf(el: unknown): boolean {
+  if (typeof el === "number" || typeof el === "string") return !isNaN(Number(el));
+  if (el && typeof el === "object") {
+    const obj = el as Record<string, unknown>;
+    return (
+      (obj.valor !== undefined || obj.value !== undefined || obj.price !== undefined || obj.preco !== undefined || obj.cotacao !== undefined) &&
+      obj.quotes === undefined &&
+      obj.cotacoes === undefined &&
+      obj.prices === undefined &&
+      obj.values === undefined
+    );
+  }
+  return false;
+}
+
+function extractRawBasketItems(input: RawContractInput): Record<string, any>[] {
+  const inAny = input as Record<string, any>;
+  const sources = [
+    inAny.price_basket,
+    inAny.priceBasket,
+    inAny.price_basket_items,
+    inAny.priceBasketItems,
+    inAny.cesta_precos,
+    inAny.cestaPrecos,
+    inAny.pesquisa_precos,
+    inAny.pesquisaPrecos,
+  ];
+  const out: Record<string, any>[] = [];
+  for (const src of sources) {
+    if (!src) continue;
+    if (Array.isArray(src)) {
+      if (src.length === 0) continue;
+      if (src.every(isQuoteLeaf)) {
+        out.push({ item_id: `BASKET-${out.length + 1}`, quotes: src });
+      } else {
+        out.push(...src);
+      }
+    } else if (typeof src === "object") {
+      const nested = src.items || src.itens;
+      if (Array.isArray(nested)) {
+        for (const item of nested) out.push({ ...src, ...item });
+      } else {
+        out.push(src);
+      }
+    }
+  }
+  return out;
+}
+
 function round2(n: number): number {
   return Number(n.toFixed(2));
 }
 
 function analyzeBasketItem(
-  item: RawPriceBasketItem,
+  item: RawPriceBasketItem & Record<string, any>,
   index: number
 ): { analysis: PriceBasketAnalysisItem; triggerHighDispersion: boolean } | null {
-  const rawQuotes = item.quotes || item.cotacoes || item.samples || [];
-  const quotes = rawQuotes.map((q) => Number(q)).filter((q) => !isNaN(q) && q > 0);
+  const rawQuotes =
+    item.quotes ?? item.cotacoes ?? item.prices ?? item.values ?? item.samples ?? item.precos ?? [];
+  const quotes = Array.isArray(rawQuotes)
+    ? rawQuotes.map(extractNumericQuote).filter((q) => !isNaN(q) && q > 0)
+    : [];
   if (quotes.length < 2) return null;
 
   const n = quotes.length;
@@ -132,11 +193,7 @@ export function auditPriceBasketAndRebalance(
   const blockingTagsSet = new Set<string>();
 
   // 1. Auditoria Estatística Anti-Outlier da Cesta de Preços (IN 65/2021)
-  const rawBasketList: RawPriceBasketItem[] = [
-    ...toArray(input.price_basket),
-    ...toArray(input.priceBasket),
-    ...toArray(input.cesta_precos),
-  ];
+  const rawBasketList = extractRawBasketItems(input);
 
   const basketItems: PriceBasketAnalysisItem[] = [];
   let highDispersionWarningsCount = 0;
@@ -153,14 +210,21 @@ export function auditPriceBasketAndRebalance(
   }
 
   // 2. Auditoria de Reequilíbrio Econômico-Financeiro (Álea Extraordinária)
-  const rawRebalanceList: RawRebalanceRequest[] = [
+  const inAny = input as Record<string, any>;
+  const rawRebalanceList: Array<RawRebalanceRequest & Record<string, any>> = [
     ...toArray(input.rebalance_claim),
     ...toArray(input.rebalanceClaim),
     ...toArray(input.rebalance_request),
     ...toArray(input.rebalanceRequest),
     ...toArray(input.rebalance_requests),
     ...toArray(input.rebalanceRequests),
+    ...toArray(inAny.rebalance_events),
+    ...toArray(inAny.rebalanceEvents),
+    ...toArray(inAny.risk_matrix_events),
+    ...toArray(inAny.riskMatrixEvents),
     ...toArray(input.reequilibrio),
+    ...toArray(inAny.matriz_riscos),
+    ...toArray(inAny.matrizRiscos),
   ];
 
   const rebalanceEvents: RebalanceAnalysisItem[] = [];
@@ -169,11 +233,19 @@ export function auditPriceBasketAndRebalance(
   for (let i = 0; i < rawRebalanceList.length; i++) {
     const req = rawRebalanceList[i];
     const id = req.id || `REEQ-${i + 1}`;
-    const desc = req.event_description || req.eventDescription;
-    const rawRiskTo = (req.risk_allocated_to || req.riskAllocatedTo || "UNSPECIFIED").toUpperCase();
+    const desc = req.event_description || req.eventDescription || req.descricao;
+    const rawRiskTo = String(
+      req.risk_allocated_to ||
+        req.riskAllocatedTo ||
+        req.alocacao_matriz_riscos ||
+        req.alocacaoMatrizRiscos ||
+        req.risco_alocado ||
+        req.riscoAlocado ||
+        "UNSPECIFIED"
+    ).toUpperCase();
     const isExtraordinary = req.is_extraordinary_unforeseeable ?? req.isExtraordinaryUnforeseeable;
     const isOrdinaryInflation = req.is_ordinary_inflation ?? req.isOrdinaryInflation;
-    const rawNature = (req.event_nature || req.eventNature || "").toUpperCase();
+    const rawNature = String(req.event_nature || req.eventNature || req.natureza || "").toUpperCase();
 
     const riskAllocatedToContractor =
       rawRiskTo === "CONTRACTOR" || rawRiskTo === "CONTRATADA";
