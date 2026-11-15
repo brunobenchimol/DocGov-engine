@@ -3,6 +3,8 @@
 // docgov-engine v1.6.0 — src/direct_contracting/types.ts
 // ============================================================================
 
+import type { DocumentForensicMeta } from "../types/index.ts";
+
 export type DirectContractingModality =
   | "INEXIGIBILIDADE"
   | "DISPENSA_VALOR"
@@ -22,6 +24,17 @@ export interface MarketPriceProofInput {
   unit_price?: number;
   buyer?: string;
   issue_date?: string;
+  pdf_path?: string;
+  structure_json_path?: string;
+}
+
+export interface QuotationForensicMetaInput {
+  quotation_id?: string;
+  file_name?: string;
+  supplier_name?: string;
+  structure_json_path?: string;
+  pdf_path?: string;
+  forensic_meta?: DocumentForensicMeta;
 }
 
 export interface InexigibilityDetailsInput {
@@ -70,6 +83,10 @@ export interface RawDirectContractingInput {
   inexigibility_details?: InexigibilityDetailsInput;
   dispensation_by_value_details?: DispensationByValueDetailsInput;
   state_enterprise_opportunity_details?: StateEnterpriseOpportunityDetailsInput;
+  quotations_forensic_meta?: QuotationForensicMetaInput[];
+  offered_unit_price?: number;
+  proposed_unit_price?: number;
+  unit_quantity?: number;
   // Sinônimos e flags flat de topo (Normalização Dual)
   exclusivity_certificate_valid?: boolean;
   price_proof_invoices_count?: number;
@@ -106,6 +123,8 @@ export interface DirectContractingAuditDossier {
     exclusivity_valid: boolean;
     valid_market_price_proofs_count: number;
     competition_infeasibility_proven: boolean;
+    sanitized_market_median?: number;
+    proposed_comparison_price?: number;
   };
   dispensation_summary?: {
     managing_unit_code: string;

@@ -3,6 +3,8 @@
 // docgov-engine v1.6.0 — src/bidding/types.ts
 // ============================================================================
 
+import type { DocumentForensicMeta } from "../types/index.ts";
+
 export type IctMetricType =
   | "UST"
   | "USM"
@@ -109,8 +111,74 @@ export interface ActForensicItemInput {
   execution_months?: number;
   max_plausible_monthly_capacity?: number;
   pdf_creation_date?: string;
+  pdf_mod_date?: string;
   digital_signature_date?: string;
+  pdf_author?: string;
+  pdf_creator_tool?: string;
+  pdf_producer?: string;
+  editing_software_traces?: string[];
+  act_pdf_path?: string;
+  act_structure_json_path?: string;
   is_second_copy_declared?: boolean;
+}
+
+export interface CompetingProposalMetaInput {
+  bidder_name?: string;
+  bidder_cnpj?: string;
+  proposal_file_name?: string;
+  proposal_pdf_path?: string;
+  structure_json_path?: string;
+  forensic_meta?: DocumentForensicMeta;
+}
+
+export interface AppealContextInput {
+  appeal_type?: "RAZOES" | "CONTRARRAZOES" | "DECISAO_PREGOEIRO" | string;
+  appellant_name?: string;
+  appellant_cnpj?: string;
+  counter_appellant_name?: string;
+  session_or_decision_date?: string;
+  intent_manifested_timely?: boolean;
+  declared_intent_scope?: string;
+  appeal_reasons_scope?: string;
+  reasons_filed_date?: string;
+  reasons_business_days_elapsed?: number;
+  counter_reasons_filed_date?: string;
+  counter_reasons_business_days_elapsed?: number;
+  innovation_outside_intent?: boolean;
+  reconsider_decision?: "ACOLHER" | "MANTER_E_ENCAMINHAR" | string;
+  summary_reasons?: string;
+  summary_counter_reasons?: string;
+}
+
+export interface ForensicCollusionEvaluation {
+  proposals_audited: number;
+  collusion_pairs_count: number;
+  blocking_tags: string[];
+  findings: string[];
+}
+
+export interface InexequibilityEvaluation {
+  is_engineering_or_works: boolean;
+  estimated_budget_value?: number;
+  offered_proposal_value?: number;
+  ratio_pct?: number;
+  presumed_inexequible_75: boolean;
+  requires_additional_guarantee_85: boolean;
+  additional_guarantee_amount?: number;
+  blocking_tags: string[];
+  findings: string[];
+}
+
+export interface AppealsEvaluation {
+  evaluated: boolean;
+  appeal_type: string;
+  timely_3_business_days: boolean;
+  immediate_intent_valid: boolean;
+  thematic_link_ok: boolean;
+  suspensive_effect_applicable: boolean;
+  authority_forwarding_deadline_days: number;
+  blocking_tags: string[];
+  findings: string[];
 }
 
 export interface RawBiddingProposalInput {
@@ -135,6 +203,13 @@ export interface RawBiddingProposalInput {
   technical_qualification?: TechnicalQualificationInput;
   financial_qualification?: FinancialQualificationInput;
   act_forensic_items?: ActForensicItemInput[];
+  competing_proposals_meta?: CompetingProposalMetaInput[];
+  appeal_context?: AppealContextInput;
+  estimated_budget_value?: number;
+  offered_proposal_value?: number;
+  offered_total_value?: number;
+  is_engineering_or_works?: boolean;
+  additional_guarantee_offered?: boolean;
   // Sinônimos e flags flat de topo (Normalização Dual)
   metric_type?: string;
   has_hidden_labor_dedication_trap?: boolean;
@@ -218,12 +293,19 @@ export interface BiddingProposalDossier {
   ict_execution: IctExecutionEvaluation;
   qualification: QualificationEvaluation;
   act_forensics: ActForensicEvaluation;
+  forensic_collusion?: ForensicCollusionEvaluation;
+  inexequibility_check?: InexequibilityEvaluation;
+  appeals_evaluation?: AppealsEvaluation;
   raw_context?: RawBiddingProposalInput;
   compiled_artifacts?: {
     judgment_opinion_docx_path?: string;
     judgment_opinion_pdf_path?: string;
     act_diligence_docx_path?: string;
     act_diligence_pdf_path?: string;
+    appeal_petition_docx_path?: string;
+    appeal_petition_pdf_path?: string;
+    pregoeiro_decision_docx_path?: string;
+    pregoeiro_decision_pdf_path?: string;
   };
 }
 

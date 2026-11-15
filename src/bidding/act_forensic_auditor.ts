@@ -3,11 +3,75 @@
 // docgov-engine v1.6.0 — src/bidding/act_forensic_auditor.ts
 // ============================================================================
 
+import { existsSync, readFileSync } from "node:fs";
+import type { DocumentForensicMeta } from "../types/index.ts";
+import { extractPdfPages } from "../utils/pdf.ts";
+import { detectPdfEditingSoftwareTraces } from "../utils/pdf/forensic_meta.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
 import type {
   ActForensicItemInput,
   ActForensicFinding,
   ActForensicEvaluation,
 } from "./types.ts";
+
+export async function hydrateActForensicsItems(
+  items: ActForensicItemInput[] = []
+): Promise<ActForensicItemInput[]> {
+  const hydrated: ActForensicItemInput[] = [];
+
+  for (const item of items) {
+    let meta: DocumentForensicMeta | undefined;
+
+    if (item.act_structure_json_path) {
+      try {
+        const p = resolveWorkspacePath(item.act_structure_json_path);
+        if (existsSync(p)) {
+          const parsed = JSON.parse(readFileSync(p, "utf-8"));
+          if (parsed?.forensic_meta) meta = parsed.forensic_meta as DocumentForensicMeta;
+        }
+      } catch {
+        // Ignore JSON hydration failure
+      }
+    }
+
+    if (!meta && item.act_pdf_path) {
+      try {
+        const p = resolveWorkspacePath(item.act_pdf_path);
+        if (existsSync(p)) {
+          const extraction = await extractPdfPages(readFileSync(p), {
+            skipPageInspection: true,
+            skipImageExtraction: true,
+          });
+          meta = extraction.forensic_meta;
+        }
+      } catch {
+        meta = undefined;
+      }
+    }
+
+    if (!meta) {
+      hydrated.push(item);
+      continue;
+    }
+
+    hydrated.push({
+      ...item,
+      pdf_creation_date: item.pdf_creation_date || meta.creation_date_iso || undefined,
+      pdf_mod_date: item.pdf_mod_date || meta.mod_date_iso || undefined,
+      digital_signature_date:
+        item.digital_signature_date || meta.signature_date_iso || undefined,
+      pdf_author: item.pdf_author || meta.author || undefined,
+      pdf_creator_tool: item.pdf_creator_tool || meta.creator_tool || undefined,
+      pdf_producer: item.pdf_producer || meta.producer || undefined,
+      editing_software_traces:
+        item.editing_software_traces && item.editing_software_traces.length > 0
+          ? item.editing_software_traces
+          : meta.editing_software_traces,
+    });
+  }
+
+  return hydrated;
+}
 
 function parseDateMs(iso?: string): number | null {
   if (!iso) return null;
@@ -46,7 +110,8 @@ function hasCommonQsaPartner(a: string[] = [], b: string[] = []): boolean {
 }
 
 export function auditActForensics(
-  items: ActForensicItemInput[] = []
+  items: ActForensicItemInput[] = [],
+  options: { bidderName?: string } = {}
 ): ActForensicEvaluation {
   const allTagsSet = new Set<string>();
   const findings: ActForensicFinding[] = [];
@@ -149,17 +214,62 @@ export function auditActForensics(
 
     // Vetor 7: Metadados Forenses de PDF e Assinatura Digital
     const pdfMs = parseDateMs(item.pdf_creation_date);
+    const modMs = parseDateMs(item.pdf_mod_date);
     const sigMs = parseDateMs(item.digital_signature_date);
-    const refMs = sigMs ?? pdfMs;
+    const refMs = sigMs ?? modMs ?? pdfMs;
+    const maxDiffDays = [pdfMs, modMs, sigMs]
+      .filter((d): d is number => d !== null)
+      .reduce(
+        (acc, d) =>
+          issueMs !== null
+            ? Math.max(acc, Math.abs(d - issueMs) / (1000 * 60 * 60 * 24))
+            : acc,
+        0
+      );
+
     if (issueMs !== null && refMs !== null && !item.is_second_copy_declared) {
-      const diffDays = Math.abs(refMs - issueMs) / (1000 * 60 * 60 * 24);
-      if (diffDays > 30) {
+      if (maxDiffDays > 180 || maxDiffDays > 30) {
         triggered_vectors.push("VETOR_7_METADADOS_PDF");
         itemTags.push("[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]");
         details.push(
-          `Vetor 7 (Metadados PDF/Assinatura): Divergência de ${Math.round(diffDays)} dias entre a data declarada no ACT (${item.act_issue_date}) e a assinatura/criação do PDF sem ressalva de 2ª via.`
+          `Vetor 7 (Metadados PDF/Assinatura): Divergência de ${Math.round(
+            maxDiffDays
+          )} dias entre a data declarada no ACT (${item.act_issue_date}) e a modificação/assinatura/criação do PDF sem ressalva de 2ª via.`
         );
       }
+    }
+
+    // Colisão de Author do PDF do ACT com o nome do próprio licitante
+    if (item.pdf_author && options.bidderName) {
+      const authorNorm = tokenizeNormalized(item.pdf_author);
+      const bidderNorm = tokenizeNormalized(options.bidderName);
+      if (authorNorm.some((t) => bidderNorm.includes(t))) {
+        triggered_vectors.push("VETOR_7_METADADOS_PDF");
+        if (!itemTags.includes("[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]")) {
+          itemTags.push("[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]");
+        }
+        details.push(
+          `Vetor 7 (Autoria Suspeita no ACT): Metadado 'Author' do PDF ('${item.pdf_author}') coincide com a licitante proponente ('${options.bidderName}').`
+        );
+      }
+    }
+
+    // Rastro de editor manipulador (Canva, iLovePDF, Sejda, etc.)
+    const traces =
+      item.editing_software_traces && item.editing_software_traces.length > 0
+        ? item.editing_software_traces
+        : detectPdfEditingSoftwareTraces(
+            item.pdf_creator_tool || null,
+            item.pdf_producer || null
+          );
+    if (traces.length > 0) {
+      triggered_vectors.push("VETOR_7_SOFTWARES_EDICAO");
+      itemTags.push("[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]");
+      details.push(
+        `Vetor 7 (Software de Edição no ACT): Rastro de manipulação detectado nos metadados do atestado (${traces.join(
+          ", "
+        )}).`
+      );
     }
 
     itemTags.forEach((t) => allTagsSet.add(t));

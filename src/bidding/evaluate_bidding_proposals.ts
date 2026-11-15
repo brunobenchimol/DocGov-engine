@@ -11,7 +11,13 @@ import { safeReadJsonFile } from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { evaluateIctExecutionAndExequibility } from "./ict_execution_models.ts";
 import { evaluateQualification } from "./qualification_evaluator.ts";
-import { auditActForensics } from "./act_forensic_auditor.ts";
+import {
+  auditActForensics,
+  hydrateActForensicsItems,
+} from "./act_forensic_auditor.ts";
+import { auditCompetingProposalsCollusion } from "./forensic_collusion_auditor.ts";
+import { evaluateProposalInexequibility } from "./inexequibility_evaluator.ts";
+import { evaluateAdministrativeAppeal } from "./appeals_evaluator.ts";
 import { compileBiddingArtifacts } from "./bidding_docx_compiler.ts";
 import type {
   RawBiddingProposalInput,
@@ -132,17 +138,32 @@ export async function evaluateBiddingProposals(
 
   const ictRes = evaluateIctExecutionAndExequibility(raw);
   const qualRes = evaluateQualification(raw);
-  const actRes = auditActForensics(raw.act_forensic_items || []);
+  const hydratedActs = await hydrateActForensicsItems(raw.act_forensic_items || []);
+  const actRes = auditActForensics(hydratedActs, { bidderName });
+  const collusionRes = await auditCompetingProposalsCollusion(
+    raw.competing_proposals_meta || []
+  );
+  const inexRes = evaluateProposalInexequibility(raw);
+  const appealsRes = evaluateAdministrativeAppeal(raw.appeal_context);
 
   const tagsSet = new Set<string>([
     ...ictRes.blocking_tags,
     ...qualRes.blocking_tags,
     ...actRes.blocking_tags,
+    ...collusionRes.blocking_tags,
+    ...inexRes.blocking_tags,
+    ...appealsRes.blocking_tags,
   ]);
   const blocking_tags = Array.from(tagsSet);
 
   let decision: BiddingProposalDossier["decision"] = "APPROVED";
-  if (blocking_tags.includes("[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]") || actRes.total_alerts > 0) {
+  if (
+    blocking_tags.includes("[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]") ||
+    blocking_tags.includes("[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]") ||
+    blocking_tags.includes("[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]") ||
+    actRes.total_alerts > 0 ||
+    collusionRes.blocking_tags.length > 0
+  ) {
     decision = "DILIGENCE_REQUIRED";
   }
   if (
@@ -150,7 +171,10 @@ export async function evaluateBiddingProposals(
     !ictRes.metric_compliance_ok ||
     !qualRes.tech_rules_ok ||
     !qualRes.financial_rules_ok ||
-    blocking_tags.includes("[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]")
+    blocking_tags.includes("[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]") ||
+    blocking_tags.includes("[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]") ||
+    blocking_tags.includes("[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]") ||
+    blocking_tags.includes("[APPEAL_THEMATIC_INNOVATION_OUTSIDE_INTENT_BLOCK]")
   ) {
     decision = "REJECTED";
   }
@@ -192,6 +216,9 @@ export async function evaluateBiddingProposals(
     ict_execution: ictRes,
     qualification: qualRes,
     act_forensics: actRes,
+    ...(collusionRes.proposals_audited > 0 ? { forensic_collusion: collusionRes } : {}),
+    ...(inexRes.estimated_budget_value ? { inexequibility_check: inexRes } : {}),
+    ...(appealsRes.evaluated ? { appeals_evaluation: appealsRes } : {}),
     raw_context: raw,
   };
 

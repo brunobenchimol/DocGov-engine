@@ -6,7 +6,13 @@
 export * from "./types.ts";
 export { evaluateIctExecutionAndExequibility } from "./ict_execution_models.ts";
 export { evaluateQualification } from "./qualification_evaluator.ts";
-export { auditActForensics } from "./act_forensic_auditor.ts";
+export {
+  auditActForensics,
+  hydrateActForensicsItems,
+} from "./act_forensic_auditor.ts";
+export { auditCompetingProposalsCollusion } from "./forensic_collusion_auditor.ts";
+export { evaluateProposalInexequibility } from "./inexequibility_evaluator.ts";
+export { evaluateAdministrativeAppeal } from "./appeals_evaluator.ts";
 export { compileBiddingArtifacts } from "./bidding_docx_compiler.ts";
 export {
   evaluateBiddingProposals,

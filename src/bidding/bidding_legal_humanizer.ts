@@ -334,9 +334,47 @@ export function describeBiddingTagLegalProse(
         legalBasis: is13303
           ? "Art. 56, § 2º da Lei nº 13.303/2016 e MP nº 2.200-2/2001"
           : "Art. 64 e Art. 155, VIII da Lei nº 14.133/2021 e MP nº 2.200-2/2001",
-        factualAnalysis: `Identificada em ${affectedActs} discrepância superior a 30 (trinta) dias entre a data de emissão impressa no documento e a data de criação do PDF ou da assinatura eletrônica, sem ressalva expressa de segunda via.`,
+        factualAnalysis: `Identificada em ${affectedActs} discrepância cronológica nos metadados do arquivo PDF/assinatura digital ou coincidência com a proponente, sem ressalva expressa de segunda via.`,
         recommendation:
           "Intimar emissor e licitante a apresentarem o documento nato-digital original assinado à época ou comprovação documental de reemissão legítima.",
+      };
+    case "[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]":
+      return {
+        title: "Indício de Manipulação Documental por Software de Edição Externa em ACT",
+        legalBasis: "Art. 64 e Art. 155, VIII da Lei nº 14.133/2021; Arts. 299 e 337-I do Código Penal",
+        factualAnalysis: `Detectado rastro de editor gráfico/PDF externo (como Canva, iLovePDF ou Sejda) em ${affectedActs}, suscitando diligência de autenticidade.`,
+        recommendation:
+          "Exigir apresentação das notas fiscais eletrônicas originárias, contrato original e verificação direta junto ao emissor.",
+      };
+    case "[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]":
+      return {
+        title: "Alerta Forense de Possível Conluio entre Propostas Concorrentes por Metadados Compartilhados",
+        legalBasis: "Art. 5º e Art. 155, IX da Lei nº 14.133/2021; Súmulas e Acórdãos do TCU sobre Fraude à Licitação",
+        factualAnalysis:
+          "Identificada coincidência de autoria (Author/LastModifiedBy) ou criação temporal quase simultânea (<= 120s) com ferramenta comum entre arquivos de propostas supostamente independentes.",
+        recommendation:
+          "Submeter à diligência apuratória e avaliar abertura de processo de apuração de responsabilidade / remessa aos órgãos de controle.",
+      };
+    case "[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]":
+    case "[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]":
+      return {
+        title: "Controle de Exequibilidade (75%) e Garantia Adicional (85%) em Obras e Engenharia",
+        legalBasis: "Art. 59, §§ 4º e 5º da Lei nº 14.133/2021 e Súmula TCU nº 262",
+        factualAnalysis:
+          "Oferta situada abaixo dos limiares objetivos de 75% (presunção relativa de inexequibilidade com diligência obrigatória) ou 85% (exigência de garantia adicional pela diferença).",
+        recommendation:
+          "Abrir diligência de exequibilidade antes de qualquer desclassificação e condicionar a contratação à prestação da garantia adicional devida.",
+      };
+    case "[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]":
+    case "[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]":
+    case "[APPEAL_THEMATIC_INNOVATION_OUTSIDE_INTENT_BLOCK]":
+      return {
+        title: "Óbice Formal de Admissibilidade Recursal (Art. 165 da Lei 14.133/2021)",
+        legalBasis: "Art. 165, I, § 1º, I e § 4º da Lei nº 14.133/2021",
+        factualAnalysis:
+          "Constatada preclusão de intenção imediata, intempestividade (> 3 dias úteis) ou inovação temática estranha aos motivos registrados na sessão pública.",
+        recommendation:
+          "Não conhecer da irresignação recursal em sede de juízo de admissibilidade motivado.",
       };
     default:
       return {

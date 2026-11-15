@@ -8,6 +8,54 @@ import type {
   DirectContractingModality,
   DirectContractingAuditDossier,
 } from "./types.ts";
+import { detectCrossDocumentForensicCollisions } from "../utils/pdf/forensic_cross_audit.ts";
+
+function computeSanitizedMedian(values: number[]): number | undefined {
+  const valid = values
+    .filter((v) => Number.isFinite(v) && v > 0)
+    .sort((a, b) => a - b);
+  if (valid.length === 0) return undefined;
+
+  const medianOf = (arr: number[]) => {
+    const mid = Math.floor(arr.length / 2);
+    return arr.length % 2 === 0 ? (arr[mid - 1] + arr[mid]) / 2 : arr[mid];
+  };
+
+  const rawMedian = medianOf(valid);
+  const filtered =
+    valid.length >= 3
+      ? valid.filter((v) => v >= rawMedian * 0.5 && v <= rawMedian * 1.5)
+      : valid;
+  const effective = filtered.length > 0 ? filtered : valid;
+  return Math.round(medianOf(effective) * 100) / 100;
+}
+
+function checkQuotationForensicSimulation(
+  raw: RawDirectContractingInput,
+  blocking_tags: string[],
+  findings: string[]
+): void {
+  const quotes = raw.quotations_forensic_meta || [];
+  if (quotes.length < 2) return;
+
+  const collisions = detectCrossDocumentForensicCollisions(
+    quotes.map((q, idx) => ({
+      fileName: q.file_name || q.supplier_name || q.quotation_id || `cotacao_${idx + 1}.pdf`,
+      forensicMeta: q.forensic_meta,
+    }))
+  );
+
+  if (collisions.length > 0) {
+    if (!blocking_tags.includes("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]")) {
+      blocking_tags.push("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
+    }
+    for (const col of collisions) {
+      findings.push(
+        `Simulação fraudulenta na pesquisa de preços detectada por colisão de metadados: ${col.reason}`
+      );
+    }
+  }
+}
 
 export function normalizeDirectModality(raw: RawDirectContractingInput): DirectContractingModality {
   const val = String(raw.contracting_modality || raw.modality || "INEXIGIBILIDADE")
@@ -51,6 +99,8 @@ export function evaluateDirectContractingRules(raw: RawDirectContractingInput): 
   const blocking_tags: string[] = [];
   const findings: string[] = [];
 
+  checkQuotationForensicSimulation(raw, blocking_tags, findings);
+
   if (modality === "INEXIGIBILIDADE") {
     const inex = raw.inexigibility_details || {};
     const cert = inex.exclusivity_certificate || {};
@@ -93,6 +143,44 @@ export function evaluateDirectContractingRules(raw: RawDirectContractingInput): 
       );
     }
 
+    const proofPrices = (inex.supplier_market_price_proofs || [])
+      .map((p) => Number(p.unit_price))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    const sanitizedMedian = computeSanitizedMedian(proofPrices);
+
+    const qty = Number(raw.unit_quantity || 0);
+    const rawProposed =
+      raw.offered_unit_price ??
+      raw.proposed_unit_price ??
+      raw.unit_price ??
+      (raw.contracted_amount ?? raw.contracted_Amount);
+    const comparisonPrice =
+      raw.offered_unit_price !== undefined ||
+      raw.proposed_unit_price !== undefined ||
+      raw.unit_price !== undefined
+        ? Number(rawProposed)
+        : rawProposed !== undefined && qty > 0
+          ? Number(rawProposed) / qty
+          : rawProposed !== undefined
+            ? Number(rawProposed)
+            : undefined;
+
+    if (
+      sanitizedMedian !== undefined &&
+      comparisonPrice !== undefined &&
+      Number.isFinite(comparisonPrice) &&
+      comparisonPrice > sanitizedMedian * 1.0001
+    ) {
+      blocking_tags.push("[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]");
+      findings.push(
+        `Sobrepreço detectado na Inexigibilidade: valor proposto (R$ ${comparisonPrice.toFixed(
+          2
+        )}) excede a mediana saneada das NFs/contratos do próprio fornecedor (R$ ${sanitizedMedian.toFixed(
+          2
+        )}) (Art. 23, § 4º da Lei 14.133/2021).`
+      );
+    }
+
     return {
       modality,
       legal_regime: legalRegime,
@@ -102,6 +190,10 @@ export function evaluateDirectContractingRules(raw: RawDirectContractingInput): 
         exclusivity_valid: !certInvalid,
         valid_market_price_proofs_count: proofsCount,
         competition_infeasibility_proven: competitionProven,
+        ...(sanitizedMedian !== undefined ? { sanitized_market_median: sanitizedMedian } : {}),
+        ...(comparisonPrice !== undefined && Number.isFinite(comparisonPrice)
+          ? { proposed_comparison_price: Math.round(comparisonPrice * 100) / 100 }
+          : {}),
       },
     };
   }

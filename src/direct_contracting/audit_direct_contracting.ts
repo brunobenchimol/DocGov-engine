@@ -4,10 +4,13 @@
 // Ferramenta MCP: docgov_audit_direct_contracting | CLI: audit-direct-contracting
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join, basename, relative } from "node:path";
 import { VERSION } from "../constants/index.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
+import { extractPdfPages } from "../utils/pdf.ts";
+import { extractDocxForensicMetaFromBuffer } from "../utils/pdf/docx_forensic_meta.ts";
+import type { DocumentForensicMeta } from "../types/index.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { evaluateDirectContractingRules } from "./direct_contracting_auditor.ts";
 import { compileDirectContractingOpinion } from "./direct_contracting_compiler.ts";
@@ -107,6 +110,45 @@ export async function auditDirectContracting(
     raw = (safeReadJsonFile(sourceFilePath) || {}) as RawDirectContractingInput;
   } else {
     raw = inputOrPath || {};
+  }
+
+  if (Array.isArray(raw.quotations_forensic_meta) && raw.quotations_forensic_meta.length > 0) {
+    const hydratedQuotes = [];
+    for (const q of raw.quotations_forensic_meta) {
+      let meta: DocumentForensicMeta | undefined = q.forensic_meta;
+      if (!meta && q.structure_json_path) {
+        try {
+          const p = resolveWorkspacePath(q.structure_json_path);
+          if (existsSync(p)) {
+            const parsed = JSON.parse(readFileSync(p, "utf-8"));
+            if (parsed?.forensic_meta) meta = parsed.forensic_meta;
+          }
+        } catch {
+          // ignore
+        }
+      }
+      if (!meta && q.pdf_path) {
+        try {
+          const p = resolveWorkspacePath(q.pdf_path);
+          if (existsSync(p)) {
+            const buf = readFileSync(p);
+            if (p.toLowerCase().endsWith(".docx")) {
+              meta = await extractDocxForensicMetaFromBuffer(buf);
+            } else {
+              const ex = await extractPdfPages(buf, {
+                skipPageInspection: true,
+                skipImageExtraction: true,
+              });
+              meta = ex.forensic_meta;
+            }
+          }
+        } catch {
+          meta = undefined;
+        }
+      }
+      hydratedQuotes.push({ ...q, ...(meta ? { forensic_meta: meta } : {}) });
+    }
+    raw = { ...raw, quotations_forensic_meta: hydratedQuotes };
   }
 
   const processId = raw.process_id || "PROC-DIRETA-GENERICO";
