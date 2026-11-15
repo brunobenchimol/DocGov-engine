@@ -90,7 +90,11 @@ export function buildAppealPetitionXmlParts(
       "info"
     )
   );
-  parts.push(pSignatureBlock("Representante / Peticionário", dossier.bidder_name));
+  parts.push(
+    ...pSignatureBlock([
+      `Representante / Peticionário — ${dossier.bidder_name || appealCtx?.appellant_name || "Licitante"}`,
+    ])
+  );
 
   return parts;
 }
@@ -159,7 +163,11 @@ export function buildPregoeiroDecisionXmlParts(
       admissible ? "warn" : "danger"
     )
   );
-  parts.push(pSignatureBlock("Agente de Contratação / Pregoeiro", "ORGAO_CONTRATANTE"));
+  parts.push(
+    ...pSignatureBlock([
+      `Agente de Contratação / Pregoeiro — ${dossier.raw_context?.contracting_agency || "ORGAO_CONTRATANTE"}`,
+    ])
+  );
 
   return parts;
 }

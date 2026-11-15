@@ -116,11 +116,15 @@ export function buildTableXml(
   return `<w:tbl><w:tblPr><w:tblW w:w="${totalWidth}" w:type="dxa"/><w:tblBorders><w:top w:val="single" w:sz="6" w:color="94A3B8"/><w:left w:val="single" w:sz="6" w:color="94A3B8"/><w:bottom w:val="single" w:sz="8" w:color="1E3A8A"/><w:right w:val="single" w:sz="6" w:color="94A3B8"/><w:insideH w:val="single" w:sz="4" w:color="CBD5E1"/><w:insideV w:val="single" w:sz="4" w:color="CBD5E1"/></w:tblBorders></w:tblPr><w:tblGrid>${grid}</w:tblGrid>${headerRow}${bodyRows}</w:tbl>`;
 }
 
-export function pSignatureBlock(signatories: string[]): string[] {
+export function pSignatureBlock(signatories: string[] | string): string[] {
+  const normalizedSigners = (Array.isArray(signatories) ? signatories : [String(signatories || "")])
+    .flat()
+    .map((s) => String(s || "").trim())
+    .filter(Boolean);
   const parts: string[] = [
     `<w:p><w:pPr><w:spacing w:before="280" w:after="180"/><w:jc w:val="right"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="334155"/></w:rPr><w:t>MUNICIPIO_GENERICO, ____ de __________________ de ________.</w:t></w:r></w:p>`,
   ];
-  for (const sig of signatories) {
+  for (const sig of normalizedSigners) {
     parts.push(
       `<w:p><w:pPr><w:spacing w:before="260" w:after="20"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="20"/><w:szCs w:val="20"/><w:color w:val="1F2937"/></w:rPr><w:t>______________________________________________________________</w:t></w:r></w:p>`,
       `<w:p><w:pPr><w:spacing w:before="0" w:after="100"/><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="19"/><w:szCs w:val="19"/><w:color w:val="0F172A"/></w:rPr><w:t>${esc(cleanHumanText(sig))}</w:t></w:r></w:p>`
@@ -130,13 +134,13 @@ export function pSignatureBlock(signatories: string[]): string[] {
 }
 
 export async function emitDocxAndPdf(
-  bodyParts: string[],
+  bodyParts: Array<string | string[]>,
   outPath: string,
   outputFormat: "docx" | "pdf" | "both"
 ): Promise<{ docx_path?: string; pdf_path?: string }> {
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-  <w:body>${bodyParts.join("\n")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1418"/></w:sectPr></w:body>
+  <w:body>${bodyParts.flat().join("\n")}<w:sectPr><w:pgSz w:w="11906" w:h="16838"/><w:pgMar w:top="1134" w:right="1134" w:bottom="1134" w:left="1418"/></w:sectPr></w:body>
 </w:document>`;
 
   const parser = new DOMParser();

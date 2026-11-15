@@ -450,5 +450,22 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
     expect(existsSync(appealRes.dossier.compiled_artifacts?.appeal_petition_pdf_path!)).toBe(true);
     expect(existsSync(appealRes.dossier.compiled_artifacts?.pregoeiro_decision_docx_path!)).toBe(true);
     expect(existsSync(appealRes.dossier.compiled_artifacts?.pregoeiro_decision_pdf_path!)).toBe(true);
+
+    // Regressão v1.6.2 hotfix: bloco de assinatura sem iteração de caracteres nem </w:p>,<w:p>
+    const appealZip = await JSZip.loadAsync(
+      readFileSync(appealRes.dossier.compiled_artifacts!.appeal_petition_docx_path!)
+    );
+    const appealXml = await appealZip.file("word/document.xml")!.async("string");
+    expect(appealXml).not.toContain("</w:p>,<w:p>");
+    expect(appealXml).toContain("Representante / Peticionário — RECORRENTE_GENERICA</w:t>");
+    expect((appealXml.match(/______________________________________________________________/g) || []).length).toBe(1);
+
+    const decisionZip = await JSZip.loadAsync(
+      readFileSync(appealRes.dossier.compiled_artifacts!.pregoeiro_decision_docx_path!)
+    );
+    const decisionXml = await decisionZip.file("word/document.xml")!.async("string");
+    expect(decisionXml).not.toContain("</w:p>,<w:p>");
+    expect(decisionXml).toContain("Agente de Contratação / Pregoeiro — ORGAO_CONTRATANTE</w:t>");
+    expect((decisionXml.match(/______________________________________________________________/g) || []).length).toBe(1);
   }, 20000);
 });
