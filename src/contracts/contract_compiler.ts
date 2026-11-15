@@ -11,6 +11,20 @@ import { DOMParser, XMLSerializer } from "@xmldom/xmldom";
 import { sanitizeXmlString } from "../utils/xml.ts";
 import { convertDocxToPdf, resolveOutputPaths, safeUnlink } from "../utils/pdf_exporter.ts";
 import { cleanHumanText } from "../tools/audit.ts";
+import {
+  isLei13303Regime,
+  humanizeLegalRegime,
+  humanizeShortRegime,
+  humanizeObjectType,
+  humanizeAuditStatus,
+  humanizeContractingEntity,
+  humanizeSanctionType,
+  humanizeSanctionScope,
+  humanizePriceBasketMethod,
+  describeBlockingTagLegalProse,
+  buildFederativeTableRows,
+  buildDosimetryTableRows,
+} from "./contract_humanizer.ts";
 import type { ContractAuditReport } from "./types.ts";
 
 function escapeXml(value: unknown): string {
@@ -76,8 +90,8 @@ async function packageDocxZip(documentXml: string): Promise<Buffer> {
 }
 
 function pHeading(text: string, level = 1): string {
-  const sz = level === 1 ? "30" : "24";
-  const spaceBefore = level === 1 ? "320" : "220";
+  const sz = level === 1 ? "30" : level === 2 ? "24" : "22";
+  const spaceBefore = level === 1 ? "320" : level === 2 ? "220" : "180";
   return `<w:p>
     <w:pPr><w:spacing w:before="${spaceBefore}" w:after="120" w:line="276" w:lineRule="auto"/><w:jc w:val="left"/></w:pPr>
     <w:r><w:rPr><w:b/><w:sz w:val="${sz}"/><w:szCs w:val="${sz}"/><w:color w:val="1E3A8A"/></w:rPr><w:t>${escapeXml(text)}</w:t></w:r>
@@ -145,98 +159,35 @@ function pSimpleTable(headers: string[], rows: string[][]): string {
 
 function buildFederativeAndDosimetryXmlSections(report: ContractAuditReport): string[] {
   const parts: string[] = [];
-  const pasList = report.pas_sanctions_analysis?.processes || [];
-  const defaultCourt = report.pas_sanctions_analysis?.competent_audit_court || "TCU";
 
-  parts.push(pHeading("Quadro de Enquadramento Jurisdicional e Federativo (Remessa CEIS / CNEP / PNCP)", 2));
+  parts.push(pHeading("Quadro de Enquadramento Jurisdicional e Federativo (Remessa CEIS / CNEP / PNCP)", 3));
   parts.push(
     pBody(
-      "Enquadramento Federativo e Jurisdicional quanto ao alcance territorial, autoridade competente e remessa obrigatória aos cadastros de controle externo (CEIS, CNEP, PNCP e Corte de Contas competente)."
+      "Enquadramento federativo e jurisdicional quanto ao alcance territorial da sanção, à competência legal da autoridade signatária, à existência de parecer jurídico conclusivo e à remessa obrigatória aos cadastros de controle externo (CEIS, CNEP, PNCP e Corte de Contas competente)."
     )
   );
-
-  const fedRows: string[][] =
-    pasList.length > 0
-      ? pasList.map((p) => {
-          const f = p.federative_adequacy;
-          const court = f?.competent_audit_court || p.competent_audit_court || defaultCourt;
-          const sphereLabel = f
-            ? `${f.sphere}${f.uf ? `/${f.uf}` : ""}${f.municipality ? ` (${f.municipality})` : f.sphere === "MUNICIPAL" ? " (MUNICIPIO_GENERICO)" : ""}`
-            : `FEDERAL (ORGAO_CONTRATANTE)`;
-          const scopeStatus = f
-            ? `${f.sanction_scope_claimed || p.recommended_scope} | Território=${f.territorial_scope_ok ? "CONFORME" : "BLOQUEADO"} | Estatal=${f.state_enterprise_regime_ok ? "CONFORME" : "BLOQUEADO"}`
-            : p.recommended_scope;
-          const authStatus = f
-            ? `${f.signing_authority_role || "N/A"} | Comp=${f.authority_competent_ok ? "OK" : "BLOQ"} | Parecer=${f.conclusive_legal_opinion_ok ? "OK" : "AUSENTE"}`
-            : "N/A";
-          const regStatus = f
-            ? `Obrigatórios: CEIS, CNEP, PNCP, ${court} | Status=${f.registries_ok ? "COMANDADOS" : `OMISSÃO (${f.missing_registries.join(", ")})`}`
-            : `CEIS, CNEP, PNCP, ${court}`;
-          return [p.process_id, `${sphereLabel} / ${f?.legal_regime || report.legal_regime}`, court, `${scopeStatus} | Autoridade: ${authStatus}`, regStatus];
-        })
-      : [
-          [
-            "PAS-PADRAO",
-            `ORGAO_CONTRATANTE / ${report.legal_regime}`,
-            defaultCourt,
-            "Alcance restrito ao ente sancionador (Art. 156 § 4º)",
-            `CEIS, CNEP, PNCP, ${defaultCourt}`,
-          ],
-        ];
-
   parts.push(
     pSimpleTable(
-      ["Processo", "Esfera / Regime", "Corte Competente", "Alcance Territorial & Autoridade", "Remessa Obrigatória"],
-      fedRows
+      ["Processo", "Esfera e Regime Jurídico", "Corte Competente", "Alcance Territorial, Autoridade e Parecer", "Cadastros e Controle Externo"],
+      buildFederativeTableRows(report)
     )
   );
 
   parts.push(
     pHeading(
       "Quadro de Calibragem Jurisprudencial da Dosimetria (Art. 156, § 1º da Lei nº 14.133/2021 e Art. 22, §§ 2º e 3º da LINDB)",
-      2
+      3
     )
   );
   parts.push(
     pBody(
-      "Análise de calibragem da sanção à luz dos precedentes da Corte de Contas e dos vetores da LINDB Art. 22 §§ 2º e 3º e Art. 156 § 1º da Lei nº 14.133/2021 (natureza, gravidade, danos, primariedade, atenuantes e agravantes comprovadas)."
+      "Análise de calibragem e proporcionalidade da sanção proposta à luz dos precedentes da Corte de Contas competente e dos vetores previstos no Art. 22, §§ 2º e 3º da LINDB e no Art. 156, § 1º da Lei nº 14.133/2021 (natureza e gravidade da infração, danos comprovados, antecedentes do contratado, atenuantes e agravantes comprovadas)."
     )
   );
-
-  const dosRows: string[][] =
-    pasList.length > 0
-      ? pasList.map((p) => {
-          const d = p.dosimetry_calibration;
-          const precedents =
-            d && d.precedent_ids.length > 0 ? d.precedent_ids.join(", ") : "Sem precedente formal";
-          const faixa =
-            d?.benchmark_range_pct
-              ? `${d.benchmark_range_pct[0]}% a ${d.benchmark_range_pct[1]}% (Mediana ${d.benchmark_median_pct ?? "N/A"}%)`
-              : d?.benchmark_median_pct !== undefined
-                ? `Mediana ${d.benchmark_median_pct}%`
-                : "Não parametrizada";
-          const vectors = d
-            ? `Precedentes=${d.calibrated_with_precedents ? "OK" : "AUSENTE"} | LINDB Art. 22=${d.lindb_art22_vectors_weighed ? "PONDERADA" : "OMITIDA"}`
-            : "LINDB Art. 22 / Art. 156 § 1º";
-          const diag = d
-            ? `Agravantes=${d.aggravating_factors_proven ? "COMPROVADAS" : "NÃO COMPROVADAS"} | ${d.outlier_detected ? "OUTLIER DESPROPORCIONAL" : "PROPORCIONAL"}`
-            : "PROPORCIONAL";
-          return [p.process_id, p.fine_pct !== undefined ? `${p.fine_pct}%` : p.recommended_sanction, precedents, faixa, `${vectors} | ${diag}`];
-        })
-      : [
-          [
-            "PAS-PADRAO",
-            "N/A",
-            "Precedentes da Corte de Contas",
-            "Faixa proporcional (Art. 156 § 1º)",
-            "LINDB Art. 22 ponderada | Conforme",
-          ],
-        ];
-
   parts.push(
     pSimpleTable(
-      ["Processo", "Penalidade", "Precedentes de Referência", "Faixa / Mediana", "LINDB Art. 22 & Proporcionalidade"],
-      dosRows
+      ["Processo", "Penalidade Proposta", "Precedentes de Referência", "Faixa / Mediana Referencial", "LINDB Art. 22 e Diagnóstico de Proporcionalidade"],
+      buildDosimetryTableRows(report)
     )
   );
 
@@ -273,29 +224,85 @@ export async function compilePasNotificationDocx(
   outputPath: string,
   options: { outputFormat?: "docx" | "pdf" | "both" } = {}
 ): Promise<{ docx_path?: string; pdf_path?: string }> {
+  const is13303 = isLei13303Regime(report.legal_regime);
   const parts: string[] = [];
-  parts.push(pHeading("NOTIFICAÇÃO PRÉVIA DE DESCUMPRIMENTO CONTRATUAL E INSTAURAÇÃO DE PAS", 1));
-  parts.push(pBody(`Entidade Contratante: ORGAO_CONTRATANTE | Contrato: ${report.contract_id}`, true));
-  parts.push(pBody(`Regime Jurídico: ${report.legal_regime} | Tipo de Objeto: ${report.object_type}`));
+  parts.push(
+    pHeading(
+      "NOTIFICAÇÃO PRÉVIA DE DESCUMPRIMENTO CONTRATUAL E INSTAURAÇÃO DE PROCESSO ADMINISTRATIVO SANCIONADOR (PAS)",
+      1
+    )
+  );
+  parts.push(
+    pBody(
+      `Entidade Contratante: ${humanizeContractingEntity()} | Instrumento Contratual: ${report.contract_id}`,
+      true
+    )
+  );
+  parts.push(
+    pBody(
+      `Regime Jurídico Aplicável: ${humanizeLegalRegime(report.legal_regime)} | Natureza do Objeto: ${humanizeObjectType(report.object_type)}`
+    )
+  );
+  parts.push(pBody(`Situação da Auditoria Técnica: ${humanizeAuditStatus(report.status)}`, true));
 
-  parts.push(pHeading("1. Fatos e Apontamentos Determinísticos Detectados", 2));
-  if (report.blocking_tags.length > 0) {
-    report.blocking_tags.forEach((tag) => parts.push(pCallout("APONTAMENTO CRÍTICO", tag, true)));
-  } else {
-    parts.push(pBody("Registro preventivo de ocorrência contratual para apuração formal em Processo Administrativo Sancionador."));
-  }
-
+  parts.push(pHeading("1. Síntese Fática e Fundamentação Jurídica dos Apontamentos Detectados", 2));
   const pasList = report.pas_sanctions_analysis?.processes || [];
   pasList.forEach((p) => {
-    parts.push(pBody(`• Processo ${p.process_id}: Sanção sugerida=${p.recommended_sanction} | Escopo=${p.recommended_scope}${p.justification ? ` | Obs: ${p.justification}` : ""}`));
+    const fineTxt = p.fine_pct !== undefined ? ` com alíquota proposta de ${p.fine_pct}%` : "";
+    const obsTxt = p.justification ? ` Síntese da instrução: ${p.justification}.` : "";
+    parts.push(
+      pBody(
+        `• Processo ${p.process_id}: Penalidade enquadrada como ${humanizeSanctionType(p.recommended_sanction)}, com alcance ${humanizeSanctionScope(p.recommended_scope)}${fineTxt}.${obsTxt}`
+      )
+    );
   });
 
-  parts.push(pHeading("2. Contraditório e Ampla Defesa (Arts. 157 e 158 da Lei nº 14.133/2021)", 2));
-  parts.push(pBody("Fica a Contratada formalmente notificada para apresentação de Defesa Prévia / Alegações Finais no prazo legal mínimo de 15 (quinze) dias úteis, assegurado acesso integral aos autos."));
+  if (report.blocking_tags.length > 0) {
+    report.blocking_tags.forEach((tag, idx) => {
+      const prose = describeBlockingTagLegalProse(tag, idx + 1, is13303);
+      parts.push(pCallout(prose.title, prose.body, true));
+    });
+  } else {
+    parts.push(
+      pBody(
+        "Registro preventivo de ocorrência contratual para apuração formal em Processo Administrativo Sancionador, sem óbices preliminares impeditivos detectados na instrução."
+      )
+    );
+  }
 
-  parts.push(pHeading("3. Comunicação à Seguradora e Garantias (Art. 102)", 2));
-  parts.push(pBody("Havendo apólice de Seguro-Garantia vigente, expeça-se comunicação formal concomitante à Seguradora sobre a expectativa de sinistro e abertura do PAS."));
+  parts.push(
+    pHeading(
+      is13303
+        ? "2. Garantia ao Contraditório e Ampla Defesa (Arts. 82 a 84 da Lei nº 13.303/2016 e RILC c/c Arts. 157 e 158 da Lei nº 14.133/2021)"
+        : "2. Garantia ao Contraditório e Ampla Defesa (Arts. 157 e 158 da Lei nº 14.133/2021)",
+      2
+    )
+  );
+  parts.push(
+    pBody(
+      is13303
+        ? "Em observância ao devido processo legal administrativo (Art. 5º, LV da CRFB/88), ao disposto nos Arts. 82 a 84 da Lei Federal nº 13.303/2016 e ao Regulamento Interno de Licitações e Contratos (RILC), em consonância com o parâmetro mínimo de 15 (quinze) dias úteis previsto nos Arts. 157 e 158 da Lei nº 14.133/2021, fica a Contratada formalmente notificada para apresentar Defesa Prévia e produzir provas, assegurado acesso integral aos autos."
+        : "Em observância ao devido processo legal administrativo (Art. 5º, LV da CRFB/88) e aos Arts. 157 e 158 da Lei Federal nº 14.133/2021, fica a Contratada formalmente notificada para apresentação de Defesa Prévia e eventuais Alegações Finais no prazo legal mínimo de 15 (quinze) dias úteis, assegurado acesso integral aos autos."
+    )
+  );
 
+  parts.push(
+    pHeading(
+      is13303
+        ? "3. Comunicação à Seguradora e Execução de Garantias (Art. 70 da Lei nº 13.303/2016 c/c Art. 102 da Lei nº 14.133/2021)"
+        : "3. Comunicação à Seguradora e Execução de Garantias (Art. 102 da Lei nº 14.133/2021)",
+      2
+    )
+  );
+  parts.push(
+    pBody(
+      is13303
+        ? "Havendo apólice de Seguro-Garantia vigente nos termos do Art. 70 da Lei Federal nº 13.303/2016 (em simetria ao Art. 102 da Lei nº 14.133/2021), expeça-se comunicação formal concomitante à sociedade seguradora sobre a expectativa de sinistro e a instauração do processo apuratório."
+        : "Havendo apólice de Seguro-Garantia vigente nos termos do Art. 102 da Lei Federal nº 14.133/2021, expeça-se comunicação formal concomitante à companhia seguradora sobre a expectativa de sinistro e a abertura do Processo Administrativo Sancionador."
+    )
+  );
+
+  parts.push(pHeading("4. Enquadramento Jurisdicional, Cadastros Obrigatórios e Calibragem da Dosimetria", 2));
   parts.push(...buildFederativeAndDosimetryXmlSections(report));
 
   return emitCompiledDocument(parts, outputPath, options.outputFormat || "both");
@@ -306,36 +313,88 @@ export async function compileSanctionDosimetryOpinionDocx(
   outputPath: string,
   options: { outputFormat?: "docx" | "pdf" | "both" } = {}
 ): Promise<{ docx_path?: string; pdf_path?: string }> {
+  const is13303 = isLei13303Regime(report.legal_regime);
   const parts: string[] = [];
-  parts.push(pHeading("PARECER DE DOSIMETRIA DE SANÇÃO ADMINISTRATIVA OU GLOSA POR ANS/IMR", 1));
-  parts.push(pBody(`Contrato Auditado: ${report.contract_id} | Regime: ${report.legal_regime}`, true));
-  parts.push(pBody(`Status da Auditoria Determinística: ${report.status.toUpperCase()}`, true));
+  parts.push(
+    pHeading("PARECER TÉCNICO-JURÍDICO DE DOSIMETRIA DE SANÇÃO ADMINISTRATIVA OU GLOSA POR ANS/IMR", 1)
+  );
+  parts.push(
+    pBody(
+      `Entidade Contratante: ${humanizeContractingEntity()} | Instrumento Contratual: ${report.contract_id}`,
+      true
+    )
+  );
+  parts.push(
+    pBody(
+      `Regime Jurídico Aplicável: ${humanizeLegalRegime(report.legal_regime)} | Natureza do Objeto: ${humanizeObjectType(report.object_type)}`
+    )
+  );
+  parts.push(pBody(`Conclusão Preliminar da Auditoria: ${humanizeAuditStatus(report.status)}`, true));
 
-  parts.push(pHeading("1. Segregação entre Glosa por ANS/IMR e Multa Punitiva", 2));
+  parts.push(
+    pHeading("1. Análise de Segregação entre Glosa Remuneratória por ANS/IMR e Penalidade Sancionatória", 2)
+  );
   const pasList = report.pas_sanctions_analysis?.processes || [];
   if (pasList.length === 0) {
-    parts.push(pBody("Nenhum evento de PAS ou glosa por ANS/IMR submetido nesta execução."));
+    parts.push(pBody("Nenhum evento sancionador ou glosa por ANS/IMR foi submetido para exame nesta instrução."));
   } else {
     pasList.forEach((p) => {
-      parts.push(pBody(`• ${p.process_id}: Recomendação=${p.recommended_sanction} (${p.recommended_scope}) | Multa=${p.fine_pct !== undefined ? `${p.fine_pct}%` : "N/A"} [Faixa ${p.legal_floor_pct}%..${p.legal_ceiling_pct}%] | Glosa ANS=${p.remuneratory_glosa_value !== undefined ? `R$ ${p.remuneratory_glosa_value}` : "N/A"} | Contraditório 15d=${p.contradictory_15_days_ok ? "OK" : "VIOLADO"} | Seguradora=${p.insurer_notification_ok ? "OK" : "PENDENTE"}`));
+      const fineInfo =
+        p.fine_pct !== undefined
+          ? `Alíquota de multa proposta de ${p.fine_pct}% (limites normativos: piso de ${p.legal_floor_pct}% e teto de ${p.legal_ceiling_pct}%)`
+          : "Sem aplicação de multa pecuniária";
+      const glosaInfo =
+        p.remuneratory_glosa_value !== undefined
+          ? ` | Glosa estritamente remuneratória apurada em R$ ${p.remuneratory_glosa_value.toFixed(2)}`
+          : "";
+      const contradInfo = p.contradictory_15_days_ok
+        ? "Contraditório prévio de 15 dias úteis observado"
+        : "Contraditório prévio violado (exige regularização)";
+      const insurerInfo = p.insurer_notification_ok
+        ? "Comunicação à seguradora regular ou dispensável"
+        : "Comunicação à seguradora pendente (exige intimação imediata)";
+      parts.push(
+        pBody(
+          `• Processo ${p.process_id}: Sanção indicada como ${humanizeSanctionType(p.recommended_sanction)}, com alcance ${humanizeSanctionScope(p.recommended_scope)}. ${fineInfo}${glosaInfo}. ${contradInfo}; ${insurerInfo}.`
+        )
+      );
     });
   }
 
   const basketItems = report.price_basket_analysis?.items || [];
   if (basketItems.length > 0) {
-    parts.push(pHeading("2. Saneamento Estatístico de Cesta de Preços (IN SEGES 65/2021)", 2));
+    parts.push(pHeading("1.1. Saneamento Estatístico de Cesta de Preços Referenciais (IN SEGES/ME nº 65/2021)", 3));
     basketItems.forEach((b) => {
-      parts.push(pBody(`• Item ${b.item_id}: Média=${b.mean} | Mediana=${b.median} | Desvio Padrão=${b.std_dev} | CV=${b.cv_pct}% | Média Saneada=${b.sanitized_mean} | Recomendado=${b.recommended_method} (${b.recommended_reference_price})`));
+      parts.push(
+        pBody(
+          `• Item ${b.item_id}: Média aritmética simples de ${b.mean}; Mediana amostral de ${b.median}; Desvio padrão de ${b.std_dev} (Coeficiente de Variação de ${b.cv_pct}%); Média saneada após expurgo de ${b.sanitized_mean}. Metodologia tecnicamente indicada: ${humanizePriceBasketMethod(b.recommended_method)}, no valor referencial de R$ ${b.recommended_reference_price}.`
+        )
+      );
     });
   }
 
+  parts.push(pHeading("2. Enquadramento Jurisdicional e Calibragem da Dosimetria (LINDB Art. 22 e Art. 156)", 2));
   parts.push(...buildFederativeAndDosimetryXmlSections(report));
 
-  parts.push(pHeading("3. Conclusão e Enquadramento Jurídico", 2));
+  parts.push(pHeading("3. Conclusão, Enquadramento Jurídico e Determinações de Saneamento", 2));
   if (report.blocking_tags.length > 0) {
-    report.blocking_tags.forEach((tag) => parts.push(pCallout("ÓBICE DETECTADO", tag, true)));
+    parts.push(
+      pBody(
+        `Diante dos elementos analisados sob a égide da ${humanizeShortRegime(report.legal_regime)} e dos parâmetros determinísticos aplicáveis, conclui-se pela existência de óbices impeditivos ao prosseguimento ou à assinatura da sanção nos termos propostos, impondo-se o cumprimento integral das recomendações jurídicas fundamentadas a seguir:`
+      )
+    );
+    report.blocking_tags.forEach((tag, idx) => {
+      const prose = describeBlockingTagLegalProse(tag, idx + 1, is13303);
+      parts.push(pCallout(prose.title, prose.body, true));
+    });
   } else {
-    parts.push(pCallout("PARECER CONFORME", "Dosimetria e critérios remuneratórios de ANS/IMR em estrita conformidade legal.", false));
+    parts.push(
+      pCallout(
+        "CONCLUSÃO TÉCNICO-JURÍDICA FAVORÁVEL",
+        "A dosimetria proposta, a competência da autoridade signatária, o rito de contraditório e os critérios remuneratórios de ANS/IMR encontram-se em estrita conformidade legal, estando o feito apto ao regular prosseguimento.",
+        false
+      )
+    );
   }
 
   return emitCompiledDocument(parts, outputPath, options.outputFormat || "both");

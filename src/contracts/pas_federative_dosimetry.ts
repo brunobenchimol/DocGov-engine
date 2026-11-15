@@ -40,7 +40,8 @@ const TCM_STATE_UFS = new Set(["PA", "BA", "GO"]);
 const DOSIMETRY_TRIGGER_KEYS = [
   "dosimetry_evaluation", "dosimetryEvaluation", "dosimetry_benchmark", "dosimetryBenchmark",
   "juris_precedent_id", "jurisPrecedentId", "benchmark_precedents", "benchmarkPrecedents",
-  "benchmark_median_pct", "benchmarkMedianPct", "benchmark_range_pct", "benchmarkRangePct",
+  "benchmark_median_pct", "benchmarkMedianPct", "median_pct", "medianPct",
+  "benchmark_range_pct", "benchmarkRangePct", "reference_range_pct", "referenceRangePct",
   "benchmark_max_pct", "benchmarkMaxPct", "benchmark_median_months", "benchmarkMedianMonths",
   "benchmark_max_months", "benchmarkMaxMonths", "lindb_art22_weighed", "lindbArt22Weighed",
   "art156_par1_weighed", "art156Par1Weighed", "has_jurisprudential_calibration",
@@ -167,11 +168,35 @@ export function evaluatePasFederativeAndDosimetry(
     rawMonths !== undefined ? Number(rawMonths) : rawYears !== undefined ? Number(rawYears) * 12 : undefined;
 
   const rawAuthority =
-    item.signing_authority_role ?? item.signingAuthorityRole ?? item.authority_role ?? item.authorityRole;
-  const authorityRole = rawAuthority !== undefined ? normalizeToken(String(rawAuthority)) : undefined;
+    item.signing_authority_role ??
+    item.signingAuthorityRole ??
+    item.authority_role ??
+    item.authorityRole ??
+    item.signing_authority ??
+    item.signingAuthority ??
+    item.signed_by ??
+    item.signedBy ??
+    rootInput.signing_authority_role ??
+    rootInput.signingAuthorityRole ??
+    rootInput.authority_role ??
+    rootInput.authorityRole ??
+    rootInput.signing_authority ??
+    rootInput.signingAuthority ??
+    rootInput.signed_by ??
+    rootInput.signedBy;
+  const authorityRole =
+    rawAuthority !== undefined && String(rawAuthority).trim() !== ""
+      ? normalizeToken(String(rawAuthority))
+      : undefined;
   const hasOpinion =
-    item.has_conclusive_legal_opinion ?? item.hasConclusiveLegalOpinion ??
-    item.conclusive_legal_opinion ?? item.conclusiveLegalOpinion;
+    item.has_conclusive_legal_opinion ??
+    item.hasConclusiveLegalOpinion ??
+    item.conclusive_legal_opinion ??
+    item.conclusiveLegalOpinion ??
+    rootInput.has_conclusive_legal_opinion ??
+    rootInput.hasConclusiveLegalOpinion ??
+    rootInput.conclusive_legal_opinion ??
+    rootInput.conclusiveLegalOpinion;
 
   const rawRegistries =
     item.registries_commanded ?? item.registriesCommanded ?? item.mandatory_registries ?? item.mandatoryRegistries;
@@ -282,15 +307,40 @@ export function evaluatePasFederativeAndDosimetry(
     ...(item.dosimetry_benchmark || item.dosimetryBenchmark || {}),
     ...(item.dosimetry_evaluation || item.dosimetryEvaluation || {}),
   };
+  const benchAny = bench as Record<string, any>;
 
   const hasDosimetryContext = Boolean(
     !isPureRemuneratoryGlosa &&
-      DOSIMETRY_TRIGGER_KEYS.some((k) => item[k] !== undefined || rootInput[k] !== undefined)
+      DOSIMETRY_TRIGGER_KEYS.some(
+        (k) => item[k] !== undefined || rootInput[k] !== undefined || benchAny[k] !== undefined
+      )
   );
 
+  const rawFallbackFine =
+    effectiveFinePct ??
+    benchAny.proposed_fine_pct ??
+    benchAny.proposedFinePct ??
+    benchAny.proposed_fine_percentage ??
+    benchAny.proposedFinePercentage ??
+    benchAny.fine_pct ??
+    benchAny.finePct ??
+    benchAny.fine_percentage ??
+    benchAny.finePercentage ??
+    benchAny.multa_pct ??
+    benchAny.multaPct ??
+    benchAny.multa_percentual ??
+    benchAny.multaPercentual;
+  const resolvedFinePct =
+    rawFallbackFine !== undefined && !isNaN(Number(rawFallbackFine))
+      ? Number(rawFallbackFine)
+      : undefined;
+
   const precedentIds = extractPrecedentIds(bench);
-  const parsedRange = parseRangePct(bench.benchmark_range_pct ?? bench.benchmarkRangePct);
-  const rawMedianPct = bench.benchmark_median_pct ?? bench.benchmarkMedianPct;
+  const parsedRange = parseRangePct(
+    bench.benchmark_range_pct ?? bench.benchmarkRangePct ?? benchAny.reference_range_pct ?? benchAny.referenceRangePct
+  );
+  const rawMedianPct =
+    bench.benchmark_median_pct ?? bench.benchmarkMedianPct ?? benchAny.median_pct ?? benchAny.medianPct;
   const rawMaxPct = bench.benchmark_max_pct ?? bench.benchmarkMaxPct;
   const rawMedianMonths = bench.benchmark_median_months ?? bench.benchmarkMedianMonths;
   const rawMaxMonths = bench.benchmark_max_months ?? bench.benchmarkMaxMonths;
@@ -331,10 +381,18 @@ export function evaluatePasFederativeAndDosimetry(
     aggProvenFlag === true ||
     (aggProvenFlag !== false && Array.isArray(rawAggList) && rawAggList.length > 0);
 
-  let proportionalityOk = true;
+  const hasHighUnjustifiedFine = Boolean(
+    !isPureRemuneratoryGlosa &&
+      resolvedFinePct !== undefined &&
+      resolvedFinePct >= 20 &&
+      resolvedFinePct <= 30 &&
+      !aggravatingFactorsProven &&
+      benchmarkMaxPct === undefined
+  );
+
   let outlierDetected = false;
 
-  if (hasDosimetryContext) {
+  if (hasDosimetryContext || hasHighUnjustifiedFine) {
     if (!hasPrecedentAnchor || !lindbWeighed) {
       blockingTags.push("[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]");
       reasons.push(
@@ -344,9 +402,12 @@ export function evaluatePasFederativeAndDosimetry(
 
     if (!aggravatingFactorsProven) {
       const fineOutlier =
-        effectiveFinePct !== undefined &&
-        ((benchmarkMaxPct !== undefined && effectiveFinePct > benchmarkMaxPct) ||
-          (benchmarkMedianPct !== undefined && effectiveFinePct > benchmarkMedianPct * 2));
+        resolvedFinePct !== undefined &&
+        ((benchmarkMaxPct !== undefined && resolvedFinePct > benchmarkMaxPct) ||
+          (benchmarkMedianPct !== undefined && resolvedFinePct > benchmarkMedianPct * 2) ||
+          (benchmarkMaxPct === undefined &&
+            resolvedFinePct >= 20 &&
+            (resolvedFinePct <= 30 || hasDosimetryContext)));
       const monthsOutlier =
         durationMonths !== undefined &&
         ((rawMaxMonths !== undefined && durationMonths > Number(rawMaxMonths)) ||
@@ -354,14 +415,15 @@ export function evaluatePasFederativeAndDosimetry(
 
       if (fineOutlier || monthsOutlier) {
         outlierDetected = true;
-        proportionalityOk = false;
         blockingTags.push("[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]");
         reasons.push(
-          "Outlier desproporcional de dosimetria: penalidade excede a faixa referencial de precedentes sem circunstância agravante formalmente comprovada (LINDB Art. 22)"
+          "Outlier desproporcional de dosimetria: penalidade excede a faixa referencial de precedentes ou aproxima-se do teto máximo sem circunstância agravante formalmente comprovada (LINDB Art. 22)"
         );
       }
     }
   }
+
+  const proportionalityOk = hasPrecedentAnchor && lindbWeighed && !outlierDetected;
 
   const federativeAdequacy: PasFederativeAnalysisSummary = {
     sphere,

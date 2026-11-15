@@ -375,83 +375,76 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
         original_value: 1000000,
         has_surety_bond: true,
         pas_sanctions: [
+          { process_id: "PAS-GLOSA-01", is_imr_classified_as_sanction: true, penalty_type: "MULTA", opened_formal_pas: true, defense_deadline_business_days: 15, insurer_notified: true },
+          { process_id: "PAS-MULTA-02", sanction_type: "MULTA", fine_pct: 35, opened_formal_pas: true, defense_deadline_business_days: 5, has_surety_bond: true, insurer_notified: false },
           {
-            process_id: "PAS-GLOSA-01",
-            is_imr_classified_as_sanction: true,
-            penalty_type: "MULTA",
-            opened_formal_pas: true,
-            defense_deadline_business_days: 15,
-            insurer_notified: true,
+            process_id: "PAS-FED-03", sphere: "MUNICIPAL", uf: "PA", municipality: "MUNICIPIO_GENERICO",
+            legal_regime: "LEI_14133", sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR", sanction_scope_claimed: "NATIONAL",
+            duration_months: 48, fine_pct: 25, registries_commanded: ["CEIS"], opened_formal_pas: true,
+            defense_deadline_business_days: 15, insurer_notified: true,
+            dosimetry_benchmark: { juris_precedent_id: "TCE-PA-2025", benchmark_range_pct: [2, 5], benchmark_median_pct: 3.5, aggravating_factors_proven: false, lindb_art22_weighed: true },
           },
+          { process_id: "PAS-ESTATAL-04", sphere: "STATE", uf: "SP", legal_regime: "LEI_13303", sanction_type: "DECLARACAO_INIDONEIDADE", duration_months: 36, opened_formal_pas: true, defense_deadline_business_days: 15, insurer_notified: true },
           {
-            process_id: "PAS-MULTA-02",
-            sanction_type: "MULTA",
-            fine_pct: 35,
-            opened_formal_pas: true,
-            defense_deadline_business_days: 5,
-            has_surety_bond: true,
-            insurer_notified: false,
+            process_id: "PAS-INID-05", sphere: "STATE", uf: "PA", legal_regime: "LEI_14133", sanction_type: "DECLARACAO_INIDONEIDADE",
+            signing_authority_role: "FISCAL_CONTRATO", has_conclusive_legal_opinion: false, fine_pct: 10, opened_formal_pas: true,
+            defense_deadline_business_days: 15, insurer_notified: true,
+            dosimetry_benchmark: { lindb_art22_weighed: false, has_jurisprudential_calibration: false },
           },
+        ],
+        price_basket: [{ item_id: "ITEM-1", quotes: [100, 110, 500], selected_method: "MEAN" }],
+        rebalance_requests: [{ id: "REQ-1", event_nature: "EXTRAORDINARY_UNFORESEEN", risk_allocated_to: "CONTRACTOR", request_accepted: true }],
+      }),
+      "utf-8"
+    );
+
+    const mcpRes: any = await handleCallTool("docgov_audit_contract_execution", { contractJsonPath: jsonPath, outputDir: outDir });
+    const rawStdout = mcpRes.content[0].text;
+    const byteLen = Buffer.byteLength(rawStdout, "utf-8");
+    expect(byteLen).toBeLessThan(900);
+    expect(byteLen).toBeLessThanOrEqual(850);
+
+    const parsed = JSON.parse(rawStdout);
+    const expected12Tags = [
+      "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]", "[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]",
+      "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]", "[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]",
+      "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]", "[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]",
+      "[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]", "[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]",
+      "[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]", "[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]",
+      "[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]", "[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]",
+    ];
+    for (const tag of expected12Tags) expect(parsed.blocking_tags).toContain(tag);
+
+    const reportJson = JSON.parse(readFileSync(join(outDir, "relatorio_fiscalizacao_contratual.json"), "utf-8"));
+    expect(reportJson.blocking_tags.length).toBeGreaterThanOrEqual(12);
+    for (const tag of expected12Tags) expect(reportJson.blocking_tags).toContain(tag);
+  });
+
+  it("Gen5.6+ Humanização Jurídica (Lei 13.303) & Dosimetria Não Calibrada (>=20% sem agravantes): prosa vernácula e zero falso PROPORCIONAL", async () => {
+    const outDir = join(getEphemeralInspectDir(), `test_gen56_humanized_${Date.now()}`);
+    mkdirSync(outDir, { recursive: true });
+    const jsonPath = join(outDir, "contrato_estatal_uncalibrated.json");
+    writeFileSync(
+      jsonPath,
+      JSON.stringify({
+        contract_id: "CONTRATO_ESTATAL_SP_2026",
+        legal_regime: "LEI_13303",
+        object_type: "SERVICOS",
+        sphere: "STATE",
+        uf: "SP",
+        signing_authority: "ORDENADOR_DESPESA",
+        has_conclusive_legal_opinion: false,
+        pas_sanctions: [
           {
-            process_id: "PAS-FED-03",
-            sphere: "MUNICIPAL",
-            uf: "PA",
-            municipality: "MUNICIPIO_GENERICO",
-            legal_regime: "LEI_14133",
+            process_id: "PAS-ESTATAL-HUM-01",
             sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR",
-            sanction_scope_claimed: "NATIONAL",
-            duration_months: 48,
-            fine_pct: 25,
-            registries_commanded: ["CEIS"],
+            fine_percentage: 28,
             opened_formal_pas: true,
+            prior_notification_sent: true,
             defense_deadline_business_days: 15,
-            insurer_notified: true,
-            dosimetry_benchmark: {
-              juris_precedent_id: "TCE-PA-2025",
-              benchmark_range_pct: [2, 5],
-              benchmark_median_pct: 3.5,
-              aggravating_factors_proven: false,
-              lindb_art22_weighed: true,
-            },
-          },
-          {
-            process_id: "PAS-ESTATAL-04",
-            sphere: "STATE",
-            uf: "SP",
-            legal_regime: "LEI_13303",
-            sanction_type: "DECLARACAO_INIDONEIDADE",
-            duration_months: 36,
-            opened_formal_pas: true,
-            defense_deadline_business_days: 15,
-            insurer_notified: true,
-          },
-          {
-            process_id: "PAS-INID-05",
-            sphere: "STATE",
-            uf: "PA",
-            legal_regime: "LEI_14133",
-            sanction_type: "DECLARACAO_INIDONEIDADE",
-            signing_authority_role: "FISCAL_CONTRATO",
-            has_conclusive_legal_opinion: false,
-            fine_pct: 10,
-            opened_formal_pas: true,
-            defense_deadline_business_days: 15,
-            insurer_notified: true,
-            dosimetry_benchmark: {
-              lindb_art22_weighed: false,
-              has_jurisprudential_calibration: false,
-            },
-          },
-        ],
-        price_basket: [
-          { item_id: "ITEM-1", quotes: [100, 110, 500], selected_method: "MEAN" },
-        ],
-        rebalance_requests: [
-          {
-            id: "REQ-1",
-            event_nature: "EXTRAORDINARY_UNFORESEEN",
-            risk_allocated_to: "CONTRACTOR",
-            request_accepted: true,
+            lindb_art22_weighed: false,
+            has_jurisprudential_calibration: false,
+            aggravating_factors_proven: false,
           },
         ],
       }),
@@ -461,37 +454,46 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     const mcpRes: any = await handleCallTool("docgov_audit_contract_execution", {
       contractJsonPath: jsonPath,
       outputDir: outDir,
+      compilationMode: "BOTH",
+      outputFormat: "both",
     });
-    const rawStdout = mcpRes.content[0].text;
-    const byteLen = Buffer.byteLength(rawStdout, "utf-8");
-    expect(byteLen).toBeLessThan(900);
-    expect(byteLen).toBeLessThanOrEqual(850);
+    expect(Buffer.byteLength(mcpRes.content[0].text, "utf-8")).toBeLessThan(900);
 
-    const parsed = JSON.parse(rawStdout);
-    const expected12Tags = [
-      "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]",
-      "[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]",
-      "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]",
-      "[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]",
-      "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]",
-      "[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]",
-      "[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]",
-      "[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]",
-      "[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]",
-      "[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]",
-      "[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]",
-      "[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]",
-    ];
-    for (const tag of expected12Tags) {
-      expect(parsed.blocking_tags).toContain(tag);
-    }
+    const reportJson = JSON.parse(readFileSync(join(outDir, "relatorio_fiscalizacao_contratual.json"), "utf-8"));
+    expect(reportJson.blocking_tags).toContain("[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]");
+    expect(reportJson.blocking_tags).toContain("[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]");
+    const proc0 = reportJson.pas_sanctions_analysis.processes[0];
+    expect(proc0.federative_adequacy.signing_authority_role).toBe("ORDENADOR_DESPESA");
+    expect(proc0.dosimetry_calibration.proportionality_ok).toBe(false);
+    expect(proc0.dosimetry_calibration.outlier_detected).toBe(true);
 
-    const reportJson = JSON.parse(
-      readFileSync(join(outDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
-    );
-    expect(reportJson.blocking_tags.length).toBeGreaterThanOrEqual(12);
-    for (const tag of expected12Tags) {
-      expect(reportJson.blocking_tags).toContain(tag);
-    }
-  });
+    const notifXml = await readDocxMainXml(join(outDir, "Notificacao_Previa_Descumprimento_e_PAS.docx"));
+    expect(notifXml).toContain("Lei Federal nº 13.303/2016");
+    expect(notifXml).toContain("Prestação de Serviços");
+    expect(notifXml).toContain("IMPEDIMENTO TÉCNICO-JURÍDICO IDENTIFICADO");
+    expect(notifXml).toContain("Ordenador de Despesa");
+    expect(notifXml).toContain("(Ref. de Auditoria:");
+    expect(notifXml).not.toContain("ÓBICE DETECTADO:");
+    expect(notifXml).not.toContain("APONTAMENTO CRÍTICO:");
+    expect(notifXml).not.toContain("Autoridade: N/A");
+
+    const opinionXml = await readDocxMainXml(join(outDir, "Parecer_Dosimetria_Sancao_ou_Glosa_ANS.docx"));
+    expect(opinionXml).toContain("2. Enquadramento Jurisdicional e Calibragem da Dosimetria");
+    expect(opinionXml).toContain("3. Conclusão, Enquadramento Jurídico e Determinações de Saneamento");
+    expect(opinionXml).toContain("NÃO CALIBRADA");
+    expect(opinionXml).not.toMatch(/\bPROPORCIONAL\b/);
+    expect(opinionXml).not.toContain("Território=BLOQUEADO");
+    expect(opinionXml).not.toContain("Comp=BLOQ");
+    expect(opinionXml).not.toContain("Autoridade: N/A");
+    expect(opinionXml).not.toContain("ÓBICE DETECTADO:");
+
+    const notifPdfText = (await extractPdfPages(readFileSync(join(outDir, "Notificacao_Previa_Descumprimento_e_PAS.pdf")))).lines.map((l) => l.text).join("\n");
+    expect(notifPdfText).toContain("13.303/2016");
+    expect(notifPdfText).toContain("Ordenador de Despesa");
+
+    const opinionPdfText = (await extractPdfPages(readFileSync(join(outDir, "Parecer_Dosimetria_Sancao_ou_Glosa_ANS.pdf")))).lines.map((l) => l.text).join("\n");
+    expect(opinionPdfText).toContain("2. Enquadramento Jurisdicional");
+    expect(opinionPdfText).toContain("3. Conclus");
+    expect(opinionPdfText).not.toMatch(/\bPROPORCIONAL\b/);
+  }, 20000);
 });

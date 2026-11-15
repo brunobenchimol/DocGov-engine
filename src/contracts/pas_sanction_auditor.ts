@@ -120,7 +120,18 @@ export function auditPasSanctionsAndGuarantees(
       input.sanction_type ||
       input.sanctionType ||
       input.registries_commanded ||
-      input.registriesCommanded)
+      input.registriesCommanded ||
+      input.proposed_fine_pct !== undefined ||
+      input.proposedFinePct !== undefined ||
+      input.fine_pct !== undefined ||
+      input.finePct !== undefined ||
+      (input as any).fine_percentage !== undefined ||
+      (input as any).multa_percentual !== undefined ||
+      (input as any).proposed_fine_percentage !== undefined ||
+      input.signing_authority_role ||
+      (input as any).authority_role ||
+      (input as any).signing_authority ||
+      (input as any).signed_by)
   ) {
     rawPasList.push(input as RawPasSanctionInput);
   }
@@ -227,16 +238,31 @@ export function auditPasSanctionsAndGuarantees(
     const rawFinePct =
       item.proposed_fine_pct ??
       item.proposedFinePct ??
+      (item as any).proposed_fine_percentage ??
+      (item as any).proposedFinePercentage ??
       item.fine_pct ??
       item.finePct ??
+      (item as any).fine_percentage ??
+      (item as any).finePercentage ??
       item.multa_pct ??
       item.multaPct ??
+      (item as any).multa_percentual ??
+      (item as any).multaPercentual ??
       benchObj?.proposed_fine_pct ??
       benchObj?.proposedFinePct ??
+      (benchObj as any)?.proposed_fine_percentage ??
+      (benchObj as any)?.proposedFinePercentage ??
       benchObj?.fine_pct ??
       benchObj?.finePct ??
+      (benchObj as any)?.fine_percentage ??
+      (benchObj as any)?.finePercentage ??
       benchObj?.multa_pct ??
-      benchObj?.multaPct;
+      benchObj?.multaPct ??
+      (benchObj as any)?.multa_percentual ??
+      (benchObj as any)?.multaPercentual ??
+      (input as any).fine_percentage ??
+      (input as any).multa_percentual ??
+      (input as any).proposed_fine_percentage;
 
     const itemContractVal = Number(item.contract_value ?? item.contractValue ?? rootContractValue);
     const fineVal = item.fine_value ?? item.fineValue;
