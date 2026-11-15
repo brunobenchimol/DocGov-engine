@@ -20,8 +20,8 @@
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
-| **Geração 6** | `v1.6.0` / `v1.6.2` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `75%/85%`, Fase Recursal Art. 165, ACT Forense (7 Vetores) e Compiladores DOCX/PDF Jurídico-Periciais | `[CONCLUÍDO]` |
-| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador) & Julgamento de Obras e Serviços de Engenharia (Inexequibilidade 75%/85%, BDI Acórdão TCU 2.622/2013 e SINAPI/SICRO) | `[PRÓXIMO FOCO ATIVO]` |
+| **Geração 6** | `v1.6.0` / `v1.6.2` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165, ACT Forense (7 Vetores) e Compiladores DOCX/PDF Jurídico-Periciais | `[CONCLUÍDO]` |
+| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador & Repactuação) & Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[PRÓXIMO FOCO ATIVO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -56,7 +56,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## ✅ MARCO 9 — `v1.6.0`: Seleção do Fornecedor 360º em TIC & Contratação Direta (Geração 6 — CONCLUÍDO)
+## ✅ MARCO 9 — `v1.6.0` / `v1.6.2`: Seleção do Fornecedor 360º em TIC, Perícia Multimodal (`unpdf@2.1+`) & Contratação Direta (Geração 6 — CONCLUÍDO)
 
 - [x] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
   - **Matriz de Descaracterização de DEMO:**
@@ -107,28 +107,33 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
     - *Via B (À Licitante — Lastro Material Obrigatório):* Requisição formal de apresentação de Notas Fiscais Eletrônicas (NF-e/NFS-e com chave de 44 dígitos), Contrato assinado à época, Ordens de Serviço e comprovantes de recolhimento fiscal/trabalhista (SEFIP/eSocial) ou bancários;
   - `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`: Peça de instrução processual para contratações diretas, atestando a presença de todos os requisitos legais e a razoabilidade dos preços pactuados.
 
+- [x] **9.6. Consolidação `v1.6.2` — Upgrade `unpdf@2.1+`, Perícia Forense Dual `PDF/DOCX`, Ponte Multimodal `assets/`, Obras `75%/85%`, Jogo de Planilha & Fase Recursal (Art. 165):**
+  - [x] **Ponte Multimodal `unpdf@2.1+` (`inspectPages`, `extractImages`, `registerImageDecoders`):** Classificação em 5 classes canônicas (`BORN_DIGITAL`, `FULL_PAGE_SCAN`, `HYBRID_HEADER_SCAN_TRAP`, `EMBEDDED_VISUAL_ASSET`, `OCR_LAYER_EMBEDDED`), extração pura JS compatível com `bun build --compile` (sem `@napi-rs/canvas`), filtro anti-ruído + SHA-256 repetido, materialização em `cases/<id>/assets/<stem>/pag_XXX_img_YY.png` e âncoras `[PAG_XXX | ASSET_IMG_YY]` na `visao_auditoria_*.md` e `dossie_hotspots_*.md`;
+  - [x] **Perícia Forense Dual `PDF/DOCX` (`getMeta` + `docProps/core.xml` & `app.xml`) & Detecção de Conluio:** Unificação em `DocumentForensicMeta`, scanner de assinaturas `/Type /Sig` e `/M (D:...)`, alerta `[PDF_EDITOR_MANIPULATION_TRACE]`, inventário cruzado no `bootstrap_case` (`indice_mestre_caso.md`), detecção de colusão entre licitantes (`forensic_collusion_auditor.ts`) e simulação de cotações na contratação direta (`[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]` e `[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]`), além de auto-hidratação em ACT (`> 180` dias, colisão de autor e `[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]`);
+  - [x] **Inexequibilidade `< 75%`, Garantia Adicional `75%..85%`, Jogo de Planilha & Fase Recursal (Art. 165/168):** Regra paramétrica de inexequibilidade/garantia adicional e alerta de Jogo de Planilha (`inexequibility_evaluator.ts`), além de admissibilidade e julgamento de recursos/contrarrazões (`appeals_evaluator.ts` e `appeals_docx_sections.ts` compilando `Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.docx/.pdf` e `Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx/.pdf`).
+
 ---
 
 ## 🎯 MARCO 9.5 — `v1.6.5`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — PLANEJADO)
 
-- [ ] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017 e Art. 121 da Lei 14.133/2021):**
-  - **Auditoria Aritmética e Normativa dos Módulos 1 a 6:**
-    - *Módulo 1:* Composição da remuneração e salário-base vinculado à Convenção Coletiva de Trabalho (CCT);
-    - *Módulo 2:* Encargos previdenciários, FGTS, SAT/RAT e contribuições sociais;
-    - *Módulo 3:* Provisão para rescisão (férias, 13º e aviso prévio indenizado/trabalhado);
+- [ ] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017, Decreto 12.174/2024 e Arts. 121 e 135 da Lei 14.133/2021):**
+  - **Auditoria Aritmética e Normativa dos Módulos 1 a 6 em Centavos Inteiros:**
+    - *Módulo 1:* Composição da remuneração, salário-base vinculado à CCT e adicionais de insalubridade/periculosidade (trava Súmula 448 TST);
+    - *Módulo 2:* Encargos previdenciários, FGTS, SAT/RAT x FAP comprovado (GFIP/FAPWeb) e benefícios mensais/diários (auxílio-transporte com teto 6% e alimentação);
+    - *Módulo 3:* Provisão para rescisão (API, multa FGTS e Aviso Prévio Trabalhado `1,94%` no 1º ano com trava de expurgo obrigatório na 1ª prorrogação — Acórdão TCU 1.586/2018);
     - *Módulo 4:* Custo de reposição de profissional ausente em regime de substituição;
-    - *Módulo 5:* Insumos de mão de obra (uniformes, EPIs, exames médicos e benefícios);
-    - *Módulo 6:* Custos indiretos, despesas administrativas, tributos (PIS/COFINS/ISS) e taxa de lucro;
-  - **Governança de Conta Vinculada vs. Pagamento pelo Fato Gerador:**
-    - Monitoramento das provisões retidas em Conta-Depósito Vinculada bloqueada para movimentação direta ou adoção do Pagamento pelo Fato Gerador com glosa preventiva.
+    - *Módulo 5:* Insumos de mão de obra (uniformes, EPIs, materiais e depreciação);
+    - *Módulo 6:* Custos indiretos, tributos por dentro (`PIS/COFINS/ISS`), alíquota efetiva no Lucro Real (Acórdão TCU 1.214/2013), vedação ao Simples Nacional em cessão de mão de obra (Art. 17, XII da LC 123/2006, salvo Anexo IV em limpeza/vigilância) e produtividade por $m^2$ (Anexo VI-B da IN 05/2017);
+  - **Governança de Conta Vinculada vs. Pagamento pelo Fato Gerador e Repactuação:**
+    - Monitoramento das provisões retidas em Conta-Depósito Vinculada (Anexo XII da IN 05/2017) ou adoção do Pagamento pelo Fato Gerador com glosa preventiva, e memória de cálculo de Repactuação Anual por CCT.
 
-- [ ] **9.5.2. Motor de Obras e Serviços de Engenharia (Art. 59, §§ 4º e 5º da Lei 14.133/2021 e Acórdão TCU 2.622/2013):**
-  - **Inexequibilidade Relativa e Garantia Adicional em Engenharia:**
-    - Trava matemática de presunção de inexequibilidade relativa para ofertas abaixo de 75% do orçamento-base da Administração;
-    - Cálculo automático de exigência de garantia adicional para propostas classificadas entre 75% e 85% do valor orçado;
-  - **Auditoria de BDI e Tabelas Referenciais Oficiais:**
-    - Análise de faixas de Bonificação e Despesas Indiretas (BDI) segundo os parâmetros do Acórdão TCU nº 2.622/2013 para obras civis, rodoviárias, portuárias e materiais/equipamentos de natureza diferenciada;
-    - Cruzamento analítico com tabelas referenciais oficiais SINAPI e SICRO.
+- [ ] **9.5.2. Motor de Obras e Serviços de Engenharia (Art. 59, §§ 4º e 5º da Lei 14.133/2021, Arts. 42–43 da Lei 13.303/2016 e Acórdão TCU 2.622/2013):**
+  - **Auditoria de BDI Geral vs. BDI Diferenciado e Administração Local:**
+    - Análise de quartis de Bonificação e Despesas Indiretas (BDI) segundo o Acórdão TCU nº 2.622/2013 por tipologia de obra e exigência de BDI Diferenciado reduzido para materiais/equipamentos relevantes (Súmula TCU 253);
+    - Bloqueio de inclusão de Administração Local, Canteiro e Mobilização dentro do BDI (*bis in idem*) e trava de medição proporcional ao avanço físico;
+  - **Tabelas Referenciais Oficiais (`SINAPI`/`SICRO`), Desoneração (CPRB) e Cronograma Físico-Financeiro:**
+    - Cruzamento analítico Curva ABC com tabelas `SINAPI` e `SICRO` (validando simetria `Com Desoneração vs. Sem Desoneração` — Lei 14.973/2024);
+    - Detecção de *front-loading* no cronograma físico-financeiro e matriz de riscos obrigatória em Contratação Integrada/Semi-Integrada.
 
 ---
 
