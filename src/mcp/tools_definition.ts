@@ -18,7 +18,7 @@ export function getMcpToolsDefinition() {
     {
       name: "bootstrap_case",
       description:
-        "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/), descompacta e ingere automaticamente pacotes compactados (.zip, .tar, .tar.gz, .tgz) presentes em uploadsDir, na raiz do caso ou em inputs/ (com classificação libmagic msooxml, defesa Anti-Zip Slip e achatamento seguro), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx, .pdf (com pipeline OCR headless em páginas escaneadas) e planilhas nativas .xlsx/.csv em inputs/, submetendo-as ao budget_auditor matemático, detectando páginas escaneadas como imagem ('scanned_pages_detected'), salvando mapas estruturais em state/estrutura_<nome>.json, visões lineares em state/visao_auditoria_<nome>.md com Cartografia Estrutural (outline_headings, page_signals) e Radar das 14 Zonas de Impugnação (Z1..Z14), dossiês cirúrgicos em state/dossie_hotspots_<nome>.md e consolidando o Índice Cartográfico Mestre Unificado em state/indice_mestre_caso.md.\n" +
+        "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/, assets/), descompacta e ingere automaticamente pacotes compactados (.zip, .tar, .tar.gz, .tgz) presentes em uploadsDir, na raiz do caso ou em inputs/ (com classificação libmagic msooxml, defesa Anti-Zip Slip e achatamento seguro), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx, .pdf (com classificação multimodal unpdf@2.1+ inspectPages, materialização de assets/<stem>/pag_XXX_img_YY.png e pipeline OCR headless) e planilhas nativas .xlsx/.csv em inputs/, submetendo-as ao budget_auditor matemático, consolidando o inventário forense cruzado PDF/DOCX com alerta anti-conluio em state/indice_mestre_caso.md e salvando state/estrutura_<nome>.json, visao_auditoria_<nome>.md e dossie_hotspots_<nome>.md.\n" +
         "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
         "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov.\n" +
         "- Pós-condição & Próximo Passo: Pastas criadas, pacotes descompactados, arquivos batizados e documentos inspecionados.",
@@ -367,7 +367,7 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_evaluate_bidding_proposals",
       description:
-        "Quando usar: Para auditar e julgar propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), exequibilidade paramétrica de perfis de TI (Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG) e Motor Forense Anti-Fraude de ACT em 7 vetores (Art. 64 Lei 14.133/2021). Próximo Passo: Inspecione os dossiês JSON/MD e as peças compiladas (Parecer de Julgamento e Ofício de Diligência Via A/Via B) em outputDir. Retorno sintético < 900 bytes.",
+        "Quando usar: Para auditar e julgar propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), inexequibilidade 75%/85% (Art. 59 §§ 4º e 5º e Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG), conluio por metadados entre propostas concorrentes, Motor Forense Anti-Fraude de ACT em 7 vetores e fase recursal administrativa (Art. 165 e Art. 168). Próximo Passo: Inspecione os dossiês JSON/MD e as peças compiladas em outputDir. Retorno sintético < 900 bytes.",
       inputSchema: {
         type: "object",
         properties: {
@@ -387,7 +387,19 @@ export function getMcpToolsDefinition() {
           evaluation_stance: { type: "string", enum: ["DEFENSE", "ATTACK"], description: "Alias para evaluationStance." },
           compilationMode: {
             type: "string",
-            enum: ["PROPOSAL_JUDGMENT_OPINION", "ACT_DILIGENCE_LETTER", "JUDGMENT_OPINION", "ACT_DILIGENCE_REPORT", "BOTH", "NONE"],
+            enum: [
+              "PROPOSAL_JUDGMENT_OPINION",
+              "ACT_DILIGENCE_LETTER",
+              "JUDGMENT_OPINION",
+              "ACT_DILIGENCE_REPORT",
+              "BOTH",
+              "APPEAL_REASONS",
+              "APPEAL_COUNTER_REASONS",
+              "PREGOEIRO_DECISION",
+              "APPEALS_BUNDLE",
+              "ALL",
+              "NONE",
+            ],
             description: "Modo documental OpenXML/PDF.",
           },
           compilation_mode: { type: "string", description: "Alias para compilationMode." },

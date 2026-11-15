@@ -329,4 +329,126 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
     expect(existsSync(join(subOutDir, "visao_julgamento_proposta_tic.md"))).toBe(true);
     expect(existsSync(join(subOutDir, "dossie_julgamento_tic.md"))).toBe(true);
   }, 15000);
+
+  it("deve detectar conluio entre propostas, ACT com Canva (>180d), inexequibilidade 75%/85% e compilar peças recursais Art. 165", async () => {
+    const outDir = makeTmpDir();
+    const actStructPath = join(outDir, "estrutura_act.json");
+    writeFileSync(
+      actStructPath,
+      JSON.stringify({
+        forensic_meta: {
+          source_format: "pdf",
+          title: "ACT",
+          author: "EMPRESA_CONCLUIO_LTDA",
+          last_modified_by: null,
+          creator_tool: "Canva",
+          producer: "Canva",
+          company: null,
+          template: null,
+          revision_count: null,
+          creation_date_iso: "2026-10-01T10:00:00.000Z",
+          mod_date_iso: "2026-11-01T10:00:00.000Z",
+          has_digital_signature: false,
+          signature_date_iso: null,
+          editing_software_traces: ["Canva"],
+          forensic_anomalies: ["[PDF_EDITOR_MANIPULATION_TRACE]"],
+        },
+      }),
+      "utf-8"
+    );
+
+    const collusionAndInex = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-GEN6-FORENSE-02",
+        bidder_name: "EMPRESA_CONCLUIO_LTDA",
+        is_engineering_or_works: true,
+        estimated_budget_value: 1000000,
+        offered_proposal_value: 700000,
+        ict_execution_model: { metric_type: "UST", has_complexity_weighted_activity_catalog: true },
+        act_forensic_items: [
+          {
+            certificate_id: "ACT-META-01",
+            issuer_name: "ORGAO_A",
+            act_issue_date: "2024-01-15",
+            act_structure_json_path: actStructPath,
+          },
+        ],
+        competing_proposals_meta: [
+          {
+            proposal_file_name: "proposta_empresa_a.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Prop A",
+              author: "Operador_Comum_XY",
+              last_modified_by: null,
+              creator_tool: "Microsoft Word",
+              producer: "Word PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-10T14:00:00.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
+          },
+          {
+            proposal_file_name: "proposta_empresa_b.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Prop B",
+              author: "Operador_Comum_XY",
+              last_modified_by: null,
+              creator_tool: "Microsoft Word",
+              producer: "Word PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-10T14:00:45.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
+          },
+        ],
+      },
+      { outputDir: outDir, compilationMode: "NONE" }
+    );
+
+    expect(collusionAndInex.dossier.blocking_tags).toContain("[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]");
+    expect(collusionAndInex.dossier.blocking_tags).toContain("[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]");
+    expect(collusionAndInex.dossier.blocking_tags).toContain("[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]");
+    expect(collusionAndInex.dossier.blocking_tags).toContain("[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]");
+    expect(collusionAndInex.dossier.blocking_tags).toContain("[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]");
+    expect(collusionAndInex.dossier.inexequibility_check?.additional_guarantee_amount).toBe(150000);
+
+    const appealRes = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-REC-165",
+        bidder_name: "RECORRENTE_GENERICA",
+        ict_execution_model: { metric_type: "UST", has_complexity_weighted_activity_catalog: true },
+        appeal_context: {
+          appeal_type: "RAZOES",
+          appellant_name: "RECORRENTE_GENERICA",
+          intent_manifested_timely: true,
+          reasons_business_days_elapsed: 4,
+          declared_intent_scope: "qualificação técnica atestado UST",
+          appeal_reasons_scope: "balanço patrimonial índice contábil ILG",
+        },
+      },
+      { outputDir: outDir, compilationMode: "APPEALS_BUNDLE", outputFormat: "both" }
+    );
+
+    expect(appealRes.dossier.decision).toBe("REJECTED");
+    expect(appealRes.dossier.blocking_tags).toContain("[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]");
+    expect(appealRes.dossier.blocking_tags).toContain("[APPEAL_THEMATIC_INNOVATION_OUTSIDE_INTENT_BLOCK]");
+    expect(existsSync(appealRes.dossier.compiled_artifacts?.appeal_petition_docx_path!)).toBe(true);
+    expect(existsSync(appealRes.dossier.compiled_artifacts?.appeal_petition_pdf_path!)).toBe(true);
+    expect(existsSync(appealRes.dossier.compiled_artifacts?.pregoeiro_decision_docx_path!)).toBe(true);
+    expect(existsSync(appealRes.dossier.compiled_artifacts?.pregoeiro_decision_pdf_path!)).toBe(true);
+  }, 20000);
 });

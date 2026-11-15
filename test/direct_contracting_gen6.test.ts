@@ -183,4 +183,73 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(existsSync(join(subOutDir, "visao_contratacao_direta.md"))).toBe(true);
     expect(existsSync(join(subOutDir, "dossie_contratacao_direta.md"))).toBe(true);
   }, 15000);
+
+  it("deve detectar simulação de pesquisa de preços via metadados compartilhados e sobrepreço acima da mediana saneada na Inexigibilidade", async () => {
+    const outDir = makeTmpDir();
+    const { dossier } = await auditDirectContracting(
+      {
+        process_id: "PROC-INEX-OVERPRICE-04",
+        modality: "INEXIGIBILIDADE",
+        exclusivity_certificate_valid: true,
+        offered_unit_price: 1850,
+        inexigibility_details: {
+          competition_infeasibility_proven: true,
+          supplier_market_price_proofs: [
+            { type: "NF", identifier: "NF-101", unit_price: 1000 },
+            { type: "NF", identifier: "NF-102", unit_price: 1050 },
+            { type: "CONTRATO", identifier: "CT-103", unit_price: 1100 },
+          ],
+        },
+        quotations_forensic_meta: [
+          {
+            file_name: "cotacao_fornecedor_1.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Cotacao 1",
+              author: "Mesmo_Autor_Simulado",
+              last_modified_by: null,
+              creator_tool: "Microsoft Excel",
+              producer: "Excel PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-12T09:00:00.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
+          },
+          {
+            file_name: "cotacao_fornecedor_2.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Cotacao 2",
+              author: "Mesmo_Autor_Simulado",
+              last_modified_by: null,
+              creator_tool: "Microsoft Excel",
+              producer: "Excel PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-12T09:00:30.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
+          },
+        ],
+      },
+      { outputDir: outDir, compilationMode: "NONE" }
+    );
+
+    expect(dossier.status).toBe("blocked");
+    expect(dossier.decision).toBe("REJECTED");
+    expect(dossier.blocking_tags).toContain("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
+    expect(dossier.blocking_tags).toContain("[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]");
+    expect(dossier.inexigibility_summary?.sanitized_market_median).toBe(1050);
+  });
 });

@@ -8,6 +8,22 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.2] - 2026-11-15 — Upgrade `unpdf@2.1+`, Perícia Forense Dual `PDF/DOCX`, Ponte Multimodal `assets/` & Fase Externa/Recursal (Gen6)
+
+### Added
+- **Classificação Multimodal de Páginas & Extração Pura JS de Imagens (`src/utils/pdf/`):**
+  - Upgrade de `unpdf` para `^2.1.0` (`unpdf@2.2.1`) sem dependência de `@napi-rs/canvas`, mantendo 100% de compatibilidade com `bun build --compile`.
+  - Modularização de `src/utils/pdf.ts` (`<= 400` linhas) em submódulos coesos sob a Lei 9 (`src/utils/pdf/stream_fallback.ts`, `page_inspector.ts`, `image_extractor.ts`, `forensic_meta.ts`, `docx_forensic_meta.ts`, `forensic_cross_audit.ts`).
+  - Classificação em 5 classes canônicas (`BORN_DIGITAL`, `FULL_PAGE_SCAN`, `HYBRID_HEADER_SCAN_TRAP`, `EMBEDDED_VISUAL_ASSET`, `OCR_LAYER_EMBEDDED`), filtro anti-ruído (`width < 220 || height < 150 || area < 45000` e SHA-256 repetido em `>= 3` páginas), teto `MAX_EXTRACTED_IMAGES_PER_DOC = 20`, materialização em `cases/<id>/assets/<stem>/pag_XXX_img_YY.png` (ou `%TEMP%/docgov_ephemeral_inspect/assets/<stem>/`), injeção de âncoras `[PAG_XXX | ASSET_IMG_YY | tipo=... | coverage=NN% | WxHpx | path="..."]` em `visao_auditoria_*.md` e `dossie_hotspots_*.md`, e omissão de inspeção pesada em `pdf_exporter.ts` pós-exportação.
+- **Perícia Forense Dual `PDF/DOCX` & Detecção de Conluio em `bootstrap_case`:**
+  - Extração unificada `DocumentForensicMeta` para `.pdf` (`getMeta`, `extractLinks`, scanner `/Type /Sig` + `/M (D:...`) e `.docx` (`docProps/core.xml` + `docProps/app.xml`), detectando rastros `Canva`, `iLovePDF`, `Sejda`, `Smallpdf`, `CorelDRAW`, `Photoshop`, `PDFescape`, `Nitro` e `PhantomPDF` (`[PDF_EDITOR_MANIPULATION_TRACE]`).
+  - Tabela `### 🔍 Inventário Forense de Metadados (PDF & DOCX) e Cobertura Visual Multimodal` e alertas cruzados `[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]` / `[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]` em `state/indice_mestre_caso.md`.
+- **Evolução Gen6 — Conluio, Obras 75%/85%, Recursal Art. 165 & Sobrepreço na Inexigibilidade:**
+  - `forensic_collusion_auditor.ts`, `inexequibility_evaluator.ts` (Art. 59 §§ 4º e 5º + garantia adicional 85% + Súmula TCU 262), `appeals_evaluator.ts` & `appeals_docx_sections.ts` (compilando `Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.docx/.pdf` e `Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx/.pdf`).
+  - Auto-hidratação em `act_forensic_auditor.ts` (`> 180` dias, colisão de `Author` com licitante, `[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]`) e auditoria de sobrepreço/cotações simuladas em `direct_contracting_auditor.ts` (`[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]`, `[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]`).
+- **Nova Suíte Unitária Multimodal (`test/pdf_unpdf_v2_multimodal_forensics.test.ts`):**
+  - Cobertura de ponta a ponta das 5 classes de página, extração/materialização de PNGs, rastros de editores, metadados DOCX, detecção de conluio no `bootstrap_case` e teto `< 900B`.
+
 ## [1.6.1] - 2026-11-15 — Reformulação Jurídico-Pericial Integral dos Compiladores DOCX/PDF (Geração 6 & Gen5.5/5.6) + Schemas `--dump-spec`
 
 ### Changed
