@@ -214,9 +214,11 @@ export interface BiddingProposalDossier {
   evaluation_stance: "DEFENSE" | "ATTACK";
   decision: "APPROVED" | "DILIGENCE_REQUIRED" | "REJECTED";
   blocking_tags: string[];
+  estimated_total_value?: number;
   ict_execution: IctExecutionEvaluation;
   qualification: QualificationEvaluation;
   act_forensics: ActForensicEvaluation;
+  raw_context?: RawBiddingProposalInput;
   compiled_artifacts?: {
     judgment_opinion_docx_path?: string;
     judgment_opinion_pdf_path?: string;

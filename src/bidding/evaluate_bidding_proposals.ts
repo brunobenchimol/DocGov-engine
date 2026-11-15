@@ -188,9 +188,11 @@ export async function evaluateBiddingProposals(
     evaluation_stance: stance,
     decision,
     blocking_tags,
+    ...(raw.estimated_total_value !== undefined ? { estimated_total_value: Number(raw.estimated_total_value) } : {}),
     ict_execution: ictRes,
     qualification: qualRes,
     act_forensics: actRes,
+    raw_context: raw,
   };
 
   dossier.compiled_artifacts = await compileBiddingArtifacts(
