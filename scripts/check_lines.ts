@@ -15,6 +15,7 @@ const targetArg = process.argv[2]?.toLowerCase() || "all";
 
 const targetDirsMap: Record<string, string[]> = {
   juris: [join(rootDir, "src", "tools", "juris")],
+  pdf: [join(rootDir, "src", "utils", "pdf")],
   contracts: [join(rootDir, "src", "contracts")],
   arp: [join(rootDir, "src", "arp")],
   bidding: [join(rootDir, "src", "bidding")],
@@ -24,6 +25,7 @@ const targetDirsMap: Record<string, string[]> = {
   scripts: [join(rootDir, "scripts")],
   all: [
     join(rootDir, "src", "tools", "juris"),
+    join(rootDir, "src", "utils", "pdf"),
     join(rootDir, "src", "contracts"),
     join(rootDir, "src", "arp"),
     join(rootDir, "src", "bidding"),

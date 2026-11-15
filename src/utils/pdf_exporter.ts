@@ -682,7 +682,11 @@ export async function convertDocxToPdf(
   // Extrai contagem real de páginas via leitor do motor
   let pageCount = 1;
   try {
-    const extraction = await extractPdfPages(headerBuf);
+    const extraction = await extractPdfPages(headerBuf, {
+      skipPageInspection: true,
+      skipImageExtraction: true,
+      skipForensicMeta: true,
+    });
     pageCount = extraction.pageCount;
   } catch {
     pageCount = 1;

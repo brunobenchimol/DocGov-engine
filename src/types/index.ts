@@ -132,12 +132,67 @@ export interface PdfPageInfo {
   lines: PdfLineItem[];
 }
 
+export type PdfPageClass =
+  | "BORN_DIGITAL"
+  | "FULL_PAGE_SCAN"
+  | "HYBRID_HEADER_SCAN_TRAP"
+  | "EMBEDDED_VISUAL_ASSET"
+  | "OCR_LAYER_EMBEDDED";
+
+export interface PdfPageInspectionDetail {
+  page: number;
+  page_class: PdfPageClass;
+  visible_chars: number;
+  invisible_text_length: number;
+  image_count: number;
+  image_coverage: number;
+}
+
+export interface ExtractedPdfImageAsset {
+  page: number;
+  asset_index: number;
+  asset_id: string;
+  page_class: PdfPageClass;
+  coverage_pct: number;
+  width: number;
+  height: number;
+  sha256: string;
+  saved_path?: string;
+  relative_path?: string;
+  png_data?: Buffer;
+}
+
+export interface DocumentForensicMeta {
+  source_format: "pdf" | "docx";
+  title: string | null;
+  author: string | null;
+  last_modified_by: string | null;
+  creator_tool: string | null;
+  producer: string | null;
+  company: string | null;
+  template: string | null;
+  revision_count: number | null;
+  creation_date_iso: string | null;
+  mod_date_iso: string | null;
+  has_digital_signature: boolean;
+  signature_date_iso: string | null;
+  editing_software_traces: string[];
+  forensic_anomalies: string[];
+  links_detected_count?: number;
+}
+
 export interface PdfExtractionResult {
   pageCount: number;
   lineCount: number;
   pages: PdfPageInfo[];
   lines: PdfLineItem[];
   scanned_pages_detected?: number[];
+  hybrid_scan_pages?: number[];
+  page_inspection_summary?: PdfPageInspectionDetail[];
+  extracted_images?: ExtractedPdfImageAsset[];
+  skipped_decorative_images_count?: number;
+  forensic_meta?: DocumentForensicMeta;
+  pdf_forensic_meta?: DocumentForensicMeta;
   ocr_applied?: boolean;
   ocr_pages?: number[];
 }
@@ -243,6 +298,12 @@ export interface DocxInspectionResult {
   audit_view_path?: string;
   dossie_hotspots_path?: string;
   scanned_pages_detected?: number[];
+  hybrid_scan_pages?: number[];
+  page_inspection_summary?: PdfPageInspectionDetail[];
+  extracted_images_manifest?: Array<Omit<ExtractedPdfImageAsset, "png_data">>;
+  skipped_decorative_images_count?: number;
+  forensic_meta?: DocumentForensicMeta;
+  pdf_forensic_meta?: DocumentForensicMeta;
   ocr_applied?: boolean;
   ocr_pages?: number[];
   headers: HeaderFooterParagraphInfo[];
@@ -454,6 +515,7 @@ export interface BootstrapCaseInspectedDocx {
   tablesCount: number;
   paragraphsCount: number;
   compactStructure: DocxInspectionResult;
+  forensic_meta?: DocumentForensicMeta;
   template_match?: TemplateMatchResult;
   audit_view_path?: string;
 }
@@ -465,6 +527,9 @@ export interface BootstrapCaseInspectedPdf {
   audit_view_path?: string;
   dossie_hotspots_path?: string;
   scanned_pages_detected?: number[];
+  hybrid_scan_pages?: number[];
+  assets_extracted_count?: number;
+  forensic_meta?: DocumentForensicMeta;
   pageCount: number;
   lineCount: number;
   outlineHeadingsCount: number;
@@ -551,6 +616,8 @@ export interface InspectDocSyntheticResult {
   audit_view_path?: string;
   dossie_path?: string;
   scanned_pages?: number[];
+  hybrid_scan_pages_count?: number;
+  assets_extracted_count?: number;
   ocr_applied?: boolean;
   toc_summary?: Array<{
     coord: string;
