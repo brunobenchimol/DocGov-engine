@@ -8,6 +8,23 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.1] - 2026-11-15 — Reformulação Jurídico-Pericial Integral dos Compiladores DOCX/PDF (Geração 6 & Gen5.5/5.6) + Schemas `--dump-spec`
+
+### Changed
+- **Compilação Jurídico-Pericial da Geração 6 — Eixo TIC & Diligência ACT (`src/bidding/`):**
+  - Substituição integral dos relatórios telegráficos por redação técnico-jurídica oficial em português, modularizada sob a Lei 9 em `bidding_xml_primitives.ts`, `bidding_legal_humanizer.ts`, `bidding_opinion_sections.ts` e `act_diligence_letter_sections.ts`.
+  - **Formatação Determinística pt-BR e Interpolação Fática:** Valores monetários (`R$ 1.234,56`), índices contábeis/percentuais (`176,53%`), datas brasileiras (`DD/MM/AAAA`), tradução por extenso de regimes (`Lei Federal nº 14.133/2021` / `Lei Federal nº 13.303/2016`), decisões, métricas TIC e todos os 7 Vetores Forenses de ACT (`VETOR_1`..`VETOR_7`), acompanhados de dicionário jurídico completo das 19 tags do Eixo A (`describeBiddingTagLegalProse`).
+  - **`Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`:** Estruturado em 6 seções periciais formais (Síntese Executiva, Modelo TIC Não-DEMO, Exequibilidade Paramétrica por Perfis e Súmula TCU nº 262, Qualificação Técnica com Conversibilidade + Quadro Contábil `ILG/ILC/ISG/EG`, Fichas Periciais por ACT e Quadro Consolidado com Dispositivo Conclusivo e assinatura).
+  - **`Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf`:** Estruturado em 3 partes operacionais (Parte I Quadro Diagnóstico Forense, Parte II **VIA A** direta ao Emissor via contatos cadastrais da Receita Federal com prazo de 3 a 5 dias úteis e advertência dos Arts. 299 e 337-I do Código Penal, e Parte III **VIA B** à Licitante exigindo NF-e/NFS-e de 44 dígitos, Contrato/aditivos, OS/medições, SEFIP/GFIP/eSocial, comprovantes bancários e Súmula TCU 262).
+- **Compilação Jurídico-Pericial da Geração 6 — Contratação Direta & Oportunidade Estatal (`src/direct_contracting/direct_contracting_sections.ts` & `direct_contracting_compiler.ts`):**
+  - Estruturação de `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf` em 3 seções formais cobrindo **Inexigibilidade** (Art. 74 / Art. 30, Súmula TCU nº 255 e quadro de 3 NFs/contratos do Art. 23, § 4º), **Dispensa por Valor** (tabela de UG, exercício, PDM/CATMAT/CATSER, gasto prévio, proposto, consolidado, limite legal e excesso em `R$`) e **Oportunidade de Negócio Estatal** (tabela dos 5 requisitos cumulativos do Art. 28, § 3º, II e § 4º da Lei nº 13.303/2016), com quadro analítico das 5 tags do Eixo B.
+- **Consolidação dos Hotfixes de Execução Contratual, PAS, Dosimetria e Self-Discovery (Gen5.5/5.6 & Gen6):**
+  - Humanização jurídico-administrativa completa dos relatórios de Execução Contratual, Notificação Prévia/PAS e Parecer de Dosimetria (`src/contracts/contract_humanizer.ts`), calibração da tabela da LINDB Art. 22 eliminando falsos status `"PROPORCIONAL"` e normalização de aliases naturais de agentes nas ferramentas 2.11 e 2.12.
+  - Detalhamento explícito dos schemas JSON de entrada (raiz e objetos aninhados) nas seções 2.11, 2.12, 2.13 e 2.14 do manifesto `--dump-spec` (`src/mcp/spec.ts`).
+
+### Fixed
+- Ampliação das suítes `test/bidding_gen6.test.ts` e `test/direct_contracting_gen6.test.ts` validando estrutura de seções formais, tabelas `<w:tbl>`, valores em `R$` pt-BR, regimes completos e preservação integral das tags de rastreabilidade.
+
 ## [1.6.0] - 2026-11-14 — Marco 9 (Geração 6): Seleção do Fornecedor 360º em TIC sem DEMO, Exequibilidade de Perfis de TI, Conversibilidade, Motor Forense Anti-Fraude de ACT (7 Vetores) & Contratação Direta / Oportunidade Estatal
 
 ### Added

@@ -200,7 +200,7 @@ Motor determinístico de governança de Ata de Registro de Preços e gestão de 
 - **Retorno Sintético MCP (< 900 bytes):** Devolve \`status\`, \`engine_version\`, \`arp_number\`, \`decision\`, \`blocking_tags\`, \`ledger_summary\`, \`dossier_json_path\`, \`dossier_md_path\`, caminhos compilados e \`next_step_hint\`.
 
 ### 2.13. docgov_evaluate_bidding_proposals (CLI: evaluate-proposals)
-Motor determinístico da Fase Externa de TIC sem DEMO (Gen6 Marco 9 — \`v1.6.0\`).
+Motor determinístico da Fase Externa de TIC sem DEMO (Gen6 Marco 9 — \`v1.6.0\` / \`v1.6.1\`).
 - **Parâmetros MCP / CLI:** \`proposalJsonPath\` (aliases \`bidding_json_path\`, \`input_json_path\`, \`biddingJsonPath\`), \`outputDir\` (\`output_dir\`, \`caseDir\`, \`case_dir\`), \`evaluationStance\` (\`evaluation_stance\`: \`"DEFENSE"\` | \`"ATTACK"\`), \`compilationMode\` (\`"PROPOSAL_JUDGMENT_OPINION"\` | \`"ACT_DILIGENCE_LETTER"\` | \`"JUDGMENT_OPINION"\` | \`"ACT_DILIGENCE_REPORT"\` | \`"BOTH"\` | \`"NONE"\`), \`outputFormat\` (\`"docx"\` | \`"pdf"\` | \`"both"\`).
 - **Modelos TIC sem DEMO & Exequibilidade:** Bloqueia descaracterização para alocação de postos (\`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]\`), UST = Hora-Homem pura (\`[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]\`), HST sem teto em OS (\`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]\`), PF/SQUAD sem vínculo com ANS e desclassificação sumária sem diligência (\`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]\`).
 - **Habilitação Técnica & Econômico-Financeira:** Conversibilidade de métricas em ACT (\`[ICT_ACT_RIGID_METRIC_RESTRICTION_BLOCK]\`), Súmula TCU 263 (50%, 4%, somatório) e índices \`ILG/ILC/ISG/EG\` com teto 10% e vedação \`CS + PL\`.
@@ -215,7 +215,7 @@ Motor determinístico da Fase Externa de TIC sem DEMO (Gen6 Marco 9 — \`v1.6.0
 - **Compilação OpenXML DOCX/PDF:** Gera \`Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf\` e \`Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf\` (Via A ao Emissor na RFB e Via B à Licitante exigindo NF-e/NFS-e 44 dígitos, Contrato, OS e SEFIP/eSocial).
 
 ### 2.14. docgov_audit_direct_contracting (CLI: audit-direct-contracting)
-Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — \`v1.6.0\`).
+Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — \`v1.6.0\` / \`v1.6.1\`).
 - **Parâmetros MCP / CLI:** \`directContractingJsonPath\` (aliases \`direct_json_path\`, \`input_json_path\`, \`directJsonPath\`), \`outputDir\` (\`output_dir\`, \`caseDir\`, \`case_dir\`), \`compilationMode\` (\`"DIRECT_CONTRACTING_OPINION"\` | \`"NONE"\`), \`outputFormat\` (\`"docx"\` | \`"pdf"\` | \`"both"\`).
 - **Inexigibilidade (Art. 74 Lei 14.133 / Art. 30 Lei 13.303):** Bloqueio de atestado de exclusividade genérico (Súmula TCU 255 -> \`[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]\`) e exigência de mínimo de 3 NFs/contratos do fornecedor (\`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]\`).
 - **Dispensa por Valor (Art. 75 / Art. 29):** Controle anual anti-fracionamento por UG e ramo \`PDM / CATMAT / CATSER\` (\`[EXPENSE_FRAGMENTATION_BLOCK]\`).

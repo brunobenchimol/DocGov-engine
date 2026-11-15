@@ -413,11 +413,11 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     expect(opinionXml).not.toContain("Autoridade: N/A");
     expect(opinionXml).not.toContain("ÓBICE DETECTADO:");
 
-    const notifPdfText = (await extractPdfPages(readFileSync(join(outDir, "Notificacao_Previa_Descumprimento_e_PAS.pdf")))).lines.map((l) => l.text).join("\n");
+    const notifPdfText = (await extractPdfPages(readFileSync(join(outDir, "Notificacao_Previa_Descumprimento_e_PAS.pdf")))).lines.map((l) => l.text).join(" ").replace(/\s+/g, " ");
     expect(notifPdfText).toContain("13.303/2016");
     expect(notifPdfText).toContain("Ordenador de Despesa");
 
-    const opinionPdfText = (await extractPdfPages(readFileSync(join(outDir, "Parecer_Dosimetria_Sancao_ou_Glosa_ANS.pdf")))).lines.map((l) => l.text).join("\n");
+    const opinionPdfText = (await extractPdfPages(readFileSync(join(outDir, "Parecer_Dosimetria_Sancao_ou_Glosa_ANS.pdf")))).lines.map((l) => l.text).join(" ").replace(/\s+/g, " ");
     expect(opinionPdfText).toContain("2. Enquadramento Jurisdicional");
     expect(opinionPdfText).toContain("3. Conclus");
     expect(opinionPdfText).not.toMatch(/\bPROPORCIONAL\b/);
