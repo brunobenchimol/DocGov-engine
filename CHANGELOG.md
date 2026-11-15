@@ -24,6 +24,10 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Nova Suíte Unitária Multimodal (`test/pdf_unpdf_v2_multimodal_forensics.test.ts`):**
   - Cobertura de ponta a ponta das 5 classes de página, extração/materialização de PNGs, rastros de editores, metadados DOCX, detecção de conluio no `bootstrap_case` e teto `< 900B`.
 
+### Fixed
+- **Bloco de Assinatura na Fase Recursal (`src/bidding/appeals_docx_sections.ts` e `bidding_xml_primitives.ts`):**
+  - Corrigido spread ausente (`...pSignatureBlock([...])`) e passagem de `string[]` nas peças `Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.docx` e `Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx`, além de normalização defensiva em `pSignatureBlock` e `bodyParts.flat().join("\n")` em `emitDocxAndPdf` evitando iteração por caractere ou junção `</w:p>,<w:p>`.
+
 ## [1.6.1] - 2026-11-15 — Reformulação Jurídico-Pericial Integral dos Compiladores DOCX/PDF (Geração 6 & Gen5.5/5.6) + Schemas `--dump-spec`
 
 ### Changed
