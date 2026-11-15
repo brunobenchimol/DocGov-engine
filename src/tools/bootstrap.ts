@@ -401,6 +401,7 @@ export async function bootstrapCase(
     "contributing.md",
     "package.json",
     "tsconfig.json",
+    "bun.lock",
     "bun.lockb",
     "package-lock.json",
     "yarn.lock",

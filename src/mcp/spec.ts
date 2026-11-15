@@ -142,7 +142,7 @@ ${EXACT_COPY_PASTE_PNCP_SEARCH_SNIPPET}
 \`\`\`
 
 ### 2.9. search_juris
-Realiza busca multi-query sob demanda de jurisprudência em cortes de contas e superiores (TCU, STJ, STF, TST, AGU/CGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG) com Statutory Bridge (Lei 13.303/2016 + RILC <-> Lei 14.133/2021) e motor de ranking determinístico de 0..100 pts.
+Realiza busca multi-query sob demanda de jurisprudência em cortes de contas e superiores (TCU, STJ, STF, TST, AGU/CGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com Statutory Bridge (Lei 13.303/2016 + RILC <-> Lei 14.133/2021) e motor de ranking determinístico de 0..100 pts.
 - **Roteamento Jurisdicional Seletivo & Graceful Fallback:** Aceita \`courts\` e \`uf\`. Se omitidos, executa a camada federal (\`TCU\`, \`STJ\`, \`STF\`, e inclui \`TST\` automaticamente quando detectadas palavras-chave trabalhistas de terceirização/Súmula 331). Caso solicitada uma UF não implementada (ex.: \`AM\`), degrada graciosamente executando as cortes federais e reportando \`unimplemented_uf_requested\` sem falhar.
 - **Statutory Bridge:** 10 eixos normativos canônicos (SB-01 a SB-10) correlacionando institutos da Lei das Estatais e da Lei 14.133/2021, com expansão léxica e distinguishing.
 - **Ranking Determinístico (0..100 pts):** Ponderação de aderência léxica (35 pts), alinhamento tático com postura DEFENSE/ATTACK (25 pts), afinidade de regime jurídico (20 pts), colegiado e quórum (10 pts) e contemporaneidade (10 pts).

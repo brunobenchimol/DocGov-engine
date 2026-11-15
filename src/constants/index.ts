@@ -73,13 +73,13 @@ Servidor MCP standalone determinístico (docgov-engine v1.6.2) para manipulaçã
 `.trim();
 
 export const DOCX_WORKFLOW_GUIDE_TEXT = `
-# Guia de Arquitetura e Engenharia de Documentos (.pdf e .docx) — docgov-engine (v1.0.0)
+# Guia de Arquitetura e Engenharia de Documentos (.pdf e .docx) — docgov-engine (v${VERSION})
 
 Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento e auditoria de documentos (.pdf e .docx) do ecossistema DocGov.
 
 ---
 
-## 1. Pipeline Canônico de 5 Passos
+## 1. Pipeline Canônico das 14 Ferramentas Nativas
 
 ### Passo 1: Inicialização do Caso (bootstrap_case)
 - **Chamada:** \`bootstrap_case({ caseDir: "cases/<nome_caso>", uploadsDir: ".user_uploaded", fileRenameMap: { "media_179...": "ETP_Modelo.docx" } })\`
@@ -208,9 +208,9 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento e
   - Retorno sintético < 900 bytes com top candidatos e \`next_step_hint\` direcionando para download via \`fetch_pncp\`.
 
 ### Passo 9: Pesquisa Multi-Query de Precedentes e Equivalência Normativa (search_juris)
-- **Chamada:** \`search_juris({ caseDir: "cases/<nome_caso>", query: "orçamento sigiloso | padronização", courts: ["TCU", "TST", "AGU", "TCE-PA"], stance: "DEFENSE", limit: 10 })\`
+- **Chamada:** \`search_juris({ caseDir: "cases/<nome_caso>", query: "orçamento sigiloso | padronização", courts: ["TCU", "TST", "AGU", "TCE-PA", "TCE-PR"], stance: "DEFENSE", limit: 10 })\`
 - **Características:**
-  - Busca multi-query paralela em cortes de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF).
+  - Busca multi-query paralela em cortes de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR).
   - Statutory Bridge: equivalência determinística Lei 13.303/2016 + RILC <-> Lei 14.133/2021 (10 eixos normativos SB-01 a SB-10).
   - Motor de Ranking de Relevância (0..100 pts) ponderando aderência léxica, postura tática (DEFENSE/ATTACK), regime jurídico, colegiado e contemporaneidade.
   - Roteamento jurisdicional com degradação graciosa (graceful fallback) caso solicitada UF não implementada.
@@ -225,4 +225,24 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento e
   - Topic-Aware Windowing (Estágio 2): extrai janelas contextuais focadas no tópico solicitado com fundamentação integral do voto.
   - Geração de \`state/dossie_juris_<shortname>.md\` (dossiê fatiado para citação) e \`inputs/juris_<shortname>/inteiro_teor_anatomico.md\` (inteiro teor do Estágio 3).
   - Retorno sintético MCP estritamente < 900 bytes (Lei 2).
+
+### Passo 11: Auditoria de Execução Contratual, Reajuste, Aditivos, Cesta de Preços e PAS (docgov_audit_contract_execution)
+- **Chamada:** \`docgov_audit_contract_execution({ caseDir: "cases/<nome_caso>", contractJsonPath: "cases/<nome_caso>/state/contrato.json", format?: "both" })\`
+- **Características:**
+  - Auditoria determinística de aditivos (limites 25%/50%), reajustamento/repactuação, matcher tripartite NF x Medição x Contrato, Cesta de Preços e PAS Federativo (Dosimetria LINDB Art. 22 / Lei 14.133 / Lei 13.303 / RILC).
+
+### Passo 12: Governança de Ata de Registro de Preços — ARP (docgov_govern_arp)
+- **Chamada:** \`docgov_govern_arp({ caseDir: "cases/<nome_caso>", arpJsonPath: "cases/<nome_caso>/state/arp.json", format?: "both" })\`
+- **Características:**
+  - Ledger imutável de saldo por item e caronas (teto 50% por órgão não participante e dobro global 2x), prazo de vigência e matriz de compatibilidade técnica/econômica.
+
+### Passo 13: Julgamento de Propostas, Inexequibilidade, Conluio e Recursos (docgov_evaluate_bidding_proposals)
+- **Chamada:** \`docgov_evaluate_bidding_proposals({ caseDir: "cases/<nome_caso>", biddingJsonPath: "cases/<nome_caso>/state/licitacao.json", mode?: "full" })\`
+- **Características:**
+  - Inexequibilidade de engenharia (< 75% e garantia adicional 75%..85%), detecção de Jogo de Planilha, auditoria forense anti-conluio em lote e fase recursal (Art. 165/168).
+
+### Passo 14: Auditoria de Contratação Direta — Dispensa e Inexigibilidade (docgov_audit_direct_contracting)
+- **Chamada:** \`docgov_audit_direct_contracting({ caseDir: "cases/<nome_caso>", directJsonPath: "cases/<nome_caso>/state/contratacao_direta.json", regime?: "BOTH" })\`
+- **Características:**
+  - Verificação determinística de enquadramento, fracionamento de despesa por PDM/CNAE, singularidade/notória especialização (Art. 74 III) e justificativa de preço.
 `.trim();
