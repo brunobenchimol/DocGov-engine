@@ -1,8 +1,9 @@
 import { describe, it, expect, afterAll } from "bun:test";
-import { mkdtempSync, rmSync, existsSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, existsSync, writeFileSync, readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
+import JSZip from "jszip";
 import {
   auditDirectContracting,
   serializeDirectContractingSyntheticResult,
@@ -45,6 +46,17 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(dossier.blocking_tags).toContain("[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]");
     expect(existsSync(dossier.compiled_artifacts?.opinion_docx_path!)).toBe(true);
     expect(existsSync(dossier.compiled_artifacts?.opinion_pdf_path!)).toBe(true);
+    const zip = await JSZip.loadAsync(readFileSync(dossier.compiled_artifacts?.opinion_docx_path!));
+    const opinionXml = await zip.file("word/document.xml")!.async("string");
+    expect(opinionXml).toContain("<w:tbl>");
+    expect(opinionXml).toContain("1. Identificação Processual e Síntese Executiva");
+    expect(opinionXml).toContain("2. Exame Analítico dos Requisitos Normativos da Modalidade");
+    expect(opinionXml).toContain("3. Consolidação de Óbices Normativos, Recomendações e Conclusão");
+    expect(opinionXml).toContain("Lei Federal nº 14.133/2021");
+    expect(opinionXml).toContain("Súmula TCU nº 255");
+    expect(opinionXml).toContain("[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]");
+    expect(opinionXml).toContain("[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]");
+    expect(opinionXml).not.toContain("Decisão: REJECTED");
     expect(existsSync(join(outDir, "dossie_contratacao_direta.json"))).toBe(true);
     expect(existsSync(join(outDir, "relatorio_contratacao_direta.json"))).toBe(true);
     expect(existsSync(join(outDir, "visao_contratacao_direta.md"))).toBe(true);
@@ -52,7 +64,7 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(synthetic), "utf-8")).toBeLessThan(900);
   }, 30000);
 
-  it("deve bloquear Dispensa por Valor com fracionamento anual na mesma UG e PDM/CATMAT/CATSER", async () => {
+  it("deve bloquear Dispensa por Valor com fracionamento anual na mesma UG e PDM/CATMAT/CATSER e compilar BRL formatado", async () => {
     const outDir = makeTmpDir();
     const { dossier } = await auditDirectContracting(
       {
@@ -63,12 +75,21 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
         prior_accumulated_spend_in_branch: 45000,
         current_proposed_spend: 25000,
       },
-      { outputDir: outDir, compilationMode: "NONE" }
+      { outputDir: outDir, compilationMode: "DIRECT_CONTRACTING_OPINION", outputFormat: "docx" }
     );
 
     expect(dossier.status).toBe("blocked");
     expect(dossier.blocking_tags).toContain("[EXPENSE_FRAGMENTATION_BLOCK]");
     expect(dossier.dispensation_summary?.fragmentation_detected).toBe(true);
+    const zip = await JSZip.loadAsync(readFileSync(dossier.compiled_artifacts?.opinion_docx_path!));
+    const dispXml = await zip.file("word/document.xml")!.async("string");
+    expect(dispXml).toContain("CATSER-25992");
+    expect(dispXml).toContain("R$ 45.000,00");
+    expect(dispXml).toContain("R$ 25.000,00");
+    expect(dispXml).toContain("R$ 70.000,00");
+    expect(dispXml).toContain("R$ 62.725,59");
+    expect(dispXml).toContain("R$ 7.274,41");
+    expect(dispXml).toContain("[EXPENSE_FRAGMENTATION_BLOCK]");
   });
 
   it("deve validar Oportunidade de Negócio Estatal (Art. 28 § 3º II Lei 13.303) bloqueando compra comum disfarçada", async () => {

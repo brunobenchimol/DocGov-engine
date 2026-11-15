@@ -202,18 +202,74 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
     expect(existsSync(diligenceDocx)).toBe(true);
     expect(existsSync(dossier.compiled_artifacts?.act_diligence_pdf_path!)).toBe(true);
 
+    const judgmentZip = await JSZip.loadAsync(readFileSync(judgmentDocx));
+    const judgmentXml = await judgmentZip.file("word/document.xml")!.async("string");
+    expect(judgmentXml).toContain("<w:tbl>");
+    expect(judgmentXml).toContain("1. Identificação Processual e Síntese Executiva do Julgamento");
+    expect(judgmentXml).toContain("5. Auditoria Pericial e Forense dos Atestados de Capacidade Técnica");
+    expect(judgmentXml).toContain("6. Quadro Consolidado de Apontamentos, Recomendações e Dispositivo Conclusivo");
+    expect(judgmentXml).toContain("Lei Federal nº 14.133/2021");
+    expect(judgmentXml).toContain("Vetor 1 — Incompatibilidade de Porte e Objeto Social");
+    expect(judgmentXml).toContain("[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]");
+    expect(judgmentXml).not.toContain("Decisão: REJECTED");
+
     const zip = await JSZip.loadAsync(readFileSync(diligenceDocx));
     const docXml = await zip.file("word/document.xml")!.async("string");
     expect(docXml).toContain("<w:tbl>");
+    expect(docXml).toContain("VIA A");
+    expect(docXml).toContain("VIA B");
     expect(docXml).toContain("Receita Federal");
     expect(docXml).toContain("Emissor");
     expect(docXml).toContain("44 dígitos");
     expect(docXml).toContain("SEFIP");
     expect(docXml).toContain("eSocial");
+    expect(docXml).toContain("Arts. 299");
+    expect(docXml).toContain("337-I");
+    expect(docXml).not.toContain("VETOR_1_PORTE_CNAE");
 
     const serialized = serializeBiddingSyntheticResult(synthetic);
     expect(Buffer.byteLength(serialized, "utf-8")).toBeLessThan(900);
   }, 30000);
+
+  it("deve compilar Parecer Jurídico-Pericial TIC em Lei 13.303 com BRL formatado e perfis sem logs crus", async () => {
+    const outDir = makeTmpDir();
+    const { dossier } = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-PERICIAL-13303",
+        bidder_name: "TIC_EMPRESARIAL_SA",
+        bidder_cnpj: "12.345.678/0001-90",
+        legal_regime: "LEI_13303",
+        estimated_total_value: 2500000,
+        ict_execution_model: { metric_type: "UST", has_complexity_weighted_activity_catalog: true },
+        proposal_exequibility: {
+          offered_unit_value: 140,
+          profiles_breakdown: [
+            { profile_name: "Arquiteto Cloud Sênior", salary_floor: 15000, social_charges_pct: 70, taxes_and_admin_pct: 18, monthly_productive_units: 168 },
+          ],
+          summary_disqualification_attempted: true,
+        },
+        financial_qualification: {
+          ativo_circulante: 1800000,
+          passivo_circulante: 900000,
+          ativo_total: 3000000,
+          capital_social: 500000,
+          patrimonio_liquido: 800000,
+        },
+      },
+      { outputDir: outDir, compilationMode: "PROPOSAL_JUDGMENT_OPINION", outputFormat: "docx" }
+    );
+
+    const judgmentDocx = dossier.compiled_artifacts?.judgment_opinion_docx_path!;
+    expect(existsSync(judgmentDocx)).toBe(true);
+    const zip = await JSZip.loadAsync(readFileSync(judgmentDocx));
+    const xml = await zip.file("word/document.xml")!.async("string");
+    expect(xml).toContain("Lei Federal nº 13.303/2016");
+    expect(xml).toContain("R$ 2.500.000,00");
+    expect(xml).toContain("R$ 140,00");
+    expect(xml).toContain("Arquiteto Cloud Sênior");
+    expect(xml).toContain("[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]");
+    expect(xml).not.toContain("Regime: LEI_13303");
+  });
 
   it("deve rotear evaluate-proposals via runCli e entrypoint src/index.ts sem cair no servidor MCP", async () => {
     const outDir = makeTmpDir();

@@ -49,10 +49,10 @@ export function buildActDiligenceLetterXmlParts(dossier: BiddingProposalDossier)
       ? dossier.act_forensics.items
           .map(
             (a) =>
-              `${a.certificate_id} — Emissor ${a.issuer_name} (CNPJ ${a.issuer_cnpj}): ${a.details.join(" ") || "Confirmação cadastral e material requerida."}`
+              `${a.certificate_id} (Emissor ${a.issuer_name}, CNPJ ${a.issuer_cnpj})`
           )
-          .join(" ")
-      : "Confirmação cadastral, material e documental dos atestados submetidos ao procedimento.";
+          .join("; ")
+      : "Confirmação cadastral, material e documental dos atestados submetidos ao procedimento";
 
   const needPriceDiligence =
     dossier.ict_execution.diligence_required || !dossier.ict_execution.is_exequible;
