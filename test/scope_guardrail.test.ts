@@ -130,16 +130,46 @@ describe("Testes Unitários v1.3.8: Guardrail de Escopo DocGov e Isolamento Efê
   });
 
   test("11. search_pncp: deve acumular resultados em %TEMP%/docgov_ephemeral_inspect/ quando caseDir for fora de escopo", async () => {
-    const ephemeralDir = getEphemeralInspectDir();
-    const result = await searchPncpContracts(outsideDir, "00394460000141/2026/15", {
-      limit: 1,
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response(
+          JSON.stringify({
+            items: [
+              {
+                orgao_cnpj: "00000000000100",
+                ano: 2026,
+                numero_sequencial: 15,
+                orgao_nome: "ORGAO_CONTRATANTE",
+                modalidade_licitacao_nome: "Pregão Eletrônico",
+                title: "Serviços Técnicos Especializados de TIC",
+                description: "Objeto simulado determinístico para validação de escopo efêmero.",
+                valor_global: 100000.0,
+                data_publicacao_pncp: "2026-03-01T08:00:00",
+                uf: "DF",
+              },
+            ],
+          }),
+          { headers: { "Content-Type": "application/json" } }
+        );
+      },
     });
 
-    expect(result.status).toBe("success");
-    // Garante que não criou state/ na pasta externa
-    expect(existsSync(resolve(outsideDir, "state"))).toBe(false);
-    // Garante que gravou em %TEMP%/docgov_ephemeral_inspect/
-    expect(existsSync(resolve(ephemeralDir, "pncp_search_results.md"))).toBe(true);
-    expect(existsSync(resolve(ephemeralDir, "pncp_search_results.json"))).toBe(true);
+    const ephemeralDir = getEphemeralInspectDir();
+    try {
+      const result = await searchPncpContracts(outsideDir, "tic", {
+        limit: 1,
+        baseUrl: `http://127.0.0.1:${server.port}`,
+      });
+
+      expect(result.status).toBe("success");
+      // Garante que não criou state/ na pasta externa
+      expect(existsSync(resolve(outsideDir, "state"))).toBe(false);
+      // Garante que gravou em %TEMP%/docgov_ephemeral_inspect/
+      expect(existsSync(resolve(ephemeralDir, "pncp_search_results.md"))).toBe(true);
+      expect(existsSync(resolve(ephemeralDir, "pncp_search_results.json"))).toBe(true);
+    } finally {
+      server.stop(true);
+    }
   });
 });
