@@ -137,6 +137,12 @@ export async function auditDirectContracting(
     | "pdf"
     | "both";
 
+  const amountRaw =
+    raw.contracted_amount ??
+    raw.contracted_Amount ??
+    raw.dispensation_by_value_details?.current_proposed_spend ??
+    raw.current_proposed_spend;
+
   const dossier: DirectContractingAuditDossier = {
     status,
     engine_version: VERSION,
@@ -144,11 +150,13 @@ export async function auditDirectContracting(
     modality: evalRes.modality,
     legal_regime: evalRes.legal_regime,
     decision,
+    ...(amountRaw !== undefined ? { contracted_amount: Number(amountRaw) } : {}),
     blocking_tags: evalRes.blocking_tags,
     findings: evalRes.findings,
     ...(evalRes.inexigibility_summary ? { inexigibility_summary: evalRes.inexigibility_summary } : {}),
     ...(evalRes.dispensation_summary ? { dispensation_summary: evalRes.dispensation_summary } : {}),
     ...(evalRes.state_opportunity_summary ? { state_opportunity_summary: evalRes.state_opportunity_summary } : {}),
+    raw_context: raw,
   };
 
   dossier.compiled_artifacts = await compileDirectContractingOpinion(

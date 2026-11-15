@@ -98,8 +98,10 @@ export interface DirectContractingAuditDossier {
   modality: DirectContractingModality;
   legal_regime: string;
   decision: "APPROVED" | "REJECTED";
+  contracted_amount?: number;
   blocking_tags: string[];
   findings: string[];
+  raw_context?: RawDirectContractingInput;
   inexigibility_summary?: {
     exclusivity_valid: boolean;
     valid_market_price_proofs_count: number;
