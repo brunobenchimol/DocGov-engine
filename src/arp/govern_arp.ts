@@ -5,9 +5,14 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join, relative, basename } from "node:path";
+import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
-import { safeReadJsonFile } from "../utils/json.ts";
+import {
+  fitBlockingTagsToBudget,
+  safeReadJsonFile,
+  serializeCompactSyntheticResult,
+  toCompactWorkspacePath,
+} from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { computeArpLedger } from "./ledger_engine.ts";
 import { evaluateArpCompatibility } from "./compatibility_matrix.ts";
@@ -142,10 +147,10 @@ export async function governArpExecution(
         max_global_ratio_pct: ledgerRes.max_global_ratio_pct,
         preserved_own_balance_intact: ledgerRes.preserved_own_balance_intact,
       },
-      dossier_json_path: toCompactPath(dossierJsonPath),
-      dossier_md_path: toCompactPath(visaoMdPath),
-      ...(compiledDocxPath ? { compiled_document_path: toCompactPath(compiledDocxPath) } : {}),
-      ...(compiledPdfPath ? { compiled_pdf_path: toCompactPath(compiledPdfPath) } : {}),
+      dossier_json_path: toCompactWorkspacePath(dossierJsonPath),
+      dossier_md_path: toCompactWorkspacePath(visaoMdPath),
+      ...(compiledDocxPath ? { compiled_document_path: toCompactWorkspacePath(compiledDocxPath) } : {}),
+      ...(compiledPdfPath ? { compiled_pdf_path: toCompactWorkspacePath(compiledPdfPath) } : {}),
       next_step_hint:
         blocking_tags.length > 0
           ? `Adesão indeferida (${blocking_tags.length} óbices legais). Inspecione a visão de governança.`
@@ -158,16 +163,6 @@ export async function governArpExecution(
   );
 
   return { dossier, synthetic };
-}
-
-function toCompactPath(absPath: string): string {
-  const normAbs = absPath.replace(/\\/g, "/");
-  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
-  if (normAbs.startsWith(`${normCwd}/`)) {
-    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
-    if (rel && rel.length < normAbs.length) return rel;
-  }
-  return normAbs;
 }
 
 function buildCompactArpSyntheticResult(
@@ -209,22 +204,7 @@ function buildCompactArpSyntheticResult(
     if (minSizeOf(synthetic) > 880 && synthetic.arp_number.length > 20) {
       synthetic.arp_number = synthetic.arp_number.slice(0, 20);
     }
-    if (minSizeOf(synthetic) > 880 && synthetic.blocking_tags.length > 1) {
-      const fullTags = [...synthetic.blocking_tags];
-      let keepCount = fullTags.length - 1;
-      while (keepCount >= 1) {
-        const omitted = fullTags.length - keepCount;
-        synthetic.blocking_tags = [
-          ...fullTags.slice(0, keepCount),
-          `[+${omitted}_TAGS_NO_DOSSIE]`,
-        ];
-        if (minSizeOf(synthetic) <= 880) break;
-        keepCount--;
-      }
-      if (minSizeOf(synthetic) > 880) {
-        synthetic.blocking_tags = [`[+${fullTags.length}_TAGS_NO_DOSSIE]`];
-      }
-    }
+    fitBlockingTagsToBudget(synthetic, 880);
   }
 
   return synthetic;
@@ -233,11 +213,7 @@ function buildCompactArpSyntheticResult(
 export function serializeArpSyntheticResult(
   synthetic: ArpGovernSyntheticResult
 ): string {
-  const pretty = JSON.stringify(synthetic, null, 2);
-  if (Buffer.byteLength(pretty, "utf-8") <= 850) {
-    return pretty;
-  }
-  return JSON.stringify(synthetic);
+  return serializeCompactSyntheticResult(synthetic, 850);
 }
 
 function generateArpVisionMarkdown(dossier: ArpGovernDossier): string {

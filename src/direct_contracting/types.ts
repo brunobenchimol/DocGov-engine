@@ -151,7 +151,7 @@ export interface DirectContractingSyntheticResult {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   process_id: string;
-  modality: string;
+  modality?: string;
   decision: string;
   blocking_tags: string[];
   docx_path?: string;

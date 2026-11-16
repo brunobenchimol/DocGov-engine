@@ -1,5 +1,5 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve } from "node:path";
 
 // ============================================================================
 // Utilitários Resilientes de JSON (safeReadJsonFile, unflattenDotKeys)
@@ -242,4 +242,50 @@ export function unflattenDotKeys(obj: any): any {
 }
 
 export const unflattenDotNotation = unflattenDotKeys;
+
+// ============================================================================
+// Helpers Compartilhados de Envelope Sintético MCP (< 900B — Lei 2)
+// ============================================================================
+
+export function toCompactWorkspacePath(absPath: string): string {
+  const normAbs = absPath.replace(/\\/g, "/");
+  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
+  if (normAbs.startsWith(`${normCwd}/`)) {
+    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
+    if (rel && rel.length < normAbs.length) return rel;
+  }
+  return normAbs;
+}
+
+export function serializeCompactSyntheticResult(
+  obj: unknown,
+  prettyMaxBytes: number = 850
+): string {
+  const pretty = JSON.stringify(obj, null, 2);
+  if (Buffer.byteLength(pretty, "utf-8") <= prettyMaxBytes) {
+    return pretty;
+  }
+  return JSON.stringify(obj);
+}
+
+export function fitBlockingTagsToBudget(
+  payload: { blocking_tags: string[] },
+  maxBytes: number = 880
+): void {
+  const minSizeOf = () => Buffer.byteLength(JSON.stringify(payload), "utf-8");
+  if (minSizeOf() <= maxBytes || payload.blocking_tags.length <= 1) return;
+
+  const fullTags = [...payload.blocking_tags];
+  let keepCount = fullTags.length - 1;
+  while (keepCount >= 1) {
+    const omitted = fullTags.length - keepCount;
+    payload.blocking_tags = [
+      ...fullTags.slice(0, keepCount),
+      `[+${omitted}_TAGS_NO_DOSSIE]`,
+    ];
+    if (minSizeOf() <= maxBytes) return;
+    keepCount--;
+  }
+  payload.blocking_tags = [`[+${fullTags.length}_TAGS_NO_DOSSIE]`];
+}
 

@@ -5,9 +5,14 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
-import { dirname, join, basename, relative } from "node:path";
+import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
-import { safeReadJsonFile } from "../utils/json.ts";
+import {
+  fitBlockingTagsToBudget,
+  safeReadJsonFile,
+  serializeCompactSyntheticResult,
+  toCompactWorkspacePath,
+} from "../utils/json.ts";
 import { extractPdfPages } from "../utils/pdf.ts";
 import { extractDocxForensicMetaFromBuffer } from "../utils/pdf/docx_forensic_meta.ts";
 import type { DocumentForensicMeta } from "../types/index.ts";
@@ -21,16 +26,6 @@ import type {
   DirectContractingSyntheticResult,
 } from "./types.ts";
 
-function toCompactPath(absPath: string): string {
-  const normAbs = absPath.replace(/\\/g, "/");
-  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
-  if (normAbs.startsWith(`${normCwd}/`)) {
-    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
-    if (rel && rel.length < normAbs.length) return rel;
-  }
-  return normAbs;
-}
-
 function buildCompactSyntheticResult(
   dossier: DirectContractingAuditDossier,
   jsonPath: string,
@@ -42,15 +37,15 @@ function buildCompactSyntheticResult(
     process_id: dossier.process_id,
     modality: dossier.modality,
     decision: dossier.decision,
-    blocking_tags: dossier.blocking_tags,
+    blocking_tags: [...dossier.blocking_tags],
     ...(dossier.compiled_artifacts?.opinion_docx_path
       ? { docx_path: basename(dossier.compiled_artifacts.opinion_docx_path) }
       : {}),
     ...(dossier.compiled_artifacts?.opinion_pdf_path
       ? { pdf_path: basename(dossier.compiled_artifacts.opinion_pdf_path) }
       : {}),
-    dossier_json_path: toCompactPath(jsonPath),
-    dossier_md_path: toCompactPath(mdPath),
+    dossier_json_path: toCompactWorkspacePath(jsonPath),
+    dossier_md_path: toCompactWorkspacePath(mdPath),
     next_step_hint:
       dossier.blocking_tags.length > 0
         ? `Instrução bloqueada (${dossier.blocking_tags.length} tag(s)).`
@@ -67,8 +62,20 @@ function buildCompactSyntheticResult(
     synthetic.dossier_json_path = basename(jsonPath);
     synthetic.dossier_md_path = basename(mdPath);
   }
-  if (minSizeOf(synthetic) > 850 && synthetic.process_id.length > 20) {
-    synthetic.process_id = synthetic.process_id.slice(0, 20);
+  if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.pdf_path;
+    }
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.docx_path;
+    }
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.modality;
+    }
+    if (minSizeOf(synthetic) > 880 && synthetic.process_id.length > 16) {
+      synthetic.process_id = synthetic.process_id.slice(0, 16);
+    }
+    fitBlockingTagsToBudget(synthetic, 880);
   }
   return synthetic;
 }
@@ -76,9 +83,7 @@ function buildCompactSyntheticResult(
 export function serializeDirectContractingSyntheticResult(
   s: DirectContractingSyntheticResult
 ): string {
-  const pretty = JSON.stringify(s, null, 2);
-  if (Buffer.byteLength(pretty, "utf-8") < 900) return pretty;
-  return JSON.stringify(s);
+  return serializeCompactSyntheticResult(s, 850);
 }
 
 function buildDossierMarkdown(d: DirectContractingAuditDossier): string {

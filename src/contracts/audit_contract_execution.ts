@@ -5,9 +5,14 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join, relative, basename } from "node:path";
+import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
-import { safeReadJsonFile } from "../utils/json.ts";
+import {
+  fitBlockingTagsToBudget,
+  safeReadJsonFile,
+  serializeCompactSyntheticResult,
+  toCompactWorkspacePath,
+} from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { auditContractAddendums } from "./addendum_auditor.ts";
 import { matchTripartiteExecution } from "./tripartite_matcher.ts";
@@ -21,16 +26,6 @@ import type {
   ContractAuditReport,
   AuditContractSyntheticResult,
 } from "./types.ts";
-
-function toCompactPath(absPath: string): string {
-  const normAbs = absPath.replace(/\\/g, "/");
-  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
-  if (normAbs.startsWith(`${normCwd}/`)) {
-    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
-    if (rel && rel.length < normAbs.length) return rel;
-  }
-  return normAbs;
-}
 
 function buildCompactSyntheticResult(
   report: ContractAuditReport,
@@ -62,8 +57,8 @@ function buildCompactSyntheticResult(
         ? { rebalance_violations_count: s.rebalance_violations_count }
         : {}),
     },
-    report_json_path: toCompactPath(reportJsonPath),
-    dossier_md_path: toCompactPath(dossierMdPath),
+    report_json_path: toCompactWorkspacePath(reportJsonPath),
+    dossier_md_path: toCompactWorkspacePath(dossierMdPath),
     ...(compiledNames.length > 0 ? { compiled_artifacts: compiledNames } : {}),
     next_step_hint:
       report.blocking_tags.length > 0
@@ -117,23 +112,7 @@ function buildCompactSyntheticResult(
       synthetic.contract_id = synthetic.contract_id.slice(0, 16);
     }
     // Overflow extremo (ex.: 18 tags simultâneas > 880B): preserva o máximo de tags no envelope + marcador de cauda; todas as tags seguem íntegras no JSON/MD em disco
-    if (minSizeOf(synthetic) > 880 && synthetic.blocking_tags.length > 1) {
-      const fullTags = [...synthetic.blocking_tags];
-      let keepCount = fullTags.length - 1;
-      while (keepCount >= 1) {
-        const omitted = fullTags.length - keepCount;
-        const candidate = [
-          ...fullTags.slice(0, keepCount),
-          `[+${omitted}_TAGS_NO_DOSSIE]`,
-        ];
-        synthetic.blocking_tags = candidate;
-        if (minSizeOf(synthetic) <= 880) break;
-        keepCount--;
-      }
-      if (minSizeOf(synthetic) > 880) {
-        synthetic.blocking_tags = [`[+${fullTags.length}_TAGS_NO_DOSSIE]`];
-      }
-    }
+    fitBlockingTagsToBudget(synthetic, 880);
   }
 
   return synthetic;
@@ -142,11 +121,7 @@ function buildCompactSyntheticResult(
 export function serializeSyntheticAuditResult(
   synthetic: AuditContractSyntheticResult
 ): string {
-  const pretty = JSON.stringify(synthetic, null, 2);
-  if (Buffer.byteLength(pretty, "utf-8") <= 850) {
-    return pretty;
-  }
-  return JSON.stringify(synthetic);
+  return serializeCompactSyntheticResult(synthetic, 850);
 }
 
 export async function auditContractExecution(

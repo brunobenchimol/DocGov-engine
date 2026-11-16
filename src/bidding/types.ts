@@ -351,10 +351,10 @@ export interface BiddingSyntheticResult {
   engine_version: string;
   process_id: string;
   decision: string;
-  proposal_decision: string;
+  proposal_decision?: string;
   blocking_tags: string[];
-  act_forensic_alerts_count: number;
-  compiled_docs_count: number;
+  act_forensic_alerts_count?: number;
+  compiled_docs_count?: number;
   dossier_json_path: string;
   dossier_md_path: string;
   compiled_artifacts?: string[];

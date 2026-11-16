@@ -5,9 +5,14 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { dirname, join, basename, relative } from "node:path";
+import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
-import { safeReadJsonFile } from "../utils/json.ts";
+import {
+  fitBlockingTagsToBudget,
+  safeReadJsonFile,
+  serializeCompactSyntheticResult,
+  toCompactWorkspacePath,
+} from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { evaluateIctExecutionAndExequibility } from "./ict_execution_models.ts";
 import { evaluateQualification } from "./qualification_evaluator.ts";
@@ -26,16 +31,6 @@ import type {
   BiddingSyntheticResult,
 } from "./types.ts";
 
-function toCompactPath(absPath: string): string {
-  const normAbs = absPath.replace(/\\/g, "/");
-  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
-  if (normAbs.startsWith(`${normCwd}/`)) {
-    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
-    if (rel && rel.length < normAbs.length) return rel;
-  }
-  return normAbs;
-}
-
 function buildCompactSyntheticResult(
   dossier: BiddingProposalDossier,
   jsonPath: string,
@@ -51,11 +46,11 @@ function buildCompactSyntheticResult(
     process_id: dossier.process_id,
     decision: dossier.decision,
     proposal_decision: dossier.decision,
-    blocking_tags: dossier.blocking_tags,
+    blocking_tags: [...dossier.blocking_tags],
     act_forensic_alerts_count: dossier.act_forensics.total_alerts,
     compiled_docs_count: compiledNames.length,
-    dossier_json_path: toCompactPath(jsonPath),
-    dossier_md_path: toCompactPath(mdPath),
+    dossier_json_path: toCompactWorkspacePath(jsonPath),
+    dossier_md_path: toCompactWorkspacePath(mdPath),
     ...(compiledNames.length > 0 ? { compiled_artifacts: compiledNames } : {}),
     next_step_hint:
       dossier.blocking_tags.length > 0
@@ -77,16 +72,26 @@ function buildCompactSyntheticResult(
     synthetic.dossier_md_path = basename(mdPath);
     delete synthetic.next_step_hint;
   }
-  if (minSizeOf(synthetic) > 850 && synthetic.process_id.length > 20) {
-    synthetic.process_id = synthetic.process_id.slice(0, 20);
+  if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.proposal_decision;
+    }
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.compiled_docs_count;
+    }
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.act_forensic_alerts_count;
+    }
+    if (minSizeOf(synthetic) > 880 && synthetic.process_id.length > 16) {
+      synthetic.process_id = synthetic.process_id.slice(0, 16);
+    }
+    fitBlockingTagsToBudget(synthetic, 880);
   }
   return synthetic;
 }
 
 export function serializeBiddingSyntheticResult(s: BiddingSyntheticResult): string {
-  const pretty = JSON.stringify(s, null, 2);
-  if (Buffer.byteLength(pretty, "utf-8") < 900) return pretty;
-  return JSON.stringify(s);
+  return serializeCompactSyntheticResult(s, 850);
 }
 
 function buildDossierMarkdown(d: BiddingProposalDossier): string {

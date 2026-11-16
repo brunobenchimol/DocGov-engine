@@ -251,5 +251,50 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(dossier.blocking_tags).toContain("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
     expect(dossier.blocking_tags).toContain("[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]");
     expect(dossier.inexigibility_summary?.sanitized_market_median).toBe(1050);
-  });
+
+    // Garantia preventiva MCP (< 900B) em docgov_audit_direct_contracting sob múltiplos bloqueios + DOCX/PDF
+    const { handleCallTool } = await import("../src/mcp/server.ts");
+    const mcpDir = makeTmpDir();
+    const mcpRes: any = await handleCallTool("docgov_audit_direct_contracting", {
+      outputDir: mcpDir,
+      compilationMode: "DIRECT_CONTRACTING_OPINION",
+      outputFormat: "both",
+      process_id: "PROC-INEX-MCP-STRESS-2026-LONGO",
+      modality: "INEXIGIBILIDADE",
+      exclusivity_certificate_valid: false,
+      competition_infeasibility_proven: false,
+      offered_unit_price: 2500,
+      inexigibility_details: {
+        competition_infeasibility_proven: false,
+        supplier_market_price_proofs: [
+          { type: "NF", identifier: "NF-1", unit_price: 900 },
+          { type: "NF", identifier: "NF-2", unit_price: 950 },
+        ],
+      },
+      quotations_forensic_meta: [
+        {
+          file_name: "c1.pdf",
+          forensic_meta: {
+            source_format: "pdf", title: "C1", author: "Autor_Unico", last_modified_by: null,
+            creator_tool: "Excel", producer: "Excel", company: null, template: null,
+            revision_count: null, creation_date_iso: "2026-11-12T09:00:00.000Z", mod_date_iso: null,
+            has_digital_signature: false, signature_date_iso: null, editing_software_traces: [], forensic_anomalies: [],
+          },
+        },
+        {
+          file_name: "c2.pdf",
+          forensic_meta: {
+            source_format: "pdf", title: "C2", author: "Autor_Unico", last_modified_by: null,
+            creator_tool: "Excel", producer: "Excel", company: null, template: null,
+            revision_count: null, creation_date_iso: "2026-11-12T09:00:15.000Z", mod_date_iso: null,
+            has_digital_signature: false, signature_date_iso: null, editing_software_traces: [], forensic_anomalies: [],
+          },
+        },
+      ],
+    });
+    const mcpText = mcpRes.content[0].text;
+    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    const mcpParsed = JSON.parse(mcpText);
+    expect(mcpParsed.status).toBe("blocked");
+  }, 20000);
 });

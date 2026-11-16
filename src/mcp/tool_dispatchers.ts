@@ -23,6 +23,7 @@ import {
   serializeDirectContractingSyntheticResult,
 } from "../direct_contracting/index.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
+import { serializeCompactSyntheticResult } from "../utils/json.ts";
 
 export async function dispatchModularTool(
   toolName: string,
@@ -87,7 +88,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: serializeArpSyntheticResult(synthetic),
+          text: serializeCompactSyntheticResult(synthetic, 850),
         },
       ],
     };
@@ -110,7 +111,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: serializeArpSyntheticResult(synthetic),
+          text: serializeCompactSyntheticResult(synthetic, 850),
         },
       ],
     };
