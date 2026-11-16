@@ -8,6 +8,21 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.4] - 2026-11-16 — Guarda MCP `<= 880B` Sob Estresse Máximo, Jogo de Planilha, Fase Recursal Completa & Schema no `--dump-spec`
+
+### Added
+- **Paridade Completa de Jogo de Planilha (`src/bidding/inexequibility_evaluator.ts`):** Detecção determinística de `[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]` via array `unit_items[]` / `spreadsheet_items[]` / `items[]` (`offered_unit_price > estimated_unit_price` ou `unit_price > reference_unit_price`) e/ou flags diretas (`has_unit_price_overpricing`, `jogo_de_planilha_detected`, `unit_price_overpricing_detected`).
+- **Paridade Completa da Fase Recursal Art. 165 & Acórdão TCU 1.211/2021 (`src/bidding/appeals_evaluator.ts`):** Suporte em `appeal_context` (e aliases flat na raiz) para `[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]`, `[APPEAL_DEADLINE_3_BUSINESS_DAYS_VIOLATION]`, `[NEW_DOCUMENT_PRECLUSION_EXCEPTION_ACORDAO_1211_2021]` e `[HIERARCHICAL_REMISSION_10_DAYS_MANDATORY]`, além da humanização correspondente em `src/bidding/bidding_legal_humanizer.ts` com 100% de retrocompatibilidade.
+- **Testes Unitários de Teto Extremo e Fase Externa (`test/contracts_arp_mcp_cli.test.ts` e `test/bidding_inexeq_appeals_v164.test.ts`):** Cobertura para estresse de 17+ tags simultâneas em `docgov_audit_contract_execution` + 6 tags `REJECTED` com DOCX/PDF em `docgov_govern_arp` sob `%TEMP%` longo (`< 900B`), Jogo de Planilha e novos marcadores recursais.
+
+### Fixed
+- **Teto Estrito MCP `<= 880B` em `docgov_audit_contract_execution` e `docgov_govern_arp` (Lei 2):**
+  - Implementados `buildCompactArpSyntheticResult` e `serializeArpSyntheticResult` em `src/arp/govern_arp.ts` e aplicados no dispatcher MCP (`src/mcp/tool_dispatchers.ts`), reduzindo payloads com 6 tags + caminhos compilados de ~1099B para `< 880B` sem perder tags.
+  - Adicionada guarda determinística em `src/contracts/audit_contract_execution.ts` garantindo `<= 880B` no JSON minificado: preserva 100% das tags em cenários de até ~14 tags simultâneas e, apenas no overflow aritmético extremo (17+ tags longas), compacta a cauda em `blocking_tags` com `"[+N_TAGS_NO_DOSSIE]"` mantendo todas as tags íntegras nos artefatos `.json`/`.md` gravados em disco.
+
+### Changed
+- **Documentação Integral de Schema no `--dump-spec` (`src/mcp/spec.ts` / `docs/especificacao_motor.md` — Lei 4):** Documentados todos os subcampos e aliases de `inexequibility_evaluator.ts` (75%/85% e Jogo de Planilha), `competing_proposals_meta[]` e `appeal_context` na seção `2.13. docgov_evaluate_bidding_proposals`.
+
 ## [1.6.3] - 2026-11-15 — Higienização Estrutural, Mapa Arquitetural (`ARCHITECTURE_AND_MODULES.md`) & Trava Permanente de Lockstep
 
 ### Added

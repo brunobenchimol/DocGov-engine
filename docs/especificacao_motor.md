@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.6.3)
+# Especificação Técnica do Motor docgov-engine (v1.6.4)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.3`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.4`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -307,7 +307,7 @@ Motor determinístico de governança de Ata de Registro de Preços e gestão de 
 - **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `arp_number`, `decision`, `blocking_tags`, `ledger_summary`, `dossier_json_path`, `dossier_md_path`, caminhos compilados e `next_step_hint`.
 
 ### 2.13. docgov_evaluate_bidding_proposals (CLI: evaluate-proposals)
-Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%), Jogo de Planilha e Fase Recursal (Gen6 Marco 9 — `v1.6.3`).
+Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%), Jogo de Planilha e Fase Recursal (Gen6 Marco 9 — `v1.6.4`).
 - **Parâmetros MCP / CLI:** `proposalJsonPath` (aliases `bidding_json_path`, `input_json_path`, `biddingJsonPath`), `outputDir` (`output_dir`, `caseDir`, `case_dir`), `evaluationStance` (`evaluation_stance`: `"DEFENSE"` | `"ATTACK"`), `compilationMode` (`"PROPOSAL_JUDGMENT_OPINION"` | `"ACT_DILIGENCE_LETTER"` | `"JUDGMENT_OPINION"` | `"ACT_DILIGENCE_REPORT"` | `"BOTH"` | `"APPEAL_REASONS"` | `"APPEAL_COUNTER_REASONS"` | `"PREGOEIRO_DECISION"` | `"APPEALS_BUNDLE"` | `"ALL"` | `"NONE"`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`).
 - **Modelos TIC sem DEMO, Inexequibilidade (75%/85%), Jogo de Planilha & Súmula TCU 262:** Bloqueia descaracterização para alocação de postos (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`), UST = Hora-Homem pura (`[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]`), HST sem teto em OS (`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]`), PF/SQUAD sem vínculo com ANS, inexequibilidade < 75% (Art. 59 § 4º -> `[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]`), garantia adicional < 85% (Art. 59 § 5º -> `[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]`), sobrepreço unitário / Jogo de Planilha (`[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]`) e desclassificação sumária sem diligência (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`).
 - **Conluio entre Propostas Concorrentes (`competing_proposals_meta[]`) & Motor Forense Anti-Fraude de ACT (7 Vetores):** Auto-hidratação por `act_pdf_path`/`act_structure_json_path`, divergência > 180 dias ou autoria coincidente (`[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]`), rastros `Canva/iLovePDF/Sejda` (`[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]`) e detecção de autoria compartilhada/criação simultânea entre propostas (`[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]`).
@@ -324,7 +324,7 @@ Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%)
 - **Compilação OpenXML DOCX/PDF:** Gera `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`, `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf` (Via A ao Emissor na RFB e Via B à Licitante exigindo NF-e/NFS-e 44 dígitos, Contrato, OS e SEFIP/eSocial), `Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.docx/.pdf` e `Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx/.pdf`.
 
 ### 2.14. docgov_audit_direct_contracting (CLI: audit-direct-contracting)
-Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — `v1.6.3`).
+Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — `v1.6.4`).
 - **Parâmetros MCP / CLI:** `directContractingJsonPath` (aliases `direct_json_path`, `input_json_path`, `directJsonPath`), `outputDir` (`output_dir`, `caseDir`, `case_dir`), `compilationMode` (`"DIRECT_CONTRACTING_OPINION"` | `"NONE"`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`).
 - **Inexigibilidade (Art. 74 Lei 14.133 / Art. 30 Lei 13.303):** Bloqueio de atestado de exclusividade genérico (Súmula TCU 255 -> `[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]`), exigência de mínimo de 3 NFs/contratos do fornecedor (`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]`), detecção de sobrepreço acima da mediana saneada das NFs/contratos (`[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]`) e verificação forense cruzada `quotations_forensic_meta[]` (`[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]`).
 - **Dispensa por Valor (Art. 75 / Art. 29):** Controle anual anti-fracionamento por UG e ramo `PDM / CATMAT / CATSER` (`[EXPENSE_FRAGMENTATION_BLOCK]`).
