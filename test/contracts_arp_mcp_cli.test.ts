@@ -7,7 +7,7 @@ import { describe, it, expect } from "bun:test";
 import { handleCallTool } from "../src/mcp/server.ts";
 import { getMcpToolsDefinition } from "../src/mcp/tools_definition.ts";
 import { handleContractsCli } from "../src/cli/contracts_cli.ts";
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { getEphemeralInspectDir } from "../src/utils/paths.ts";
 
@@ -160,4 +160,122 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
     const ignored = await handleContractsCli(["--unknown-command"]);
     expect(ignored).toBe(false);
   });
+
+  it("Estresse máximo MCP (< 900B): docgov_audit_contract_execution com 18 tags e docgov_govern_arp REJECTED com 6 tags + DOCX/PDF", async () => {
+    const longTestDir = join(
+      getEphemeralInspectDir(),
+      `estresse_maximo_mcp_payload_ceiling_v164_${Date.now()}`
+    );
+    mkdirSync(longTestDir, { recursive: true });
+
+    const stressContractPath = join(longTestDir, "contrato_18_tags.json");
+    writeFileSync(
+      stressContractPath,
+      JSON.stringify({
+        contract_id: "CT-ESTRESSE-MAXIMO-18-TAGS-2026",
+        legal_regime: "LEI_13303",
+        object_type: "SERVICE",
+        target_instrument: "ARP",
+        initial_value: 1000000,
+        has_surety_bond: true,
+        addendums: [
+          {
+            id: "TA-01",
+            value_increase: 400000,
+            value_decrease: 200000,
+            is_unilateral: true,
+          },
+        ],
+        tripartite_items: [
+          {
+            item_id: "IT-01",
+            winning_proposal: { quantity: 10, unit_price: 100 },
+            contract_or_invoice: { quantity: 10, unit_price: 160 },
+          },
+        ],
+        readjustments: [{ id: "REAJ-01", months_elapsed: 6 }],
+        pas_sanctions: [
+          { process_id: "PAS-GLOSA-01", is_imr_classified_as_sanction: true, penalty_type: "MULTA", opened_formal_pas: true, defense_deadline_business_days: 15, insurer_notified: true },
+          { process_id: "PAS-MULTA-02", sanction_type: "MULTA", fine_pct: 35, opened_formal_pas: true, defense_deadline_business_days: 5, has_surety_bond: true, insurer_notified: false },
+          {
+            process_id: "PAS-FED-03", sphere: "MUNICIPAL", uf: "PA", municipality: "MUNICIPIO_GENERICO",
+            legal_regime: "LEI_14133", sanction_type: "IMPEDIMENTO_LICITAR_CONTRATAR", sanction_scope_claimed: "NATIONAL",
+            duration_months: 48, fine_pct: 25, registries_commanded: ["CEIS"], opened_formal_pas: true,
+            defense_deadline_business_days: 15, insurer_notified: true,
+            dosimetry_benchmark: { juris_precedent_id: "TCE-PA-2025", benchmark_range_pct: [2, 5], benchmark_median_pct: 3.5, aggravating_factors_proven: false, lindb_art22_weighed: true },
+          },
+          { process_id: "PAS-ESTATAL-04", sphere: "STATE", uf: "SP", legal_regime: "LEI_13303", sanction_type: "DECLARACAO_INIDONEIDADE", duration_months: 36, opened_formal_pas: true, defense_deadline_business_days: 15, insurer_notified: true },
+          {
+            process_id: "PAS-INID-05", sphere: "STATE", uf: "PA", legal_regime: "LEI_14133", sanction_type: "DECLARACAO_INIDONEIDADE",
+            signing_authority_role: "FISCAL_CONTRATO", has_conclusive_legal_opinion: false, fine_pct: 10, opened_formal_pas: true,
+            defense_deadline_business_days: 15, insurer_notified: true,
+            dosimetry_benchmark: { lindb_art22_weighed: false, has_jurisprudential_calibration: false },
+          },
+        ],
+        price_basket: [{ item_id: "C-01", quotes: [100, 105, 500], selected_method: "MEAN" }],
+        rebalance_requests: [
+          { id: "R-01", event_nature: "EXTRAORDINARY_UNFORESEEN", risk_allocated_to: "CONTRACTOR", request_accepted: true },
+        ],
+      })
+    );
+
+    const auditRes: any = await handleCallTool("docgov_audit_contract_execution", {
+      contractJsonPath: stressContractPath,
+      outputDir: longTestDir,
+      compilationMode: "BOTH",
+      outputFormat: "both",
+    });
+    const auditText = auditRes.content[0].text;
+    expect(Buffer.byteLength(auditText, "utf-8")).toBeLessThan(900);
+    const auditSynthetic = JSON.parse(auditText);
+    expect(auditSynthetic.status).toBe("blocked");
+
+    const diskReport = JSON.parse(
+      readFileSync(join(longTestDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
+    );
+    expect(diskReport.blocking_tags.length).toBeGreaterThanOrEqual(17);
+    expect(auditSynthetic.blocking_tags.some((t: string) => t.endsWith("_TAGS_NO_DOSSIE]"))).toBe(true);
+
+    const stressArpPath = join(longTestDir, "arp_6_tags.json");
+    writeFileSync(
+      stressArpPath,
+      JSON.stringify({
+        arp_number: "ARP-ESTRESSE-6-TAGS-2026",
+        manager_sphere: "MUNICIPAL",
+        manager_regime: "LEI_14133",
+        adherent_sphere: "FEDERAL",
+        adherent_regime: "LEI_13303",
+        is_tic: true,
+        is_umbrella_or_single_lot: true,
+        has_granulated_calculation_memory: false,
+        validity: {
+          validity_months: 12,
+          is_renewed_year_2: true,
+          renew_quantities_second_year: true,
+          has_edital_renewal_clause: false,
+          has_advantage_proof: false,
+        },
+        items: [
+          {
+            item_id: "IT-01",
+            registered_qty: 100,
+            prior_adhesions_qty: 180,
+            requested_adhesion_qty: 60,
+          },
+        ],
+      })
+    );
+
+    const arpRes: any = await handleCallTool("docgov_govern_arp", {
+      arpJsonPath: stressArpPath,
+      outputDir: longTestDir,
+      compilationMode: "ARP_ADHESION_GRANT_NOTE",
+      outputFormat: "both",
+    });
+    const arpText = arpRes.content[0].text;
+    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThan(900);
+    const arpSynthetic = JSON.parse(arpText);
+    expect(arpSynthetic.decision).toBe("REJECTED");
+    expect(arpSynthetic.blocking_tags).toHaveLength(6);
+  }, 20000);
 });

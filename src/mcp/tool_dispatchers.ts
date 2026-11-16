@@ -13,7 +13,7 @@ import {
   auditContractExecution,
   serializeSyntheticAuditResult,
 } from "../contracts/audit_contract_execution.ts";
-import { governArpExecution } from "../arp/govern_arp.ts";
+import { governArpExecution, serializeArpSyntheticResult } from "../arp/govern_arp.ts";
 import {
   evaluateBiddingProposals,
   serializeBiddingSyntheticResult,
@@ -61,7 +61,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: JSON.stringify(synthetic, null, 2),
+          text: serializeArpSyntheticResult(synthetic),
         },
       ],
     };
@@ -87,7 +87,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: JSON.stringify(synthetic, null, 2),
+          text: serializeArpSyntheticResult(synthetic),
         },
       ],
     };
@@ -110,7 +110,7 @@ export async function dispatchModularTool(
       content: [
         {
           type: "text",
-          text: JSON.stringify(synthetic, null, 2),
+          text: serializeArpSyntheticResult(synthetic),
         },
       ],
     };

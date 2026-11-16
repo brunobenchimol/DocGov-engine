@@ -196,7 +196,7 @@ export interface ArpGovernSyntheticResult {
   arp_number: string;
   decision: "APPROVED" | "REJECTED";
   blocking_tags: string[];
-  ledger_summary: {
+  ledger_summary?: {
     items_checked: number;
     max_individual_ratio_pct: number;
     max_global_ratio_pct: number;
@@ -206,5 +206,5 @@ export interface ArpGovernSyntheticResult {
   dossier_md_path: string;
   compiled_document_path?: string;
   compiled_pdf_path?: string;
-  next_step_hint: string;
+  next_step_hint?: string;
 }

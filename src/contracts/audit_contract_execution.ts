@@ -47,7 +47,7 @@ function buildCompactSyntheticResult(
     engine_version: report.engine_version,
     contract_id: report.contract_id,
     legal_regime: report.legal_regime,
-    blocking_tags: report.blocking_tags,
+    blocking_tags: [...report.blocking_tags],
     adherence_summary: {
       gross_increase_pct: s.gross_increase_pct,
       gross_decrease_pct: s.gross_decrease_pct,
@@ -104,17 +104,35 @@ function buildCompactSyntheticResult(
 
   // Quando há muitas tags longas (ex.: estresse de 12+ tags), compacta em JSON minificado mantendo todas as tags
   if (sizeOf(synthetic) > 850) {
-    if (minSizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
       delete synthetic.next_step_hint;
     }
-    if (minSizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
       delete synthetic.adherence_summary;
     }
-    if (minSizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
       delete synthetic.legal_regime;
     }
-    if (minSizeOf(synthetic) > 850 && synthetic.contract_id.length > 24) {
-      synthetic.contract_id = synthetic.contract_id.slice(0, 24);
+    if (minSizeOf(synthetic) > 880 && synthetic.contract_id.length > 16) {
+      synthetic.contract_id = synthetic.contract_id.slice(0, 16);
+    }
+    // Overflow extremo (ex.: 18 tags simultâneas > 880B): preserva o máximo de tags no envelope + marcador de cauda; todas as tags seguem íntegras no JSON/MD em disco
+    if (minSizeOf(synthetic) > 880 && synthetic.blocking_tags.length > 1) {
+      const fullTags = [...synthetic.blocking_tags];
+      let keepCount = fullTags.length - 1;
+      while (keepCount >= 1) {
+        const omitted = fullTags.length - keepCount;
+        const candidate = [
+          ...fullTags.slice(0, keepCount),
+          `[+${omitted}_TAGS_NO_DOSSIE]`,
+        ];
+        synthetic.blocking_tags = candidate;
+        if (minSizeOf(synthetic) <= 880) break;
+        keepCount--;
+      }
+      if (minSizeOf(synthetic) > 880) {
+        synthetic.blocking_tags = [`[+${fullTags.length}_TAGS_NO_DOSSIE]`];
+      }
     }
   }
 

@@ -5,7 +5,7 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { resolve, dirname, join } from "node:path";
+import { dirname, join, relative, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
@@ -129,29 +129,115 @@ export async function governArpExecution(
     compilation.pdf_path = compiledPdfPath;
   }
 
-  const synthetic: ArpGovernSyntheticResult = {
-    status,
-    engine_version: VERSION,
-    arp_number: arpNumber,
-    decision,
-    blocking_tags,
-    ledger_summary: {
-      items_checked: ledgerRes.items_checked,
-      max_individual_ratio_pct: ledgerRes.max_individual_ratio_pct,
-      max_global_ratio_pct: ledgerRes.max_global_ratio_pct,
-      preserved_own_balance_intact: ledgerRes.preserved_own_balance_intact,
+  const synthetic = buildCompactArpSyntheticResult(
+    {
+      status,
+      engine_version: VERSION,
+      arp_number: arpNumber,
+      decision,
+      blocking_tags: [...blocking_tags],
+      ledger_summary: {
+        items_checked: ledgerRes.items_checked,
+        max_individual_ratio_pct: ledgerRes.max_individual_ratio_pct,
+        max_global_ratio_pct: ledgerRes.max_global_ratio_pct,
+        preserved_own_balance_intact: ledgerRes.preserved_own_balance_intact,
+      },
+      dossier_json_path: toCompactPath(dossierJsonPath),
+      dossier_md_path: toCompactPath(visaoMdPath),
+      ...(compiledDocxPath ? { compiled_document_path: toCompactPath(compiledDocxPath) } : {}),
+      ...(compiledPdfPath ? { compiled_pdf_path: toCompactPath(compiledPdfPath) } : {}),
+      next_step_hint:
+        blocking_tags.length > 0
+          ? `Adesão indeferida (${blocking_tags.length} óbices legais). Inspecione a visão de governança.`
+          : "Adesão regular e livro-razão atualizado.",
     },
-    dossier_json_path: dossierJsonPath.replace(/\\/g, "/"),
-    dossier_md_path: visaoMdPath.replace(/\\/g, "/"),
-    compiled_document_path: compiledDocxPath ? compiledDocxPath.replace(/\\/g, "/") : undefined,
-    compiled_pdf_path: compiledPdfPath ? compiledPdfPath.replace(/\\/g, "/") : undefined,
-    next_step_hint:
-      blocking_tags.length > 0
-        ? `Adesão indeferida (${blocking_tags.length} óbices legais). Inspecione a visão de governança gerada.`
-        : "Adesão regular e livro-razão atualizado.",
-  };
+    dossierJsonPath,
+    visaoMdPath,
+    compiledDocxPath,
+    compiledPdfPath
+  );
 
   return { dossier, synthetic };
+}
+
+function toCompactPath(absPath: string): string {
+  const normAbs = absPath.replace(/\\/g, "/");
+  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
+  if (normAbs.startsWith(`${normCwd}/`)) {
+    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
+    if (rel && rel.length < normAbs.length) return rel;
+  }
+  return normAbs;
+}
+
+function buildCompactArpSyntheticResult(
+  synthetic: ArpGovernSyntheticResult,
+  dossierJsonPath: string,
+  visaoMdPath: string,
+  compiledDocxPath?: string,
+  compiledPdfPath?: string
+): ArpGovernSyntheticResult {
+  const sizeOf = (obj: unknown) =>
+    Buffer.byteLength(JSON.stringify(obj, null, 2), "utf-8");
+  const minSizeOf = (obj: unknown) =>
+    Buffer.byteLength(JSON.stringify(obj), "utf-8");
+
+  if (sizeOf(synthetic) > 850 && compiledDocxPath) {
+    synthetic.compiled_document_path = basename(compiledDocxPath);
+  }
+  if (sizeOf(synthetic) > 850 && compiledPdfPath) {
+    synthetic.compiled_pdf_path = basename(compiledPdfPath);
+  }
+  if (sizeOf(synthetic) > 850) {
+    synthetic.dossier_json_path = basename(dossierJsonPath);
+    synthetic.dossier_md_path = basename(visaoMdPath);
+  }
+  if (sizeOf(synthetic) > 850) {
+    synthetic.next_step_hint = "Veja visao_governanca_arp.md.";
+  }
+  if (sizeOf(synthetic) > 850) {
+    delete synthetic.compiled_pdf_path;
+    delete synthetic.compiled_document_path;
+  }
+  if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.next_step_hint;
+    }
+    if (minSizeOf(synthetic) > 880) {
+      delete synthetic.ledger_summary;
+    }
+    if (minSizeOf(synthetic) > 880 && synthetic.arp_number.length > 20) {
+      synthetic.arp_number = synthetic.arp_number.slice(0, 20);
+    }
+    if (minSizeOf(synthetic) > 880 && synthetic.blocking_tags.length > 1) {
+      const fullTags = [...synthetic.blocking_tags];
+      let keepCount = fullTags.length - 1;
+      while (keepCount >= 1) {
+        const omitted = fullTags.length - keepCount;
+        synthetic.blocking_tags = [
+          ...fullTags.slice(0, keepCount),
+          `[+${omitted}_TAGS_NO_DOSSIE]`,
+        ];
+        if (minSizeOf(synthetic) <= 880) break;
+        keepCount--;
+      }
+      if (minSizeOf(synthetic) > 880) {
+        synthetic.blocking_tags = [`[+${fullTags.length}_TAGS_NO_DOSSIE]`];
+      }
+    }
+  }
+
+  return synthetic;
+}
+
+export function serializeArpSyntheticResult(
+  synthetic: ArpGovernSyntheticResult
+): string {
+  const pretty = JSON.stringify(synthetic, null, 2);
+  if (Buffer.byteLength(pretty, "utf-8") <= 850) {
+    return pretty;
+  }
+  return JSON.stringify(synthetic);
 }
 
 function generateArpVisionMarkdown(dossier: ArpGovernDossier): string {
