@@ -20,7 +20,7 @@
 | **Geração 5** | `v1.5.0` | Fiscalização Contratual, Aditivos 25%/50%, Atas de Registro de Preços (ARP/Caronas 50%/200%), Batimento Tripartite/Quadripartite e Reajustes/Repactuação | `[CONCLUÍDO]` |
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
-| **Geração 6** | `v1.6.0` / `v1.6.2` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165, ACT Forense (7 Vetores) e Compiladores DOCX/PDF Jurídico-Periciais | `[CONCLUÍDO]` |
+| **Geração 6** | `v1.6.0` / `v1.6.3` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165, ACT Forense (7 Vetores), Mapa Arquitetural & Trava de Lockstep Documental | `[CONCLUÍDO]` |
 | **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador & Repactuação) & Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[PRÓXIMO FOCO ATIVO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
@@ -56,7 +56,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## ✅ MARCO 9 — `v1.6.0` / `v1.6.2`: Seleção do Fornecedor 360º em TIC, Perícia Multimodal (`unpdf@2.1+`) & Contratação Direta (Geração 6 — CONCLUÍDO)
+## ✅ MARCO 9 — `v1.6.0` / `v1.6.3`: Seleção do Fornecedor 360º em TIC, Perícia Multimodal (`unpdf@2.1+`), Contratação Direta & Governança Lockstep (Geração 6 — CONCLUÍDO)
 
 - [x] **9.1. Engenharia de Modelos de Execução de TIC sem DEMO e Julgamento de Exequibilidade de TI:**
   - **Matriz de Descaracterização de DEMO:**

@@ -8,6 +8,19 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.3] - 2026-11-15 — Higienização Estrutural, Mapa Arquitetural (`ARCHITECTURE_AND_MODULES.md`) & Trava Permanente de Lockstep
+
+### Added
+- **Mapa Arquitetural Canônico (`docs/ARCHITECTURE_AND_MODULES.md`):** Novo índice de navegação rápida para agentes IA e desenvolvedores mapeando todas as **14 ferramentas MCP**, comandos CLI, arquivos `src/` responsáveis, suítes `test/` / `tests_live/` e escopo exato da auditoria física da Lei 9 (`scripts/check_lines.ts`).
+- **Trava Automatizada de Lockstep Documental (`test/version.test.ts`):** Validação contínua no `bun test` garantindo sincronia de `VERSION` em `package.json`, `README.md` (versão, `engine_version`, contagem e nomes das 14 ferramentas MCP e subcomandos CLI), `CHANGELOG.md`, `ROADMAP.md`, igualdade exata de `docs/especificacao_motor.md` com `--dump-spec`, existência física de todos os caminhos citados em `docs/ARCHITECTURE_AND_MODULES.md` e ausência de `ENGINEERING.md` duplicado.
+- **Enforcement da Lei 9 em CI/CD:** Adicionado passo `bun run check:lines` nos workflows `.github/workflows/ci.yml` e `.github/workflows/release.yml`.
+
+### Changed
+- **Alinhamento Self-Discovery (`v1.6.3`):** Atualização de `src/mcp/spec.ts`, `src/mcp/tools_definition.ts` (listando todas as 11 cortes homologadas em `search_juris`), `src/constants/index.ts` (`DOCX_WORKFLOW_GUIDE_TEXT` sincronizado com `v${VERSION}` e Passos 1–14), `PROTECTED_ROOT_FILES` em `src/tools/bootstrap.ts` (incluindo `"bun.lock"`), `AGENTS.md` (Leis 4, 7 e DoD) e `README.md` completo para Geração 6 (`14` ferramentas MCP e CLI).
+
+### Removed
+- **Higienização de Duplicata e Código Morto:** Removido `ENGINEERING.md` duplicado na raiz (mantendo `AGENTS.md` como estatuto único) e removidos os 2 shims órfãos sem importadores (`src/tools/juris/providers/higher_courts_provider.ts` e `src/tools/juris/providers/state_tces_provider.ts`).
+
 ## [1.6.2] - 2026-11-15 — Upgrade `unpdf@2.1+`, Perícia Forense Dual `PDF/DOCX`, Ponte Multimodal `assets/` & Fase Externa/Recursal (Gen6)
 
 ### Added

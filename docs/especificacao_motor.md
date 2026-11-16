@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.6.2)
+# Especificação Técnica do Motor docgov-engine (v1.6.3)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.2`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.3`) e servidor MCP para o ecossistema DocGov.
 
 ---
 

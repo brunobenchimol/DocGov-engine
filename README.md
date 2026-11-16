@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.2)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.3)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.2` (Geração 6 — Propostas, Contratação Direta, `unpdf@2.1+` & Perícia Forense Dual)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.3` (Geração 6 — Propostas, Contratação Direta, `unpdf@2.1+`, Perícia Forense Dual & Governança Lockstep)
 
-A versão **`v1.6.2`** consolida a **Geração 6 do `docgov-engine`** com **14 ferramentas MCP nativas**, adicionando julgamento completo da fase externa e recursal (`docgov_evaluate_bidding_proposals`), auditoria determinística de contratação direta (`docgov_audit_direct_contracting`), upgrade para **`unpdf@2.1+`**, **Ponte Multimodal `assets/`** para inspeção visual sem `@napi-rs/canvas` e **Perícia Forense Dual `PDF/DOCX`** com bloqueio anti-conluio integrado ao `bootstrap_case` — mantendo compatibilidade retroativa integral com os motores da **Geração 5** (`v1.5.0`–`v1.5.6`) e **Geração 4** (`v1.4.x`).
+A versão **`v1.6.3`** consolida a **Geração 6 do `docgov-engine`** com **14 ferramentas MCP nativas**, incorporando higienização arquitetural, mapa de navegação rápida ([`docs/ARCHITECTURE_AND_MODULES.md`](docs/ARCHITECTURE_AND_MODULES.md)) e trava permanente de lockstep documental/CI sobre a base introduzida na `v1.6.0`–`v1.6.2`: julgamento completo da fase externa e recursal (`docgov_evaluate_bidding_proposals`), auditoria determinística de contratação direta (`docgov_audit_direct_contracting`), upgrade para **`unpdf@2.1+`**, **Ponte Multimodal `assets/`** para inspeção visual sem `@napi-rs/canvas` e **Perícia Forense Dual `PDF/DOCX`** com bloqueio anti-conluio integrado ao `bootstrap_case` — mantendo compatibilidade retroativa integral com os motores da **Geração 5** (`v1.5.0`–`v1.5.6`) e **Geração 4** (`v1.4.x`).
 
 ### 🚀 Principais Inovações da Geração 6 (`v1.6.0` / `v1.6.1` / `v1.6.2`):
 1. **13ª Ferramenta MCP `docgov_evaluate_bidding_proposals` & CLI `evaluate-proposals` (Fase Externa, TIC, Inexequibilidade, Conluio e Fase Recursal):**
@@ -187,7 +187,7 @@ A versão **`v1.6.2`** consolida a **Geração 6 do `docgov-engine`** com **14 f
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.2`):** Inclusão mandatória do campo `"engine_version": "1.6.2"` na raiz do payload JSON sintético retornado por todas as **14 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.3`):** Inclusão mandatória do campo `"engine_version": "1.6.3"` na raiz do payload JSON sintético retornado por todas as **14 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
