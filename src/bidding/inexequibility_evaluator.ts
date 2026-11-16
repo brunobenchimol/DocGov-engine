@@ -1,6 +1,7 @@
 import type {
   InexequibilityEvaluation,
   RawBiddingProposalInput,
+  UnitPriceItemInput,
 } from "./types.ts";
 
 export function evaluateProposalInexequibility(
@@ -27,14 +28,54 @@ export function evaluateProposalInexequibility(
   const diligenceProven = Boolean(exeq.diligence_viability_proven);
   const guaranteeOffered = Boolean(raw.additional_guarantee_offered);
 
+  const explicitJogo = Boolean(
+    raw.has_unit_price_overpricing ??
+      raw.jogo_de_planilha_detected ??
+      raw.unit_price_overpricing_detected ??
+      exeq.has_unit_price_overpricing ??
+      exeq.jogo_de_planilha_detected ??
+      exeq.unit_price_overpricing_detected
+  );
+  const unitItems: UnitPriceItemInput[] =
+    exeq.unit_items ??
+    raw.unit_items ??
+    exeq.spreadsheet_items ??
+    raw.spreadsheet_items ??
+    exeq.items ??
+    raw.items ??
+    [];
+  const overpricedItems = Array.isArray(unitItems)
+    ? unitItems.filter((it) => {
+        const ref = Number(it.estimated_unit_price ?? it.reference_unit_price ?? 0);
+        const off = Number(it.offered_unit_price ?? it.unit_price ?? 0);
+        return ref > 0 && off > ref;
+      })
+    : [];
+  const jogoDetected = explicitJogo || overpricedItems.length > 0;
+
   const blocking_tags: string[] = [];
   const findings: string[] = [];
+
+  if (jogoDetected) {
+    blocking_tags.push("[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]");
+    findings.push(
+      overpricedItems.length > 0
+        ? `Jogo de Planilha / sobrepreço unitário detectado em ${overpricedItems.length} item(ns) acima do preço unitário referencial estimado (Art. 59 da Lei 14.133/2021 e Súmula TCU nº 259).`
+        : "Jogo de Planilha / sobrepreço unitário sinalizado nos itens da proposta (Art. 59 da Lei 14.133/2021 e Súmula TCU nº 259)."
+    );
+  }
 
   if (estimated <= 0 || offered <= 0) {
     return {
       is_engineering_or_works: isWorks,
       presumed_inexequible_75: false,
       requires_additional_guarantee_85: false,
+      ...(jogoDetected
+        ? {
+            unit_price_overpricing_detected: true,
+            overpriced_unit_items_count: overpricedItems.length,
+          }
+        : {}),
       blocking_tags,
       findings,
     };
@@ -86,6 +127,12 @@ export function evaluateProposalInexequibility(
     requires_additional_guarantee_85: requires85Guarantee,
     ...(additionalGuaranteeAmount !== undefined
       ? { additional_guarantee_amount: additionalGuaranteeAmount }
+      : {}),
+    ...(jogoDetected
+      ? {
+          unit_price_overpricing_detected: true,
+          overpriced_unit_items_count: overpricedItems.length,
+        }
       : {}),
     blocking_tags,
     findings,

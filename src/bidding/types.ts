@@ -39,6 +39,18 @@ export interface IctExecutionModelInput {
   disables_linked_account_and_uses_ict_index?: boolean;
 }
 
+export interface UnitPriceItemInput {
+  item_id?: string;
+  description?: string;
+  estimated_unit_price?: number;
+  reference_unit_price?: number;
+  offered_unit_price?: number;
+  unit_price?: number;
+  quantity?: number;
+  estimated_quantity?: number;
+  offered_quantity?: number;
+}
+
 export interface ProposalExequibilityInput {
   offered_unit_value?: number;
   parametric_profile_floor_value?: number;
@@ -46,6 +58,12 @@ export interface ProposalExequibilityInput {
   summary_disqualification_attempted?: boolean;
   prior_diligence_opportunity_granted?: boolean;
   diligence_viability_proven?: boolean;
+  has_unit_price_overpricing?: boolean;
+  jogo_de_planilha_detected?: boolean;
+  unit_price_overpricing_detected?: boolean;
+  unit_items?: UnitPriceItemInput[];
+  items?: UnitPriceItemInput[];
+  spreadsheet_items?: UnitPriceItemInput[];
 }
 
 export interface RequiredParcelInput {
@@ -138,6 +156,16 @@ export interface AppealContextInput {
   counter_appellant_name?: string;
   session_or_decision_date?: string;
   intent_manifested_timely?: boolean;
+  intent_summary_rejection_attempted?: boolean;
+  summary_merit_rejection_of_intent?: boolean;
+  deadline_less_than_3_business_days?: boolean;
+  edital_appeal_deadline_days?: number;
+  pre_existing_document_submitted_on_appeal?: boolean;
+  acordao_1211_2021_applicable?: boolean;
+  new_document_for_preexisting_fact?: boolean;
+  maintained_decision_without_hierarchical_remission?: boolean;
+  hierarchical_decision_days_elapsed?: number;
+  requires_hierarchical_remission?: boolean;
   declared_intent_scope?: string;
   appeal_reasons_scope?: string;
   reasons_filed_date?: string;
@@ -145,7 +173,7 @@ export interface AppealContextInput {
   counter_reasons_filed_date?: string;
   counter_reasons_business_days_elapsed?: number;
   innovation_outside_intent?: boolean;
-  reconsider_decision?: "ACOLHER" | "MANTER_E_ENCAMINHAR" | string;
+  reconsider_decision?: "ACOLHER" | "MANTER_E_ENCAMINHAR" | boolean | string;
   summary_reasons?: string;
   summary_counter_reasons?: string;
 }
@@ -165,6 +193,8 @@ export interface InexequibilityEvaluation {
   presumed_inexequible_75: boolean;
   requires_additional_guarantee_85: boolean;
   additional_guarantee_amount?: number;
+  unit_price_overpricing_detected?: boolean;
+  overpriced_unit_items_count?: number;
   blocking_tags: string[];
   findings: string[];
 }
@@ -175,6 +205,8 @@ export interface AppealsEvaluation {
   timely_3_business_days: boolean;
   immediate_intent_valid: boolean;
   thematic_link_ok: boolean;
+  new_document_exception_applicable?: boolean;
+  hierarchical_remission_required?: boolean;
   suspensive_effect_applicable: boolean;
   authority_forwarding_deadline_days: number;
   blocking_tags: string[];
@@ -210,6 +242,11 @@ export interface RawBiddingProposalInput {
   offered_total_value?: number;
   is_engineering_or_works?: boolean;
   additional_guarantee_offered?: boolean;
+  has_unit_price_overpricing?: boolean;
+  jogo_de_planilha_detected?: boolean;
+  unit_price_overpricing_detected?: boolean;
+  unit_items?: UnitPriceItemInput[];
+  spreadsheet_items?: UnitPriceItemInput[];
   // Sinônimos e flags flat de topo (Normalização Dual)
   metric_type?: string;
   has_hidden_labor_dedication_trap?: boolean;

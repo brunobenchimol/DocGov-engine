@@ -144,7 +144,7 @@ export async function evaluateBiddingProposals(
     raw.competing_proposals_meta || []
   );
   const inexRes = evaluateProposalInexequibility(raw);
-  const appealsRes = evaluateAdministrativeAppeal(raw.appeal_context);
+  const appealsRes = evaluateAdministrativeAppeal(raw.appeal_context, raw);
 
   const tagsSet = new Set<string>([
     ...ictRes.blocking_tags,
@@ -161,6 +161,8 @@ export async function evaluateBiddingProposals(
     blocking_tags.includes("[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]") ||
     blocking_tags.includes("[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]") ||
     blocking_tags.includes("[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]") ||
+    blocking_tags.includes("[NEW_DOCUMENT_PRECLUSION_EXCEPTION_ACORDAO_1211_2021]") ||
+    blocking_tags.includes("[HIERARCHICAL_REMISSION_10_DAYS_MANDATORY]") ||
     actRes.total_alerts > 0 ||
     collusionRes.blocking_tags.length > 0
   ) {
@@ -171,9 +173,12 @@ export async function evaluateBiddingProposals(
     !ictRes.metric_compliance_ok ||
     !qualRes.tech_rules_ok ||
     !qualRes.financial_rules_ok ||
+    blocking_tags.includes("[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]") ||
     blocking_tags.includes("[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]") ||
     blocking_tags.includes("[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]") ||
+    blocking_tags.includes("[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]") ||
     blocking_tags.includes("[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]") ||
+    blocking_tags.includes("[APPEAL_DEADLINE_3_BUSINESS_DAYS_VIOLATION]") ||
     blocking_tags.includes("[APPEAL_THEMATIC_INNOVATION_OUTSIDE_INTENT_BLOCK]")
   ) {
     decision = "REJECTED";
@@ -217,7 +222,9 @@ export async function evaluateBiddingProposals(
     qualification: qualRes,
     act_forensics: actRes,
     ...(collusionRes.proposals_audited > 0 ? { forensic_collusion: collusionRes } : {}),
-    ...(inexRes.estimated_budget_value ? { inexequibility_check: inexRes } : {}),
+    ...(inexRes.estimated_budget_value || inexRes.unit_price_overpricing_detected
+      ? { inexequibility_check: inexRes }
+      : {}),
     ...(appealsRes.evaluated ? { appeals_evaluation: appealsRes } : {}),
     raw_context: raw,
   };

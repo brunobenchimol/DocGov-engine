@@ -365,16 +365,37 @@ export function describeBiddingTagLegalProse(
         recommendation:
           "Abrir diligência de exequibilidade antes de qualquer desclassificação e condicionar a contratação à prestação da garantia adicional devida.",
       };
+    case "[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]":
+      return {
+        title: "Sobrepreço Unitário / Indício de Jogo de Planilha (Art. 59 / Súmula TCU 259)",
+        legalBasis: "Art. 59, III da Lei nº 14.133/2021 e Súmula TCU nº 259",
+        factualAnalysis:
+          "Foram identificados itens unitários cotados acima dos preços referenciais estimados na planilha orçamentária, caracterizando risco de jogo de planilha em eventuais aditivos.",
+        recommendation:
+          "Promover negociação de adequação dos preços unitários aos referenciais estimados ou desclassificar a proposta caso mantido o sobrepreço unitário.",
+      };
     case "[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]":
+    case "[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]":
     case "[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]":
+    case "[APPEAL_DEADLINE_3_BUSINESS_DAYS_VIOLATION]":
     case "[APPEAL_THEMATIC_INNOVATION_OUTSIDE_INTENT_BLOCK]":
       return {
-        title: "Óbice Formal de Admissibilidade Recursal (Art. 165 da Lei 14.133/2021)",
+        title: "Óbice Formal de Admissibilidade ou Prazo Recursal (Art. 165 da Lei 14.133/2021)",
         legalBasis: "Art. 165, I, § 1º, I e § 4º da Lei nº 14.133/2021",
         factualAnalysis:
-          "Constatada preclusão de intenção imediata, intempestividade (> 3 dias úteis) ou inovação temática estranha aos motivos registrados na sessão pública.",
+          "Constatada preclusão de intenção imediata, rejeição sumária ilegal de mérito da intenção, violação/intempestividade frente ao prazo de 3 dias úteis ou inovação temática estranha aos motivos registrados.",
         recommendation:
-          "Não conhecer da irresignação recursal em sede de juízo de admissibilidade motivado.",
+          "Regularizar o juízo de admissibilidade motivado e assegurar estrita observância ao prazo legal de 3 dias úteis.",
+      };
+    case "[NEW_DOCUMENT_PRECLUSION_EXCEPTION_ACORDAO_1211_2021]":
+    case "[HIERARCHICAL_REMISSION_10_DAYS_MANDATORY]":
+      return {
+        title: "Diligência Documental Recursal (Acórdão TCU 1.211/2021) e Remessa Hierárquica (10 Dias)",
+        legalBasis: "Art. 64 e Art. 165, § 2º da Lei nº 14.133/2021; Acórdão TCU nº 1.211/2021-Plenário",
+        factualAnalysis:
+          "Identificada necessidade de admissão em diligência de documento comprobatório de condição preexistente (Acórdão 1.211/2021) ou obrigatoriedade de remessa à Autoridade Superior (decisão mantida, prazo de 10 dias úteis).",
+        recommendation:
+          "Conhecer o documento preexistente via diligência saneadora ou encaminhar imediatamente os autos à Autoridade Superior no efeito suspensivo.",
       };
     default:
       return {
