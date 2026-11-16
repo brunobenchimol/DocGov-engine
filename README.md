@@ -89,7 +89,7 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.4` (Geração 6 — Propostas, Contratação Direta, `unpdf@2.1+`, Perícia Forense Dual & Hotfix Dogfooding)
 
-A versão **`v1.6.4`** consolida a **Geração 6 do `docgov-engine`** com **14 ferramentas MCP nativas**, entregando guarda estrita `<= 880B` no envelope sintético MCP sob estresse extremo de tags/caminhos (`docgov_audit_contract_execution` e `docgov_govern_arp`), paridade completa de Jogo de Planilha (`unit_items[]`) e Fase Recursal (Art. 165 / Acórdão TCU nº 1.211/2021) em `docgov_evaluate_bidding_proposals`, e documentação integral desses schemas no `--dump-spec`, sobre a base arquitetural e de lockstep da `v1.6.0`–`v1.6.3`.
+A versão **`v1.6.4`** consolida a **Geração 6 do `docgov-engine`** com **14 ferramentas MCP nativas**, entregando guarda estrita `<= 880B` no envelope sintético MCP sob estresse extremo de tags/caminhos (`docgov_audit_contract_execution`, `docgov_govern_arp`, `docgov_evaluate_bidding_proposals` e `docgov_audit_direct_contracting`), paridade completa de Jogo de Planilha (`unit_items[]`) e Fase Recursal (Art. 165 / Acórdão TCU nº 1.211/2021) em `docgov_evaluate_bidding_proposals`, e documentação integral desses schemas no `--dump-spec`, sobre a base arquitetural e de lockstep da `v1.6.0`–`v1.6.3`.
 
 ### 🚀 Principais Inovações da Geração 6 (`v1.6.0` / `v1.6.1` / `v1.6.2`):
 1. **13ª Ferramenta MCP `docgov_evaluate_bidding_proposals` & CLI `evaluate-proposals` (Fase Externa, TIC, Inexequibilidade, Conluio e Fase Recursal):**
