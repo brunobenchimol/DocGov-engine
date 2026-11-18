@@ -3,6 +3,7 @@
 // ============================================================================
 
 import { DEMO_REGIME_TOOL_DEFINITION } from "../demo_costs/audit_runner.ts";
+import { ENGINEERING_WORKS_TOOL_DEFINITION } from "../engineering/engineering_works_auditor.ts";
 
 export function getMcpPromptsDefinition() {
   return [
@@ -439,5 +440,6 @@ export function getMcpToolsDefinition() {
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
     DEMO_REGIME_TOOL_DEFINITION,
+    ENGINEERING_WORKS_TOOL_DEFINITION,
   ];
 }

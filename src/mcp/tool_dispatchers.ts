@@ -26,6 +26,10 @@ import {
   auditDemoRegime,
   serializeDemoRegimeSyntheticResult,
 } from "../demo_costs/index.ts";
+import {
+  auditEngineeringWorks,
+  serializeEngineeringWorksSyntheticResult,
+} from "../engineering/index.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import { serializeCompactSyntheticResult } from "../utils/json.ts";
 
@@ -208,6 +212,39 @@ export async function dispatchModularTool(
         {
           type: "text",
           text: serializeDemoRegimeSyntheticResult(synthetic),
+        },
+      ],
+    };
+  }
+
+  // 8. Ferramenta Gen6.5 Eixo 2: Auditoria de Obras e Serviços de Engenharia
+  if (
+    toolName === "docgov_audit_engineering_works" ||
+    toolName === "audit_engineering_works"
+  ) {
+    const inputTarget =
+      args.engineeringJsonPath ||
+      args.engineering_json_path ||
+      args.inputJsonPath ||
+      args.input_json_path ||
+      args.inputPath ||
+      args.input ||
+      args;
+    const { synthetic } = await auditEngineeringWorks(inputTarget, {
+      workspaceDir:
+        args.workspaceDir ||
+        args.workspace_dir ||
+        args.outputDir ||
+        args.output_dir ||
+        args.caseDir ||
+        args.case_dir,
+      outputFormat: args.outputFormat || args.output_format || args.format,
+    });
+    return {
+      content: [
+        {
+          type: "text",
+          text: serializeEngineeringWorksSyntheticResult(synthetic),
         },
       ],
     };

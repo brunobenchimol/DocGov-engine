@@ -22,6 +22,10 @@ import {
   auditDemoRegime,
   serializeDemoRegimeSyntheticResult,
 } from "../demo_costs/index.ts";
+import {
+  auditEngineeringWorks,
+  serializeEngineeringWorksSyntheticResult,
+} from "../engineering/index.ts";
 import type { ArpCompilationMode } from "../arp/types.ts";
 import type { ContractCompilationMode } from "../contracts/types.ts";
 
@@ -61,7 +65,19 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
     args.includes("--audit-demo-regime") ||
     args.includes("--demo-json");
 
-  if (!isAuditContract && !isGovernArp && !isEvaluateProposals && !isAuditDirect && !isAuditDemo) {
+  const isAuditEngineering =
+    args.includes("audit-engineering-works") ||
+    args.includes("--audit-engineering-works") ||
+    args.includes("--engineering-json");
+
+  if (
+    !isAuditContract &&
+    !isGovernArp &&
+    !isEvaluateProposals &&
+    !isAuditDirect &&
+    !isAuditDemo &&
+    !isAuditEngineering
+  ) {
     return false;
   }
 
@@ -280,6 +296,62 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
       return true;
     } catch (err: any) {
       console.error(`Erro ao auditar regime DEMO: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // 6. Comando Gen6.5 Eixo 2: audit-engineering-works
+  if (isAuditEngineering) {
+    let inputArg = extractArg(args, [
+      "--input",
+      "--engineering-json",
+      "--input-json",
+      "-i",
+    ]);
+    if (!inputArg) {
+      const cmdIdx = args.findIndex(
+        (a) =>
+          a === "audit-engineering-works" ||
+          a === "--audit-engineering-works"
+      );
+      if (
+        cmdIdx !== -1 &&
+        args[cmdIdx + 1] &&
+        !args[cmdIdx + 1].startsWith("--")
+      ) {
+        inputArg = args[cmdIdx + 1];
+      }
+    }
+    if (!inputArg) {
+      console.error(
+        "Erro: Informe o caminho ou JSON de Obras usando --input <path_or_json>."
+      );
+      process.exit(1);
+    }
+    const workspaceDir = extractArg(args, [
+      "--workspace",
+      "--workspace-dir",
+      "--output-dir",
+      "--output",
+      "-w",
+      "-o",
+      "--case-dir",
+      "-c",
+    ]);
+    const outputFormat = extractArg(args, [
+      "--format",
+      "--output-format",
+    ]) as any;
+
+    try {
+      const { synthetic } = await auditEngineeringWorks(inputArg, {
+        workspaceDir,
+        outputFormat,
+      });
+      console.log(serializeEngineeringWorksSyntheticResult(synthetic));
+      return true;
+    } catch (err: any) {
+      console.error(`Erro ao auditar Obras e Engenharia: ${err.message}`);
       process.exit(1);
     }
   }
