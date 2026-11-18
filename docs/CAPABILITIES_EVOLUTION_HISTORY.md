@@ -1,0 +1,76 @@
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.5`)
+
+---
+
+## 1. Propósito e Regra de Manutenção Contínua
+
+Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do `docgov-engine`. Ele funciona como o elo executivo de baixo consumo de tokens entre o registro exaustivo do [`CHANGELOG.md`](../CHANGELOG.md) e o planejamento estratégico do [`ROADMAP.md`](../ROADMAP.md), permitindo que arquitetos e agentes de IA compreendam integralmente todas as ferramentas, motores e travas já construídos no repositório em poucos segundos.
+
+> **Regra de Ouro de Atualização (Lei 4 e Lei 8):** Ao concluir qualquer marco evolutivo significativo (`v1.6.5`, `v1.7.0`, `v1.7.3`, `v1.7.5`, `v1.7.8`, `v1.7.10`, `v1.8.0`, `v1.8.3`, `v1.8.5`, `v1.8.8`, etc.), o agente **DEVE** realizar um append resumido (10 a 15 linhas) na Seção 2 documentando as novas ferramentas MCP/CLI, motores de domínio, tags de bloqueio e entregáveis gerados naquela geração, preservando o documento conciso e de leitura rápida.
+
+---
+
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.5`)
+
+### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
+- **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
+- **Capacidades:**
+  - Isolamento de workspace por caso (`inputs/`, `state/`, `output/`), higienização/deduplicação da raiz e inventário `indice_mestre_caso.md`;
+  - Mapeamento determinístico de coordenadas (`[P...]`, `[T...R...C...]`, `[PAG_XXX | LYYYY]`), espelho `visao_auditoria_*.md` e `dossie_hotspots_*.md` (janela `±12` linhas);
+  - Radar Pericial das **14 Zonas de Impugnação (`Z1` a `Z14`)** sem dependência de LLM;
+  - Cache Global Cross-Órgão (`core/registry/templates/`) com Auto-Offset posicional e sanity check;
+  - Injeção OpenXML com listas multinível `<w:numPr>`, *hanging indent* em tabelas e exportação híbrida DOCX/PDF (Word COM + Pure-JS);
+  - Compilação editorial vertical A4 de relatórios de auditoria (zero `<w:tbl>`).
+
+### Geração 2 (`v1.1.0` a `v1.2.5` — Matemática em Centavos, Planilhas, OCR e Pacotes Compactados)
+- **Motores:** `budget_auditor.ts`, parser `.xlsx`/`.csv`, `archives.ts`, `ocr.ts`, `updater.ts`.
+- **Capacidades:**
+  - Auditoria aritmética de planilhas em centavos inteiros (`BigInt`: `Qtd x Unit = Total`, subtotais, total geral e cruzamento com valor global nas zonas `Z10`/`Z12`), classificando `MATH_ERROR` (`> 2` centavos) vs. `ROUNDING_WARNING` (`<= 2` centavos);
+  - Ingestão nativa de `.xlsx` (por coordenada `r="A1"`) e `.csv` (RFC 4180); fusão de tabelas multi-página e normalização de `gridSpan`/`vMerge`;
+  - Descompactação segura via `libmagic msooxml` (`.zip`, `.tar.gz`, `.tgz`, `.tar`) com defesa Anti-Zip Slip;
+  - OCR Headless offline mantendo coordenadas homogêneas `[PAG_XXX | LYYYY]`;
+  - Emissão de `RISK_MATRIX` e `COMPLIANCE_CHECKLIST`; auto-updater seguro com verificação criptográfica SHA-256.
+
+### Geração 3 (`v1.3.0` a `v1.3.12` — Diff Semântico, PNCP, Engenharia OpenXML Avançada e Modularidade)
+- **Tools MCP:** `generate_technical_note_docx`, `fetch_pncp`, `search_pncp`.
+- **Capacidades:**
+  - Diff semântico *token-level* (`compareWithPath`, algoritmo LCS Unicode e delta das 14 zonas: `INTRODUCED`, `RESOLVED`, `RETAINED`);
+  - Nota Técnica Comparativa "Antes vs. Depois" com cards coloridos;
+  - Busca multi-query (`|`) no PNCP e download isolado em `inputs/pncp_<shortname>/` com resolução de redirects `302`;
+  - Conversor nativo de tabelas Markdown para `<w:tbl>` (`ENG-06`) e poda `remove_table_rows` *bottom-up*;
+  - Guardrail de Escopo (`ENG-10`) com `%TEMP%/docgov_ephemeral_inspect/`, auto-redirecionamento de checkboxes `C1->C2` (`ENG-11`) e *Heading Guard* (`ENG-12`);
+  - Scanners de integridade pós-compilação (`PARTIAL_ITEM_ROW_CONTAMINATION`, `UNCALCULATED_TOTAL_ROW`, `MULTILEVEL_NUMBERING_RESET`, `DUPLICATE_CONFLICTING_SLA_TABLES`, `SECTION_PREFIX_MISMATCH`, `DUPLICATE_CLAUSE_NUMBER` — `ENG-13..16`);
+  - Herança nativa de `templateNumId` e decomposição modular sob teto físico `<= 500` linhas (Lei 9).
+
+### Geração 4 (`v1.4.0` a `v1.4.6` — Inteligência Jurisprudencial Multi-Corte e Contraditório Tático)
+- **Tools MCP:** `search_juris`, `fetch_juris` + `JurisdictionProviderRegistry` plug-and-play.
+- **Capacidades:**
+  - Funil em 3 estágios com ranking determinístico (`0..100` pts) e calibragem tática (`FAVORABLE` vs. `ADVERSE_DISTINGUISHING_REQUIRED`) conforme postura `DEFENSE`/`ATTACK`;
+  - Ponte Normativa `Statutory Bridge` (`SB-01` a `SB-10`: Lei 13.303/2016 + RILC $\leftrightarrow$ Lei 14.133/2021);
+  - Trava `[ANTI_HALLUCINATION_BLOCK]` e fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas (`1A..6A`);
+  - Compilador OpenXML de `Nota_Tecnica_Contrarrazoes_Juridicas` e `Peca_Impugnacao_Representacao`;
+  - **11 cortes homologadas:** `TCU`, `STJ`, `STF`, `TST`, `AGU`, `TCE-PA`, `TCE-CE`, `TCDF`, `TCE-SP`, `TCE-MG`, `TCE-PR` com Resiliência Dupla (*Live Primary + Curated Fallback*), seletor `--court=<ID>` e *Graceful Fallback* por UF.
+
+### Geração 5, 5.5 e 5.6 (`v1.5.0` a `v1.5.6` — Fiscalização Contratual, PAS Federativo, LINDB Art. 22, Cesta IN 65/2021 e Governança de ARP)
+- **Tools MCP:** `docgov_audit_contract_execution`, `docgov_govern_arp`.
+- **Capacidades:**
+  - Limites de aditivos de 25% e 50% (Art. 125) sem compensação entre acréscimos e supressões (`[ADDENDUM_COMPENSATION_FORBIDDEN]`); consensualidade obrigatória em estatais (`[STATE_ENTERPRISE_UNILATERAL_ADDENDUM_BLOCK]`) e bloqueio de aditivo direto em ARP (`[ILLEGAL_ARP_ADDENDUM_BLOCK]`);
+  - Batimento quadripartite (`TR <-> Proposta <-> ARP <-> Contrato/Fatura`) e interregno de 12 meses em reajustes/repactuações;
+  - **PAS Federativo:** contraditório de 15 dias úteis, multa `0,5%..30%`, segregação glosa ANS/IMR vs. sanção, notificação de seguradora (Art. 102), alcance territorial Estadual/Municipal vs. Estatal `<= 2` anos vs. Inidoneidade, remessa `CEIS/CNEP/PNCP/TCE-TCM` e calibragem jurisprudencial da dosimetria pela LINDB Art. 22;
+  - Cesta de Preços `IN 65/2021` (expurgo de outliers e trava `CV > 25%` exigindo mediana/média saneada) e bloqueio de álea alocada à contratada;
+  - Governança de ARP com livro-razão de caronas (50% individual / 200% global), simetria de regime (`14.133` vs. `13.303`), vedação de carona ascendente e compilação das peças oficiais em DOCX/PDF.
+
+### Geração 6 (`v1.6.0` a `v1.6.4` — Seleção do Fornecedor 360º, Ponte Multimodal `unpdf@2.1+`, 1ª Perna Forense Dual, Recursos Art. 165 e Contratação Direta)
+- **Tools MCP:** `docgov_evaluate_bidding_proposals`, `docgov_audit_direct_contracting`.
+- **Capacidades:**
+  - Julgamento de TIC sem DEMO (`UST/HST/PF/SQUAD`), bloqueio de DEMO oculto, Súmula TCU 269 (`1 UST != 1h`), teto de HST em OS e exequibilidade paramétrica frente ao piso salarial;
+  - Habilitação técnica Súmula TCU 263 (conversibilidade de métricas, teto 50% sobre parcelas `>= 4%`, somatório de atestados e vedação de cumulação Capital Social + PL);
+  - Inexequibilidade `< 75%`, garantia adicional `75%..85%` (Art. 59, §§ 4º–5º), Súmula TCU 262 (diligência obrigatória) e Jogo de Planilha unitário;
+  - **1ª Perna Forense Anti-Fraude:** 7 Vetores de ACT (CNAE/porte, CNPJ inativo/cronologia, PNCP público, QSA Emissor-Licitante, plágio literal do TR, volume/tempo e data de assinatura) + Ponte Multimodal `unpdf@2.1+` (`inspectPages` em 5 classes incluindo `HYBRID_HEADER_SCAN_TRAP` e extração de PNGs em `assets/` com filtro anti-brasão SHA-256) + Perícia Forense Dual `PDF/DOCX` (`getMeta` + `docProps` detectando editores `Canva/iLovePDF/Sejda` e conluio de autoria em propostas/cotações);
+  - Fase Recursal Art. 165 / Acórdão TCU 1.211/2021 (`APPEALS_BUNDLE`);
+  - Contratação Direta: Inexigibilidade (Súmula 255 / mínimo 3 NFs / sobrepreço), Dispensa anti-fracionamento por UG/PDM e Oportunidade de Negócio Estatal (Art. 28, § 3º, II da Lei 13.303/2016).
+
+### Geração 6.5 (`v1.6.5` — Regime DEMO Módulos 1 a 6 & Obras e Serviços de Engenharia — *Escopo Planejado*)
+- **Escopo-Alvo:**
+  - Auditoria matemática de planilhas DEMO em centavos (`BigInt`) conforme IN SEGES 05/2017 e Decreto 12.174/2024: Módulos 1 a 6, CCT, Súmula 448 TST, SAT/RAT x FAP, expurgo de Aviso Prévio Trabalhado na 1ª renovação (Acórdão TCU 1.586/2018), vedação ao Simples Nacional em cessão de mão de obra (Art. 17, XII LC 123/2006), alíquota efetiva no Lucro Real e Conta Vinculada vs. Pagamento pelo Fato Gerador;
+  - Obras e Serviços de Engenharia: quartis de BDI (Acórdão TCU 2.622/2013), BDI Diferenciado (Súmula TCU 253), vedação de Administração Local no BDI (*bis in idem*), Curva ABC `SINAPI`/`SICRO` com/sem desoneração CPRB (Lei 14.973/2024) e detecção de *front-loading* no cronograma físico-financeiro.

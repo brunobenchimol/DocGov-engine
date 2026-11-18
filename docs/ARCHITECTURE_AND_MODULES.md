@@ -2,6 +2,8 @@
 
 Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolvedores**. Consulte-o antes de buscar arquivos no repositório para localizar exatamente os módulos de implementação (`src/`), scripts (`scripts/`) e suítes de validação (`test/`, `tests_live/`) de cada domínio.
 
+> **Memória Evolutiva Executiva:** Para uma radiografia cumulativa concisa de todas as capacidades e ferramentas já consolidadas por geração (`Geração 1` a `Geração 6.5`), consulte [`docs/CAPABILITIES_EVOLUTION_HISTORY.md`](CAPABILITIES_EVOLUTION_HISTORY.md).
+
 ---
 
 ## 1. Pontos de Entrada, CLI, MCP & Contratos Base

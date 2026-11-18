@@ -26,7 +26,7 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
   2. As constantes `DOCX_ENGINE_INSTRUCTIONS` e `DOCX_WORKFLOW_GUIDE_TEXT`;
   3. As descrições e schemas em `getMcpToolsDefinition()`;
   4. Os textos de orientação `next_step_hint`;
-  5. A documentação pública e o mapa arquitetural (`README.md`, `ROADMAP.md`, `CHANGELOG.md` e `docs/ARCHITECTURE_AND_MODULES.md`).
+  5. A documentação pública, o mapa arquitetural e a memória evolutiva (`README.md`, `ROADMAP.md`, `CHANGELOG.md`, `docs/ARCHITECTURE_AND_MODULES.md` e `docs/CAPABILITIES_EVOLUTION_HISTORY.md`).
 
 ## Lei 5: Neutralidade Institucional Absoluta
 - É expressamente proibido usar nomes de órgãos, entidades, estados ou localidades específicos em código, testes, fixtures ou documentação.
@@ -48,10 +48,10 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
   - É **TERMINANTEMENTE PROIBIDO** tentar subir arquivos de release na mão, criar releases por comandos locais (`gh release create`) ou fazer upload manual de binários compilados na máquina de desenvolvimento. Toda compilação oficial, cálculo de checksums e publicação de assets cabem estritamente à esteira automatizada em seus runners remotos.
   - **Protocolo Observador:** Após o push da tag, o agente deve apenas monitorar a conclusão do pipeline externo (ex.: `gh run list` / `gh run watch`). Caso seja necessário enriquecer notas ou descrições após a publicação automatizada, o agente deve usar exclusivamente comandos declarativos de edição de metadados (ex.: `gh release edit vX.Y.Z --notes-file ...`), **sem nunca reinjetar ou sobrescrever os binários oficiais gerados pela esteira**.
 
-## Lei 8: Disciplina Autônoma de Micro-Commits Atômicos, Reversibilidade e Memória Evolutiva (`CHANGELOG.md` & `ROADMAP.md`)
+## Lei 8: Disciplina Autônoma de Micro-Commits Atômicos, Reversibilidade e Memória Evolutiva (`CHANGELOG.md`, `ROADMAP.md` & `docs/CAPABILITIES_EVOLUTION_HISTORY.md`)
 - É terminantemente proibido realizar commits monolíticos ("Big Bang") que misturem múltiplas features, refatorações ou correções em um único disparo.
 - Todo plano (`/plan`) e toda execução no repositório `docgov-engine` DEVE ser estruturada nativamente em **Micro-Commits Atômicos e Semânticos** (`feat(...)`, `fix(...)`, `test(...)`, `docs(...)`, `chore(...)`), onde cada micro-commit representa uma unidade lógica isolada e passa em 100% dos testes (`bun test`).
-- Ao finalizar qualquer feature, patch ou marco, o agente DEVE obrigatoriamente e por iniciativa própria atualizar o `CHANGELOG.md` e o `ROADMAP.md`.
+- Ao finalizar qualquer feature, patch ou marco, o agente DEVE obrigatoriamente e por iniciativa própria atualizar o `CHANGELOG.md` e o `ROADMAP.md`, realizando também o append resumido (10 a 15 linhas) em `docs/CAPABILITIES_EVOLUTION_HISTORY.md` ao concluir cada geração ou marco evolutivo significativo.
 
 ## Lei 9: Modularidade Estrita, Teto de 500 Linhas e Economia de Tokens
 - **Teto Físico de Arquivo ($\le 500$ linhas):** Nenhum arquivo `.ts` em `src/tools/juris/`, `test/`, `tests_live/` e `scripts/` (e novos módulos em `src/`) pode ultrapassar 500 linhas de código. Novas capacidades (como o motor de jurisprudência da `v1.4.x`) DEVEM nascer em subdiretórios próprios de domínio (ex.: `src/tools/juris/search_juris.ts`, `src/tools/juris/fetch_juris.ts`, `src/tools/juris/statutory_bridge.ts`, `src/tools/juris/anatomical_slicer.ts`), jamais sendo empilhadas dentro de arquivos existentes;
