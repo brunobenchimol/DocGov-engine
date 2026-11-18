@@ -1,4 +1,4 @@
-# Arquitetura e Índice de Módulos — docgov-engine (v1.6.4)
+# Arquitetura e Índice de Módulos — docgov-engine (v1.6.5)
 
 Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolvedores**. Consulte-o antes de buscar arquivos no repositório para localizar exatamente os módulos de implementação (`src/`), scripts (`scripts/`) e suítes de validação (`test/`, `tests_live/`) de cada domínio.
 
@@ -15,15 +15,15 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
 | Tipagem Global | `src/types/index.ts` | Interfaces compartilhadas (`SlotsManifest`, `InspectionResult`, `PdfExtractionResult`, `DocumentForensicMeta`, etc.). |
 | CLI Core | `src/cli/index.ts` | Parser principal da CLI (`--help`, `--version`, documentos, template, diff). |
 | CLI Conectores | `src/cli/connectors_cli.ts` | Subcomandos `--search-pncp`, `--fetch-pncp`, `--search-juris`, `--fetch-juris`, `--dump-spec` e `--update`. |
-| CLI Gen5 / Gen6 | `src/cli/contracts_cli.ts` | Subcomandos `audit-contract`, `govern-arp`, `evaluate-proposals` e `audit-direct-contracting`. |
+| CLI Gen5 / Gen6 / Gen6.5 | `src/cli/contracts_cli.ts` | Subcomandos `audit-contract`, `govern-arp`, `evaluate-proposals`, `audit-direct-contracting` e `audit-demo-regime`. |
 | MCP Server | `src/mcp/server.ts` | Servidor JSON-RPC 2.0 sobre `stdio` (`initialize`, `tools/list`, `tools/call`, `prompts/*`). |
-| MCP Schemas | `src/mcp/tools_definition.ts` | Definição JSON Schema e metadados das **14 ferramentas MCP nativas**. |
+| MCP Schemas | `src/mcp/tools_definition.ts` | Definição JSON Schema e metadados das **15 ferramentas MCP nativas**. |
 | MCP Dispatcher | `src/mcp/tool_dispatchers.ts` | Roteamento tipado de chamadas MCP para os motores de domínio. |
 | Self-Discovery Spec | `src/mcp/spec.ts` | Gerador `generateEngineSpecMarkdown()` que alimenta `--dump-spec` e `docs/especificacao_motor.md`. |
 
 ---
 
-## 2. Matriz Completa: Ferramentas MCP (#1 a #14) -> CLI -> Código (`src/`) -> Testes (`test/` / `tests_live/`)
+## 2. Matriz Completa: Ferramentas MCP (#1 a #15) -> CLI -> Código (`src/`) -> Testes (`test/` / `tests_live/`)
 
 | # | Ferramenta MCP | Comando CLI Equivalente | Módulos `src/` Responsáveis | Suítes de Teste Correspondentes |
 | :--- | :--- | :--- | :--- | :--- |
@@ -41,6 +41,7 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
 | 12 | `docgov_govern_arp` | `govern-arp`, `--govern-arp` | `src/arp/govern_arp.ts`, `src/arp/ledger_engine.ts`, `src/arp/compatibility_matrix.ts`, `src/arp/arp_compiler.ts`, `src/arp/types.ts` | `test/arp/arp_ledger_limits.test.ts`, `test/arp/arp_matrix_and_compiler.test.ts`, `test/contracts_arp_mcp_cli.test.ts` |
 | 13 | `docgov_evaluate_bidding_proposals` | `evaluate-proposals`, `--evaluate-proposals` | `src/bidding/index.ts`, `src/bidding/evaluate_bidding_proposals.ts`, `src/bidding/ict_execution_models.ts`, `src/bidding/inexequibility_evaluator.ts`, `src/bidding/qualification_evaluator.ts`, `src/bidding/act_forensic_auditor.ts`, `src/bidding/forensic_collusion_auditor.ts`, `src/bidding/appeals_evaluator.ts`, `src/bidding/bidding_docx_compiler.ts`, `src/bidding/bidding_legal_humanizer.ts`, `src/bidding/bidding_opinion_sections.ts`, `src/bidding/act_diligence_letter_sections.ts`, `src/bidding/appeals_docx_sections.ts`, `src/bidding/bidding_xml_primitives.ts`, `src/bidding/types.ts` | `test/bidding_gen6.test.ts`, `test/bidding_inexeq_appeals_v164.test.ts` |
 | 14 | `docgov_audit_direct_contracting` | `audit-direct-contracting`, `--audit-direct-contracting` | `src/direct_contracting/index.ts`, `src/direct_contracting/audit_direct_contracting.ts`, `src/direct_contracting/direct_contracting_auditor.ts`, `src/direct_contracting/direct_contracting_compiler.ts`, `src/direct_contracting/direct_contracting_sections.ts`, `src/direct_contracting/types.ts` | `test/direct_contracting_gen6.test.ts` |
+| 15 | `docgov_audit_demo_regime` | `audit-demo-regime`, `--audit-demo-regime` | `src/demo_costs/index.ts`, `src/demo_costs/types.ts`, `src/demo_costs/sheet_calculator.ts`, `src/demo_costs/execution_governance.ts`, `src/demo_costs/docx_renderer.ts`, `src/demo_costs/audit_runner.ts` | `test/demo_regime.test.ts` |
 
 ### Conectores Jurisdicionais (`src/tools/juris/providers/`)
 - **Camada Federal:** `src/tools/juris/providers/tcu_provider.ts`, `src/tools/juris/providers/stj_provider.ts`, `src/tools/juris/providers/stf_provider.ts`, `src/tools/juris/providers/tst_provider.ts`, `src/tools/juris/providers/agu_provider.ts`, `src/tools/juris/providers/agu_catalog.ts`.
@@ -69,7 +70,7 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
 ## 4. Governança Física de Linhas (Lei 9 & `scripts/check_lines.ts`)
 
 - **Diretórios com enforcement estrito automático (`<= 500` linhas em `bun run check:lines`):**
-  - Código: `src/tools/juris`, `src/utils/pdf`, `src/contracts`, `src/arp`, `src/bidding`, `src/direct_contracting`;
+  - Código: `src/tools/juris`, `src/utils/pdf`, `src/contracts`, `src/arp`, `src/bidding`, `src/direct_contracting`, `src/demo_costs`;
   - Testes e Automação: `test`, `tests_live`, `scripts`.
 - **Pastas legadas/raiz de `src/` atualmente fora da varredura automática de `scripts/check_lines.ts`:**
   - `src/index.ts`, `src/cli/`, `src/constants/`, `src/types/`, `src/mcp/`, `src/core/`, `src/parsers/`, `src/tools/` (raiz, `src/tools/inspect/`, `src/tools/openxml/`) e `src/utils/` (arquivos raiz como `archives.ts`, `pdf.ts`, `pdf_exporter.ts`, `xml.ts`).

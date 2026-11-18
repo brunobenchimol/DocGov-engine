@@ -92,7 +92,7 @@ Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do 
 - [ ] **6. Memória Evolutiva (Lei 8):** `CHANGELOG.md` e `ROADMAP.md` atualizados e consistentes;
 - [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
 - [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas;
-- [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `src/utils/pdf/`, `src/contracts/`, `src/arp/`, `src/bidding/`, `src/direct_contracting/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
+- [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `src/utils/pdf/`, `src/contracts/`, `src/arp/`, `src/bidding/`, `src/direct_contracting/`, `src/demo_costs/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
 
 ### 5. Trilha Contínua de Conectores Jurisdicionais (On-Demand Connector Track)
 Sempre que o usuário solicitar a adição de um novo tribunal de contas estadual ou municipal (*"Vamos implementar o conector <CORTE>"*), o agente DEVE seguir estritamente o playbook documentado em `docs/JURIS_CONNECTOR_PLAYBOOK.md`:

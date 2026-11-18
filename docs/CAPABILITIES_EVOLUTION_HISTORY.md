@@ -70,7 +70,11 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
   - Fase Recursal Art. 165 / Acórdão TCU 1.211/2021 (`APPEALS_BUNDLE`);
   - Contratação Direta: Inexigibilidade (Súmula 255 / mínimo 3 NFs / sobrepreço), Dispensa anti-fracionamento por UG/PDM e Oportunidade de Negócio Estatal (Art. 28, § 3º, II da Lei 13.303/2016).
 
-### Geração 6.5 (`v1.6.5` — Regime DEMO Módulos 1 a 6 & Obras e Serviços de Engenharia — *Escopo Planejado*)
-- **Escopo-Alvo:**
-  - Auditoria matemática de planilhas DEMO em centavos (`BigInt`) conforme IN SEGES 05/2017 e Decreto 12.174/2024: Módulos 1 a 6, CCT, Súmula 448 TST, SAT/RAT x FAP, expurgo de Aviso Prévio Trabalhado na 1ª renovação (Acórdão TCU 1.586/2018), vedação ao Simples Nacional em cessão de mão de obra (Art. 17, XII LC 123/2006), alíquota efetiva no Lucro Real e Conta Vinculada vs. Pagamento pelo Fato Gerador;
+### Geração 6.5 (`v1.6.5` — Eixo 1 Entregue: Regime DEMO Módulos 1 a 6 | Eixo 2 Planejado: Obras e Serviços de Engenharia)
+- **Tools MCP:** `docgov_audit_demo_regime` (CLI `audit-demo-regime`).
+- **Capacidades Entregues (Eixo 1 — `v1.6.5`):**
+  - Auditoria matemática em centavos inteiros e basis points para Planilhas DEMO (Módulos 1 a 6 do Anexo VII-D da IN SEGES nº 05/2017): piso CCT, Súmula nº 448, II TST + LTCAT, 13º/Férias + CPP 20%/FGTS 8%, SAT/RAT × FAP, VT 6% + VA CCT, APT 1º ano `<= 1,94%`, reposição de ausentes, insumos/EPIs e Gross-Up "por dentro";
+  - Trava de alíquota efetiva EFD-Contribuições no Lucro Real (Acórdão TCU 1.214/2013), vedação ao Simples Nacional em cessão de mão de obra (Art. 17, XII LC 123/2006) salvo Anexo IV em limpeza/vigilância, produtividade $m^2$ (Anexo VI-B) e proteção salarial `44h -> 40h` + reserva de vagas (Decreto nº 12.174/2024);
+  - Governança contratual: expurgo de 90% do APT na 1ª prorrogação (`1,94% -> 0,194%`, Acórdão TCU 1.586/2018), Conta-Depósito Vinculada (Anexo XII: `29,50%..31,33%`) vs. Fato Gerador e Repactuação CCT (Art. 135), compilando `demo_regime_audit.json/.md` e `laudo_pericial_planilha_demo.docx/.pdf` com guarda `<= 880B` no `stdout` sob as **16 tags `[DEMO_*]`**.
+- **Escopo-Alvo Remanescente (Eixo 2):**
   - Obras e Serviços de Engenharia: quartis de BDI (Acórdão TCU 2.622/2013), BDI Diferenciado (Súmula TCU 253), vedação de Administração Local no BDI (*bis in idem*), Curva ABC `SINAPI`/`SICRO` com/sem desoneração CPRB (Lei 14.973/2024) e detecção de *front-loading* no cronograma físico-financeiro.

@@ -21,7 +21,7 @@
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
 | **Geração 6** | `v1.6.0` / `v1.6.4` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165 / Acórdão 1.211/2021, Mapa Arquitetural, Trava Lockstep & Teto MCP `<= 880B` | `[CONCLUÍDO]` |
-| **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador & Repactuação) & Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[PRÓXIMO FOCO ATIVO]` |
+| **Geração 6.5** | `v1.6.5` | **Eixo 1 (`[CONCLUÍDO]` na `v1.6.5`):** Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Módulos 1–6, Anexo VI-B, Dec. 12.174/2024, Conta Vinculada vs. Fato Gerador, Expurgo APT & Repactuação via `docgov_audit_demo_regime`)<br>**Eixo 2 (`[EM CURSO]`):** Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[EIXO 1 CONCLUÍDO / EIXO 2 PRÓXIMO]` |
 | **Geração 7.0** | `v1.7.0` *(hotfix `1.7.1–1.7.2`)* | 2ª Perna Anti-Fraude (Parte 1): Perícia Criptográfica `PKCS#7/CMS/PAdES` (`ICP-Brasil` & `/ByteRange`), Validador Algorítmico NF-e 44 Dígitos, Clones `w:rsid` `.docx` & Metadados `.xlsx` | `[PLANEJADO]` |
 | **Geração 7.3** | `v1.7.3` *(hotfix `1.7.4`)* | 2ª Perna Anti-Fraude (Parte 2): Grafo Multi-CNPJ de Conluio Societário (`QSA`/Endereço/Contato) & Detector de Empresa Sucessora/Fantasma em Fraude à Sanção (Art. 160 / Acórdão TCU 2.218/2011) | `[PLANEJADO]` |
 | **Geração 7.5** | `v1.7.5` *(hotfix `1.7.6–1.7.7`)* | 2ª Perna Anti-Fraude (Parte 3) & 15ª Tool MCP: Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP (LC 123/2006 / R$ 4,8M), Subcontratação Ilícita (Art. 122) & `docgov_audit_antifraud_and_integrity` | `[PLANEJADO]` |
@@ -123,9 +123,9 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## 🎯 MARCO 9.5 — `v1.6.5`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — PLANEJADO)
+## 🎯 MARCO 9.5 — `v1.6.5`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — EIXO 1 CONCLUÍDO)
 
-- [ ] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017, Decreto 12.174/2024 e Arts. 121 e 135 da Lei 14.133/2021):**
+- [x] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017, Decreto 12.174/2024 e Arts. 121 e 135 da Lei 14.133/2021 — entregue via `docgov_audit_demo_regime` e `audit-demo-regime` na `v1.6.5`):**
   - **Auditoria Aritmética e Normativa dos Módulos 1 a 6 em Centavos Inteiros:**
     - *Módulo 1:* Composição da remuneração, salário-base vinculado à CCT e adicionais de insalubridade/periculosidade (trava Súmula 448 TST);
     - *Módulo 2:* Encargos previdenciários, FGTS, SAT/RAT x FAP comprovado (GFIP/FAPWeb) e benefícios mensais/diários (auxílio-transporte com teto 6% e alimentação);

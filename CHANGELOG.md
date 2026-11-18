@@ -8,6 +8,20 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.5] - 2026-11-17 — Geração 6.5 (Eixo 1): Regime DEMO (Módulos 1–6, Conta Vinculada, Decreto 12.174/2024) & 15ª Tool MCP `docgov_audit_demo_regime`
+
+### Added
+- **Domínio Modular `src/demo_costs/` (`<= 500` linhas por arquivo — Lei 9):**
+  - `src/demo_costs/types.ts`: contrato `DemoRegimeAuditInput`, `DemoRegimeAuditOutput` (`CONFORME` / `NAO_CONFORME`, `calculated_totals_cents`, `artifacts`) e catálogo das **16 tags canônicas bloqueantes (`[DEMO_*]`)**.
+  - `src/demo_costs/sheet_calculator.ts`: calculadora determinística em centavos inteiros e basis points para os **Módulos 1 a 6** do Anexo VII-D da IN SEGES/MPDG nº 05/2017 (piso CCT, Súmula nº 448, II TST + LTCAT, 13º/Férias + base CPP 20%/FGTS 8%, SAT/RAT × FAP, VT com desconto de 6% + VA CCT, API/multa FGTS/APT `<= 1,94%`, reposição de ausentes, insumos/EPIs/depreciação, fórmula Gross-Up "por dentro", alíquota efetiva EFD-Contribuições no Lucro Real conforme Acórdão TCU nº 1.214/2013 e vedação ao Simples Nacional Art. 17, XII LC nº 123/2006 salvo Anexo IV em limpeza/vigilância), produtividade por $m^2$ (Anexo VI-B) e Decreto Federal nº 12.174/2024 (vedação de corte remuneratório em `44h -> 40h` e cota/cláusulas para vítimas de violência doméstica).
+  - `src/demo_costs/execution_governance.ts`: expurgo de 90% do Aviso Prévio Trabalhado na 1ª prorrogação (`1,94% -> 0,194%` — Acórdão TCU nº 1.586/2018), Conta-Depósito Vinculada (Anexo XII: `29,50%..31,33%`) vs. Pagamento pelo Fato Gerador e memória de Repactuação Anual por CCT (Art. 135 da Lei nº 14.133/2021).
+  - `src/demo_costs/docx_renderer.ts` & `src/demo_costs/audit_runner.ts`: emissão de `demo_regime_audit.json`, `demo_regime_audit.md`, `laudo_pericial_planilha_demo.docx` e `laudo_pericial_planilha_demo.pdf` em `workspace_dir` com guarda determinística `<= 880B` no `stdout` (`[+N_TAGS_NO_DOSSIE]` sob estresse extremo sem perda no disco).
+- **15ª Ferramenta MCP `docgov_audit_demo_regime` & CLI `audit-demo-regime`:** Registrada em `src/mcp/tools_definition.ts`, `src/mcp/tool_dispatchers.ts`, `src/cli/contracts_cli.ts`, `src/cli/index.ts`, `src/index.ts` e auditada em `scripts/check_lines.ts`.
+- **Suíte Unitária & Estresse (`test/demo_regime.test.ts`):** Cobertura para cenários `CONFORME` (Lucro Real EFD e Simples Nacional Anexo IV) e estresse extremo disparando simultaneamente todas as **16 tags `[DEMO_*]`** via MCP e CLI (`stdout <= 880` bytes UTF-8).
+
+### Changed
+- **Lockstep Documental e Self-Discovery (`v1.6.5`):** Sincronização de `VERSION` (`1.6.5`), `package.json`, `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, `src/mcp/spec.ts`, `docs/especificacao_motor.md`, `docs/ARCHITECTURE_AND_MODULES.md`, `docs/CAPABILITIES_EVOLUTION_HISTORY.md`, `README.md`, `ROADMAP.md` (item `9.5.1` marcado como `[x]`), `AGENTS.md`, `test/mcp_spec.test.ts` e `test/version.test.ts`.
+
 ## [1.6.4] - 2026-11-16 — Guarda MCP `<= 880B` Sob Estresse Máximo, Jogo de Planilha, Fase Recursal Completa & Schema no `--dump-spec`
 
 ### Added
