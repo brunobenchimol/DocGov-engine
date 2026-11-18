@@ -18,8 +18,8 @@ export {
   compileEngineeringPericialDocxAndPdf,
 } from "./docx_renderer.ts";
 export { normalizeEngineeringWorksInput } from "./input_normalizer.ts";
+export { ENGINEERING_WORKS_TOOL_DEFINITION } from "./tool_definition.ts";
 export {
-  ENGINEERING_WORKS_TOOL_DEFINITION,
   auditEngineeringWorks,
   serializeEngineeringWorksSyntheticResult,
 } from "./engineering_works_auditor.ts";

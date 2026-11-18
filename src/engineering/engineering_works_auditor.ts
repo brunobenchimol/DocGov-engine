@@ -24,126 +24,13 @@ import {
   compileEngineeringPericialDocxAndPdf,
 } from "./docx_renderer.ts";
 import { normalizeEngineeringWorksInput } from "./input_normalizer.ts";
+export { ENGINEERING_WORKS_TOOL_DEFINITION } from "./tool_definition.ts";
 import type {
   AuditEngineeringWorksOptions,
   EngineeringWorksAuditInput,
   EngineeringWorksAuditOutput,
   EngineeringWorksSyntheticResult,
 } from "./types.ts";
-
-export const ENGINEERING_WORKS_TOOL_DEFINITION = {
-  name: "docgov_audit_engineering_works",
-  description:
-    "Quando usar: Para auditar matematicamente orçamentos, composições de BDI (quartis e fórmula algébrica do Acórdão TCU nº 2.622/2013, BDI Diferenciado da Súmula TCU nº 253, vedação de IRPJ/CSLL da Súmula TCU nº 254, bloqueio de bis in idem de Administração Local/Canteiro/Mobilização e medição proporcional ao avanço físico), Curva ABC contra medianas SINAPI/SICRO (Decreto nº 7.983/2013), simetria tributária Com/Sem Desoneração CPRB (Lei nº 14.973/2024), front-loading no cronograma físico-financeiro, Matriz de Riscos em Contratação Integrada/Semi-Integrada (Art. 46 Lei 14.133/2021 e Arts. 42-43 Lei 13.303/2016) e inexequibilidade 75%/85% + Jogo de Planilha (Art. 59 §§ 4º e 5º, Súmulas TCU 259 e 262). Próximo Passo: Inspecione engineering_works_audit.json, engineering_works_audit.md e o laudo pericial laudo_pericial_obras_engenharia.docx/.pdf no workspace_dir. Retorno sintético <= 880 bytes.",
-  inputSchema: {
-    type: "object",
-    properties: {
-      engineeringJsonPath: {
-        type: "string",
-        description: "Caminho do arquivo JSON contendo os dados da planilha de engenharia, BDI, SINAPI/SICRO e cronograma.",
-      },
-      inputPath: {
-        type: "string",
-        description: "Alias para engineeringJsonPath ou string JSON inline.",
-      },
-      workspaceDir: {
-        type: "string",
-        description: "Diretório de saída onde os artefatos JSON, MD, DOCX e PDF serão gravados.",
-      },
-      workspace_dir: {
-        type: "string",
-        description: "Alias canônico de workspaceDir para persistência dos artefatos.",
-      },
-      case_id: {
-        type: "string",
-        description: "Identificador do processo ou caso administrativo auditado.",
-      },
-      contract_regime: {
-        type: "string",
-        enum: ["LEI_14133", "LEI_13303"],
-        description: "Regime jurídico regente do contrato (LEI_14133 ou LEI_13303).",
-      },
-      work_typology: {
-        type: "string",
-        enum: [
-          "CONSTRUCAO_EDIFICIOS",
-          "RODOVIARIA",
-          "REDES_AGUA_ESGOTO",
-          "REDES_ENERGIA_ELETRICA",
-          "PORTUARIA_MARITIMA",
-          "FORNECIMENTO_MATERIAIS_EQUIPAMENTOS",
-        ],
-        description: "Tipologia oficial da obra segundo o Acórdão TCU nº 2.622/2013-Plenário.",
-      },
-      execution_regime: {
-        type: "string",
-        enum: [
-          "EMPREITADA_PRECO_UNITARIO",
-          "EMPREITADA_PRECO_GLOBAL",
-          "EMPREITADA_INTEGRAL",
-          "TAREFA",
-          "CONTRATACAO_INTEGRADA",
-          "CONTRATACAO_SEMI_INTEGRADA",
-        ],
-        description: "Regime de execução contratual da obra ou serviço de engenharia.",
-      },
-      estimated_budget_cents: {
-        type: "number",
-        description: "Valor global estimado pela Administração em centavos inteiros.",
-      },
-      offered_proposal_cents: {
-        type: "number",
-        description: "Valor global da proposta licitante em centavos inteiros.",
-      },
-      additional_guarantee_offered: {
-        type: "boolean",
-        description: "Indica prestação de garantia adicional exigida abaixo de 85% (Art. 59 § 5º).",
-      },
-      summary_disqualification_attempted: {
-        type: "boolean",
-        description: "Indica tentativa de desclassificação sumária sem diligência prévia (Súmula TCU 262).",
-      },
-      prior_diligence_opportunity_granted: {
-        type: "boolean",
-        description: "Indica se foi aberta diligência contraditória prévia ao licitante.",
-      },
-      diligence_viability_proven: {
-        type: "boolean",
-        description: "Indica se a exequibilidade foi demonstrada em diligência.",
-      },
-      bdi_evaluation: {
-        type: "object",
-        description: "Composição algébrica do BDI, BDI Diferenciado (Súmula 253), IRPJ/CSLL e Administração Local.",
-      },
-      tax_desoneracao_cprb: {
-        type: "object",
-        description: "Parâmetros de simetria Com/Sem Desoneração CPRB (Lei nº 14.973/2024).",
-      },
-      curva_abc_items: {
-        type: "array",
-        description: "Itens da Curva ABC confrontados com medianas SINAPI/SICRO (Decreto nº 7.983/2013).",
-      },
-      unit_price_items: {
-        type: "array",
-        description: "Lista opcional adicional de preços unitários para avaliação de Jogo de Planilha.",
-      },
-      schedule_and_risk: {
-        type: "object",
-        description: "Cronograma físico-financeiro (front-loading) e Matriz de Riscos (Contratação Integrada).",
-      },
-      outputFormat: {
-        type: "string",
-        enum: ["docx", "pdf", "both"],
-        description: "Formato de emissão do laudo pericial (padrão: both).",
-      },
-    },
-  },
-  annotations: {
-    readOnlyHint: false,
-    destructiveHint: false,
-    idempotentHint: true,
-  },
-};
 
 function parseInputTarget(
   inputOrPath: EngineeringWorksAuditInput | string
