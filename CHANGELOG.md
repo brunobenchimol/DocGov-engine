@@ -8,6 +8,18 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.7] - 2026-11-18 — Hardening Black-Box, Normalização Dual & Self-Discovery Completo da Tool 16 (`docgov_audit_engineering_works`)
+
+### Added
+- **Normalizador Dual Aninhado + Flat/Aliases (`src/engineering/input_normalizer.ts`):** Mapeamento determinístico de chaves *flat* na raiz e sinônimos naturais para `bdi_evaluation`, `tax_desoneracao_cprb`, `curva_abc_items` e `schedule_and_risk` (`cronograma_fisico_financeiro`, `stages`, `physical_pct`/`financial_pct`, `front_loading_detected`, `has_risk_allocation_matrix`, `attempts_design_error_addendum_without_legal_exception`, `design_error_addendum_attempted`, `illegal_design_addendum`, `aditivo_erro_projeto_sem_excecao`).
+- **Contrato Exact Copy-Paste Error para Engenharia (`src/contracts/errors.ts`):** Adicionados `EXACT_COPY_PASTE_ENGINEERING_WORKS_SNIPPET` e `createEngineeringWorksContractError` (Lei 3), substituindo o erro genérico quando `bdi_evaluation` estiver ausente.
+- **Módulo Dedicado de Schema MCP (`src/engineering/tool_definition.ts`):** Extraído e expandido `ENGINEERING_WORKS_TOOL_DEFINITION.inputSchema` com declaração explícita de `properties` e `items` de todos os subcampos aninhados (`bdi_evaluation`, `tax_desoneracao_cprb`, `curva_abc_items`, `unit_price_items`, `schedule_and_risk` e `has_unit_price_overpricing`), mantendo todos os arquivos abaixo de 500 linhas (Lei 9).
+- **Testes Black-Box em `test/engineering_works.test.ts`:** Validação de disparo de `[ENG_SCHEDULE_FRONT_LOADING_CASHFLOW_MANIPULATION_BLOCK]` e `[ENG_INTEGRATED_CONTRACTING_ILLEGAL_DESIGN_ADDENDUM_BLOCK]` via aliases e chaves *flat*, *Exact Copy-Paste Error* e presença completa dos subcampos em `inputSchema` e `--dump-spec`.
+
+### Changed
+- **Self-Discovery Integral no `--dump-spec` (`src/mcp/spec.ts` / `docs/especificacao_motor.md`):** Expansão da seção `2.16. docgov_audit_engineering_works` com o Schema de Entrada JSON completo (Raiz, `bdi_evaluation`, `tax_desoneracao_cprb`, `curva_abc_items[]`, `schedule_and_risk` e aliases aceitos) e o snippet JSON canônico copiável.
+- **Lockstep Documental (`v1.6.7`):** Atualização de `VERSION` (`1.6.7`), `package.json`, `DOCX_ENGINE_INSTRUCTIONS`, `README.md`, `ROADMAP.md`, `docs/ARCHITECTURE_AND_MODULES.md` e `docs/CAPABILITIES_EVOLUTION_HISTORY.md`.
+
 ## [1.6.6] - 2026-11-18 — Geração 6.5 (Eixo 2): Obras e Serviços de Engenharia (Acórdão TCU 2.622/2013, Súmula 253, SINAPI/SICRO, CPRB Lei 14.973/2024) & 16ª Tool MCP `docgov_audit_engineering_works`
 
 ### Added

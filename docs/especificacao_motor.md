@@ -1,6 +1,6 @@
-# Especificação Técnica do Motor docgov-engine (v1.6.6)
+# Especificação Técnica do Motor docgov-engine (v1.6.7)
 
-Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.6`) e servidor MCP para o ecossistema DocGov.
+Documento normativo e especificação canônica do motor standalone `docgov-engine` (`docgov-engine v1.6.7`) e servidor MCP para o ecossistema DocGov.
 
 ---
 
@@ -307,7 +307,7 @@ Motor determinístico de governança de Ata de Registro de Preços e gestão de 
 - **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `arp_number`, `decision`, `blocking_tags`, `ledger_summary`, `dossier_json_path`, `dossier_md_path`, caminhos compilados e `next_step_hint`.
 
 ### 2.13. docgov_evaluate_bidding_proposals (CLI: evaluate-proposals)
-Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%), Jogo de Planilha e Fase Recursal (Gen6 Marco 9 — `v1.6.6`).
+Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%), Jogo de Planilha e Fase Recursal (Gen6 Marco 9 — `v1.6.7`).
 - **Parâmetros MCP / CLI:** `proposalJsonPath` (aliases `bidding_json_path`, `input_json_path`, `biddingJsonPath`), `outputDir` (`output_dir`, `caseDir`, `case_dir`), `evaluationStance` (`evaluation_stance`: `"DEFENSE"` | `"ATTACK"`), `compilationMode` (`"PROPOSAL_JUDGMENT_OPINION"` | `"ACT_DILIGENCE_LETTER"` | `"JUDGMENT_OPINION"` | `"ACT_DILIGENCE_REPORT"` | `"BOTH"` | `"APPEAL_REASONS"` | `"APPEAL_COUNTER_REASONS"` | `"PREGOEIRO_DECISION"` | `"APPEALS_BUNDLE"` | `"ALL"` | `"NONE"`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`).
 - **Modelos TIC sem DEMO, Inexequibilidade (75%/85%), Jogo de Planilha & Súmula TCU 262:** Bloqueia descaracterização para alocação de postos (`[ICT_HIDDEN_LABOR_DEDICATION_DEMO_TRAP_BLOCK]`), UST = Hora-Homem pura (`[ICT_UST_RAW_HOUR_EQUIVALENCE_SUMULA269_BLOCK]`), HST sem teto em OS (`[ICT_UNBOUNDED_TECHNICAL_HOUR_PARADOX_BLOCK]`), PF/SQUAD sem vínculo com ANS, inexequibilidade < 75% (Art. 59 § 4º -> `[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]`), garantia adicional < 85% (Art. 59 § 5º -> `[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]`), sobrepreço unitário / Jogo de Planilha (`[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]`) e desclassificação sumária sem diligência (`[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]`).
 - **Conluio entre Propostas Concorrentes (`competing_proposals_meta[]`) & Motor Forense Anti-Fraude de ACT (7 Vetores):** Auto-hidratação por `act_pdf_path`/`act_structure_json_path`, divergência > 180 dias ou autoria coincidente (`[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]`), rastros `Canva/iLovePDF/Sejda` (`[ACT_PDF_EDITING_SOFTWARE_TRACE_SUSPICION]`) e detecção de autoria compartilhada/criação simultânea entre propostas (`[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]`).
@@ -324,7 +324,7 @@ Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%)
 - **Compilação OpenXML DOCX/PDF:** Gera `Parecer_Julgamento_Proposta_Habilitacao_e_Diligencia.docx/.pdf`, `Oficio_e_Email_Diligencia_Veracidade_ACT.docx/.pdf` (Via A ao Emissor na RFB e Via B à Licitante exigindo NF-e/NFS-e 44 dígitos, Contrato, OS e SEFIP/eSocial), `Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.docx/.pdf` e `Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx/.pdf`.
 
 ### 2.14. docgov_audit_direct_contracting (CLI: audit-direct-contracting)
-Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — `v1.6.6`).
+Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco 9 — `v1.6.7`).
 - **Parâmetros MCP / CLI:** `directContractingJsonPath` (aliases `direct_json_path`, `input_json_path`, `directJsonPath`), `outputDir` (`output_dir`, `caseDir`, `case_dir`), `compilationMode` (`"DIRECT_CONTRACTING_OPINION"` | `"NONE"`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`).
 - **Inexigibilidade (Art. 74 Lei 14.133 / Art. 30 Lei 13.303):** Bloqueio de atestado de exclusividade genérico (Súmula TCU 255 -> `[INVALID_EXCLUSIVITY_CERTIFICATE_BLOCK]`), exigência de mínimo de 3 NFs/contratos do fornecedor (`[INEXIGIBILITY_PRICE_PROOF_INSUFFICIENT_BLOCK]`), detecção de sobrepreço acima da mediana saneada das NFs/contratos (`[INEXIGIBILITY_OVERPRICING_ABOVE_SUPPLIER_MARKET_PROOF_BLOCK]`) e verificação forense cruzada `quotations_forensic_meta[]` (`[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]`).
 - **Dispensa por Valor (Art. 75 / Art. 29):** Controle anual anti-fracionamento por UG e ramo `PDM / CATMAT / CATSER` (`[EXPENSE_FRAGMENTATION_BLOCK]`).
@@ -337,7 +337,7 @@ Motor determinístico de Contratação Direta e Oportunidade Estatal (Gen6 Marco
 - **Compilação OpenXML DOCX/PDF:** Gera `Parecer_Instrucao_Inexigibilidade_Dispensa_ou_Oportunidade_Estatal.docx/.pdf`.
 
 ### 2.15. docgov_audit_demo_regime (CLI: audit-demo-regime)
-Motor determinístico em centavos inteiros e basis points para modelagem, julgamento de planilhas de custos e governança contratual no Regime de Dedicação Exclusiva de Mão de Obra (DEMO — Gen6.5 Marco 9.5.1 — `v1.6.6`).
+Motor determinístico em centavos inteiros e basis points para modelagem, julgamento de planilhas de custos e governança contratual no Regime de Dedicação Exclusiva de Mão de Obra (DEMO — Gen6.5 Marco 9.5.1 — `v1.6.7`).
 - **Parâmetros MCP / CLI:** `demoJsonPath` (ou `--input <path_or_json>`), `workspaceDir` (`workspace_dir`, `--workspace <dir>`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`) ou propriedades estruturadas do `DemoRegimeAuditInput` direto no payload.
 - **Auditoria dos Módulos 1 a 6 (Anexo VII-D da IN SEGES nº 05/2017) & 16 Tags Bloqueantes (`[DEMO_*]`):**
   - *Módulo 1:* Salário-base vs. piso CCT (`[DEMO_MOD1_CCT_FLOOR_BELOW_NORMATIVE]`), periculosidade 30%, insalubridade (10%/20%/40%), laudo LTCAT e Súmula nº 448, II do TST em banheiros públicos de grande circulação (`[DEMO_MOD1_SUMULA448_TST_INSALUBRITY_VIOLATION]`).
@@ -350,7 +350,7 @@ Motor determinístico em centavos inteiros e basis points para modelagem, julgam
 - **Artefatos em `workspace_dir` & Guarda `<= 880B`:** Grava `demo_regime_audit.json` (com `status`, 100% das `blocking_tags`, `calculated_totals_cents` e `artifacts`), `demo_regime_audit.md`, `laudo_pericial_planilha_demo.docx` e `laudo_pericial_planilha_demo.pdf`, devolvendo retorno sintético `<= 880 bytes` UTF-8.
 
 ### 2.16. docgov_audit_engineering_works (CLI: audit-engineering-works)
-Motor determinístico para auditoria de Obras e Serviços de Engenharia (Geração 6.5 — Eixo 2 — `v1.6.6`).
+Motor determinístico para auditoria de Obras e Serviços de Engenharia (Geração 6.5 — Eixo 2 — `v1.6.7`).
 - **Parâmetros MCP / CLI:** `engineeringJsonPath` (ou `--input <path_or_json>`), `workspaceDir` (`workspace_dir`, `--workspace <dir>`), `outputFormat` (`"docx"` | `"pdf"` | `"both"`) ou propriedades estruturadas de `EngineeringWorksAuditInput` direto no payload.
 - **Auditoria de BDI & Súmulas TCU (Acórdão TCU 2.622/2013, Súmulas 253 e 254):**
   - *Fórmula Algébrica & Quartis por Tipologia:* Validação matemática de `BDI = ((1 + AC + S + R) * (1 + DF) * (1 + L)) / (1 - I) - 1` (`[ENG_BDI_FORMULA_ALGEBRAIC_MISMATCH_BLOCK]`) e confronto contra os quartis referenciais do Acórdão TCU nº 2.622/2013 (`CONSTRUCAO_EDIFICIOS`, `RODOVIARIA`, `REDES_AGUA_ESGOTO`, `REDES_ENERGIA_ELETRICA`, `PORTUARIA_MARITIMA`, `FORNECIMENTO_MATERIAIS_EQUIPAMENTOS` -> `[ENG_BDI_ABOVE_TCU_2622_Q3_CEILING_BLOCK]`).
@@ -360,7 +360,72 @@ Motor determinístico para auditoria de Obras e Serviços de Engenharia (Geraç�
   - *Simetria Tributária CPRB (Lei nº 14.973/2024):* Validação de consistência entre tabela `DESONERADO`/`NAO_DESONERADO`, alíquota transicional de CPRB e INSS sobre folha (`2024..2028+` -> `[ENG_CPRB_DESONERACAO_TAX_ASYMMETRY_LEI14973_BLOCK]`).
   - *Cronograma & Matriz de Riscos:* Detecção de *front-loading* (`> 5%` de antecipação financeira -> `[ENG_SCHEDULE_FRONT_LOADING_CASHFLOW_MANIPULATION_BLOCK]`), exigência de Matriz de Alocação de Riscos em `CONTRATACAO_INTEGRADA`/`CONTRATACAO_SEMI_INTEGRADA` (`[ENG_INTEGRATED_CONTRACTING_RISK_MATRIX_MISSING_BLOCK]`) e bloqueio de aditivo por erro de projeto (`[ENG_INTEGRATED_CONTRACTING_ILLEGAL_DESIGN_ADDENDUM_BLOCK]`).
   - *Reaproveitamento de `inexequibility_evaluator.ts`:* Emissão integrada de `[INEXEQUIBILITY_75_PCT_PRESUMPTION_DILIGENCE_REQUIRED]`, `[INEXEQUIBILITY_ADDITIONAL_GUARANTEE_85_PCT_REQUIRED]`, `[SUMULA_262_DILIGENCE_REQUIRED_BLOCK]` e `[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]` (Art. 59 §§ 4º e 5º e Súmulas TCU 259 e 262).
+- **Schema de Entrada JSON (Objetos Aninhados + Aliases Naturais / Flat):**
+  - *Raiz:* `case_id`, `workspace_dir`, `contract_regime` (`"LEI_14133"` | `"LEI_13303"`), `work_typology` (`"CONSTRUCAO_EDIFICIOS"` | `"RODOVIARIA"` | `"REDES_AGUA_ESGOTO"` | `"REDES_ENERGIA_ELETRICA"` | `"PORTUARIA_MARITIMA"` | `"FORNECIMENTO_MATERIAIS_EQUIPAMENTOS"`), `execution_regime` (`"EMPREITADA_PRECO_UNITARIO"` | `"EMPREITADA_PRECO_GLOBAL"` | `"EMPREITADA_INTEGRAL"` | `"TAREFA"` | `"CONTRATACAO_INTEGRADA"` | `"CONTRATACAO_SEMI_INTEGRADA"`), `estimated_budget_cents` (`estimated_budget_value`), `offered_proposal_cents` (`offered_proposal_value`), `additional_guarantee_offered`, `summary_disqualification_attempted`, `prior_diligence_opportunity_granted` (`sumula_262_diligence_opened`), `diligence_viability_proven`, `has_unit_price_overpricing`, `output_format`.
+  - *`bdi_evaluation` (aliases `bdi`, `bdi_composition`, `composicao_bdi` ou flat na raiz):* `central_admin_bps`/`_pct`, `insurance_and_guarantee_bps`/`_pct`, `risk_bps`/`_pct`, `financial_expenses_bps`/`_pct`, `profit_bps`/`_pct`, `pis_bps`/`_pct`, `cofins_bps`/`_pct`, `iss_bps`/`_pct`, `cprb_bps`/`_pct`, `irpj_bps`/`_pct`, `csll_bps`/`_pct`, `declared_bdi_bps`/`_pct`, `justification_above_q3_proven`, `includes_admin_local_in_bdi`, `includes_canteiro_or_mobilizacao_in_bdi`, `admin_local_in_bdi_bps`, `includes_irpj_or_csll`, `has_relevant_equipment_supply`, `relevant_equipment_share_bps`/`_pct`, `differentiated_equipment_bdi_bps`/`_pct`, `differentiated_bdi_justification_proven`, `admin_local_proportional_to_physical_progress`, `physical_progress_bps`/`_pct`, `admin_local_measured_bps`/`_pct`.
+  - *`tax_desoneracao_cprb` (aliases `desoneracao_cprb`, `cprb_symmetry` ou flat na raiz):* `reference_year` (`2024..2028+`), `sinapi_sicro_table_regime` (`"DESONERADO"` | `"NAO_DESONERADO"`), `bdi_includes_cprb`, `applied_cprb_bps`/`_pct`, `payroll_inss_bps`/`_pct`.
+  - *`curva_abc_items[]` (aliases `curva_abc`, `abc_items`, `budget_items`):* `item_id`, `description`, `reference_source` (`"SINAPI"` | `"SICRO"` | `"COTACAO_MERCADO"`), `quantity`, `sinapi_sicro_median_unit_cents` (`median_unit_cents` | `reference_unit_price`), `offered_unit_cents` (`unit_price_cents` | `offered_unit_price`), `specificity_justification_approved`.
+  - *`schedule_and_risk` (aliases `scheduleAndRisk`, `cronograma_fisico_financeiro`, `cronograma`, `schedule`, `risk_matrix` ou flat na raiz):* `front_loading_detected` (aliases `has_front_loading`, `front_loading`), `schedule_stages[]` (aliases `stages[]`, `etapas_cronograma[]` com `stage_number`, `description`, `reference_physical_cumulative_bps`/`_pct` | `physical_cumulative_pct` | `physical_pct` e `financial_disbursement_cumulative_bps`/`_pct` | `financial_cumulative_pct` | `financial_pct`), `has_risk_allocation_matrix` (`risk_matrix_present`, `has_risk_matrix`), `has_anteprojeto_or_basic_design`, `attempts_design_error_addendum_without_legal_exception` (aliases `design_error_addendum_attempted`, `illegal_design_addendum`, `requests_design_error_addendum`, `aditivo_erro_projeto_sem_excecao`).
 - **Artefatos em `workspace_dir` & Guarda `<= 880B`:** Grava `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `laudo_pericial_obras_engenharia.pdf`, devolvendo retorno sintético `<= 880 bytes` UTF-8 com sentinela `[+N_TAGS_NO_DOSSIE]`.
+- **Exemplo Canônico de Entrada para `docgov_audit_engineering_works`:**
+```json
+{
+  "workspace_dir": "cases/meu_caso/state",
+  "case_id": "PROC-OBRAS-2026-001",
+  "contract_regime": "LEI_14133",
+  "work_typology": "CONSTRUCAO_EDIFICIOS",
+  "execution_regime": "CONTRATACAO_SEMI_INTEGRADA",
+  "estimated_budget_cents": 1000000000,
+  "offered_proposal_cents": 820000000,
+  "additional_guarantee_offered": true,
+  "bdi_evaluation": {
+    "central_admin_bps": 400,
+    "insurance_and_guarantee_bps": 80,
+    "risk_bps": 100,
+    "financial_expenses_bps": 100,
+    "profit_bps": 600,
+    "pis_bps": 65,
+    "cofins_bps": 300,
+    "iss_bps": 200,
+    "cprb_bps": 270,
+    "declared_bdi_bps": 2359,
+    "includes_admin_local_in_bdi": false,
+    "includes_irpj_or_csll": false,
+    "has_relevant_equipment_supply": true,
+    "differentiated_equipment_bdi_bps": 1402,
+    "admin_local_proportional_to_physical_progress": true
+  },
+  "tax_desoneracao_cprb": {
+    "reference_year": 2026,
+    "sinapi_sicro_table_regime": "DESONERADO",
+    "bdi_includes_cprb": true,
+    "applied_cprb_bps": 270,
+    "payroll_inss_bps": 1000
+  },
+  "curva_abc_items": [
+    {
+      "item_id": "SINAPI-92775",
+      "description": "Concreto Estrutural FCK 30MPa",
+      "reference_source": "SINAPI",
+      "quantity": 1000,
+      "sinapi_sicro_median_unit_cents": 45000,
+      "offered_unit_cents": 44500
+    }
+  ],
+  "schedule_and_risk": {
+    "front_loading_detected": false,
+    "schedule_stages": [
+      {
+        "stage_number": 1,
+        "reference_physical_cumulative_bps": 2000,
+        "financial_disbursement_cumulative_bps": 2000
+      }
+    ],
+    "has_risk_allocation_matrix": true,
+    "attempts_design_error_addendum_without_legal_exception": false
+  }
+}
+```
 
 ---
 

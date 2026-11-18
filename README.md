@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.6)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.7)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.6` (Geração 6.5 Completa: Regime `DEMO` & Obras e Serviços de Engenharia)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.7` (Geração 6.5 Completa: Regime `DEMO` & Obras e Serviços de Engenharia + Hardening Black-Box)
 
-A versão **`v1.6.6`** conclui o **Eixo 2 da Geração 6.5 do `docgov-engine`** com **16 ferramentas MCP nativas**, entregando a **16ª ferramenta `docgov_audit_engineering_works`** (e comando CLI `audit-engineering-works`) para auditoria determinística de Orçamentos e Obras de Engenharia (Acórdão TCU nº 2.622/2013, Súmulas TCU nº 253, 254, 259 e 262, Decreto nº 7.983/2013 `SINAPI`/`SICRO`, Lei nº 14.973/2024 CPRB e Arts. 46 e 59 da Lei nº 14.133/2021 / Arts. 42–43 da Lei nº 13.303/2016), mantendo guarda estrita `<= 880B` no `stdout` sob estresse de **15 tags bloqueantes simultâneas** (`11 [ENG_*]` + `4` de inexequibilidade/jogo de planilha), consolidando a base da **Geração 6.5 (`v1.6.5`–`v1.6.6`)** e **Geração 6 (`v1.6.0`–`v1.6.4`)**.
+A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`** com **16 ferramentas MCP nativas**, adicionando à **16ª ferramenta `docgov_audit_engineering_works`** normalização dual de entrada (`input_normalizer.ts` aceitando objetos aninhados, chaves *flat* na raiz e sinônimos naturais para `front_loading_detected`, `schedule_stages` e `attempts_design_error_addendum_without_legal_exception`), contrato **Exact Copy-Paste Error** (`EXACT_COPY_PASTE_ENGINEERING_WORKS_SNIPPET`), propriedades aninhadas completas no `inputSchema` MCP e documentação integral de subcampos na seção `2.16` do `--dump-spec`, sobre a base da **`v1.6.6`** e **`v1.6.5`**.
 
 ### 🏗️ Principais Inovações da Geração 6.5 — Eixo 2 (`v1.6.6`):
 1. **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works` (Obras e Serviços de Engenharia):**
@@ -198,7 +198,7 @@ A versão **`v1.6.6`** conclui o **Eixo 2 da Geração 6.5 do `docgov-engine`** 
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.6`):** Inclusão mandatória do campo `"engine_version": "1.6.6"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.7`):** Inclusão mandatória do campo `"engine_version": "1.6.7"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**

@@ -1,4 +1,4 @@
-# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.6`)
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.7`)
 
 ---
 
@@ -10,7 +10,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 
 ---
 
-## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.6`)
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.7`)
 
 ### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
 - **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
@@ -70,7 +70,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
   - Fase Recursal Art. 165 / Acórdão TCU 1.211/2021 (`APPEALS_BUNDLE`);
   - Contratação Direta: Inexigibilidade (Súmula 255 / mínimo 3 NFs / sobrepreço), Dispensa anti-fracionamento por UG/PDM e Oportunidade de Negócio Estatal (Art. 28, § 3º, II da Lei 13.303/2016).
 
-### Geração 6.5 (`v1.6.5` a `v1.6.6` — Concluída: Regime DEMO Módulos 1 a 6 & Obras e Serviços de Engenharia)
+### Geração 6.5 (`v1.6.5` a `v1.6.7` — Concluída: Regime DEMO Módulos 1 a 6 & Obras e Serviços de Engenharia)
 - **Tools MCP:** `docgov_audit_demo_regime` (CLI `audit-demo-regime` — `v1.6.5`) e `docgov_audit_engineering_works` (CLI `audit-engineering-works` — `v1.6.6`).
 - **Capacidades Entregues (Eixo 1 — `v1.6.5`):**
   - Auditoria matemática em centavos inteiros e basis points para Planilhas DEMO (Módulos 1 a 6 do Anexo VII-D da IN SEGES nº 05/2017): piso CCT, Súmula nº 448, II TST + LTCAT, 13º/Férias + CPP 20%/FGTS 8%, SAT/RAT × FAP, VT 6% + VA CCT, APT 1º ano `<= 1,94%`, reposição de ausentes, insumos/EPIs e Gross-Up "por dentro";
