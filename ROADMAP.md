@@ -3,8 +3,8 @@
 > **Memória Histórica:** Para o histórico consolidado de versões desde o commit inicial (`v0.0.1`) até o lançamento principal (`v1.0.0 — Clean Cut`) e releases consolidadas da série `v1.x` (`v1.1.0` a `v1.5.0`), consulte o [CHANGELOG.md](CHANGELOG.md).
 > **Propósito deste Documento:** Fonte única da verdade sobre o planejamento arquitetural, evoluções funcionais e marcos estratégicos futuros do motor (`v1.5.x+`).
 > **Natureza Standalone & Desacoplada:** O `docgov-engine` é um motor autônomo e determinístico. Embora sirva como fundação para a camada de agentes do ecossistema `docgov`, ele possui ciclo próprio de evolução e pode ser utilizado de forma independente via CLI ou MCP por qualquer cliente, agente de IA ou pipeline automatizado.
-> **Política de Versionamento Pareado (Lockstep `Major.Minor` com o repositório `DocGov`):**
-> O par `Major.Minor` (`1.2.x`, `1.3.x`, `1.4.x`, `1.5.x`, `1.6.x`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. Evoluções incrementais, hotfixes e melhorias internas de robustez utilizam exclusivamente o dígito `Patch` (`.x`), evitando inflação desnecessária de números de versão e assegurando previsibilidade arquitetural entre a engine e a camada de agentes.
+> **Política de Versionamento Pareado (Lockstep `Major.Minor` com o repositório `DocGov`) & Janelas de Amortecimento (*Buffered Releases*):**
+> O par `Major.Minor` (`1.2.x` a `1.8.x`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. A partir da série `v1.7.x`, adotamos a engenharia de **Releases Amortecidas** (`v1.7.0 -> v1.7.3 -> v1.7.5 -> v1.7.8 -> v1.7.10` e `v1.8.0 -> v1.8.3 -> v1.8.5 -> v1.8.8`), onde os saltos deliberados de versão reservam números de *patch* intermediários (`v1.7.1`/`1.7.2`, `v1.7.4`, `v1.8.1`/`1.8.2`, etc.) para absorver *hotfixes* de *smoke tests* e *dogfooding* real, mantendo cada ciclo de codificação e sua suíte de testes pequenos, coesos e à prova de regressões.
 > **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao planejar ou concluir cada marco evolutivo.
 
 ---
@@ -22,6 +22,15 @@
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
 | **Geração 6** | `v1.6.0` / `v1.6.4` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165 / Acórdão 1.211/2021, Mapa Arquitetural, Trava Lockstep & Teto MCP `<= 880B` | `[CONCLUÍDO]` |
 | **Geração 6.5** | `v1.6.5` | Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Planilha de Custos Módulos 1 a 6, Conta Vinculada vs. Fato Gerador & Repactuação) & Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[PRÓXIMO FOCO ATIVO]` |
+| **Geração 7.0** | `v1.7.0` *(hotfix `1.7.1–1.7.2`)* | 2ª Perna Anti-Fraude (Parte 1): Perícia Criptográfica `PKCS#7/CMS/PAdES` (`ICP-Brasil` & `/ByteRange`), Validador Algorítmico NF-e 44 Dígitos, Clones `w:rsid` `.docx` & Metadados `.xlsx` | `[PLANEJADO]` |
+| **Geração 7.3** | `v1.7.3` *(hotfix `1.7.4`)* | 2ª Perna Anti-Fraude (Parte 2): Grafo Multi-CNPJ de Conluio Societário (`QSA`/Endereço/Contato) & Detector de Empresa Sucessora/Fantasma em Fraude à Sanção (Art. 160 / Acórdão TCU 2.218/2011) | `[PLANEJADO]` |
+| **Geração 7.5** | `v1.7.5` *(hotfix `1.7.6–1.7.7`)* | 2ª Perna Anti-Fraude (Parte 3) & 15ª Tool MCP: Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP (LC 123/2006 / R$ 4,8M), Subcontratação Ilícita (Art. 122) & `docgov_audit_antifraud_and_integrity` | `[PLANEJADO]` |
+| **Geração 7.8** | `v1.7.8` *(hotfix `1.7.9`)* | Fechamento do Ciclo Contratual & 16ª Tool MCP: Reequilíbrio Econômico-Financeiro (Art. 124, II, "d"), PCA Multi-Caso (Art. 12, VII), Encerramento/Transição & `docgov_audit_rebalance_and_closeout` | `[PLANEJADO]` |
+| **Geração 7.10** | `v1.7.10` *(hotfix `1.7.11+`)* | Modalidades Avançadas de TIC & 17ª Tool MCP: Governança de Prova de Conceito (`PoC`), Licenciamento Enterprise & FinOps de Nuvem (`USN`) via `docgov_evaluate_poc_and_cloud_finops` | `[PLANEJADO]` |
+| **Geração 8.0** | `v1.8.0` *(hotfix `1.8.1–1.8.2`)* | Conectores de Dados Abertos (Parte 1): Integridade e Sanções ao Vivo (`CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) via `fetch_supplier_integrity` | `[PLANEJADO]` |
+| **Geração 8.3** | `v1.8.3` *(hotfix `1.8.4`)* | Conectores de Dados Abertos (Parte 2): Hidratação Cadastral Receita Federal / CNPJ Público (`BrasilAPI + ReceitaWS + MinhaReceita`) para ACT e Grafo de Conluio | `[PLANEJADO]` |
+| **Geração 8.5** | `v1.8.5` *(hotfix `1.8.6–1.8.7`)* | Conectores de Dados Abertos (Parte 3): Catálogo `CATMAT/CATSER` & Painel de Preços Homologados (`API Dados Abertos Compras.gov.br`) via `search_comprasgov_prices` | `[PLANEJADO]` |
+| **Geração 8.8** | `v1.8.8` *(hotfix `1.8.9+`)* | Conectores de Dados Abertos (Parte 4): Índices Econômicos Oficiais (`Banco Central SGS + IBGE SIDRA` — IPCA, INPC, IGP-M, ICTI, IST, INCC, PTAX) via `fetch_official_economic_indices` | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -134,6 +143,83 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
   - **Tabelas Referenciais Oficiais (`SINAPI`/`SICRO`), Desoneração (CPRB) e Cronograma Físico-Financeiro:**
     - Cruzamento analítico Curva ABC com tabelas `SINAPI` e `SICRO` (validando simetria `Com Desoneração vs. Sem Desoneração` — Lei 14.973/2024);
     - Detecção de *front-loading* no cronograma físico-financeiro e matriz de riscos obrigatória em Contratação Integrada/Semi-Integrada.
+
+---
+
+## 🕵️♂️ SÉRIE `v1.7.x` (GERAÇÃO 7): 2ª PERNA DE BLINDAGEM ANTI-FRAUDE, FECHAMENTO DO CICLO CONTRATUAL & MODALIDADES AVANÇADAS DE TIC (Eixos 1, 2 e 5)
+
+> **Diretriz Transversal de Higiene de Tokens MCP (Eixo 5):** Padronização de schemas enxutos em `src/mcp/tools_definition.ts` (`<= 150` tokens por tool no `tools/list`), mantendo o detalhamento exaustivo de contratos no `--dump-spec` (`docs/especificacao_motor.md`) e o envelope de retorno MCP estritamente `< 900 bytes` (Lei 2).
+
+### MARCO 10.1 — `v1.7.0` (Geração 7.0 — Perícia Criptográfica `ICP-Brasil/ByteRange`, Validador Algorítmico NF-e 44 Dígitos & Forense `.xlsx`/`w:rsid`) *(Reserva de Hotfix: `v1.7.1`–`v1.7.2`)*
+
+- [ ] **10.1.1. Pilar Anti-Fraude 1 (Perícia Criptográfica `PKCS#7 / CMS / PAdES` em PDF):**
+  - Parser binário Pure-JS `ASN.1/DER` sobre o dicionário `/Contents` da assinatura PDF extraindo Nome e CPF/CNPJ real do certificado X.509 (`OID ICP-Brasil 2.16.76.1.3.1` e `.3`) para confronto com o signatário declarado (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`);
+  - Validação de cadeia `ICP-Brasil`/`Gov.br` barrando certificados autoassinados ou de teste (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`);
+  - Auditoria matemática da matriz `/ByteRange` contra ataques de salvamento incremental pós-assinatura (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
+- [ ] **10.1.2. Pilar Anti-Fraude 5 (Chave NF-e de 44 Dígitos, Clones `w:rsid` em `.docx` e Metadados em `.xlsx`):**
+  - Validador algorítmico Módulo 11 e decomposição posicional dos 44 dígitos da NF-e (`UF[2] + AAMM[4] + CNPJ[14] + Modelo[2] + Série[3] + Número[9] + Emissão[1] + Código[8] + DV[1]`) contra notas fiscais adulteradas em diligências (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`, `[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`);
+  - Extração de *Revision Save IDs* (`w:rsidRoot` / `w:rsidR`) em `.docx` para flagrar propostas clonadas da mesma matriz mesmo após limpeza do campo `Author` (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`);
+  - Extensão de `forensic_meta` para planilhas `.xlsx` (`docProps/core.xml` e `app.xml`).
+
+### MARCO 10.2 — `v1.7.3` (Geração 7.3 — Rede de Conluio Societário QSA, Cartel Familiar & Sucessão Fraudulenta em Sanções) *(Reserva de Hotfix: `v1.7.4`)*
+
+- [ ] **10.2.1. Pilar Anti-Fraude 2 (`collusion_graph_auditor.ts`):**
+  - Grafo multi-CNPJ cruzando quadro societário (`QSA`), sobrenomes familiares combinados com mesmo endereço/CEP, telefone, domínio de e-mail ou contador entre concorrentes de licitação ou fornecedores de cotações preliminares (`[BID_RIGGING_SHARED_QSA_OR_ADDRESS_NETWORK_BLOCK]`).
+- [ ] **10.2.2. Detector de Empresa Sucessora / Fantasma em Fraude à Sanção (Art. 160 da Lei 14.133/2021 e Acórdão TCU 2.218/2011-Plenário):**
+  - Cruzamento de sócios, ex-sócios, cônjuges/parentes, endereço e CNAE da licitante contra empresas sancionadas no `CEIS / CNEP / TCU Inidôneos` para detectar abuso da personalidade jurídica (`[SANCTION_EVASION_SUCCESSOR_COMPANY_ALERT]`).
+
+### MARCO 10.3 — `v1.7.5` (Geração 7.5 — Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP LC 123/2006, Subcontratação Ilícita & 15ª Tool MCP) *(Reserva de Hotfix: `v1.7.6`–`v1.7.7`)*
+
+- [ ] **10.3.1. Pilar Anti-Fraude 3 (Auditoria Forense de Balanço Patrimonial):**
+  - Verificação da equação fundamental da contabilidade (`Ativo != Passivo + PL` -> `[FINANCIAL_BALANCE_SHEET_EQUATION_FRAUD_BLOCK]`);
+  - Expurgo de liquidez artificial inflada por créditos com partes relacionadas/empréstimos a sócios (`[FINANCIAL_ARTIFICIAL_LIQUIDITY_RELATED_PARTIES_ALERT]`);
+  - Detecção de aumento relâmpago de capital social às vésperas do certame sem integralização (`[FINANCIAL_UNINTEGRALIZED_CAPITAL_SPIKE_ALERT]`);
+  - Exigência de recibo/hash do SPED Contábil `ECD` ou registro na Junta Comercial (`[FINANCIAL_MISSING_SPED_ECD_HASH_BLOCK]`).
+- [ ] **10.3.2. Pilar Anti-Fraude 4 (Fraude ao Enquadramento ME/EPP & Subcontratação Irregular Art. 122):**
+  - Auditoria do somatório de receitas brutas/contratos públicos e empresas coligadas contra o teto da LC 123/2006 (`[ME_EPP_REVENUE_CAP_FRAUD_BLOCK]`);
+  - Aplicação da trava do Art. 4º, § 1º da Lei 14.133/2021 quando o lote excede R$ 4,8M (`[ME_EPP_LOT_EXCEEDS_4_8M_BENEFIT_FORBIDDEN_BLOCK]`);
+  - Bloqueio de subcontratação de parcela principal habilitatória (`[ILLEGAL_CORE_PARCEL_SUBCONTRACTING_BLOCK]`) e vedação de subcontratação com vínculo/impedimento do Art. 122, § 3º (`[SUBCONTRACTING_CONFLICT_OF_INTEREST_ART122_BLOCK]`).
+- [ ] **10.3.3. 15ª Ferramenta MCP `docgov_audit_antifraud_and_integrity` (CLI `audit-antifraud`):**
+  - Consolida os 5 pilares da 2ª Perna Anti-Fraude e compila em `.docx`/`.pdf` o `Laudo_Pericial_Forense_Integridade_e_Antifraude.docx/.pdf`.
+
+### MARCO 10.4 — `v1.7.8` (Geração 7.8 — Reequilíbrio Econômico-Financeiro Art. 124, PCA Multi-Caso & Encerramento/Transição Contratual) *(Reserva de Hotfix: `v1.7.9`)*
+
+- [ ] **10.4.1. 16ª Ferramenta MCP `docgov_audit_rebalance_and_closeout` (CLI `audit-rebalance-closeout`):**
+  - Calculadora determinística em centavos (`BigInt`) de Revisão por Álea Extraordinária / Fato do Príncipe / Variação Cambial Abrupta (Art. 124, II, "d") confrontando NF-e da proposta vs. NF-e atual, volatilidade ordinária e Matriz de Riscos quantitativa (`VME`) sem majorar lucro;
+  - Livro-razão anual persistente por `UG/PDM/CATMAT/CATSER` para governança do PCA (Art. 12, VII) e anti-fracionamento *cross-caso*;
+  - Auditoria de encerramento contratual (quitação para liberação de Conta Vinculada/Seguro-Garantia, Plano de Transição de TI e compilação de `Termo_Recebimento_Definitivo_e_Encerramento.docx/.pdf` e `Parecer_Reequilibrio_Economico_Financeiro.docx/.pdf`).
+
+### MARCO 10.5 — `v1.7.10` (Geração 7.10 — Governança de Prova de Conceito PoC, Procedimentos Auxiliares & FinOps de Nuvem / Licenciamento Enterprise) *(Reserva de Hotfix: `v1.7.11+`)*
+
+- [ ] **10.5.1. 17ª Ferramenta MCP `docgov_evaluate_poc_and_cloud_finops` (CLI `evaluate-poc-cloud`):**
+  - Motor determinístico de Prova de Conceito (bloqueando exigência de PoC na fase de habilitação ou de todos os licitantes `[POC_ALL_BIDDERS_BURDEN_BLOCK]`, exigindo roteiro binário objetivo `[POC_SUBJECTIVE_CRITERIA_BLOCK]` e compilando `Roteiro_e_Laudo_Pericial_PoC.docx/.pdf`);
+  - Auditoria de Licenciamento de Software e FinOps de Nuvem (métricas de Unidades de Serviço em Nuvem `USN`, comparação reserva plurianual vs. sob demanda, bloqueio de pagamento 100% *upfront* sem desconto/salvaguarda e riscos de *True-Up* / *egress fees*).
+
+---
+
+## 🌐 SÉRIE `v1.8.x` (GERAÇÃO 8): CONECTORES DE DADOS ABERTOS GOVERNAMENTAIS COM RESILIÊNCIA DUPLA (Eixo 3)
+
+> **Padrão Arquitetural Obrigatório:** Todos os conectores da Geração 8 operam estritamente sob o padrão **Live API Primary + Curated/Deterministic Fallback**, garantindo zero dependência de internet na suíte `bun test` hermética e validação real contra as APIs públicas via `bun run test:live` com seletor `--connector=<ID>`.
+
+### MARCO 11.1 — `v1.8.0` (Geração 8.0 — Conector de Integridade e Sanções: `CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) *(Reserva de Hotfix: `v1.8.1`–`v1.8.2`)*
+
+- [ ] **11.1.1. Ferramenta `fetch_supplier_integrity` (CLI `--check-integrity`):**
+  - Consulta API do Portal da Transparência (`CGU`) e dados abertos do `TCU` por CNPJ da licitante e CPF/CNPJ de seus sócios (`QSA`), verificando sanções vigentes e alcance federativo (`[LIVE_CEIS_IMPEDIMENT_ACTIVE_IN_SPHERE_BLOCK]` / `[LIVE_TCU_CNEP_NATIONAL_DEBARMENT_BLOCK]`), alimentando automaticamente o detector de sucessão fraudulenta da `v1.7.3`.
+
+### MARCO 11.2 — `v1.8.3` (Geração 8.3 — Conector Cadastral Receita Federal / CNPJ Público: `BrasilAPI + ReceitaWS + MinhaReceita`) *(Reserva de Hotfix: `v1.8.4`)*
+
+- [ ] **11.2.1. Hidratação Cadastral Automática por CNPJ:**
+  - Hidratação automática ao vivo de dados societários e cadastrais a partir apenas do CNPJ (situação cadastral, data de abertura, capital social, porte ME/EPP, CNAE principal/secundários, QSA completo e endereço/CEP/e-mail na RFB), alimentando sem fricção os 7 Vetores de ACT (Geração 6) e o Grafo de Conluio Societário (Geração 7.3) (`[LIVE_CNPJ_INACTIVE_OR_SUSPENDED_RFB_BLOCK]` e `[LIVE_QSA_AUTO_HYDRATED_COLLUSION_MATCH]`).
+
+### MARCO 11.3 — `v1.8.5` (Geração 8.5 — Conector Catálogo `CATMAT/CATSER` & Painel de Preços Homologados: `API Dados Abertos Compras.gov.br`) *(Reserva de Hotfix: `v1.8.6`–`v1.8.7`)*
+
+- [ ] **11.3.1. Ferramenta `search_comprasgov_prices` (CLI `--search-comprasgov`):**
+  - Consulta os módulos `/modulo-material`, `/modulo-servico` e `/modulo-pesquisa-preco` de `dadosabertos.compras.gov.br`, bloqueia códigos `CATMAT/CATSER` genéricos/"guarda-chuva" (`[CATMAT_GENERIC_UMBRELLA_CODE_ALERT]`) e extrai séries de preços praticados em licitações homologadas para alimentar diretamente o cálculo estatístico da `IN SEGES 65/2021` (`price_basket_auditor.ts`).
+
+### MARCO 11.4 — `v1.8.8` (Geração 8.8 — Conector de Índices Econômicos Oficiais: `Banco Central SGS + IBGE SIDRA`) *(Reserva de Hotfix: `v1.8.9+`)*
+
+- [ ] **11.4.1. Ferramenta `fetch_official_economic_indices` (CLI `--fetch-indices`):**
+  - Consulta as APIs oficiais do `BACEN` (`bcdata.sgs`) e `IBGE` (`SIDRA`) para calcular ao centavo o fator acumulado exato no interregno contratual de **IPCA, INPC, IGP-M, ICTI (Ipea), IST (Anatel), INCC e PTAX**, barrando pleitos de reajuste ou reequilíbrio com índices divergentes da série oficial (`[OFFICIAL_INDEX_ACCUMULATED_FACTOR_MISMATCH_BLOCK]`).
 
 ---
 
