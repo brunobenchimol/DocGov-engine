@@ -5,7 +5,9 @@ import JSZip from "jszip";
 import {
   ENGINEERING_ALL_TAGS,
   ENGINEERING_BLOCKING_TAGS,
+  ENGINEERING_WORKS_TOOL_DEFINITION,
   auditEngineeringWorks,
+  generateEngineSpecMarkdown,
   handleCallTool,
 } from "../src/index.ts";
 import type { EngineeringWorksAuditInput } from "../src/engineering/types.ts";
@@ -335,4 +337,70 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
     expect(existsSync(join(cliWs, "laudo_pericial_obras_engenharia.docx"))).toBe(true);
     expect(existsSync(join(cliWs, "laudo_pericial_obras_engenharia.pdf"))).toBe(true);
   }, 25000);
+
+  test("4. Black-Box Aliases & Chaves Flat na Raiz (Front-Loading + Aditivo por Erro de Projeto)", async () => {
+    const ws = join(tempDir, "cenario4_aliases_flat");
+    const aliasPayload: any = {
+      workspace_dir: ws,
+      case_id: "PROC-ENG-ALIAS-BLACKBOX-004",
+      work_typology: "CONSTRUCAO_EDIFICIOS",
+      execution_regime: "CONTRATACAO_INTEGRADA",
+      declared_bdi_pct: 22.12,
+      central_admin_pct: 4.0,
+      insurance_and_guarantee_pct: 0.8,
+      risk_pct: 1.0,
+      financial_expenses_pct: 1.0,
+      profit_pct: 6.0,
+      pis_bps: 65,
+      cofins_bps: 300,
+      iss_bps: 423,
+      cronograma_fisico_financeiro: {
+        stages: [
+          {
+            stage: 1,
+            physical_pct: 12.0,
+            financial_pct: 22.5,
+          },
+        ],
+      },
+      has_risk_allocation_matrix: true,
+      design_error_addendum_attempted: true,
+    };
+
+    const { output, synthetic } = await auditEngineeringWorks(aliasPayload, {
+      outputFormat: "docx",
+    });
+    expect(output.status).toBe("NAO_CONFORME");
+    expect(output.blocking_tags).toContain(
+      "[ENG_SCHEDULE_FRONT_LOADING_CASHFLOW_MANIPULATION_BLOCK]"
+    );
+    expect(output.blocking_tags).toContain(
+      "[ENG_INTEGRATED_CONTRACTING_ILLEGAL_DESIGN_ADDENDUM_BLOCK]"
+    );
+    expect(output.sinapi_schedule_summary.max_front_loading_gap_bps).toBe(1050);
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThanOrEqual(880);
+  }, 15000);
+
+  test("5. Exact Copy-Paste Error (Lei 3) & Autodescoberta Completa de Subcampos (inputSchema + --dump-spec)", async () => {
+    await expect(
+      auditEngineeringWorks({ case_id: "PROC-INVALIDO" } as any)
+    ).rejects.toThrow(
+      "NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:"
+    );
+
+    const schemaProps = ENGINEERING_WORKS_TOOL_DEFINITION.inputSchema.properties as any;
+    expect(schemaProps.bdi_evaluation.properties.declared_bdi_bps).toBeDefined();
+    expect(schemaProps.tax_desoneracao_cprb.properties.sinapi_sicro_table_regime).toBeDefined();
+    expect(schemaProps.curva_abc_items.items.properties.sinapi_sicro_median_unit_cents).toBeDefined();
+    expect(schemaProps.schedule_and_risk.properties.schedule_stages).toBeDefined();
+    expect(
+      schemaProps.schedule_and_risk.properties.attempts_design_error_addendum_without_legal_exception
+    ).toBeDefined();
+
+    const spec = generateEngineSpecMarkdown();
+    expect(spec).toContain("2.16. docgov_audit_engineering_works");
+    expect(spec).toContain("attempts_design_error_addendum_without_legal_exception");
+    expect(spec).toContain("financial_disbursement_cumulative_bps");
+    expect(spec).toContain("Exemplo Canônico de Entrada para `docgov_audit_engineering_works`");
+  });
 });
