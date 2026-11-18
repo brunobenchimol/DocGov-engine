@@ -7,6 +7,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { createEngineeringWorksContractError } from "../contracts/errors.ts";
 import { evaluateProposalInexequibility } from "../bidding/inexequibility_evaluator.ts";
 import type { UnitPriceItemInput } from "../bidding/types.ts";
 import {
@@ -22,6 +23,7 @@ import {
   buildEngineeringAuditMarkdown,
   compileEngineeringPericialDocxAndPdf,
 } from "./docx_renderer.ts";
+import { normalizeEngineeringWorksInput } from "./input_normalizer.ts";
 import type {
   AuditEngineeringWorksOptions,
   EngineeringWorksAuditInput,
@@ -237,10 +239,11 @@ export async function auditEngineeringWorks(
   output: EngineeringWorksAuditOutput;
   synthetic: EngineeringWorksSyntheticResult;
 }> {
-  const { raw, sourceFilePath } = parseInputTarget(inputOrPath);
+  const { raw: unnormalizedRaw, sourceFilePath } = parseInputTarget(inputOrPath);
+  const raw = normalizeEngineeringWorksInput(unnormalizedRaw);
   if (!raw.bdi_evaluation) {
-    throw new Error(
-      "Contrato inválido para docgov_audit_engineering_works: forneça 'work_typology' e 'bdi_evaluation'."
+    throw createEngineeringWorksContractError(
+      "Objeto obrigatório 'bdi_evaluation' ausente ou sem parâmetros de BDI."
     );
   }
 

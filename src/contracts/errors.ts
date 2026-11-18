@@ -379,5 +379,74 @@ export function createJurisFetchContractError(reason: string): Error {
   );
 }
 
+// ============================================================================
+// Contratos de Obras e Serviços de Engenharia (v1.6.7 — Exact Copy-Paste Error)
+// ============================================================================
+
+export const EXACT_COPY_PASTE_ENGINEERING_WORKS_SNIPPET = `{
+  "workspace_dir": "cases/meu_caso/state",
+  "case_id": "PROC-OBRAS-2026-001",
+  "contract_regime": "LEI_14133",
+  "work_typology": "CONSTRUCAO_EDIFICIOS",
+  "execution_regime": "CONTRATACAO_SEMI_INTEGRADA",
+  "estimated_budget_cents": 1000000000,
+  "offered_proposal_cents": 820000000,
+  "additional_guarantee_offered": true,
+  "bdi_evaluation": {
+    "central_admin_bps": 400,
+    "insurance_and_guarantee_bps": 80,
+    "risk_bps": 100,
+    "financial_expenses_bps": 100,
+    "profit_bps": 600,
+    "pis_bps": 65,
+    "cofins_bps": 300,
+    "iss_bps": 200,
+    "cprb_bps": 270,
+    "declared_bdi_bps": 2359,
+    "includes_admin_local_in_bdi": false,
+    "includes_irpj_or_csll": false,
+    "has_relevant_equipment_supply": true,
+    "differentiated_equipment_bdi_bps": 1402,
+    "admin_local_proportional_to_physical_progress": true
+  },
+  "tax_desoneracao_cprb": {
+    "reference_year": 2026,
+    "sinapi_sicro_table_regime": "DESONERADO",
+    "bdi_includes_cprb": true,
+    "applied_cprb_bps": 270,
+    "payroll_inss_bps": 1000
+  },
+  "curva_abc_items": [
+    {
+      "item_id": "SINAPI-92775",
+      "description": "Concreto Estrutural FCK 30MPa",
+      "reference_source": "SINAPI",
+      "quantity": 1000,
+      "sinapi_sicro_median_unit_cents": 45000,
+      "offered_unit_cents": 44500
+    }
+  ],
+  "schedule_and_risk": {
+    "front_loading_detected": false,
+    "schedule_stages": [
+      {
+        "stage_number": 1,
+        "reference_physical_cumulative_bps": 2000,
+        "financial_disbursement_cumulative_bps": 2000
+      }
+    ],
+    "has_risk_allocation_matrix": true,
+    "attempts_design_error_addendum_without_legal_exception": false
+  }
+}`;
+
+export function createEngineeringWorksContractError(reason: string): Error {
+  return new Error(
+    `Erro de validação em docgov_audit_engineering_works: ${reason}\n` +
+      `NÃO faça leituras exploratórias no repositório. Reescreva imediatamente o arquivo utilizando estritamente o contrato abaixo:\n` +
+      EXACT_COPY_PASTE_ENGINEERING_WORKS_SNIPPET
+  );
+}
+
 
 

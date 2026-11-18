@@ -17,6 +17,7 @@ export {
   buildEngineeringAuditMarkdown,
   compileEngineeringPericialDocxAndPdf,
 } from "./docx_renderer.ts";
+export { normalizeEngineeringWorksInput } from "./input_normalizer.ts";
 export {
   ENGINEERING_WORKS_TOOL_DEFINITION,
   auditEngineeringWorks,
