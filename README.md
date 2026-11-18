@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.5)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.6)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,14 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.5` (Geração 6.5 Eixo 1: Regime `DEMO`, Módulos 1–6, Conta Vinculada & Decreto 12.174/2024)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.6` (Geração 6.5 Completa: Regime `DEMO` & Obras e Serviços de Engenharia)
 
-A versão **`v1.6.5`** inaugura o **Eixo 1 da Geração 6.5 do `docgov-engine`** com **15 ferramentas MCP nativas**, entregando a **15ª ferramenta `docgov_audit_demo_regime`** (e comando CLI `audit-demo-regime`) para auditoria determinística em centavos inteiros de Planilhas de Custos e Execução Contratual no Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — IN SEGES/MPDG nº 05/2017, Decreto Federal nº 12.174/2024, Súmula nº 448 do TST, Acórdãos TCU nº 1.214/2013 e nº 1.586/2018, Art. 17, XII da LC nº 123/2006 e Arts. 121/135 da Lei nº 14.133/2021), mantendo guarda estrita `<= 880B` no `stdout` sob estresse das **16 tags bloqueantes `[DEMO_*]`**, sobre a base consolidada da **Geração 6 (`v1.6.0`–`v1.6.4`)**.
+A versão **`v1.6.6`** conclui o **Eixo 2 da Geração 6.5 do `docgov-engine`** com **16 ferramentas MCP nativas**, entregando a **16ª ferramenta `docgov_audit_engineering_works`** (e comando CLI `audit-engineering-works`) para auditoria determinística de Orçamentos e Obras de Engenharia (Acórdão TCU nº 2.622/2013, Súmulas TCU nº 253, 254, 259 e 262, Decreto nº 7.983/2013 `SINAPI`/`SICRO`, Lei nº 14.973/2024 CPRB e Arts. 46 e 59 da Lei nº 14.133/2021 / Arts. 42–43 da Lei nº 13.303/2016), mantendo guarda estrita `<= 880B` no `stdout` sob estresse de **15 tags bloqueantes simultâneas** (`11 [ENG_*]` + `4` de inexequibilidade/jogo de planilha), consolidando a base da **Geração 6.5 (`v1.6.5`–`v1.6.6`)** e **Geração 6 (`v1.6.0`–`v1.6.4`)**.
+
+### 🏗️ Principais Inovações da Geração 6.5 — Eixo 2 (`v1.6.6`):
+1. **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works` (Obras e Serviços de Engenharia):**
+   - **BDI Acórdão TCU nº 2.622/2013 & Súmulas 253/254:** Validação algébrica da fórmula oficial do BDI, tabela de quartis (1ºQ, Médio, 3ºQ) por tipologia de obra, exigência de BDI Diferenciado reduzido para materiais/equipamentos relevantes (Súmula TCU nº 253), bloqueio de *bis in idem* (Administração Local, Canteiro e Mobilização dentro do BDI), vedação de IRPJ/CSLL (Súmula TCU nº 254) e trava de medição proporcional da Administração Local ao avanço físico.
+   - **Curva ABC `SINAPI`/`SICRO`, CPRB Lei nº 14.973/2024, *Front-Loading* & Contratação Integrada:** Classificação ABC (Faixas A/B/C) contra medianas referenciais (Decreto nº 7.983/2013), validação da simetria tributária Com/Sem Desoneração e transição gradual da CPRB (2024–2028+), detector de *front-loading* no cronograma físico-financeiro, Matriz de Alocação de Riscos em Contratação Integrada/Semi-Integrada, integração nativa com `inexequibility_evaluator.ts` (`< 75%`, garantia adicional `< 85%`, Súmula 262 e Jogo de Planilha) e compilação de `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `.pdf`.
 
 ### 🚀 Principais Inovações da Geração 6.5 — Eixo 1 (`v1.6.5`):
 1. **15ª Ferramenta MCP `docgov_audit_demo_regime` & CLI `audit-demo-regime` (Regime DEMO & Laudo Pericial):**
@@ -193,7 +198,7 @@ A versão **`v1.6.5`** inaugura o **Eixo 1 da Geração 6.5 do `docgov-engine`**
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.5`):** Inclusão mandatória do campo `"engine_version": "1.6.5"` na raiz do payload JSON sintético retornado por todas as **15 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.6`):** Inclusão mandatória do campo `"engine_version": "1.6.6"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -216,9 +221,9 @@ O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligênc
 
 ---
 
-## 4. Ciclo de Vida do Caso: 15 Ferramentas Nativas Integradas
+## 4. Ciclo de Vida do Caso: 16 Ferramentas Nativas Integradas
 
-O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **15 ferramentas fundamentais**:
+O motor opera em dois modos (Servidor MCP por padrão ou CLI via flags), disponibilizando as **16 ferramentas fundamentais**:
 
 ### A) Modo Servidor MCP (Padrão / `--mcp`)
 
@@ -306,6 +311,11 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
     - Grava `demo_regime_audit.json`, `demo_regime_audit.md`, `laudo_pericial_planilha_demo.docx` e `laudo_pericial_planilha_demo.pdf` em `workspace_dir` com guarda estrita `<= 880B` no envelope sintético MCP.
     - Parâmetros: `demoJsonPath` (ou `inputPath` / objeto `DemoRegimeAuditInput`), `workspaceDir` (`workspace_dir`), `outputFormat`.
 
+16. **`docgov_audit_engineering_works`**
+    - Auditoria determinística de Obras e Serviços de Engenharia: quartis e fórmula algébrica do BDI (Acórdão TCU nº 2.622/2013), BDI Diferenciado para materiais/equipamentos (Súmula TCU nº 253), bloqueio de *bis in idem* de Administração Local/Canteiro/Mobilização no BDI, vedação de IRPJ/CSLL (Súmula TCU nº 254), medição proporcional da Administração Local, Curva ABC contra medianas `SINAPI`/`SICRO` (Decreto nº 7.983/2013), simetria tributária Com/Sem Desoneração CPRB (Lei nº 14.973/2024), detector de *front-loading* no cronograma, Matriz de Riscos em Contratação Integrada/Semi-Integrada e inexequibilidade `75%`/`85%` + Jogo de Planilha.
+    - Grava `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `laudo_pericial_obras_engenharia.pdf` em `workspace_dir` com guarda estrita `<= 880B` no envelope sintético MCP.
+    - Parâmetros: `engineeringJsonPath` (ou `inputPath` / objeto `EngineeringWorksAuditInput`), `workspaceDir` (`workspace_dir`), `outputFormat`.
+
 ---
 
 ### B) Modo CLI (Linha de Comando)
@@ -378,6 +388,9 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 # 15. Auditar Planilha de Custos e Execução Contratual em Regime DEMO (Geração 6.5 — Eixo 1)
 ./docgov-engine audit-demo-regime --input state/demo_regime_input.json --workspace state/ --format both
 
+# 16. Auditar Obras e Serviços de Engenharia — BDI 2.622/2013, SINAPI/SICRO, CPRB e Cronograma (Geração 6.5 — Eixo 2)
+./docgov-engine audit-engineering-works --input state/engineering_works_input.json --workspace state/ --format both
+
 # Verificar a versão instalada e exibir ajuda
 ./docgov-engine -v
 ./docgov-engine -h
@@ -408,6 +421,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--evaluate-proposals` / `evaluate-proposals` | Avalia propostas na fase externa (TIC sem DEMO, inexequibilidade 75%/85%, Jogo de Planilha, perícia de ACT em 7 vetores, anti-conluio e fase recursal Art. 165/168) a partir de `--bidding-json`. |
 | `--audit-direct-contracting` / `audit-direct-contracting` | Audita contratação direta (inexigibilidade Súmula TCU 255, dispensa anti-fracionamento por UG/PDM e parceria estratégica Art. 28, § 3º, II da Lei 13.303) a partir de `--direct-json`. |
 | `--audit-demo-regime` / `audit-demo-regime` | Audita planilhas de custos DEMO (Módulos 1–6, Anexo VI-B, Decreto 12.174/2024) e execução (APT Acórdão 1.586/2018, Conta Vinculada/Fato Gerador e Repactuação Art. 135) a partir de `--input <path_or_json>` e `--workspace <dir>`. |
+| `--audit-engineering-works` / `audit-engineering-works` | Audita Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Súmulas 253/254, Curva ABC SINAPI/SICRO, CPRB Lei 14.973/2024, front-loading, Contratação Integrada e inexequibilidade 75%/85%) a partir de `--input <path_or_json>` e `--workspace <dir>`. |
 | `--contract-json <caminho>` | Caminho do arquivo JSON de dados contratuais para auditoria (usado com `audit-contract`; aliases `--input`, `--contract`). |
 | `--arp-json <caminho>` | Caminho do arquivo JSON da Ata de Registro de Preços para governança (usado com `govern-arp`; aliases `--input`, `--arp`). |
 | `--bidding-json <caminho>` | Caminho do arquivo JSON da licitação/propostas/recursos (usado com `evaluate-proposals`; aliases `--proposal-json`, `--input`). |
@@ -430,7 +444,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--new <caminho>` | Caminho do documento revisado/novo (.docx, .pdf ou .json) usado com `--diff-report`. |
 | `--note-json <caminho>` | Caminho do arquivo `nota_tecnica.json` (usado com `--generate-technical-note`). |
 | `--data <caminho>` | Caminho de dados adicionais/justificativas JSON para enriquecer o `--diff-report` (opcional). |
-| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject`, `--generate-audit-docx`, `--diff-report`, `--generate-technical-note`, `audit-contract`, `govern-arp`, `evaluate-proposals`, `audit-direct-contracting` e `audit-demo-regime`. |
+| `--format <docx\|pdf\|both>` | Seleciona o formato de saída nos comandos `--inject`, `--generate-audit-docx`, `--diff-report`, `--generate-technical-note`, `audit-contract`, `govern-arp`, `evaluate-proposals`, `audit-direct-contracting`, `audit-demo-regime` e `audit-engineering-works`. |
 | `--case-dir <dir>` | Caminho da pasta do caso (usado com `--bootstrap-case`, `--search-pncp`, `--fetch-pncp`, etc.). |
 | `--uploads-dir <dir>` | Caminho opcional da pasta `.user_uploaded` (usado com `--bootstrap-case`). |
 | `--audit-json <caminho>` | Caminho do arquivo `relatorio_auditoria.json` (usado com `--generate-audit-docx`). |

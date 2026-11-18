@@ -8,6 +8,20 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.6] - 2026-11-18 — Geração 6.5 (Eixo 2): Obras e Serviços de Engenharia (Acórdão TCU 2.622/2013, Súmula 253, SINAPI/SICRO, CPRB Lei 14.973/2024) & 16ª Tool MCP `docgov_audit_engineering_works`
+
+### Added
+- **Domínio Modular `src/engineering/` (`<= 500` linhas por arquivo — Lei 9):**
+  - `src/engineering/types.ts`: contrato `EngineeringWorksAuditInput`, `EngineeringWorksAuditOutput` (`CONFORME` / `NAO_CONFORME`, `bdi_summary`, `sinapi_schedule_summary`, `inexequibility_summary`, `artifacts`) e catálogo completo de **11 tags bloqueantes `[ENG_*]` + 4 tags de inexequibilidade/jogo de planilha** (`15` tags no total).
+  - `src/engineering/bdi_acordao_2622_evaluator.ts`: tabela oficial de quartis do **Acórdão TCU nº 2.622/2013** por tipologia (`CONSTRUCAO_EDIFICIOS`, `RODOVIARIA`, `REDES_AGUA_ESGOTO`, `REDES_ENERGIA_ELETRICA`, `PORTUARIA_MARITIMA`, `FORNECIMENTO_MATERIAIS_EQUIPAMENTOS`), validação algébrica da fórmula canônica do BDI, exigência de BDI Diferenciado reduzido (**Súmula TCU nº 253**, 3ºQ `16,80%`), bloqueio de *bis in idem* de Administração Local/Canteiro/Mobilização dentro do BDI, vedação de IRPJ/CSLL (**Súmula TCU nº 254**) e medição proporcional de Administração Local ao avanço físico.
+  - `src/engineering/sinapi_sicro_schedule_evaluator.ts`: Curva ABC (Faixas A/B/C) frente às medianas `SINAPI`/`SICRO` (Decreto nº 7.983/2013), auditoria da simetria tributária Com/Sem Desoneração e transição gradual de CPRB x INSS folha (`2024..2028+` — **Lei nº 14.973/2024**), detector de *front-loading* (`> 5%`) no cronograma físico-financeiro e validação de Matriz de Alocação de Riscos e vedação de aditivo por erro de projeto em Contratação Integrada/Semi-Integrada (Art. 46 da Lei nº 14.133/2021 e Arts. 42–43 da Lei nº 13.303/2016).
+  - `src/engineering/docx_renderer.ts` & `src/engineering/engineering_works_auditor.ts`: orquestração integrando `evaluateProposalInexequibility` de `src/bidding/inexequibility_evaluator.ts` (`< 75%`, garantia adicional `< 85%`, Súmula TCU 262 e Jogo de Planilha Súmula 259), emissão de `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `laudo_pericial_obras_engenharia.pdf` em `workspace_dir` com guarda determinística `<= 880B` no `stdout` (`[+N_TAGS_NO_DOSSIE]`).
+- **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works`:** Registrada em `src/mcp/tools_definition.ts`, `src/mcp/tool_dispatchers.ts`, `src/cli/contracts_cli.ts`, `src/cli/index.ts`, `src/index.ts` e auditada em `scripts/check_lines.ts`.
+- **Suíte Unitária & Estresse (`test/engineering_works.test.ts`):** Cobertura para cenários `CONFORME` (Semi-Integrada `SINAPI`/`SICRO` Desonerado 2026 com garantia adicional 85% e Rodoviária `SICRO` Não Desonerado via MCP) e estresse extremo disparando simultaneamente todas as **15 tags** via MCP e CLI (`stdout <= 880` bytes UTF-8).
+
+### Changed
+- **Lockstep Documental e Self-Discovery (`v1.6.6`):** Sincronização de `VERSION` (`1.6.6`), `package.json`, `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, `src/mcp/spec.ts`, `docs/especificacao_motor.md`, `docs/ARCHITECTURE_AND_MODULES.md`, `docs/CAPABILITIES_EVOLUTION_HISTORY.md`, `README.md`, `ROADMAP.md` (item `9.5.2` marcado como `[x]`, fechando 100% da Geração 6.5), `test/mcp_spec.test.ts` e `test/version.test.ts`.
+
 ## [1.6.5] - 2026-11-17 — Geração 6.5 (Eixo 1): Regime DEMO (Módulos 1–6, Conta Vinculada, Decreto 12.174/2024) & 15ª Tool MCP `docgov_audit_demo_regime`
 
 ### Added

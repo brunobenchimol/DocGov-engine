@@ -54,6 +54,7 @@ describe("Governança e Integridade de Versão SemVer (Self-Discovery e Lockstep
       "evaluate-proposals",
       "audit-direct-contracting",
       "audit-demo-regime",
+      "audit-engineering-works",
     ]) {
       expect(readme).toContain(cliCmd);
     }

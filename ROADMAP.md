@@ -21,7 +21,7 @@
 | **Geração 5.5** | `v1.5.5` | Processo Administrativo Sancionador (PAS), Glosa por ANS/IMR vs. Multa, Garantias e Saneamento Estatístico de Cesta de Preços (`CV <= 25%`) | `[CONCLUÍDO]` |
 | **Geração 5.6** | `v1.5.6` | Adequação Federativa do PAS (Estadual/Municipal/Estatal) junto ao TCE/TCM Competente e Calibragem Jurisprudencial da Dosimetria Ancorada em Precedentes Sancionadores (LINDB Art. 22) | `[CONCLUÍDO]` |
 | **Geração 6** | `v1.6.0` / `v1.6.4` | Seleção do Fornecedor 360º em TIC & Contratação Direta — Upgrade `unpdf@2.1+` Multimodal `assets/`, Perícia Forense Dual `PDF/DOCX`, Conluio em Propostas/Cotações, Inexequibilidade `< 75%` e Garantia Adicional `75%..85%`, Jogo de Planilha, Fase Recursal Art. 165 / Acórdão 1.211/2021, Mapa Arquitetural, Trava Lockstep & Teto MCP `<= 880B` | `[CONCLUÍDO]` |
-| **Geração 6.5** | `v1.6.5` | **Eixo 1 (`[CONCLUÍDO]` na `v1.6.5`):** Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Módulos 1–6, Anexo VI-B, Dec. 12.174/2024, Conta Vinculada vs. Fato Gerador, Expurgo APT & Repactuação via `docgov_audit_demo_regime`)<br>**Eixo 2 (`[EM CURSO]`):** Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Desoneração CPRB, `SINAPI`/`SICRO` e Cronograma Físico-Financeiro) | `[EIXO 1 CONCLUÍDO / EIXO 2 PRÓXIMO]` |
+| **Geração 6.5** | `v1.6.5` / `v1.6.6` | **Eixo 1 (`[CONCLUÍDO]` na `v1.6.5`):** Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Módulos 1–6, Anexo VI-B, Dec. 12.174/2024, Conta Vinculada vs. Fato Gerador, Expurgo APT & Repactuação via `docgov_audit_demo_regime`)<br>**Eixo 2 (`[CONCLUÍDO]` na `v1.6.6`):** Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Súmulas 253/254, Desoneração CPRB Lei 14.973/2024, Curva ABC `SINAPI`/`SICRO`, *Front-Loading*, Contratação Integrada & Inexequibilidade 75%/85% via `docgov_audit_engineering_works`) | `[CONCLUÍDO]` |
 | **Geração 7.0** | `v1.7.0` *(hotfix `1.7.1–1.7.2`)* | 2ª Perna Anti-Fraude (Parte 1): Perícia Criptográfica `PKCS#7/CMS/PAdES` (`ICP-Brasil` & `/ByteRange`), Validador Algorítmico NF-e 44 Dígitos, Clones `w:rsid` `.docx` & Metadados `.xlsx` | `[PLANEJADO]` |
 | **Geração 7.3** | `v1.7.3` *(hotfix `1.7.4`)* | 2ª Perna Anti-Fraude (Parte 2): Grafo Multi-CNPJ de Conluio Societário (`QSA`/Endereço/Contato) & Detector de Empresa Sucessora/Fantasma em Fraude à Sanção (Art. 160 / Acórdão TCU 2.218/2011) | `[PLANEJADO]` |
 | **Geração 7.5** | `v1.7.5` *(hotfix `1.7.6–1.7.7`)* | 2ª Perna Anti-Fraude (Parte 3) & 15ª Tool MCP: Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP (LC 123/2006 / R$ 4,8M), Subcontratação Ilícita (Art. 122) & `docgov_audit_antifraud_and_integrity` | `[PLANEJADO]` |
@@ -123,7 +123,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## 🎯 MARCO 9.5 — `v1.6.5`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — EIXO 1 CONCLUÍDO)
+## ✅ MARCO 9.5 — `v1.6.5` / `v1.6.6`: Regime de Dedicação Exclusiva de Mão de Obra (DEMO) & Obras e Serviços de Engenharia (Geração 6.5 — CONCLUÍDO)
 
 - [x] **9.5.1. Motor de Modelagem e Julgamento de Planilhas de Custos e Formação de Preços em Regime DEMO (IN SEGES 05/2017, Decreto 12.174/2024 e Arts. 121 e 135 da Lei 14.133/2021 — entregue via `docgov_audit_demo_regime` e `audit-demo-regime` na `v1.6.5`):**
   - **Auditoria Aritmética e Normativa dos Módulos 1 a 6 em Centavos Inteiros:**
@@ -136,7 +136,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
   - **Governança de Conta Vinculada vs. Pagamento pelo Fato Gerador e Repactuação:**
     - Monitoramento das provisões retidas em Conta-Depósito Vinculada (Anexo XII da IN 05/2017) ou adoção do Pagamento pelo Fato Gerador com glosa preventiva, e memória de cálculo de Repactuação Anual por CCT.
 
-- [ ] **9.5.2. Motor de Obras e Serviços de Engenharia (Art. 59, §§ 4º e 5º da Lei 14.133/2021, Arts. 42–43 da Lei 13.303/2016 e Acórdão TCU 2.622/2013):**
+- [x] **9.5.2. Motor de Obras e Serviços de Engenharia (Art. 59, §§ 4º e 5º da Lei 14.133/2021, Arts. 42–43 da Lei 13.303/2016 e Acórdão TCU 2.622/2013 — entregue via `docgov_audit_engineering_works` e `audit-engineering-works` na `v1.6.6`):**
   - **Auditoria de BDI Geral vs. BDI Diferenciado e Administração Local:**
     - Análise de quartis de Bonificação e Despesas Indiretas (BDI) segundo o Acórdão TCU nº 2.622/2013 por tipologia de obra e exigência de BDI Diferenciado reduzido para materiais/equipamentos relevantes (Súmula TCU 253);
     - Bloqueio de inclusão de Administração Local, Canteiro e Mobilização dentro do BDI (*bis in idem*) e trava de medição proporcional ao avanço físico;
