@@ -1,6 +1,8 @@
 // ============================================================================
-// Definições de Ferramentas e Prompts MCP (docgov-engine v1.4.1)
+// Definições de Ferramentas e Prompts MCP (docgov-engine v1.6.5)
 // ============================================================================
+
+import { DEMO_REGIME_TOOL_DEFINITION } from "../demo_costs/audit_runner.ts";
 
 export function getMcpPromptsDefinition() {
   return [
@@ -436,5 +438,6 @@ export function getMcpToolsDefinition() {
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     },
+    DEMO_REGIME_TOOL_DEFINITION,
   ];
 }

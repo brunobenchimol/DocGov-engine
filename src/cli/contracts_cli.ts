@@ -18,6 +18,10 @@ import {
   auditDirectContracting,
   serializeDirectContractingSyntheticResult,
 } from "../direct_contracting/index.ts";
+import {
+  auditDemoRegime,
+  serializeDemoRegimeSyntheticResult,
+} from "../demo_costs/index.ts";
 import type { ArpCompilationMode } from "../arp/types.ts";
 import type { ContractCompilationMode } from "../contracts/types.ts";
 
@@ -52,7 +56,12 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
     args.includes("--direct-json") ||
     args.includes("--direct-contracting-json");
 
-  if (!isAuditContract && !isGovernArp && !isEvaluateProposals && !isAuditDirect) {
+  const isAuditDemo =
+    args.includes("audit-demo-regime") ||
+    args.includes("--audit-demo-regime") ||
+    args.includes("--demo-json");
+
+  if (!isAuditContract && !isGovernArp && !isEvaluateProposals && !isAuditDirect && !isAuditDemo) {
     return false;
   }
 
@@ -224,6 +233,53 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
       return true;
     } catch (err: any) {
       console.error(`Erro ao auditar contratação direta: ${err.message}`);
+      process.exit(1);
+    }
+  }
+
+  // 5. Comando Gen6.5: audit-demo-regime
+  if (isAuditDemo) {
+    let inputArg = extractArg(args, [
+      "--input",
+      "--demo-json",
+      "--input-json",
+      "-i",
+    ]);
+    if (!inputArg) {
+      const cmdIdx = args.findIndex(
+        (a) => a === "audit-demo-regime" || a === "--audit-demo-regime"
+      );
+      if (cmdIdx !== -1 && args[cmdIdx + 1] && !args[cmdIdx + 1].startsWith("--")) {
+        inputArg = args[cmdIdx + 1];
+      }
+    }
+    if (!inputArg) {
+      console.error(
+        "Erro: Informe o caminho ou JSON DEMO usando --input <path_or_json>."
+      );
+      process.exit(1);
+    }
+    const workspaceDir = extractArg(args, [
+      "--workspace",
+      "--workspace-dir",
+      "--output-dir",
+      "--output",
+      "-w",
+      "-o",
+      "--case-dir",
+      "-c",
+    ]);
+    const outputFormat = extractArg(args, ["--format", "--output-format"]) as any;
+
+    try {
+      const { synthetic } = await auditDemoRegime(inputArg, {
+        workspaceDir,
+        outputFormat,
+      });
+      console.log(serializeDemoRegimeSyntheticResult(synthetic));
+      return true;
+    } catch (err: any) {
+      console.error(`Erro ao auditar regime DEMO: ${err.message}`);
       process.exit(1);
     }
   }

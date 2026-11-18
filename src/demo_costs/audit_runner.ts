@@ -170,20 +170,20 @@ function buildCompactSyntheticResult(
     synthetic.json_path = basename(output.artifacts.json_path);
     synthetic.md_path = basename(output.artifacts.md_path);
   }
-  if (minSizeOf(synthetic) > 880) {
+  if (minSizeOf(synthetic) > 870) {
     delete synthetic.pdf_path;
     delete synthetic.docx_path;
   }
-  if (minSizeOf(synthetic) > 880) {
+  if (minSizeOf(synthetic) > 870) {
     delete synthetic.md_path;
   }
-  if (minSizeOf(synthetic) > 880) {
+  if (minSizeOf(synthetic) > 870) {
     delete synthetic.total_monthly_per_post_cents;
   }
-  if (minSizeOf(synthetic) > 880 && synthetic.case_id.length > 16) {
+  if (minSizeOf(synthetic) > 870 && synthetic.case_id.length > 16) {
     synthetic.case_id = synthetic.case_id.slice(0, 16);
   }
-  fitBlockingTagsToBudget(synthetic, 880);
+  fitBlockingTagsToBudget(synthetic, 870);
   return synthetic;
 }
 

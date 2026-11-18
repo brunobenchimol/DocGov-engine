@@ -62,6 +62,7 @@ Uso:
   docgov-engine govern-arp --arp-json <arp.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <GRANT_NOTE|ADVANTAGE_STUDY>]
   docgov-engine evaluate-proposals --bidding-json <proposta.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <PROPOSAL_JUDGMENT_OPINION|ACT_DILIGENCE_LETTER|BOTH|NONE>] [--format <docx|pdf|both>]
   docgov-engine audit-direct-contracting --direct-json <direta.json> [--case-dir <dir>] [--output-dir <dir>] [--mode <DIRECT_CONTRACTING_OPINION|NONE>] [--format <docx|pdf|both>]
+  docgov-engine audit-demo-regime --input <path_or_json> [--workspace <dir>] [--format <docx|pdf|both>]
   docgov-engine --check-update                    Verifica se há nova versão disponível no GitHub
   docgov-engine -u, --update                      Atualiza o binário para a versão mais recente (se houver)
   docgov-engine --force-update                    Força o download e reinstalação da última release

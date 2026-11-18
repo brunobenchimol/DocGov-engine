@@ -22,6 +22,10 @@ import {
   auditDirectContracting,
   serializeDirectContractingSyntheticResult,
 } from "../direct_contracting/index.ts";
+import {
+  auditDemoRegime,
+  serializeDemoRegimeSyntheticResult,
+} from "../demo_costs/index.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import { serializeCompactSyntheticResult } from "../utils/json.ts";
 
@@ -171,6 +175,39 @@ export async function dispatchModularTool(
         {
           type: "text",
           text: serializeDirectContractingSyntheticResult(synthetic),
+        },
+      ],
+    };
+  }
+
+  // 7. Ferramenta Gen6.5: Auditoria de Regime DEMO (Módulos 1..6 & Execução)
+  if (
+    toolName === "docgov_audit_demo_regime" ||
+    toolName === "audit_demo_regime"
+  ) {
+    const inputTarget =
+      args.demoJsonPath ||
+      args.demo_json_path ||
+      args.inputJsonPath ||
+      args.input_json_path ||
+      args.inputPath ||
+      args.input ||
+      args;
+    const { synthetic } = await auditDemoRegime(inputTarget, {
+      workspaceDir:
+        args.workspaceDir ||
+        args.workspace_dir ||
+        args.outputDir ||
+        args.output_dir ||
+        args.caseDir ||
+        args.case_dir,
+      outputFormat: args.outputFormat || args.output_format || args.format,
+    });
+    return {
+      content: [
+        {
+          type: "text",
+          text: serializeDemoRegimeSyntheticResult(synthetic),
         },
       ],
     };

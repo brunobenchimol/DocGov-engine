@@ -51,6 +51,7 @@ export * from "./arp/arp_compiler.ts";
 export * from "./arp/govern_arp.ts";
 export * from "./bidding/index.ts";
 export * from "./direct_contracting/index.ts";
+export * from "./demo_costs/index.ts";
 export * from "./mcp/tool_dispatchers.ts";
 export * from "./cli/contracts_cli.ts";
 
@@ -104,6 +105,9 @@ if (import.meta.main) {
     args.includes("--audit-direct-contracting") ||
     args.includes("--direct-json") ||
     args.includes("--direct-contracting-json") ||
+    args.includes("audit-demo-regime") ||
+    args.includes("--audit-demo-regime") ||
+    args.includes("--demo-json") ||
     args.includes("--check-update") ||
     args.includes("--update") ||
     args.includes("-u") ||
