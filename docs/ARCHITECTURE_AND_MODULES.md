@@ -64,6 +64,7 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
   - `scripts/check_lines.ts`: auditoria física da Lei 9 (`<= 500` linhas).
   - `scripts/build_all.ts`: compilação cross-platform de binários standalone Windows/Linux.
   - `scripts/generate_sha256sums.ts`: geração de `SHA256SUMS.txt` para releases.
+  - `scripts/extract_release_notes.ts`: extração determinística de título e Release Notes a partir do `CHANGELOG.md` para `.github/workflows/release.yml`.
   - `scripts/run_live_tests.ts`: executor de sondas reais PNCP, GitHub e Jurisprudência (`--court=<ID>`).
   - `scripts/smoke_test_fixture.ts`, `scripts/install.sh`, `scripts/install.ps1`.
 

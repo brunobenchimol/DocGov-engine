@@ -106,4 +106,40 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(existsSync(result.specPath)).toBe(true);
     expect(result.elapsedMs).toBeGreaterThanOrEqual(0);
   });
+
+  it("10. .github/workflows/release.yml deve extrair Release Notes do CHANGELOG.md via scripts/extract_release_notes.ts", () => {
+    const releaseYmlPath = resolve(process.cwd(), ".github/workflows/release.yml");
+    const content = readFileSync(releaseYmlPath, "utf-8");
+
+    expect(content).toContain("actions/checkout@");
+    expect(content).toContain("scripts/extract_release_notes.ts");
+    expect(content).toContain("dist-release/RELEASE_NOTES.md");
+    expect(content).toContain("body_path:");
+    expect(content).toContain("name:");
+  });
+
+  it("11. scripts/extract_release_notes.ts deve extrair título, corpo, previousTag e Full Changelog da VERSION corrente no CHANGELOG.md", async () => {
+    const { extractReleaseNotesFromChangelog } = await import("../scripts/extract_release_notes.ts");
+    const changelog = readFileSync(resolve(process.cwd(), "CHANGELOG.md"), "utf-8");
+
+    const current = extractReleaseNotesFromChangelog(changelog, `v${VERSION}`);
+    expect(current.found).toBe(true);
+    expect(current.version).toBe(VERSION);
+    expect(current.tag).toBe(`v${VERSION}`);
+    expect(current.title.startsWith(`v${VERSION}`)).toBe(true);
+    expect(current.title).not.toContain("`");
+    expect(current.body).toContain(`## Release v${VERSION}`);
+    expect(current.body).toContain("### Verificação & Artefatos Oficiais");
+    expect(current.body).toContain(`**Full Changelog**: https://github.com/${GITHUB_REPO}/compare/`);
+    expect(current.body.length).toBeGreaterThan(150);
+
+    const noSubtitle = extractReleaseNotesFromChangelog(changelog, "1.5.0");
+    expect(noSubtitle.found).toBe(true);
+    expect(noSubtitle.title).toBe("v1.5.0");
+    expect(noSubtitle.body).toContain("## Release v1.5.0");
+
+    const missing = extractReleaseNotesFromChangelog(changelog, "99.99.99");
+    expect(missing.found).toBe(false);
+    expect(missing.body).toBe("");
+  });
 });
