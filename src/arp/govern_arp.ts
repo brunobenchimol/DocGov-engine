@@ -20,6 +20,10 @@ import {
   compileArpAdhesionGrantNote,
   compileArpAdvantageStudy,
 } from "./arp_compiler.ts";
+import {
+  hasRecognizedArpGovernanceInput,
+  createArpGovernanceContractError,
+} from "../contracts/gen5_contract_errors.ts";
 import type {
   RawArpInput,
   ArpGovernOptions,
@@ -39,6 +43,12 @@ export async function governArpExecution(
     rawData = (safeReadJsonFile(sourceFilePath) || {}) as RawArpInput;
   } else {
     rawData = inputOrPath || {};
+  }
+
+  if (!hasRecognizedArpGovernanceInput(rawData)) {
+    throw createArpGovernanceContractError(
+      "Nenhum campo de ARP reconhecido foi fornecido no JSON de entrada para docgov_govern_arp."
+    );
   }
 
   const arpNumber = rawData.arp_number || rawData.arpNumber || "ARP-GENERICA";

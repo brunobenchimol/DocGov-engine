@@ -20,6 +20,10 @@ import { auditReadjustmentsAndRepactuations } from "./readjustment_auditor.ts";
 import { auditPasSanctionsAndGuarantees } from "./pas_sanction_auditor.ts";
 import { auditPriceBasketAndRebalance } from "./price_basket_auditor.ts";
 import { compileContractExecutionArtifacts } from "./contract_compiler.ts";
+import {
+  hasRecognizedContractExecutionInput,
+  createContractExecutionContractError,
+} from "./gen5_contract_errors.ts";
 import type {
   RawContractInput,
   AuditContractOptions,
@@ -136,6 +140,12 @@ export async function auditContractExecution(
     rawData = (safeReadJsonFile(sourceFilePath) || {}) as RawContractInput;
   } else {
     rawData = inputOrPath || {};
+  }
+
+  if (!hasRecognizedContractExecutionInput(rawData)) {
+    throw createContractExecutionContractError(
+      "Nenhum campo contratual reconhecido foi fornecido no JSON de entrada para docgov_audit_contract_execution."
+    );
   }
 
   const contractId = rawData.contract_id || rawData.contractId || "CONTRATO_GENERICO";
