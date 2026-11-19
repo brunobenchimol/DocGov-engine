@@ -10,8 +10,8 @@ export const EXACT_COPY_PASTE_CONTRACT_EXECUTION_SNIPPET = `{
   "target_instrument": "CONTRACT",
   "sphere": "FEDERAL",
   "initial_value": 1000000,
-  "addenda": [
-    { "id": "TA-01", "type": "ADDITION", "addition_value": 200000, "suppression_value": 0 }
+  "addendums": [
+    { "id": "TA-01", "value_increase": 200000, "value_decrease": 0 }
   ],
   "tripartite_items": [],
   "readjustments": [],
@@ -41,7 +41,10 @@ export const EXACT_COPY_PASTE_ARP_GOVERNANCE_SNIPPET = `{
       "requested_adhesion_qty": 30
     }
   ],
-  "adhesion_request": { "requesting_organ": "ORGAO_A", "supplier_consent": true }
+  "adhesion_request": {
+    "requesting_organ": { "name": "ORGAO_A", "sphere": "FEDERAL", "legal_regime": "LEI_14133" },
+    "supplier_consent": true
+  }
 }`;
 
 const CONTRACT_EXECUTION_RECOGNIZED_KEYS = [
