@@ -30,7 +30,9 @@ import type {
 export const DEMO_REGIME_TOOL_DEFINITION = {
   name: "docgov_audit_demo_regime",
   description:
-    "Quando usar: Para auditar matematicamente em centavos inteiros planilhas de custos DEMO (Módulos 1 a 6 do Anexo VII-D da IN SEGES 05/2017, piso CCT, Súmula 448 TST, SAT/RAT x FAP, VT 6%, APT 1º ano <= 1,94%, reposição de ausentes, insumos/EPIs, Gross-Up de tributos por dentro, alíquota efetiva EFD-Contribuições no Lucro Real conforme Acórdão TCU 1.214/2013, vedação ao Simples Nacional Art. 17 XII LC 123/2006 salvo Anexo IV em limpeza/vigilância), produtividade por m² (Anexo VI-B), Decreto Federal nº 12.174/2024 (jornada 44h->40h sem corte remuneratório e cota de violência doméstica) e governança da execução contratual (expurgo de 90% do APT na 1ª prorrogação conforme Acórdão TCU 1.586/2018, Conta-Depósito Vinculada Anexo XII vs. Fato Gerador e Repactuação Anual por CCT Art. 135 Lei 14.133/2021). Próximo Passo: Inspecione demo_regime_audit.json, demo_regime_audit.md e o laudo pericial compilado laudo_pericial_planilha_demo.docx/.pdf no workspace_dir. Retorno sintético <= 880 bytes.",
+    "Auditoria matemática em centavos inteiros de planilhas DEMO (Módulos 1–6 da IN SEGES 05/2017, CCT, Súmula 448 TST, RAT×FAP, APT, Gross-Up, EFD Lucro Real, Simples Anexo IV), produtividade m², Decreto 12.174/2024 e execução (expurgo APT, Conta Vinculada/Fato Gerador, Repactuação).\n" +
+    "- Quando usar: Para auditar planilhas de mão de obra exclusiva e sua execução contratual.\n" +
+    "- Próximo Passo: Inspecione demo_regime_audit.json/.md e laudo_pericial_planilha_demo.docx/.pdf no workspace_dir. Retorno <= 880B.",
   inputSchema: {
     type: "object",
     properties: {

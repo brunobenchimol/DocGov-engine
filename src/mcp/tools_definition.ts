@@ -21,10 +21,9 @@ export function getMcpToolsDefinition() {
     {
       name: "bootstrap_case",
       description:
-        "Cria a estrutura de pastas do caso (inputs/, state/, templates/, output/, assets/), descompacta e ingere automaticamente pacotes compactados (.zip, .tar, .tar.gz, .tgz) presentes em uploadsDir, na raiz do caso ou em inputs/ (com classificação libmagic msooxml, defesa Anti-Zip Slip e achatamento seguro), preserva nomes legíveis ou auto-batiza anexos opacos (media_*) com tipo semântico e hash curto (ex.: ETP_ORGAO_A_3b9d.docx), infere extensões via magic bytes (PK\\x03\\x04 e %PDF), aceita 'fileRenameMap' opcional, copia e inspeciona imediatamente arquivos .docx, .pdf (com classificação multimodal unpdf@2.1+ inspectPages, materialização de assets/<stem>/pag_XXX_img_YY.png e pipeline OCR headless) e planilhas nativas .xlsx/.csv em inputs/, submetendo-as ao budget_auditor matemático, consolidando o inventário forense cruzado PDF/DOCX com alerta anti-conluio em state/indice_mestre_caso.md e salvando state/estrutura_<nome>.json, visao_auditoria_<nome>.md e dossie_hotspots_<nome>.md.\n" +
-        "- Quando usar (Pré-condição): Primeiro passo obrigatório no ciclo de vida de qualquer caso/processo no DocGov.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov.\n" +
-        "- Pós-condição & Próximo Passo: Pastas criadas, pacotes descompactados, arquivos batizados e documentos inspecionados.",
+        "Inicializa a árvore do caso (inputs/, state/, templates/, output/, assets/), descompacta pacotes (.zip/.tar/.tgz), auto-batiza anexos opacos (media_*) ou aplica fileRenameMap, inspeciona .docx/.pdf/.xlsx/.csv (com OCR e auditoria orçamentária) e gera state/indice_mestre_caso.md.\n" +
+        "- Quando usar: 1º passo obrigatório em todo caso DocGov (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Leia indice_mestre_caso.md, visao_auditoria_*.md ou dossie_hotspots_*.md, ou chame inspect_doc / build_docx_template.",
       inputSchema: {
         type: "object",
         required: ["caseDir"],
@@ -52,10 +51,9 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_doc",
       description:
-        "Realiza a engenharia reversa estrutural completa de documentos individuais Word (.docx), PDF (.pdf com agrupamento Y e colunas), planilhas Excel (.xlsx com indexação exata por r='A1'), CSV (.csv) ou textos/markdown (.md/.txt), com guardrail fail-fast que rejeita pacotes compactados (.zip, .tar) orientando o uso de 'bootstrap_case', com fusão multi-página, resolução de células multilinha, pipeline OCR headless automático em páginas escaneadas ('scanned_pages_detected' com 'ocr_applied: true') e auditoria orçamentária determinística integrada (Z10/Z12), construindo no topo do JSON o índice estrutural rápido 'toc_map', a Cartografia Estrutural em 3 camadas ('outline_headings', 'page_signals' e 'impugnation_zones' Z1..Z14), detectando páginas escaneadas como imagem ('scanned_pages_detected'), gerando o dossiê executivo de pontos quentes ('dossie_hotspots_<nome>.md' com contexto expandido ±12 linhas), calculando o 'structure_fingerprint', executando matching 1-para-N contra o cache global (core/registry/templates/) com rastreabilidade temporal (created_at, updated_at, age_days, cache_date_status, engine_version, slots_count e retrocompatibilidade v0.6.4) e reancoragem automática (Auto-Offset v0.6.0 gerando adapted_slots_manifest.json em drift 75%-99%), gerando a visão linear compacta de auditoria ('visao_auditoria_<nome>.md' com Bloco 1 Cartográfico + Radar Z1..Z14 e Bloco 2 paginado [PAG_XXX | LYYYY] ou [P...]) e gravando o JSON detalhado com retorno sintético executivo 'toc_summary' (< 1 KB, margem de segurança < 920 bytes).\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'bootstrap_case' para inspecionar um documento individual .docx, .pdf, .xlsx, .csv ou .md específico, descobrir os índices exatos ou reaproveitar templates do cache global, OU após 'fill_docx_template' sobre o arquivo gerado em output/.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Se chamado fora de um caso DocGov ('cases/<slug>/'), os artefatos de saída serão isolados na pasta efêmera segura do sistema (%TEMP%/docgov_ephemeral_inspect/) sem poluir o diretório do usuário.\n" +
-        "- Pós-condição & Próximo Passo: Grava em disco o mapa estrutural com toc_map/cartografia, o markdown 'visao_auditoria_<nome>.md' e o dossiê 'dossie_hotspots_<nome>.md'. Se template_match for EXACT ou MODIFIED, informe a data do cache ao usuário no Gate 1 e chame 'build_docx_template'; se NEW ou PDF, leia o dossiê de hotspots, a visão de auditoria ou elabore o slots_manifest.json.",
+        "Engenharia reversa de .docx, .pdf (com OCR), .xlsx, .csv e .md/.txt (rejeita .zip/.tar). Gera toc_map, Cartografia Z1..Z14, auditoria orçamentária, structure_fingerprint, matching no cache global (com created_at e Auto-Offset), visao_auditoria_<nome>.md, dossie_hotspots_<nome>.md e retorno toc_summary < 920B.\n" +
+        "- Quando usar: Após bootstrap_case para inspecionar documento individual ou diff (fora de cases/<slug>/, isola em %TEMP%).\n" +
+        "- Próximo Passo: Em EXACT/MODIFIED, chame build_docx_template; em NEW/PDF, leia o dossiê ou a visão.",
       inputSchema: {
         type: "object",
         required: ["filePath"],
@@ -72,10 +70,9 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Transforma um documento Word (.docx) bruto em um template parametrizado com tags {{...}} a partir de regras definidas em um slots_manifest.json, com auto-reparo e diagnóstico cirúrgico de JSON, preservando 100% da formatação visual (<w:pPr>, <w:rPr>, estilos, cabeçalhos e tabelas), Heading Guard em títulos de seção e auto-redirecionamento geométrico C1->C2 em checkboxes. Suporta coordenadas compactas do toc_map ('coord': 'T0.R1.C1' ou 'coord': 'P2', com ou sem colchetes), array raiz unificado 'slots: [...]', operador declarativo 'remove_table_rows' para poda bottom-up de linhas excedentes preservando <w:vMerge/>, aliases ('col_index', 'paragraph_index'), validação fail-fast estrita com padrão Exact Copy-Paste Error (Zero Silent No-Op) e 'saveToRegistry: true' para homologação no cache global cross-órgão (v0.6.2 / v1.3.8).\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'inspect_doc' e após a elaboração/adaptação do arquivo 'slots_manifest.json'.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de manipulação de documentos ou templates externos devem utilizar ferramentas padrão do sistema operacional.\n" +
-        "- Pós-condição & Próximo Passo: Gera o template .docx parametrizado com tags em outputPath (e opcionalmente registra no cache global). Próximo passo recomendado: elaborar o 'estado_caso.json' com os dados do processo e chamar 'fill_docx_template'.",
+        "Parametriza .docx bruto em template {{...}} via slots_manifest.json (coordenadas compactas ou canônicas, remove_table_rows) com auto-reparo de JSON, preservação visual, Heading Guard, validação fail-fast Exact Copy-Paste Error (Zero Silent No-Op) e saveToRegistry opcional.\n" +
+        "- Quando usar: Após inspect_doc e criação/adaptação do slots_manifest.json (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Preencha estado_caso.json e chame fill_docx_template.",
       inputSchema: {
         type: "object",
         required: ["sourcePath", "manifestPath", "outputPath"],
@@ -96,10 +93,9 @@ export function getMcpToolsDefinition() {
     {
       name: "fill_docx_template",
       description:
-        "Injeta os dados de um estado_caso.json em um template Word (.docx) parametrizado com tags {{...}}, com auto-reparo de JSON, desaninhamento automático (unflatten) de chaves com notação de ponto (ex.: 'etp.necessidade'), resolvendo variáveis simples, loops FOR em tabelas, blocos condicionais IF, conversão nativa automática de tabelas Markdown ('| Col1 | Col2 |\\n| :--- | :--- |') para elementos OpenXML <w:tbl> reais (com <w:tblGrid>, bordas corporativas, cabeçalho sombreado e alinhamento por coluna, v1.3.7), auto-redirecionamento C1->C2 em células de checkbox, quebras de linha em múltiplos parágrafos, espaçamento vertical <w:spacing w:after=\"120\"/>, negrito seletivo (**texto**), reancoragem contextual de prefixos da seção pai (Parent Section Prefix Resolver v1.3.9) e injeção literal determinística de cláusulas multi-decimais com Hanging Indent e <w:tab/> sem nós <w:numPr> órfãos (eliminando o reset do Word para 1.1/1.1.1), com listas decimais simples no numbering nativo (word/numbering.xml, v0.7.0 / v1.3.9).\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após 'build_docx_template' gerar o template e após a elaboração do 'estado_caso.json'.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de preenchimento ou conversão de arquivos devem utilizar ferramentas padrão do sistema operacional.\n" +
-        "- Pós-condição & Próximo Passo: Gera a minuta final do documento Word em outputPath e executa automaticamente a inspeção estrutural gerando a visão linear de auditoria em state/visao_auditoria_<stem>.md. Próximo: acione o Auditor Externo lendo diretamente a visão linear (dispensado rodar inspect_doc novamente).",
+        "Injeta estado_caso.json (com auto-reparo JSON e unflatten de chaves com ponto) em template .docx, resolvendo variáveis, FOR/IF, tabelas Markdown para <w:tbl>, listas multinível (word/numbering.xml / hanging indent) e saída DOCX/PDF.\n" +
+        "- Quando usar: Após build_docx_template e elaboração do estado_caso.json (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Gera minuta final e auto-inspeciona em state/visao_auditoria_<stem>.md (pronto para auditoria, sem reexecutar inspect_doc).",
       inputSchema: {
         type: "object",
         required: ["templatePath", "statePath", "outputPath"],
@@ -116,10 +112,9 @@ export function getMcpToolsDefinition() {
     {
       name: "generate_audit_docx",
       description:
-        "Gera um Relatório de Auditoria Técnico-Jurídica, Matriz de Gerenciamento de Riscos (Art. 18, X e Art. 22 Lei 14.133/2021), Checklist de Conformidade Normativa (TCU/AGU/MGI) ou Peça de Impugnação/Representação (Modo ATTACK com medida cautelar) em formato Word (.docx) e PDF em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com validação fail-fast estrita (padrão Exact Copy-Paste Error v0.6.2), sanitização automática de crases Markdown, coordenadas e códigos de enum, e transcrição integral de trechos probatórios (trechos_documento) em blocos de citação recuados.\n" +
-        "- Quando usar (Pré-condição): Deve ser chamada após a auditoria do documento gerado e consolidação do arquivo 'relatorio_auditoria.json'.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de criação de relatórios ou arquivos arbitrários devem utilizar ferramentas padrão do sistema operacional.\n" +
-        "- Pós-condição & Próximo Passo: Gera o documento .docx executivo do parecer de auditoria em outputPath. Conclui formalmente o ciclo de auditoria do processo.",
+        "Compila Relatório de Auditoria, Matriz de Riscos (Lei 14.133/2021), Checklist (TCU/AGU/MGI) ou Peça de Impugnação (Modo ATTACK) em DOCX/PDF A4 vertical (zero tabelas), com validação fail-fast Exact Copy-Paste Error e citações probatórias.\n" +
+        "- Quando usar: Após consolidar relatorio_auditoria.json ou peca_impugnacao.json (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Gera o parecer/peça executiva em outputPath e conclui o ciclo de auditoria.",
       inputSchema: {
         type: "object",
         required: ["auditJsonPath", "outputPath"],
@@ -134,13 +129,9 @@ export function getMcpToolsDefinition() {
     {
       name: "generate_technical_note_docx",
       description:
-        "Gera uma Nota Técnica Comparativa Padronizada de Evolução Documental ('Antes vs. Depois', Marco 6) ou Nota Técnica de Contrarrazões Jurídicas (Modo DEFENSE perante consultoria jurídica/controle) em Word (.docx) e PDF em layout editorial vertical corrido (folha A4 retrato, zero tabelas <w:tbl>, 100% largura útil), com destaque visual colorido por cards com bordas laterais (verde para inclusão, vermelho para supressão, azul para alteração), renderização granular de diff de tokens inline e fundamentação técnica/jurídica individualizada por cláusula alterada.\n" +
-        "- Modos de operação híbridos:\n" +
-        "  1) Direto via JSON: forneça 'noteJsonPath' e 'outputPath';\n" +
-        "  2) Comparativo via arquivos: forneça 'oldPath' e 'newPath' (.docx, .pdf ou .json de estrutura) + 'outputPath' (e opcionalmente 'noteJsonPath' para enriquecer com justificativas elaboradas pelo agente).\n" +
-        "- Quando usar (Pré-condição): Após alterações substantivas em minutas ou artefatos instrutórios (TR, ETP, Edital) para justificar a evolução aos órgãos de controle (TCU, AGU, Controle Interno).\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita ao fluxo de trabalho do ecossistema DocGov. Tarefas genéricas de comparação de arquivos ou diff arbitrário fora de processos devem utilizar ferramentas padrão do sistema operacional.\n" +
-        "- Pós-condição & Próximo Passo: Gera a Nota Técnica executiva em outputPath (.docx e opcionalmente .pdf). Conclui o ciclo de justificação e governança de alterações.",
+        "Compila Nota Técnica Comparativa ('Antes vs. Depois') ou de Contrarrazões Jurídicas (Modo DEFENSE) em DOCX/PDF A4 vertical (cards coloridos e diff granular inline), via noteJsonPath e/ou comparação direta entre oldPath e newPath.\n" +
+        "- Quando usar: Após revisões substantivas em TR/ETP/Edital para justificar alterações ao controle (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Gera a Nota Técnica executiva em outputPath (.docx/.pdf) concluindo a governança de alterações.",
       inputSchema: {
         type: "object",
         required: ["outputPath"],
@@ -157,10 +148,9 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_pncp",
       description:
-        "Busca e ingere de forma determinística os metadados e todos os arquivos públicos de uma contratação de referência no Portal Nacional de Contratações Públicas (PNCP), com isolamento estrito na subpasta 'inputs/pncp_<shortname>/', descompactação in-place transparente (.zip, .tar, .tar.gz) e catalogação leve para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
-        "- Quando usar (Pré-condição): Quando o usuário ou agente fornecer um identificador PNCP (número de controle em edital '00394460000141-1-000015/2026', URL do portal/API, tupla '00394460000141/2026/15' ou link de redirecionamento opaco do Google Grounding vertexaisearch.cloud.google.com/grounding-api-redirect/...) para obter insumos e modelos de referência externa sem misturá-los com as minutas sob auditoria do caso.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Proibido chamar fora de diretórios de caso 'cases/<slug>/'. Esta ferramenta é restrita à instrução e benchmarking de contratações do ecossistema DocGov. Downloads arbitrários de arquivos para outras finalidades devem utilizar ferramentas padrão do sistema operacional.\n" +
-        "- Pós-condição & Próximo Passo: Arquivos disponíveis em 'inputs/pncp_<shortname>/', metadados salvos em 'state/pncp_<shortname>_meta.json' e catálogo de referência em 'state/indice_pncp_<shortname>.md'. Consulte o catálogo para orientar a leitura seletiva.",
+        "Baixa metadados e anexos públicos de uma contratação no PNCP (número de controle, URL, tupla ou link Google Grounding), isolando em inputs/pncp_<shortname>/ com descompactação automática e catalogação para pesquisa de mercado (IN 65/2021).\n" +
+        "- Quando usar: Quando já possuir o identificador/URL PNCP para benchmarking (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Consulte state/indice_pncp_<shortname>.md e state/pncp_<shortname>_meta.json para leitura seletiva.",
       inputSchema: {
         type: "object",
         required: ["caseDir", "pncpIdOrUrl"],
@@ -175,10 +165,9 @@ export function getMcpToolsDefinition() {
     {
       name: "search_pncp",
       description:
-        "Realiza busca textual multi-query no endpoint oficial /api/search/ do PNCP (Portal Nacional de Contratações Públicas) para localização de editais, termos de referência e contratações públicas de referência para benchmarking técnico e pesquisa de mercado (IN SEGES/ME nº 65/2021).\n" +
-        "- Quando usar (Pré-condição): Quando o agente precisar descobrir contratações similares a partir de termos de busca, objetos ou nomes de órgãos, suportando consultas combinadas separadas por pipe '|' (ex.: 'fábrica de software | sustentação de sistemas') ou links de redirecionamento do Google Grounding (vertexaisearch.cloud.google.com/grounding-api-redirect/...). Executa as consultas em paralelo, desduplica resultados por CNPJ/ANO/SEQUENCIAL e acumula com buscas anteriores da sessão.\n" +
-        "- Quando NÃO usar (Fora de Escopo): Se caseDir for omitido ou apontar para fora de 'cases/<slug>/', os resultados da busca serão acumulados no cache efêmero da sessão (%TEMP%/docgov_ephemeral_inspect/) sem persistir arquivos na pasta local do usuário.\n" +
-        "- Pós-condição & Próximo Passo: Salva os candidatos completos em 'state/pncp_search_results.json' e a tabela consolidada com Objeto Integral em 'state/pncp_search_results.md'. Próximo passo: selecione o 'pncp_id' mais aderente e chame 'fetch_pncp' para baixar os arquivos para a subpasta isolada.",
+        "Busca textual multi-query (separada por '|') no endpoint /api/search/ do PNCP para localizar editais e contratações de referência (IN 65/2021), desduplicando e acumulando resultados da sessão (fora de cases/<slug>/, isola em %TEMP%).\n" +
+        "- Quando usar: Para descobrir contratações similares por objeto, órgão, UF ou modalidade.\n" +
+        "- Próximo Passo: Inspecione state/pncp_search_results.md, escolha o pncp_id aderente e chame fetch_pncp.",
       inputSchema: {
         type: "object",
         required: ["caseDir", "query"],
@@ -196,9 +185,9 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Realiza a busca multi-query sob demanda em APIs oficiais de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR), com expansor Statutory Bridge (Lei 13.303/2016 <-> Lei 14.133/2021) e ranking determinístico (0..100 pts) combinando 5 pesos táticos (aderência léxica, alinhamento com stance DEFENSE/ATTACK, regime estatais, colegiado e contemporaneidade), com Graceful Fallback para UFs não implementadas e geração de state/juris_search_results.json e .md com retorno sintético MCP < 900 bytes.\n" +
-        "- Quando usar (Pré-condição): Ideal para Co-Autoria/Workbench Mode e pesquisa jurídica sob demanda para fundamentar pareceres, defesas ou impugnações.\n" +
-        "- Pós-condição & Próximo Passo: Grava em disco os precedentes ordenados por relevance_score. Próximo passo recomendado: inspecionar o arquivo Markdown gerado e acionar 'fetch_juris' para autenticar e fatiar os leading cases selecionados.",
+        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM via uf/sphere com Graceful Fallback), com Statutory Bridge (Lei 13.303 <-> 14.133) e ranking tático 0..100 (DEFENSE/ATTACK). Retorno sintético < 900B.\n" +
+        "- Quando usar: Para pesquisa jurídica sob demanda fundamentando pareceres, defesas ou impugnações.\n" +
+        "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris para autenticar e fatiar os leading cases.",
       inputSchema: {
         type: "object",
         required: ["query"],
@@ -259,9 +248,9 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_juris",
       description:
-        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes / 10 Sub-Camadas semânticas (Cabeçalho, Ementa, Relatório com divisão de fatos/defesa/AudTI, Voto com Ratio Decidendi, Dispositivo e Fecho com Quórum), verificando a autenticidade real do precedente na fonte oficial e gerando o Dossiê Fatiado de alta densidade por tópico em state/dossie_juris_<shortname>.md (Estágio 2) e o Inteiro Teor Estruturado em inputs/juris_<shortname>/inteiro_teor_anatomico.md (Estágio 3).\n" +
-        "- Quando usar (Pré-condição): Após identificar um acórdão relevante em 'search_juris', para autenticá-lo e extrair os argumentos sem alucinação.\n" +
-        "- Pós-condição & Próximo Passo: Precedente autenticado e fatiado em disco com payload sintético MCP < 900 bytes.",
+        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes / 10 Sub-Camadas, autenticando o precedente na fonte oficial e gerando state/dossie_juris_<shortname>.md e inputs/juris_<shortname>/inteiro_teor_anatomico.md. Retorno < 900B.\n" +
+        "- Quando usar: Após identificar um precedente relevante em search_juris para citá-lo sem alucinação.\n" +
+        "- Próximo Passo: Leia o dossiê fatiado por tópico para fundamentar a peça ou parecer.",
       inputSchema: {
         type: "object",
         required: ["acordaoIdOrUrl"],
@@ -299,10 +288,9 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_contract_execution",
       description:
-        "Auditoria determinística e fiscalização contínua de contratos administrativos: limites de aditamento (25%/50% isolados, sem compensação), batimento quadripartite [TR <-> Proposta <-> ARP <-> Contrato/Fatura] com bloqueio de aditivo direto em ARP, interregno de 12 meses em reajustes/repactuações (Gen5 Marco 8), Processo Administrativo Sancionador (PAS) com dosimetria, prazo de 15 dias úteis, segregação ANS/IMR vs. multa (0,5%-30%), notificação de Seguro-Garantia, motor estatístico anti-outlier de cesta de preços (IN 65/2021, CV > 25%), matriz de álea extraordinária (Gen5.5 Marco 8.5), além de adequação federativa e jurisdicional do PAS (alcance territorial Art. 156 § 4º, regime de Estatais <= 24m Art. 83 III Lei 13.303, competência exclusiva Art. 156 § 6º, resolução de Corte competente TCU/TCDF/TCE/TCM e remessa CEIS/CNEP/PNCP) e calibragem jurisprudencial da dosimetria LINDB Art. 22 com detecção de outliers e quadros OpenXML/PDF (Gen5.6 Marco 8.6).\n" +
-        "- Schema JSON de Entrada: contract_id, legal_regime (LEI_14133|LEI_13303), object_type (SERVICE|WORK|ENGINEERING_REFORM|SUPPLY), target_instrument (CONTRACT|ARP), sphere (FEDERAL|STATE|MUNICIPAL), uf, municipality, initial_value/initial_value_cents, addenda[]/addendums[], tripartite_items[], readjustments[], pas_sanctions[]/pas_processes[]/pas_evaluation (sanction_type, sanction_scope_claimed, duration_months, fine_pct/fine_percentage, sla_glosa_misclassified, defense_deadline_business_days/defense_business_days, has_surety_bond/garantia.seguradora_notificada, signing_authority_role, has_conclusive_legal_opinion, registries_commanded/register_pncp/register_ceis_cnep/notify_audit_court, dosimetry_benchmark com precedent_fines_pct/benchmark_range_pct/benchmark_median_pct/lindb_art22_weighed), price_basket ({ cotacoes } ou [{ item_id, quotes|cotacoes|prices|values, selected_method }]) e risk_matrix_events[]/rebalance_requests[]/reequilibrio (risk_allocated_to|alocacao_matriz_riscos).\n" +
-        "- Quando usar (Pré-condição): Para auditar aditamentos, sobrepreço, reajustes, glosa ANS/IMR, dosimetria e adequação federativa de PAS, seguro-garantia, cesta de preços (IN 65/2021) ou reequilíbrio.\n" +
-        "- Pós-condição & Próximo Passo: Grava relatorio_fiscalizacao_contratual.json, dossie_fiscalizacao_contratual.md e minutas OpenXML (.docx/.pdf quando compilationMode != NONE) com payload sintético MCP < 900 bytes.",
+        "Auditoria determinística de execução contratual: limites de aditivos (25%/50%), batimento quadripartite (bloqueio aditivo em ARP), reajustes (12m), PAS (dosimetria LINDB Art. 22, adequação federativa, glosa ANS vs. multa, seguro-garantia), cesta de preços (IN 65/2021) e álea extraordinária (contrato JSON em --dump-spec).\n" +
+        "- Quando usar: Para fiscalizar aditivos, sobrepreço, reajustes, PAS, cesta de preços ou reequilíbrio.\n" +
+        "- Próximo Passo: Leia relatorio_fiscalizacao_contratual.json/.md e minutas DOCX/PDF compiladas. Retorno < 900B.",
       inputSchema: {
         type: "object",
         properties: {
@@ -340,10 +328,9 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_govern_arp",
       description:
-        "Motor determinístico de governança de Ata de Registro de Preços (ARP) e gestão de caronas: livro-razão com travas de 50% individual e 200% global acumulada, matriz de compatibilidade federativa/jurídica, condicionantes de TIC, auditoria de vigência (12+12m) e compilação nativa OpenXML DOCX/PDF de notas de adesão e estudos de vantajosidade (Gen5 Marco 8).\n" +
-        "- Schema JSON de Entrada: arp_number, managing_organ ({ name, sphere, legal_regime, is_state_enterprise }), adherent_sphere/manager_sphere, adherent_regime/manager_regime, is_tic/is_ict_arp, is_umbrella_or_single_lot, has_granulated_calculation_memory, validity ({ validity_months, is_renewed_year_2, renew_quantities_second_year, has_edital_renewal_clause, has_advantage_proof, derived_contract_duration_months }), items[] ({ item_id, registered_quantity, unit_price, consumed_by_managing_and_participants, previous_carona_adhesions, requested_adhesion_qty }) e adhesion_request ({ requesting_organ, items_requested[], supplier_consent, market_price_comparison[] }).\n" +
-        "- Quando usar (Pré-condição): Para processar ou instruir pedidos de adesão a ARP (visão Gerenciador ou Carona).\n" +
-        "- Pós-condição & Próximo Passo: Grava dossie_governanca_arp.json, visao_governanca_arp.md e DOCX/PDF compilados com payload sintético MCP < 900 bytes.",
+        "Governança determinística de ARP e adesões (caronas): livro-razão 50% individual / 200% global, compatibilidade federativa/jurídica, travas TIC, vigência (12+12m) e compilação DOCX/PDF de notas de adesão e estudos de vantajosidade (contrato JSON em --dump-spec).\n" +
+        "- Quando usar: Para instruir ou auditar pedidos de adesão a ARP (Gerenciador ou Carona).\n" +
+        "- Próximo Passo: Inspecione dossie_governanca_arp.json, visao_governanca_arp.md e DOCX/PDF compilados. Retorno < 900B.",
       inputSchema: {
         type: "object",
         properties: {

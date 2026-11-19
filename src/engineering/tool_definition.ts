@@ -6,7 +6,9 @@
 export const ENGINEERING_WORKS_TOOL_DEFINITION = {
   name: "docgov_audit_engineering_works",
   description:
-    "Quando usar: Para auditar matematicamente orçamentos, composições de BDI (quartis e fórmula algébrica do Acórdão TCU nº 2.622/2013, BDI Diferenciado da Súmula TCU nº 253, vedação de IRPJ/CSLL da Súmula TCU nº 254, bloqueio de bis in idem de Administração Local/Canteiro/Mobilização e medição proporcional ao avanço físico), Curva ABC contra medianas SINAPI/SICRO (Decreto nº 7.983/2013), simetria tributária Com/Sem Desoneração CPRB (Lei nº 14.973/2024), front-loading no cronograma físico-financeiro, Matriz de Riscos em Contratação Integrada/Semi-Integrada (Art. 46 Lei 14.133/2021 e Arts. 42-43 Lei 13.303/2016) e inexequibilidade 75%/85% + Jogo de Planilha (Art. 59 §§ 4º e 5º, Súmulas TCU 259 e 262). Aceita objetos aninhados e aliases flat na raiz. Próximo Passo: Inspecione engineering_works_audit.json, engineering_works_audit.md e o laudo pericial laudo_pericial_obras_engenharia.docx/.pdf no workspace_dir. Retorno sintético <= 880 bytes.",
+    "Auditoria matemática de obras/engenharia: BDI (Acórdão TCU 2.622/2013, Súmulas 253/254, Adm. Local), Curva ABC SINAPI/SICRO (Decreto 7.983/2013), simetria CPRB (Lei 14.973/2024), front-loading, Matriz de Riscos (Integrada/Semi-Integrada) e inexequibilidade 75%/85% + Jogo de Planilha (aceita aninhado/flat).\n" +
+    "- Quando usar: Para auditar orçamentos, BDI, cronogramas e propostas de obras/engenharia.\n" +
+    "- Próximo Passo: Inspecione engineering_works_audit.json/.md e laudo_pericial_obras_engenharia.docx/.pdf. Retorno <= 880B.",
   inputSchema: {
     type: "object",
     properties: {
