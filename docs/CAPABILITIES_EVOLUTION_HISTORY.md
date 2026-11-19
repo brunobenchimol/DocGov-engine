@@ -1,4 +1,4 @@
-# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.8`)
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.10`)
 
 ---
 
@@ -10,7 +10,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 
 ---
 
-## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.8`)
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.10`)
 
 ### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
 - **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
@@ -83,3 +83,8 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 ### Trilha Contínua Jurisprudencial — Onda 3 Municipal (`v1.6.8` — Conector `TCM-PA` & Coexistência `TCE`/`TCM`)
 - **Conector Homologado:** `TCM-PA` (12ª corte oficial e 1º tribunal municipal da Onda 3), inaugurando `tier: "MUNICIPAL"` com catálogo normativo de 8 precedentes (`TCM-PA-ACORDAO-42110-2024` como SSOT `.NET`), Live Primary na API REST JSON `/wp-json/wp/v2/posts` + `/wp-json/wp/v2/search` de `tcmpa.tc.br` e mock via `DOCGOV_JURIS_TCM_PA_URL`.
 - **Arquitetura de Coexistência na Mesma UF (`PA`):** Parâmetro `sphere: "STATE" | "MUNICIPAL" | "ALL"` (default `"STATE"` preservando `TCE-PA`), promoção automática por `autoTriggerKeywords` sem termos geográficos isolados, atalho `uf: "TCM-PA"` e `supported_ufs` estritamente deduplicado (`["PA", "CE", "DF", "SP", "MG", "PR"]`).
+
+### Higiene Arquitetural — Eixo 5 (`v1.6.10` — Orçamento Estrito de Tokens no Handshake MCP `tools/list`)
+- **Enxugamento Cirúrgico (`<= 600` chars / ~150 tokens por tool):** Otimização das 14 descrições acima do teto em `src/mcp/tools_definition.ts` (12 tools), `src/demo_costs/audit_runner.ts` (`docgov_audit_demo_regime`) e `src/engineering/tool_definition.ts` (`docgov_audit_engineering_works`), reduzindo a soma das `description`s em `-63,3%` (`20.793 -> 7.631` chars) e o payload `tools/list` total em `-29,0%` (`45.432 -> 32.256` chars / `~11.358 -> ~8.064` tokens).
+- **Zero Breaking Changes & Preservação do `initialize`:** Todos os nomes de ferramentas, `inputSchema`, enums e `annotations` permanecem 100% intactos, assim como `DOCX_ENGINE_INSTRUCTIONS` (sem inflação de regra interna), delegando contratos exaustivos ao `--dump-spec`.
+- **Trava Anti-Regressão (`test/mcp_spec.test.ts`):** Validação determinística contínua garantindo `description.length <= 600` em 100% das tools para blindar as futuras séries `v1.7.x` e `v1.8.x`.

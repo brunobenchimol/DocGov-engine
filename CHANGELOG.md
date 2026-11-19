@@ -8,6 +8,16 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.10] - 2026-11-18 — Higiene Arquitetural (Eixo 5): Orçamento Estrito de Tokens no Handshake MCP (`tools/list`) & Trava Automatizada
+
+### Changed
+- **Enxugamento Cirúrgico de Descrições no `tools/list` (`src/mcp/tools_definition.ts`, `src/demo_costs/audit_runner.ts`, `src/engineering/tool_definition.ts`):** Redução das 14 definições de ferramentas acima de `600` caracteres (`bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `generate_technical_note_docx`, `fetch_pncp`, `search_pncp`, `search_juris`, `fetch_juris`, `docgov_audit_contract_execution`, `docgov_govern_arp`, `docgov_audit_demo_regime` e `docgov_audit_engineering_works`) para o orçamento estrito `<= 600` caracteres (~150 tokens por tool), reduzindo a soma das `description`s de `20.793` para `7.631` chars (`-63,3%`) e o payload total `tools/list` de `45.432` chars (`46.236 B`, ~`11.358` tokens) para `32.256` chars (`32.712 B`, ~`8.064` tokens, `-29,0%`), com **zero breaking changes** em nomes, propriedades/enums de `inputSchema` ou `annotations`.
+- **Preservação do Handshake `initialize` (`src/constants/index.ts`):** `DOCX_ENGINE_INSTRUCTIONS` mantém-se livre de regras internas de orçamento de tokens para não inflar o handshake `initialize`.
+- **Self-Discovery & Lockstep (`v1.6.10`):** Sincronização de `VERSION` (`1.6.10`), `package.json`, `src/mcp/spec.ts` (item 30), `docs/especificacao_motor.md`, `README.md`, `ROADMAP.md`, `docs/ARCHITECTURE_AND_MODULES.md` e `docs/CAPABILITIES_EVOLUTION_HISTORY.md`.
+
+### Added
+- **Trava Automatizada Anti-Regressão no Handshake MCP (`test/mcp_spec.test.ts`):** Teste determinístico garantindo que 100% das ferramentas retornadas por `getMcpToolsDefinition()` respeitem `description.length <= 600` caracteres (blindando as futuras séries `v1.7.x` e `v1.8.x`).
+
 ## [1.6.8] - 2026-11-18 — Conector Municipal `TCM-PA` (1º Conector da Onda 3) & Coexistência Estadual/Municipal na Mesma UF
 
 ### Added

@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.8)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.10)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.8` (1º Conector Municipal da Onda 3 `TCM-PA` + Geração 6.5 Completa)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.10` (Eixo 5: Higiene de Tokens MCP `tools/list` + Onda 3 `TCM-PA` + Geração 6.5 Completa)
 
-A versão **`v1.6.8`** inaugura a **Onda 3 Municipal** na trilha contínua de jurisprudência homologando o **`TCM-PA`** (12ª corte oficial) com arquitetura retrocompatível de coexistência Estadual vs. Municipal na mesma UF (`sphere: "STATE" | "MUNICIPAL" | "ALL"`), sobre a base completa da **Geração 6.5** (`v1.6.5`–`v1.6.7`) com **16 ferramentas MCP nativas**.
+A versão **`v1.6.10`** consolida a diretriz de **Orçamento Estrito de Tokens no Handshake MCP (`tools/list`) — Eixo 5**, padronizando todas as **16 ferramentas MCP nativas** com descrições enxutas (`<= 600` caracteres / ~150 tokens por tool; `-63,3%` na soma das descrições e `-29,0%` no payload total `tools/list`, **zero breaking changes** em nomes ou `inputSchema`) sob guarda de regressão automatizada em `test/mcp_spec.test.ts`, mantendo a **Onda 3 Municipal (`TCM-PA`, 12ª corte oficial)** com coexistência via `sphere: "STATE" | "MUNICIPAL" | "ALL"` sobre a base completa da **Geração 6.5** (`v1.6.5`–`v1.6.7`).
 
 ### 🏗️ Principais Inovações da Geração 6.5 — Eixo 2 (`v1.6.6`):
 1. **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works` (Obras e Serviços de Engenharia):**
@@ -198,7 +198,7 @@ A versão **`v1.6.8`** inaugura a **Onda 3 Municipal** na trilha contínua de ju
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.8`):** Inclusão mandatória do campo `"engine_version": "1.6.8"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.10`):** Inclusão mandatória do campo `"engine_version": "1.6.10"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**

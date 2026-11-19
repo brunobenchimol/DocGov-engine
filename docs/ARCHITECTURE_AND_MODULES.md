@@ -1,4 +1,4 @@
-# Arquitetura e Índice de Módulos — docgov-engine (v1.6.8)
+# Arquitetura e Índice de Módulos — docgov-engine (v1.6.10)
 
 Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolvedores**. Consulte-o antes de buscar arquivos no repositório para localizar exatamente os módulos de implementação (`src/`), scripts (`scripts/`) e suítes de validação (`test/`, `tests_live/`) de cada domínio.
 
@@ -17,7 +17,7 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
 | CLI Conectores | `src/cli/connectors_cli.ts` | Subcomandos `--search-pncp`, `--fetch-pncp`, `--search-juris`, `--fetch-juris`, `--dump-spec` e `--update`. |
 | CLI Gen5 / Gen6 / Gen6.5 | `src/cli/contracts_cli.ts` | Subcomandos `audit-contract`, `govern-arp`, `evaluate-proposals`, `audit-direct-contracting`, `audit-demo-regime` e `audit-engineering-works`. |
 | MCP Server | `src/mcp/server.ts` | Servidor JSON-RPC 2.0 sobre `stdio` (`initialize`, `tools/list`, `tools/call`, `prompts/*`). |
-| MCP Schemas | `src/mcp/tools_definition.ts` | Definição JSON Schema e metadados das **16 ferramentas MCP nativas**. |
+| MCP Schemas | `src/mcp/tools_definition.ts` | Definição JSON Schema e metadados das **16 ferramentas MCP nativas** (orçamento estrito Eixo 5 `<= 600` chars / ~150 tokens por `description` no `tools/list`, abrangendo `src/demo_costs/audit_runner.ts` e `src/engineering/tool_definition.ts`, sob trava anti-regressão em `test/mcp_spec.test.ts` desde `v1.6.10`). |
 | MCP Dispatcher | `src/mcp/tool_dispatchers.ts` | Roteamento tipado de chamadas MCP para os motores de domínio. |
 | Self-Discovery Spec | `src/mcp/spec.ts` | Gerador `generateEngineSpecMarkdown()` que alimenta `--dump-spec` e `docs/especificacao_motor.md`. |
 

@@ -148,7 +148,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ## 🕵️♂️ SÉRIE `v1.7.x` (GERAÇÃO 7): 2ª PERNA DE BLINDAGEM ANTI-FRAUDE, FECHAMENTO DO CICLO CONTRATUAL & MODALIDADES AVANÇADAS DE TIC (Eixos 1, 2 e 5)
 
-> **Diretriz Transversal de Higiene de Tokens MCP (Eixo 5):** Padronização de schemas enxutos em `src/mcp/tools_definition.ts` (`<= 150` tokens por tool no `tools/list`), mantendo o detalhamento exaustivo de contratos no `--dump-spec` (`docs/especificacao_motor.md`) e o envelope de retorno MCP estritamente `< 900 bytes` (Lei 2).
+> **Diretriz Transversal de Higiene de Tokens MCP (Eixo 5 — `[CONCLUÍDO NA v1.6.10]` | Trava Ativa para `v1.7.x`/`v1.8.x`):** Padronização de descrições enxutas em `getMcpToolsDefinition()` (`src/mcp/tools_definition.ts`, `src/demo_costs/audit_runner.ts`, `src/engineering/tool_definition.ts`) com teto estrito de `<= 600` caracteres (~150 tokens) por tool no `tools/list` e guarda determinística anti-regressão em `test/mcp_spec.test.ts`, mantendo o detalhamento exaustivo de contratos no `--dump-spec` (`docs/especificacao_motor.md`) e o envelope de retorno MCP estritamente `< 900 bytes` (Lei 2).
 
 ### MARCO 10.1 — `v1.7.0` (Geração 7.0 — Perícia Criptográfica `ICP-Brasil/ByteRange`, Validador Algorítmico NF-e 44 Dígitos & Forense `.xlsx`/`w:rsid`) *(Reserva de Hotfix: `v1.7.1`–`v1.7.2`)*
 
