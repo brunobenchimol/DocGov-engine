@@ -1,4 +1,4 @@
-# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.7`)
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.8`)
 
 ---
 
@@ -10,7 +10,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 
 ---
 
-## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.7`)
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.8`)
 
 ### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
 - **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
@@ -79,3 +79,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 - **Capacidades Entregues (Eixo 2 — `v1.6.6`):**
   - Auditoria de BDI por tipologia e fórmula algébrica oficial (Acórdão TCU nº 2.622/2013), BDI Diferenciado reduzido para materiais/equipamentos relevantes (Súmula TCU nº 253), bloqueio de *bis in idem* (Administração Local/Canteiro/Mobilização no BDI), vedação de IRPJ/CSLL (Súmula TCU nº 254) e medição proporcional da Administração Local ao avanço físico;
   - Curva ABC (`Faixas A/B/C`) contra medianas `SINAPI`/`SICRO` (Decreto nº 7.983/2013), simetria tributária Com/Sem Desoneração e escalonamento gradual de CPRB x INSS (`2024..2028+`, Lei nº 14.973/2024), detecção de *front-loading* (`> 5%`) no cronograma físico-financeiro, Matriz de Riscos em Contratação Integrada/Semi-Integrada (Art. 46 Lei 14.133/2021 e Arts. 42–43 Lei 13.303/2016) e reaproveitamento nativo de `inexequibility_evaluator.ts` (`< 75%`, garantia adicional `< 85%`, Súmula 262 e Jogo de Planilha), compilando `engineering_works_audit.json/.md` e `laudo_pericial_obras_engenharia.docx/.pdf` com guarda `<= 880B` sob **15 tags simultâneas**.
+
+### Trilha Contínua Jurisprudencial — Onda 3 Municipal (`v1.6.8` — Conector `TCM-PA` & Coexistência `TCE`/`TCM`)
+- **Conector Homologado:** `TCM-PA` (12ª corte oficial e 1º tribunal municipal da Onda 3), inaugurando `tier: "MUNICIPAL"` com catálogo normativo de 8 precedentes (`TCM-PA-ACORDAO-42110-2024` como SSOT `.NET`), Live Primary na API REST JSON `/wp-json/wp/v2/posts` + `/wp-json/wp/v2/search` de `tcmpa.tc.br` e mock via `DOCGOV_JURIS_TCM_PA_URL`.
+- **Arquitetura de Coexistência na Mesma UF (`PA`):** Parâmetro `sphere: "STATE" | "MUNICIPAL" | "ALL"` (default `"STATE"` preservando `TCE-PA`), promoção automática por `autoTriggerKeywords` sem termos geográficos isolados, atalho `uf: "TCM-PA"` e `supported_ufs` estritamente deduplicado (`["PA", "CE", "DF", "SP", "MG", "PR"]`).

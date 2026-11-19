@@ -8,6 +8,17 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+## [1.6.8] - 2026-11-18 — Conector Municipal `TCM-PA` (1º Conector da Onda 3) & Coexistência Estadual/Municipal na Mesma UF
+
+### Added
+- **Catálogo Normativo Curado do TCM-PA (`src/tools/juris/providers/tcm_pa_catalog.ts`):** Repertório de 8 precedentes municipais (`TCM-PA-ACORDAO-42110-2024` como Precedente Canônico Principal SSOT para lote único/software em gestão municipal com `stance_alignment: "FAVORABLE"`, além de `TCM-PA-RESOLUCAO-16995-2023`, `TCM-PA-IN-02-2023`, `TCM-PA-CONSULTA-18-2024`, `TCM-PA-ACORDAO-39850-2023`, `TCM-PA-CONSULTA-09-2024`, `TCM-PA-SUMULA-1` e `TCM-PA-ACORDAO-41200-2024`) com todas as 10 sub-camadas anatômicas (`1A`..`6A`) e normalização bidirecional `normalizeTcmPaId` (incluindo forma abreviada `TCM-PA-AC-42110-2024`).
+- **Conector Municipal `TcmPaProvider` (`src/tools/juris/providers/tcm_pa_provider.ts`):** 12ª corte oficial e 1º conector da Onda 3 Municipal (`tier: "MUNICIPAL"`, `uf: "PA"`), operando em Resiliência Dupla com *Live Primary* na API REST JSON oficial de `tcmpa.tc.br` (`/wp-json/wp/v2/posts` e `/wp-json/wp/v2/search`, `timeoutMs: 3500`, `retries: 0`), *Curated Fallback*, suporte a mock via `DOCGOV_JURIS_TCM_PA_URL` (rotas `/search` e `/fetch` com HTTP 404 disparando `[ANTI_HALLUCINATION_BLOCK]`) e `autoTriggerKeywords` cirúrgico sem termos geográficos isolados.
+- **Arquitetura de Coexistência Onda 3 na Mesma UF (`src/tools/juris/types.ts`, `provider_registry.ts`, `search_juris.ts`, `tools_definition.ts`, `connectors_cli.ts`):** Adição de `JurisdictionTier: "MUNICIPAL"` e parâmetro opcional `sphere: "STATE" | "MUNICIPAL" | "ALL"` (MCP e CLI `--sphere`). Preserva `TCE-PA` como padrão retrocompatível para `uf: "PA"` isolado, suporta promoção automática via `autoTriggerKeywords` do `TCM-PA`, atalho `uf: "TCM-PA"`, fan-out `sphere: "ALL"`, `supported_ufs` estritamente deduplicado (`["PA", "CE", "DF", "SP", "MG", "PR"]`) e blindagem de `detectCourtFromRef` / `getDefaultFederalProviders`.
+- **Suíte Modular da Onda 3 (`test/juris/municipal_courts.test.ts`) & Live Probe (`tests_live/juris_api.live.ts`):** Cobertura unitária e com mock HTTP real para coexistência `TCE-PA` vs. `TCM-PA`, normalização, fatiamento em 10 sub-camadas, trava anti-alucinação e teto MCP `< 900B`, além de registro do `TCM-PA` na suíte online (`--court=TCM-PA`).
+
+### Changed
+- **Documentação & Self-Discovery (`v1.6.8`):** Documentada a Seção `2.4` (Padrão Arquitetural Onda 3) em `docs/JURIS_CONNECTOR_PLAYBOOK.md`, isolado `autoTriggerKeywords` em `tce_pa_provider.ts` e sincronizados `VERSION` (`1.6.8`), `package.json`, `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, `src/mcp/spec.ts`, `docs/especificacao_motor.md`, `docs/ARCHITECTURE_AND_MODULES.md`, `docs/CAPABILITIES_EVOLUTION_HISTORY.md`, `README.md` e `ROADMAP.md`.
+
 ## [1.6.7] - 2026-11-18 — Hardening Black-Box, Normalização Dual & Self-Discovery Completo da Tool 16 (`docgov_audit_engineering_works`)
 
 ### Added

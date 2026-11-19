@@ -35,6 +35,17 @@ Apresente no `/plan`:
 3. **Higiene Estrita de `autoTriggerKeywords`**: Termos exclusivos do tribunal e de sua legislação (`tce-<uf>`, `tce<uf>`, `tribunal de contas do estado de ...`, decretos/leis estaduais). **PROIBIDO** usar nome do estado ou cidade isolado (ex.: "Paraná", "São Paulo") para prevenir falsos-positivos entre UFs ou entre TCE e TCM;
 4. **Catálogo Curado (8 a 9 Precedentes)**: Prejulgados vinculantes, Súmulas e Consultas normativas sobre a Lei nº 14.133/2021 e Lei nº 13.303/2016, incluindo obrigatoriamente o precedente exigido no Sub-Assert `.NET` e sua calibração em `stance_alignment`.
 
+### 2.4. Padrão Arquitetural Onda 3: Coexistência Estadual vs. Municipal na Mesma UF (`TCE-<UF>` vs. `TCM-<UF>`)
+Para cortes municipais que compartilham a sigla da UF com o TCE estadual (`TCM-PA`/`TCE-PA`, `TCM-SP`/`TCE-SP`, `TCM-RIO`/`TCE-RJ`, `TCM-BA`/`TCE-BA`, `TCM-GO`/`TCE-GO`):
+1. **Tier Municipal Explícito:** O provedor municipal declara `tier: "MUNICIPAL"` e a sigla `uf` de 2 letras compartilhada (ex.: `"PA"`).
+2. **Retrocompatibilidade do Default `uf`:** Quando `search_juris` recebe apenas `uf: "<UF>"` sem `courts` ou `sphere`, `resolveRouting` prioriza a esfera `"STATE"` (`TCE-<UF>`) para preservar 100% dos testes legados e o `Sub-Assert 29.3`.
+3. **Seleção Explícita e Fan-Out por `sphere`:**
+   - `sphere: "MUNICIPAL"` seleciona exclusivamente o `TCM-<UF>` daquela UF (junto à camada federal);
+   - `sphere: "ALL"` executa fan-out controlado incluindo ambos (`TCE-<UF>` e `TCM-<UF>`);
+   - `courts: ["TCM-<UF>"]` ou o atalho `uf: "TCM-<UF>"` selecionam o conector municipal diretamente sem Graceful Fallback.
+4. **Promoção por Auto-Trigger Isolado e Deduplicação de `supported_ufs`:** Gatilhos contextuais exclusivos (`tcm-pa`, `tcmpa`, `tribunal de contas dos municípios...`) promovem o TCM automaticamente mesmo quando apenas `uf` foi informado; `supported_ufs` permanece estritamente deduplicado por sigla de 2 letras (`["PA", "CE", "DF", "SP", "MG", "PR"]`).
+5. **Blindagem de `detectCourtFromRef`:** Provedores `MUNICIPAL` testam prefixos `TCM-<UF>`/`TCM<UF>` (nunca `TCE-<UF>`) e nunca vazam para `getDefaultFederalProviders()`.
+
 ---
 
 ## 3. Fase 2: Execução em 4 Micro-Commits Atômicos
@@ -95,8 +106,8 @@ A esteira de integração jurisdicional segue a ordem estratégica pactuada no `
 
 | Prioridade | Grupo / Onda | Cortes / Tribunais de Contas | Estratégia de Provedor & Status |
 | :--- | :--- | :--- | :--- |
-| **Base Concluída** | **Camada Federal + Onda 1 & 2** (11 Cortes) | `TCU`, `STJ`, `STF`, `TST`, `AGU`, `TCE-PA`, `TCE-CE`, `TCDF`, `TCE-SP`, `TCE-MG`, `TCE-PR` | **Homologados 100%** (*Live Primary + Curated Fallback*, Súmulas vinculantes e Sub-Asserts C#) |
-| **Prioridade 1** | **Onda 3 — Tribunais Municipais** (5 TCMs) | `TCM-PA` (Municípios PA), `TCM-SP` (Capital SP), `TCM-RIO` (Capital RJ), `TCM-BA` (Municípios BA), `TCM-GO` (Municípios GO) | **Próximos da Fila** (Resiliência Dupla, higiene de auto-trigger sem colisão com TCE homônimo) |
+| **Base Concluída** | **Camada Federal + Onda 1 & 2 + Onda 3 (`TCM-PA`)** (12 Cortes) | `TCU`, `STJ`, `STF`, `TST`, `AGU`, `TCE-PA`, `TCM-PA`, `TCE-CE`, `TCDF`, `TCE-SP`, `TCE-MG`, `TCE-PR` | **Homologados 100%** (*Live Primary + Curated Fallback*, coexistência Onda 3 e Sub-Asserts C#) |
+| **Prioridade 1** | **Onda 3 Restante — Tribunais Municipais** (4 TCMs) | `TCM-SP` (Capital SP), `TCM-RIO` (Capital RJ), `TCM-BA` (Municípios BA), `TCM-GO` (Municípios GO) | **Próximos da Fila** (Resiliência Dupla, padrão `sphere: "MUNICIPAL"` sem colisão com TCE homônimo) |
 | **Prioridade 2** | **Onda 2 Restante — Grandes Cortes** (6 TCEs) | `TCE-RJ`, `TCE-RS`, `TCE-PE`, `TCE-BA`, `TCE-SC`, `TCE-AM` | **Sob Demanda** (Prejulgados normativos, consultas e APIs REST/Elasticsearch) |
 | **Prioridade 3** | **Onda 4 — Demais 15 TCEs Estaduais** | `TCE-GO`, `TCE-ES`, `TCE-MT`, `TCE-MS`, `TCE-MA`, `TCE-RN`, `TCE-PB`, `TCE-AL`, `TCE-SE`, `TCE-PI`, `TCE-RO`, `TCE-AC`, `TCE-AP`, `TCE-RR`, `TCE-TO` | **Graceful Fallback Ativo** (Homologáveis sob demanda conforme solicitações do usuário ou novos casos) |
 

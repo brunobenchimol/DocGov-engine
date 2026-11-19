@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.7)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.8)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,9 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.7` (Geração 6.5 Completa: Regime `DEMO` & Obras e Serviços de Engenharia + Hardening Black-Box)
+## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.8` (1º Conector Municipal da Onda 3 `TCM-PA` + Geração 6.5 Completa)
 
-A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`** com **16 ferramentas MCP nativas**, adicionando à **16ª ferramenta `docgov_audit_engineering_works`** normalização dual de entrada (`input_normalizer.ts` aceitando objetos aninhados, chaves *flat* na raiz e sinônimos naturais para `front_loading_detected`, `schedule_stages` e `attempts_design_error_addendum_without_legal_exception`), contrato **Exact Copy-Paste Error** (`EXACT_COPY_PASTE_ENGINEERING_WORKS_SNIPPET`), propriedades aninhadas completas no `inputSchema` MCP e documentação integral de subcampos na seção `2.16` do `--dump-spec`, sobre a base da **`v1.6.6`** e **`v1.6.5`**.
+A versão **`v1.6.8`** inaugura a **Onda 3 Municipal** na trilha contínua de jurisprudência homologando o **`TCM-PA`** (12ª corte oficial) com arquitetura retrocompatível de coexistência Estadual vs. Municipal na mesma UF (`sphere: "STATE" | "MUNICIPAL" | "ALL"`), sobre a base completa da **Geração 6.5** (`v1.6.5`–`v1.6.7`) com **16 ferramentas MCP nativas**.
 
 ### 🏗️ Principais Inovações da Geração 6.5 — Eixo 2 (`v1.6.6`):
 1. **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works` (Obras e Serviços de Engenharia):**
@@ -131,7 +131,7 @@ A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`
    - **Vigência 12+12 meses e renovação de saldo:** Monitoramento da vigência da ARP (12 meses prorrogáveis por igual período), auditoria de cláusula editalícia e comprovação de vantagem econômica para renovação de saldos no 2º ano (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`), e rastreamento do desacoplamento da vigência autônoma de contratos derivados (de até 5 anos / 60 meses).
    - **Compilação nativa OpenXML `.docx`/`.pdf` de ARP:** Geração automatizada de `Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf` (para o órgão gerenciador) e `Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf` (para o órgão aderente).
 
-### 🏛️ Destaques da Geração 4 (`v1.4.x` — 11 Cortes Homologadas & Conectores Plug-and-Play):
+### 🏛️ Destaques da Geração 4 & Trilha Contínua (`v1.4.x` / `v1.6.8` — 12 Cortes Homologadas & Onda 3 Municipal):
 1. **9ª Ferramenta MCP `search_juris` & CLI `--search-juris` (Triagem Rápida & Ranking):**
    - Busca textual sob demanda em APIs oficiais de controle externo com suporte a multi-query paralela com separador pipe `|` (`Promise.all`).
    - **Estágio 1 do Funil:** Extrai apenas a Ficha de Triagem Rápida (`Cabeçalho + Ementa + Dispositivo`) sem download antecipado de textos longos.
@@ -149,13 +149,13 @@ A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`
 5. **Arquitetura 100% Plug-and-Play de Provedores (`JurisdictionProviderRegistry`):**
    - Desacoplamento integral de cortes e UFs: novos tribunais são registrados declarativamente com metadados (`tier`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
    - Política evolutiva canônica: **1 Conector / UF = 1 Patch Release**.
-   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**, **AGU**) e Estadual/Distrital (**TCE-PA**, **TCE-CE**, **TCDF**, **TCE-SP**, **TCE-MG**, **TCE-PR**).
+   - Cortes operacionais ativas: Camada Federal (**TCU**, **STJ**, **STF**, **TST**, **AGU**), Estadual/Distrital (**TCE-PA**, **TCE-CE**, **TCDF**, **TCE-SP**, **TCE-MG**, **TCE-PR**) e Municipal (**TCM-PA** — 1º conector da Onda 3 com coexistência via `sphere`).
    - **Resiliência Dupla:** Conectores com *Live Primary* (busca em APIs oficiais públicas) e *Catálogo Normativo Curado Local* (Súmulas e Consultas vinculantes determinísticas instantâneas).
    - **Graceful Fallback:** Caso solicitada UF não implementada (ex.: `RJ` ou `RS`), o motor executa automaticamente a camada federal e reporta `unimplemented_uf_requested` no payload sintético sem travar a execução.
 6. **Compilador Tático OpenXML (Lockstep C# Assert 29.6):**
    - Compilação sob demanda de Nota de Contrarrazões Jurídicas (`compileDefenseCounterReasoningDocx`) e Peça de Impugnação/Representação (`compileAttackChallengeDocx`) em layout vertical A4 corporativo com zero tabelas `<w:tbl>` e cards com bordas laterais coloridas.
 7. **Auto-Discovery Dinâmico e Seletor de Tribunal (`--court=<ID>`) em Live Tests:**
-   - Varre dinamicamente todos os conectores registrados no `JurisdictionProviderRegistry` (`bun run test:live:juris`), executando 23 sondas (2 sondas por corte em 11 cortes + 1 de Graceful Fallback) com diagnóstico claro de origem (`[API Live Direta]`, `[Híbrido]`, `[Fallback Curado Local]`), ou permite auditoria cirúrgica de tribunais específicos (`--court=TCE-MG`, `--court=TCE-SP,TCE-MG`, `--court=ALL`).
+   - Varre dinamicamente todos os conectores registrados no `JurisdictionProviderRegistry` (`bun run test:live:juris`), executando 25 sondas (2 sondas por corte em 12 cortes + 1 de Graceful Fallback) com diagnóstico claro de origem (`[API Live Direta]`, `[Híbrido]`, `[Fallback Curado Local]`), ou permite auditoria cirúrgica de tribunais específicos (`--court=TCM-PA`, `--court=TCE-MG`, `--court=TCE-SP,TCE-MG`, `--court=ALL`).
 
 ---
 
@@ -181,7 +181,7 @@ A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`
    - `generate_audit_docx` & `generate_technical_note_docx`: relatórios executivos e notas comparativas em layout vertical corrido A4 (zero tabelas `<w:tbl>`).
 5. **Conectores Externos Oficiais (PNCP & Jurisprudência):**
    - `fetch_pncp` e `search_pncp`: descoberta e download determinístico de contratações públicas de referência do Portal Nacional de Contratações Públicas (IN SEGES/ME nº 65/2021) com isolamento estrito em subpastas e resolução de redirects.
-   - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores (11 cortes homologadas).
+   - `search_juris` e `fetch_juris`: pesquisa e fatiamento anatômico de julgados em cortes de contas e tribunais superiores (12 cortes homologadas, incluindo `TCM-PA`).
 6. **Fiscalização Contratual, Aditivos, PAS Federativo/LINDB Art. 22, Cesta de Preços e Governança de ARP (Geração 5):**
    - `docgov_audit_contract_execution`: auditoria de limites de aditamento de 25%/50% sem compensação, consensualidade em estatais, batimento quadripartite, reajustes com interregno de 12 meses, PAS Federativo (`TCU`, `TCDF`, `TCE`, `TCM`, `CEIS`/`CNEP`/`PNCP`) com contraditório mínimo de 15 dias úteis e dosimetria LINDB Art. 22, segregação glosa ANS/IMR vs. multa (`0,5%`–`30%`), notificação de Seguro-Garantia, saneamento estatístico de cesta de preços (`CV <= 25%`), álea extraordinária e compilação OpenXML DOCX/PDF de notificações e pareceres de dosimetria.
    - `docgov_govern_arp`: governança determinística de Atas de Registro de Preços, livro-razão de caronas (50%/200%), compatibilidade jurídica/federativa e compilação de notas técnicas OpenXML.
@@ -198,7 +198,7 @@ A versão **`v1.6.7`** consolida e endurece a **Geração 6.5 do `docgov-engine`
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.7`):** Inclusão mandatória do campo `"engine_version": "1.6.7"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.8`):** Inclusão mandatória do campo `"engine_version": "1.6.8"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -277,9 +277,9 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Parâmetros: `caseDir`, `query` (*obrigatórios*), `status`, `uf`, `modalidade`, `limit` (*opcionais*).
 
 9. **`search_juris`**
-   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, auto-trigger trabalhista para TST e degradação graciosa com graceful fallback por UF.
+   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, coexistência Estadual vs. Municipal via `sphere` (`STATE`/`MUNICIPAL`/`ALL`), auto-trigger isolado e degradação graciosa com graceful fallback por UF.
    - Persiste Ficha de Triagem Rápida em `state/juris_search_results.json` e painel em `.md` com retorno sintético MCP conciso (< 900 bytes).
-   - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `stance`, `regime`, `limit` (*opcionais*).
+   - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `sphere`, `stance`, `regime`, `limit` (*opcionais*).
 
 10. **`fetch_juris`**
     - Download oficial e fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas pelo `AnatomicalSlicer` com trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
@@ -431,9 +431,10 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 | `--output-dir <dir>` | Diretório de destino para gravação de relatórios e artefatos em disco (usado com `audit-contract`, `govern-arp`, `evaluate-proposals` e `audit-direct-contracting`). |
 | `--query <termo>` | Termo ou expressão de busca textual (usado com `--search-pncp` e `--search-juris`). |
 | `--pncp <id_ou_url>` | Identificador PNCP canônico (`CNPJ-tipo-sequencial/ano`) ou link da contratação no PNCP. |
-| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCE-CE,TCDF,TCE-SP,TCE-MG,TCE-PR`). |
+| `--courts <lista>` | Lista de cortes separada por vírgula para consulta jurisprudencial (ex.: `TCU,STJ,STF,TST,AGU,TCE-PA,TCM-PA,TCE-CE,TCDF,TCE-SP,TCE-MG,TCE-PR`). |
 | `--court <id>` | Sigla da corte/tribunal de destino (usado com `--fetch-juris`). |
-| `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática de TCE no Juris. |
+| `--uf <UF>` | Sigla da Unidade Federativa para filtro territorial no PNCP ou resolução automática no Juris (suporta também código direto de corte como `TCM-PA`). |
+| `--sphere <esfera>` | Esfera subnacional no `--search-juris` (`STATE`, `MUNICIPAL`, `ALL` — padrão: `STATE`). |
 | `--id <acordao>` | Identificador ou citação canônica do acórdão/processo (usado com `--fetch-juris`). |
 | `--stance <postura>` | Postura tática no `--search-juris`, `--fetch-juris` e `evaluate-proposals` (`DEFENSE`, `ATTACK`, `BOTH`; na ferramenta `evaluate-proposals`: `DEFENSE`, `ATTACK`). |
 | `--regime <lei>` | Filtro de regime licitatório no `--search-juris` (`13303`, `14133`, `BOTH`). |
@@ -706,8 +707,11 @@ bun scripts/run_live_tests.ts --suite=juris --court=TCE-MG
 # Tribunal de Contas do Estado do Paraná (TCE-PR — Prejulgados, Súmulas e Consultas)
 bun scripts/run_live_tests.ts --suite=juris --court=TCE-PR
 
+# Tribunal de Contas dos Municípios do Estado do Pará (TCM-PA — 1º Conector Municipal da Onda 3)
+bun scripts/run_live_tests.ts --suite=juris --court=TCM-PA
+
 # Multi-Corte (Filtro por lista separada por vírgula)
-bun scripts/run_live_tests.ts --suite=juris --court=TCE-SP,TCE-MG,TCE-PR
+bun scripts/run_live_tests.ts --suite=juris --court=TCE-PA,TCM-PA,TCE-PR
 
 # Execução explícita de todas as cortes via flag
 bun scripts/run_live_tests.ts --suite=juris --court=ALL
