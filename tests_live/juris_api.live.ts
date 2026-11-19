@@ -24,10 +24,12 @@ function getCanonicalFallbackId(courtId: string): string {
     case "TST": return "TST-AIRR-0000590-72.2025.5.10.0009";
     case "AGU": return "PARECER-CNLCA-001-2021";
     case "TCE-PA": return "TCE-PA-1-2024";
+    case "TCM-PA": return "TCM-PA-ACORDAO-42110-2024";
     case "TCE-CE": return "TCE-CE-Acórdão-5741-2026";
     case "TCDF": return "TCDF-Decisão-1038-2020";
     case "TCE-SP": return "SUMULA-TCESP-30";
     case "TCE-MG": return "CONSULTA-TCEMG-1119769";
+    case "TCE-PR": return "TCE-PR-PREJULGADO-28";
     default: return `Acórdão 100/2023-${courtId}`;
   }
 }
@@ -40,7 +42,7 @@ function classifyOrigin(
   results: any[]
 ): "API Live Direta" | "Híbrido (Live + Curado)" | "Fallback Curado Local" {
   if (!results || results.length === 0) return "API Live Direta";
-  const curatedPattern = /^(SUMULA|CONSULTA|ON-AGU|PARECER)/i;
+  const curatedPattern = /^(SUMULA|CONSULTA|ON-AGU|PARECER|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i;
   const allCurated = results.every((r) => curatedPattern.test(r.id || ""));
   const someCurated = results.some((r) => curatedPattern.test(r.id || ""));
 
@@ -202,7 +204,7 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
         const dossieContent = existsSync(fetchRes.dossiePath) ? readFileSync(fetchRes.dossiePath, "utf-8") : "";
         const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
 
-        const fetchOrigin = /^(SUMULA|CONSULTA|ON-AGU|PARECER)/i.test(targetId)
+        const fetchOrigin = /^(SUMULA|CONSULTA|ON-AGU|PARECER|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i.test(targetId)
           ? "Catálogo Normativo Curado"
           : "API Live Direta";
 
