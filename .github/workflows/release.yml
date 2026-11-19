@@ -68,6 +68,16 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout Código
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Download Artifacts
         uses: actions/download-artifact@v8
         with:
@@ -85,12 +95,27 @@ jobs:
           echo "=== SHA256SUMS.txt GERADO NA CI ==="
           cat SHA256SUMS.txt
 
+      - name: Extrair Release Notes do CHANGELOG.md
+        id: release_notes
+        shell: bash
+        run: |
+          TAG_NAME="${{ inputs.tag_name || github.ref_name }}"
+          bun run ./scripts/extract_release_notes.ts \
+            --tag "$TAG_NAME" \
+            --changelog CHANGELOG.md \
+            --out dist-release/RELEASE_NOTES.md \
+            --github-output "$GITHUB_OUTPUT"
+          echo "=== RELEASE NOTES EXTRAÍDAS ($TAG_NAME) ==="
+          cat dist-release/RELEASE_NOTES.md || true
+
       - name: Publicar Release no GitHub
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ inputs.tag_name || github.ref_name }}
+          name: ${{ steps.release_notes.outputs.title || inputs.tag_name || github.ref_name }}
+          body_path: ${{ steps.release_notes.outputs.found == 'true' && 'dist-release/RELEASE_NOTES.md' || '' }}
           files: |
             dist-release/docgov-engine-linux-x64
             dist-release/docgov-engine-win-x64.exe
             dist-release/SHA256SUMS.txt
-          generate_release_notes: true
+          generate_release_notes: ${{ steps.release_notes.outputs.found != 'true' }}

@@ -15,7 +15,8 @@
     "build:linux": "bun build ./src/index.ts --compile --minify --outfile ./bin/docgov-engine",
     "build:windows": "bun build ./src/index.ts --compile --target=bun-windows-x64 --minify --outfile ./bin/docgov-engine.exe",
     "check:lines": "bun run ./scripts/check_lines.ts",
-    "dump:spec": "bun run ./src/index.ts --dump-spec docs/especificacao_motor.md"
+    "dump:spec": "bun run ./src/index.ts --dump-spec docs/especificacao_motor.md",
+    "release:notes": "bun run ./scripts/extract_release_notes.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
