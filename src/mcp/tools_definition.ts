@@ -217,12 +217,18 @@ export function getMcpToolsDefinition() {
             type: "array",
             items: { type: "string" },
             description:
-              "Lista opcional de cortes a consultar (ex.: ['TCU', 'STJ', 'STF', 'TST', 'AGU', 'TCE-PA', 'TCE-CE', 'TCDF', 'TCE-SP', 'TCE-MG', 'TCE-PR']). Se omitido e uf omitida, pesquisa a camada federal (TCU, STJ, STF).",
+              "Lista opcional de cortes a consultar (ex.: ['TCU', 'STJ', 'STF', 'TST', 'AGU', 'TCE-PA', 'TCM-PA', 'TCE-CE', 'TCDF', 'TCE-SP', 'TCE-MG', 'TCE-PR']). Se omitido e uf omitida, pesquisa a camada federal (TCU, STJ, STF).",
           },
           uf: {
             type: "string",
             description:
-              "Sigla da UF de interesse (ex.: 'PA', 'CE', 'DF', 'SP', 'MG', 'PR'). Se for informada UF não implementada (ex.: 'AM'), ativa Graceful Fallback sem falhar.",
+              "Sigla da UF de interesse (ex.: 'PA', 'CE', 'DF', 'SP', 'MG', 'PR') ou código explícito de corte subnacional (ex.: 'TCM-PA'). Se for informada UF não implementada (ex.: 'AM'), ativa Graceful Fallback sem falhar.",
+          },
+          sphere: {
+            type: "string",
+            enum: ["STATE", "MUNICIPAL", "ALL"],
+            description:
+              "Esfera de corte de contas subnacional quando informada UF com múltiplos tribunais (ex.: 'PA' -> TCE-PA e TCM-PA). Padrão 'STATE' (retrocompatível); use 'MUNICIPAL' para TCM ou 'ALL' para ambos.",
           },
           stance: {
             type: "string",

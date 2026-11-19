@@ -4,6 +4,7 @@
 
 export type JurisStance = "DEFENSE" | "ATTACK" | "BOTH";
 export type JurisLegalRegime = "13303" | "14133" | "BOTH";
+export type JurisdictionSphere = "STATE" | "MUNICIPAL" | "ALL";
 export type StanceAlignment = "FAVORABLE" | "ADVERSE_DISTINGUISHING_REQUIRED" | "NEUTRAL";
 
 export interface JurisdictionRoutingInfo {
@@ -59,6 +60,7 @@ export interface SearchJurisOptions {
   queries?: string; // alias para query
   courts?: string[];
   uf?: string;
+  sphere?: JurisdictionSphere;
   stance?: JurisStance;
   regime?: JurisLegalRegime;
   colegiado?: string;
@@ -209,7 +211,7 @@ export interface RawJurisFetchResult {
   rawTextOrJson: any;
 }
 
-export type JurisdictionTier = "FEDERAL" | "STATE";
+export type JurisdictionTier = "FEDERAL" | "STATE" | "MUNICIPAL";
 
 export interface JurisdictionProvider {
   readonly courtId: string;

@@ -22,7 +22,10 @@ export class TcePaProvider implements JurisdictionProvider {
   public readonly uf = "PA";
   public readonly envOverrideKey = "DOCGOV_TCE_PA_BASE_URL";
   public readonly liveSmokeQuery = "licitação";
-  public readonly idPatterns = [/\bTCE[-_\s]?PA\b/i];
+  public readonly idPatterns = [/\bTCE[-_\s]?PA\b/i, /\bTCEPA\b/i];
+  // Auto-trigger estrito exclusivo do TCE-PA (sem 'pará' ou 'pa' isolados para evitar colisão com TCM-PA)
+  public readonly autoTriggerKeywords =
+    /\b(tce[- ]pa|tce\/pa|tcepa|tribunal\s+de\s+contas\s+do\s+estado\s+do\s+par[aá]|tribunal\s+de\s+contas\s+do\s+par[aá])\b/i;
 
   private getBaseUrl(): string {
     if (process.env.DOCGOV_JURIS_BASE_URL) {

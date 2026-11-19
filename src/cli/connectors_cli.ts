@@ -201,6 +201,7 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const caseDirIdx = args.indexOf("--case-dir");
     const courtsIdx = args.indexOf("--courts");
     const ufIdx = args.indexOf("--uf");
+    const sphereIdx = args.indexOf("--sphere");
     const stanceIdx = args.indexOf("--stance");
     const regimeIdx = args.indexOf("--regime");
     const limitIdx = args.indexOf("--limit");
@@ -226,6 +227,9 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const uf = ufIdx !== -1 && args[ufIdx + 1] && !args[ufIdx + 1].startsWith("--")
       ? args[ufIdx + 1]
       : undefined;
+    const sphere = sphereIdx !== -1 && args[sphereIdx + 1] && !args[sphereIdx + 1].startsWith("--")
+      ? (args[sphereIdx + 1].toUpperCase() as any)
+      : undefined;
     const stance = stanceIdx !== -1 && args[stanceIdx + 1] && !args[stanceIdx + 1].startsWith("--")
       ? (args[stanceIdx + 1] as any)
       : undefined;
@@ -237,7 +241,7 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
       : undefined;
 
     try {
-      const res = await searchJuris({ query, caseDir, courts, uf, stance, regime, limit });
+      const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit });
       const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {

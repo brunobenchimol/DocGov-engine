@@ -86,6 +86,7 @@ export async function dispatchModularTool(
       caseDir: args.caseDir,
       courts: args.courts,
       uf: args.uf,
+      sphere: args.sphere,
       stance: args.stance,
       regime: args.regime,
       colegiado: args.colegiado,

@@ -6,11 +6,13 @@
 import type {
   JurisdictionProvider,
   JurisdictionRoutingInfo,
+  JurisdictionSphere,
 } from "./types.ts";
 import { TcuProvider } from "./providers/tcu_provider.ts";
 import { StjProvider } from "./providers/stj_provider.ts";
 import { StfProvider } from "./providers/stf_provider.ts";
 import { TcePaProvider } from "./providers/tce_pa_provider.ts";
+import { TcmPaProvider } from "./providers/tcm_pa_provider.ts";
 import { TceCeProvider } from "./providers/tce_ce_provider.ts";
 import { TcdfProvider } from "./providers/tcdf_provider.ts";
 import { TceSpProvider } from "./providers/tce_sp_provider.ts";
@@ -29,6 +31,7 @@ export class JurisdictionProviderRegistry {
     this.register(new TstProvider());
     this.register(new AguProvider());
     this.register(new TcePaProvider());
+    this.register(new TcmPaProvider());
     this.register(new TceCeProvider());
     this.register(new TcdfProvider());
     this.register(new TceSpProvider());
@@ -41,7 +44,18 @@ export class JurisdictionProviderRegistry {
   }
 
   public get(courtId: string): JurisdictionProvider | undefined {
-    return this.providers.get(courtId.toUpperCase());
+    const upper = courtId.trim().toUpperCase();
+    const direct = this.providers.get(upper);
+    if (direct) return direct;
+
+    // Normaliza variações sem hífen ou com underscore (ex.: TCMPA, TCM_PA -> TCM-PA)
+    const compact = upper.replace(/[-_\s]+/g, "");
+    for (const [key, prov] of this.providers.entries()) {
+      if (key.replace(/[-_\s]+/g, "") === compact) {
+        return prov;
+      }
+    }
+    return undefined;
   }
 
   public getAllCourts(): string[] {
@@ -71,22 +85,56 @@ export class JurisdictionProviderRegistry {
   }
 
   /**
-   * Localiza conector estadual associado a uma UF.
+   * Localiza conector subnacional associado a uma UF, respeitando a esfera solicitada.
+   * Por padrão ("STATE"), prioriza TCE-<UF>/TCDF para retrocompatibilidade com a Onda 1/2.
    */
-  public getProviderByUf(uf: string): JurisdictionProvider | undefined {
+  public getProviderByUf(
+    uf: string,
+    sphere: "STATE" | "MUNICIPAL" = "STATE"
+  ): JurisdictionProvider | undefined {
     const targetUf = uf.trim().toUpperCase();
-    for (const prov of this.providers.values()) {
-      if (prov.uf && prov.uf.toUpperCase() === targetUf) {
-        return prov;
-      }
-      if (prov.courtId.toUpperCase() === `TCE-${targetUf}`) {
-        return prov;
-      }
-      if (targetUf === "DF" && prov.courtId.toUpperCase() === "TCDF") {
-        return prov;
-      }
+    const candidates = Array.from(this.providers.values()).filter((prov) => {
+      if (prov.uf && prov.uf.toUpperCase() === targetUf) return true;
+      if (prov.courtId.toUpperCase() === `TCE-${targetUf}`) return true;
+      if (prov.courtId.toUpperCase() === `TCM-${targetUf}`) return true;
+      if (targetUf === "DF" && prov.courtId.toUpperCase() === "TCDF") return true;
+      return false;
+    });
+
+    if (candidates.length === 0) return undefined;
+
+    if (sphere === "MUNICIPAL") {
+      return candidates.find(
+        (p) => p.tier === "MUNICIPAL" || p.courtId.toUpperCase().startsWith("TCM-")
+      );
     }
-    return undefined;
+
+    return (
+      candidates.find(
+        (p) => p.tier !== "MUNICIPAL" && !p.courtId.toUpperCase().startsWith("TCM-")
+      ) || candidates[0]
+    );
+  }
+
+  /**
+   * Retorna todos os conectores subnacionais aplicáveis a uma UF segundo a esfera ("STATE" | "MUNICIPAL" | "ALL").
+   */
+  public getProvidersByUf(
+    uf: string,
+    sphere: JurisdictionSphere = "STATE"
+  ): JurisdictionProvider[] {
+    const targetUf = uf.trim().toUpperCase();
+    if (sphere === "ALL") {
+      return Array.from(this.providers.values()).filter((prov) => {
+        if (prov.uf && prov.uf.toUpperCase() === targetUf) return true;
+        if (prov.courtId.toUpperCase() === `TCE-${targetUf}`) return true;
+        if (prov.courtId.toUpperCase() === `TCM-${targetUf}`) return true;
+        if (targetUf === "DF" && prov.courtId.toUpperCase() === "TCDF") return true;
+        return false;
+      });
+    }
+    const single = this.getProviderByUf(targetUf, sphere);
+    return single ? [single] : [];
   }
 
   /**
@@ -95,12 +143,14 @@ export class JurisdictionProviderRegistry {
   public getDefaultFederalProviders(): JurisdictionProvider[] {
     const federal: JurisdictionProvider[] = [];
     for (const prov of this.providers.values()) {
-      const isState =
+      const isSubnational =
         prov.tier === "STATE" ||
+        prov.tier === "MUNICIPAL" ||
         !!prov.uf ||
         prov.courtId.startsWith("TCE-") ||
+        prov.courtId.startsWith("TCM-") ||
         prov.courtId.toUpperCase() === "TCDF";
-      if (!isState && prov.defaultFederal !== false) {
+      if (!isSubnational && prov.defaultFederal !== false) {
         federal.push(prov);
       }
     }
@@ -124,12 +174,26 @@ export class JurisdictionProviderRegistry {
       if (upper.includes(prov.courtId.toUpperCase())) {
         return prov.courtId;
       }
-      if (prov.uf && (upper.includes(`TCE-${prov.uf.toUpperCase()}`) || upper.includes(`TCE${prov.uf.toUpperCase()}`))) {
-        return prov.courtId;
+      if (prov.uf) {
+        const ufUpper = prov.uf.toUpperCase();
+        const isMunicipal = prov.tier === "MUNICIPAL" || prov.courtId.toUpperCase().startsWith("TCM-");
+        if (isMunicipal && (upper.includes(`TCM-${ufUpper}`) || upper.includes(`TCM${ufUpper}`))) {
+          return prov.courtId;
+        }
+        if (!isMunicipal && (upper.includes(`TCE-${ufUpper}`) || upper.includes(`TCE${ufUpper}`))) {
+          return prov.courtId;
+        }
       }
     }
 
-    // 2. Reconhecimento universal por regex de qualquer TCE estadual (ex.: TCE-SP, TCE-MG, etc.)
+    // 2. Reconhecimento universal por regex de TCM municipal e TCE estadual
+    const tcmMatch = upper.match(/\bTCM[-_]?([A-Z]{2,3})\b/);
+    if (tcmMatch) {
+      const candidateCourt = `TCM-${tcmMatch[1]}`;
+      const existing = this.get(candidateCourt);
+      return existing ? existing.courtId : candidateCourt;
+    }
+
     const tceMatch = upper.match(/\bTCE[-_]?([A-Z]{2})\b/);
     if (tceMatch) {
       const candidateCourt = `TCE-${tceMatch[1]}`;
@@ -156,7 +220,8 @@ export class JurisdictionProviderRegistry {
   public resolveRouting(
     requestedCourts?: string[],
     requestedUf?: string,
-    queryContext?: string
+    queryContext?: string,
+    requestedSphere?: JurisdictionSphere
   ): {
     selectedProviders: JurisdictionProvider[];
     routingInfo: JurisdictionRoutingInfo;
@@ -167,24 +232,32 @@ export class JurisdictionProviderRegistry {
     let fallbackNotice: string | null = null;
 
     const upperUf = requestedUf ? requestedUf.trim().toUpperCase() : undefined;
+    const sphere: JurisdictionSphere = requestedSphere || "STATE";
     const supportedUfs = this.getSupportedUfs();
+
+    const addSelected = (prov: JurisdictionProvider) => {
+      if (!selected.includes(prov)) {
+        selected.push(prov);
+        executedCourts.push(prov.courtId);
+      }
+    };
+
+    const resolveUfOrDirectCourt = (ufOrCourt: string): JurisdictionProvider[] => {
+      const direct = this.get(ufOrCourt);
+      if (direct) return [direct];
+      return this.getProvidersByUf(ufOrCourt, sphere);
+    };
 
     if (requestedCourts && requestedCourts.length > 0) {
       // 1. Cortes explícitas
       for (const courtName of requestedCourts) {
         const prov = this.get(courtName);
-        if (prov && !selected.includes(prov)) {
-          selected.push(prov);
-          executedCourts.push(prov.courtId);
-        }
+        if (prov) addSelected(prov);
       }
       if (upperUf) {
-        const stateProv = this.getProviderByUf(upperUf);
-        if (stateProv) {
-          if (!selected.includes(stateProv)) {
-            selected.push(stateProv);
-            executedCourts.push(stateProv.courtId);
-          }
+        const ufProvs = resolveUfOrDirectCourt(upperUf);
+        if (ufProvs.length > 0) {
+          ufProvs.forEach(addSelected);
         } else {
           unimplementedUf = upperUf;
           fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada nas cortes selecionadas via Graceful Fallback.`;
@@ -193,32 +266,21 @@ export class JurisdictionProviderRegistry {
     } else {
       // 2. Sem cortes explícitas -> Camada federal padrão
       const federalProviders = this.getDefaultFederalProviders();
-      for (const prov of federalProviders) {
-        if (!selected.includes(prov)) {
-          selected.push(prov);
-          executedCourts.push(prov.courtId);
-        }
-      }
+      federalProviders.forEach(addSelected);
 
-      // Auto-Trigger Contextual Plug-and-Play para provedores especializados (ex.: TST)
+      // Auto-Trigger Contextual Plug-and-Play (ex.: TST, TCE-SP, TCM-PA)
       if (queryContext) {
         for (const prov of this.providers.values()) {
           if (prov.autoTriggerKeywords && prov.autoTriggerKeywords.test(queryContext)) {
-            if (!selected.includes(prov)) {
-              selected.push(prov);
-              executedCourts.push(prov.courtId);
-            }
+            addSelected(prov);
           }
         }
       }
 
       if (upperUf) {
-        const stateProv = this.getProviderByUf(upperUf);
-        if (stateProv) {
-          if (!selected.includes(stateProv)) {
-            selected.push(stateProv);
-            executedCourts.push(stateProv.courtId);
-          }
+        const ufProvs = resolveUfOrDirectCourt(upperUf);
+        if (ufProvs.length > 0) {
+          ufProvs.forEach(addSelected);
         } else {
           unimplementedUf = upperUf;
           fallbackNotice = `Conector estadual para UF '${upperUf}' ainda não implementado (UFs nativas: ${supportedUfs.join(", ")}). Pesquisa executada automaticamente na camada federal (${executedCourts.join(", ")}) via Graceful Fallback.`;

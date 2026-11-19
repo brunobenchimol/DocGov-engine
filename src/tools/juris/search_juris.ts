@@ -55,7 +55,8 @@ export async function searchJuris(
   const { selectedProviders, routingInfo } = (registry || defaultJurisdictionRegistry).resolveRouting(
     options.courts,
     options.uf,
-    qStr
+    qStr,
+    options.sphere
   );
 
   // 2. Expansão via Statutory Bridge
