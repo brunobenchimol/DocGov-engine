@@ -142,4 +142,19 @@ describe("Testes Unitários v1.0.0: Consistência da Esteira de Distribuição e
     expect(missing.found).toBe(false);
     expect(missing.body).toBe("");
   });
+
+  it("12. AGENTS.md e docs/JURIS_CONNECTOR_PLAYBOOK.md devem tornar obrigatória a verificação de Release Notes (Dupla Defesa)", () => {
+    const agentsContent = readFileSync(resolve(process.cwd(), "AGENTS.md"), "utf-8");
+    expect(agentsContent).toContain("extract_release_notes.ts");
+    expect(agentsContent).toContain("gh release view");
+    expect(agentsContent).toContain("gh release edit");
+    expect(agentsContent).toContain("Release Notes");
+
+    const playbookContent = readFileSync(
+      resolve(process.cwd(), "docs/JURIS_CONNECTOR_PLAYBOOK.md"),
+      "utf-8"
+    );
+    expect(playbookContent).toContain("gh release view");
+    expect(playbookContent).toContain("gh release edit");
+  });
 });

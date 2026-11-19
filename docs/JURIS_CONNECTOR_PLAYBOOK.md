@@ -97,6 +97,7 @@ Após aprovação do plano, execute a sequência atômica de commits:
 - Crie a tag anotada: `git tag -a vX.Y.Z+1 -m "Release vX.Y.Z+1: conector estadual <CORTE> com Resiliência Dupla"`
 - Envie: `git push origin <branch> ; git push origin vX.Y.Z+1`
 - Monitore a esteira automatizada no GitHub Actions (`gh run watch`) sem realizar uploads manuais locais (Lei 7).
+- Confira obrigatoriamente o título, o corpo das Release Notes e os assets publicados com `gh release view vX.Y.Z+1`; se o texto extraído automaticamente do `CHANGELOG.md` precisar de ajuste ou enriquecimento editorial (ex.: tabela de sondas online), edite exclusivamente os metadados via `gh release edit vX.Y.Z+1 --title "..." --notes-file ...` sem tocar nos binários (Lei 7).
 
 ---
 

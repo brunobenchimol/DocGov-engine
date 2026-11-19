@@ -8,6 +8,9 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Added
+- **Automação & Dupla Defesa de Release Notes (`scripts/extract_release_notes.ts`, `.github/workflows/release.yml`, `AGENTS.md`, `docs/JURIS_CONNECTOR_PLAYBOOK.md`):** Extração determinística de título (`vX.Y.Z — <Subtítulo>`) e corpo editorial a partir da seção correspondente do `CHANGELOG.md` diretamente no pipeline de release (com `Full Changelog` e bloco de verificação oficial), somada à conferência obrigatória pelo agente via `gh release view` / `gh release edit` na Lei 7, DoD Global e Playbook de Conectores, sob guarda de testes em `test/distribution.test.ts`.
+
 ## [1.6.10] - 2026-11-18 — Higiene Arquitetural (Eixo 5): Orçamento Estrito de Tokens no Handshake MCP (`tools/list`) & Trava Automatizada
 
 ### Changed

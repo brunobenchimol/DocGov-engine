@@ -46,7 +46,9 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
   - O agente DEVE inspecionar se o repositório possui esteira automatizada externa de CI/CD (ex.: `.github/workflows/`, `.gitlab-ci.yml` ou equivalente).
   - **Existindo pipeline externo configurado para tags, o push da tag Git é o gatilho canônico exclusivo de release.**
   - É **TERMINANTEMENTE PROIBIDO** tentar subir arquivos de release na mão, criar releases por comandos locais (`gh release create`) ou fazer upload manual de binários compilados na máquina de desenvolvimento. Toda compilação oficial, cálculo de checksums e publicação de assets cabem estritamente à esteira automatizada em seus runners remotos.
-  - **Protocolo Observador:** Após o push da tag, o agente deve apenas monitorar a conclusão do pipeline externo (ex.: `gh run list` / `gh run watch`). Caso seja necessário enriquecer notas ou descrições após a publicação automatizada, o agente deve usar exclusivamente comandos declarativos de edição de metadados (ex.: `gh release edit vX.Y.Z --notes-file ...`), **sem nunca reinjetar ou sobrescrever os binários oficiais gerados pela esteira**.
+  - **Protocolo Observador & Dupla Defesa de Release Notes (Obrigatório):**
+    1. **1ª Defesa (Automática na CI):** A seção `## [X.Y.Z] - YYYY-MM-DD — <Subtítulo>` do `CHANGELOG.md` é a fonte canônica extraída automaticamente por `scripts/extract_release_notes.ts` no `.github/workflows/release.yml` para gerar o título (`vX.Y.Z — <Subtítulo>`) e o corpo formatado da GitHub Release.
+    2. **2ª Defesa (Conferência Obrigatória do Agente):** Após o push da tag, o agente deve monitorar a conclusão do pipeline externo (`gh run list` / `gh run watch`) e **obrigatoriamente** auditar a release publicada via `gh release view vX.Y.Z` (conferindo título, corpo das Release Notes no padrão editorial do projeto e os 3 assets oficiais). Se as notas geradas automaticamente estiverem incompletas, fora do padrão editorial ou demandarem enriquecimento (ex.: tabela comparativa ou métricas finais), o agente **DEVE** ajustá-las imediatamente usando exclusivamente comandos declarativos de edição de metadados (`gh release edit vX.Y.Z --title "..." --notes-file ...`), **sem nunca reinjetar ou sobrescrever os binários oficiais gerados pela esteira**.
 
 ## Lei 8: Disciplina Autônoma de Micro-Commits Atômicos, Reversibilidade e Memória Evolutiva (`CHANGELOG.md`, `ROADMAP.md` & `docs/CAPABILITIES_EVOLUTION_HISTORY.md`)
 - É terminantemente proibido realizar commits monolíticos ("Big Bang") que misturem múltiplas features, refatorações ou correções em um único disparo.
@@ -90,7 +92,7 @@ Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do 
 - [ ] **4. Neutralidade Institucional (Lei 5):** Ausência de nomes específicos de órgãos/localidades;
 - [ ] **5. Micro-Commits Semânticos (Lei 8):** Fatiamento atômico registrado no Git;
 - [ ] **6. Memória Evolutiva (Lei 8):** `CHANGELOG.md` e `ROADMAP.md` atualizados e consistentes;
-- [ ] **7. Esteira de Release Automatizada:** Push da tag anotada efetuado e conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos);
+- [ ] **7. Esteira de Release Automatizada & Release Notes:** Push da tag anotada efetuado, conclusão com status de sucesso na esteira externa de CI/CD (sem uploads manuais locais de artefatos) e conferência obrigatória das Release Notes publicadas (`gh release view vX.Y.Z`, ajustando via `gh release edit` se necessário);
 - [ ] **8. Árvore de Trabalho Limpa:** `git status` limpo sem arquivos residuais ou modificações não rastreadas;
 - [ ] **9. Modularidade e Teto de 500 Linhas (Lei 9):** Arquivos em `src/tools/juris/`, `src/utils/pdf/`, `src/contracts/`, `src/arp/`, `src/bidding/`, `src/direct_contracting/`, `src/demo_costs/`, `test/`, `tests_live/` e `scripts/` respeitando o limite $\le 500$ linhas verificado por `scripts/check_lines.ts`.
 
