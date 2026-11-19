@@ -358,4 +358,21 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     // Constantes
     expect(barrel.VERSION).toBe(VERSION);
   });
+
+  test("deve respeitar o orçamento estrito de <= 600 caracteres na description de cada tool no tools/list (Eixo 5)", () => {
+    const MAX_TOOL_DESCRIPTION_CHARS = 600;
+    const tools = getMcpToolsDefinition();
+    expect(tools.length).toBeGreaterThanOrEqual(16);
+
+    const offenders = tools
+      .filter((t) => (t.description ?? "").length > MAX_TOOL_DESCRIPTION_CHARS)
+      .map((t) => `${t.name} (${(t.description ?? "").length} chars)`);
+
+    expect(offenders).toEqual([]);
+
+    for (const tool of tools) {
+      expect(tool.description).toBeDefined();
+      expect(tool.description!.length).toBeLessThanOrEqual(MAX_TOOL_DESCRIPTION_CHARS);
+    }
+  });
 });
