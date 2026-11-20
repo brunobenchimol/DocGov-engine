@@ -8,6 +8,9 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ## [Unreleased]
 
+### Melhorias de Engenharia & Testes (DX / Economia de Tokens)
+- **Runner Compacto de Testes (`scripts/run_tests.ts` — `bun run test`):** Adicionado wrapper determinístico de testes com saída compacta padrão (~95% de economia de tokens na suíte completa, ~14 linhas vs. 500+), heartbeat anti-travamento (lotes de 10 arquivos + alerta de 12s), preservação integral de falhas com buffer circular de fallback em `stderr`, ranking *Top 3* arquivos mais lentos e modo completo sob demanda (`bun run test:verbose`). Atualizados `package.json` e `AGENTS.md` (Lei 9 / DoD). *(Commit `1000793`)*
+
 ## [1.6.11] - 2026-11-19 — Blindagem de Contratos Gen5 (`Exact Copy-Paste Error` & Detector de `unknown_keys`), Smoke Test MCP `stdio` Real & Automação de Release Notes
 
 ### Added
