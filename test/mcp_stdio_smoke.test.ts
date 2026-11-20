@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
@@ -41,7 +41,7 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     }
   });
 
-  test("1. initialize via stdio deve expor versão v1.6.10 e instruções canônicas sem inflar regra interna", () => {
+  test("1. initialize via stdio deve expor versão corrente e instruções canônicas sem inflar regra interna", () => {
     const serverInfo = client.getServerVersion();
     expect(serverInfo?.name).toBe("docgov-engine");
     expect(serverInfo?.version).toBe(VERSION);
@@ -123,6 +123,7 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     expect(contractJson.status).toBe("blocked");
     expect(contractJson.engine_version).toBe(VERSION);
     expect(contractJson.blocking_tags).toContain("[ADDENDUM_LIMIT_EXCEEDED_25PCT]");
+    expect(contractJson.unknown_keys).toBeUndefined();
 
     const arpJsonPath = join(tempDir, "arp_valido.json");
     writeFileSync(
@@ -147,6 +148,7 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     expect(arpJson.decision).toBe("REJECTED");
     expect(arpJson.engine_version).toBe(VERSION);
     expect(arpJson.blocking_tags).toContain("[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]");
+    expect(arpJson.unknown_keys).toBeUndefined();
   });
 
   test("5. tools/call com payloads vazios/inválidos ou fora de escopo via stdio deve retornar Exact Copy-Paste Error e guardrails", async () => {
@@ -197,5 +199,76 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
       },
     });
     expect(outOfScopeBuildRes.isError).toBe(true);
+  });
+
+  test("6. tools/call via stdio deve detectar unknown_keys (ex.: addendums[0].compensation_attempted e adhesions[0]) mantendo envelope < 900B", async () => {
+    const driftContractDir = join(tempDir, "drift_contract");
+    const driftContractPath = join(tempDir, "contrato_drift.json");
+    writeFileSync(
+      driftContractPath,
+      JSON.stringify({
+        contract_id: "CT-DRIFT-01",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICE",
+        initial_value: 1000000,
+        addendums: [
+          {
+            id: "TA-01",
+            value_increase: 200000,
+            value_decrease: 150000,
+            compensation_attempted: true,
+          },
+        ],
+      }),
+      "utf-8"
+    );
+
+    const contractRes = await client.callTool({
+      name: "docgov_audit_contract_execution",
+      arguments: { contractJsonPath: driftContractPath, outputDir: driftContractDir },
+    });
+    expect(contractRes.isError).toBeFalsy();
+    const contractText = extractFirstTextContent(contractRes);
+    expect(Buffer.byteLength(contractText, "utf-8")).toBeLessThan(900);
+
+    const contractJson = JSON.parse(contractText);
+    expect(contractJson.unknown_keys).toEqual(["addendums[0].compensation_attempted"]);
+
+    const diskContractReport = JSON.parse(
+      readFileSync(join(driftContractDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
+    );
+    expect(diskContractReport.unknown_keys).toEqual(["addendums[0].compensation_attempted"]);
+    expect(diskContractReport.schema_warnings?.[0]).toContain("addendums[0].compensation_attempted");
+
+    const driftArpDir = join(tempDir, "drift_arp");
+    const driftArpPath = join(tempDir, "arp_drift.json");
+    writeFileSync(
+      driftArpPath,
+      JSON.stringify({
+        arp_number: "ARP-DRIFT-01",
+        items: [{ item_id: "IT-01", registered_qty: 100, requested_adhesion_qty: 20 }],
+        adhesions: [{ requesting_organ: "ORGAO_A", unmapped_flag: true }],
+      }),
+      "utf-8"
+    );
+
+    const arpRes = await client.callTool({
+      name: "docgov_govern_arp",
+      arguments: { arpJsonPath: driftArpPath, outputDir: driftArpDir },
+    });
+    expect(arpRes.isError).toBeFalsy();
+    const arpText = extractFirstTextContent(arpRes);
+    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThan(900);
+
+    const arpJson = JSON.parse(arpText);
+    expect(arpJson.unknown_keys).toContain("adhesions");
+    expect(arpJson.unknown_keys).toContain("adhesions[0].unmapped_flag");
+    expect(arpJson.unknown_keys).toContain("adhesions[0].requesting_organ(string_must_be_object)");
+
+    const diskArpDossier = JSON.parse(
+      readFileSync(join(driftArpDir, "dossie_governanca_arp.json"), "utf-8")
+    );
+    expect(diskArpDossier.unknown_keys).toContain("adhesions[0].unmapped_flag");
+    expect(diskArpDossier.schema_warnings?.[0]).toContain("adhesions[0].unmapped_flag");
   });
 });
