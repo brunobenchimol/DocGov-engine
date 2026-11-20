@@ -1,4 +1,4 @@
-# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.10`)
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.11`)
 
 ---
 
@@ -10,7 +10,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 
 ---
 
-## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.10`)
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.11`)
 
 ### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
 - **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
@@ -88,3 +88,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 - **Enxugamento Cirúrgico (`<= 600` chars / ~150 tokens por tool):** Otimização das 14 descrições acima do teto em `src/mcp/tools_definition.ts` (12 tools), `src/demo_costs/audit_runner.ts` (`docgov_audit_demo_regime`) e `src/engineering/tool_definition.ts` (`docgov_audit_engineering_works`), reduzindo a soma das `description`s em `-63,3%` (`20.793 -> 7.631` chars) e o payload `tools/list` total em `-29,0%` (`45.432 -> 32.256` chars / `~11.358 -> ~8.064` tokens).
 - **Zero Breaking Changes & Preservação do `initialize`:** Todos os nomes de ferramentas, `inputSchema`, enums e `annotations` permanecem 100% intactos, assim como `DOCX_ENGINE_INSTRUCTIONS` (sem inflação de regra interna), delegando contratos exaustivos ao `--dump-spec`.
 - **Trava Anti-Regressão (`test/mcp_spec.test.ts`):** Validação determinística contínua garantindo `description.length <= 600` em 100% das tools para blindar as futuras séries `v1.7.x` e `v1.8.x`.
+
+### Blindagem de Contratos Gen5, Detector de `unknown_keys` & Smoke Test MCP via `stdio` Real (`v1.6.11`)
+- **Exact Copy-Paste Error & Detector Determinístico de `unknown_keys` (`src/contracts/gen5_contract_errors.ts`):** Bloqueio *fail-fast* com snippet JSON canônico copiável para entradas vazias/inválidas em `docgov_audit_contract_execution` e `docgov_govern_arp` (`49fb4e9`, `316d078`), somado à detecção de chaves desconhecidas na raiz e arrays principais (`addendums[]`, `pas_sanctions[]`, `tripartite_items[]`, `readjustments[]`, `price_basket`, `risk_matrix_events[]`, `items[]`, `adhesion_request` / `adhesions[]`) sem criar aliases silenciosos (Lei 3). Registra `unknown_keys` e `schema_warnings` nos dossiês JSON/MD em disco e expõe `unknown_keys` no envelope MCP somente quando não vazio (`< 900B`, Lei 2).
+- **Paridade Estrita `spec.ts` vs. Parsers `.ts` & Smoke Test `stdio` Real (`test/mcp_stdio_smoke.test.ts`):** Alinhamento 100% entre `--dump-spec` e os parsers reais (`addendums`, `value_increase`, `value_decrease`, `compensated_attempt`, `requesting_organ` estruturado), validado ponta a ponta via `StdioClientTransport` real (`c16287c`), além da automação e Dupla Defesa de Release Notes (`scripts/extract_release_notes.ts` e `.github/workflows/release.yml`).

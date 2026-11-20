@@ -1,5 +1,5 @@
 // ============================================================================
-// Definições de Ferramentas e Prompts MCP (docgov-engine v1.6.10)
+// Definições de Ferramentas e Prompts MCP (docgov-engine v1.6.11)
 // ============================================================================
 
 import { DEMO_REGIME_TOOL_DEFINITION } from "../demo_costs/audit_runner.ts";
