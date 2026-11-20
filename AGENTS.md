@@ -59,7 +59,7 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
 - **Teto Físico de Arquivo ($\le 500$ linhas):** Nenhum arquivo `.ts` em `src/tools/juris/`, `test/`, `tests_live/` e `scripts/` (e novos módulos em `src/`) pode ultrapassar 500 linhas de código. Novas capacidades (como o motor de jurisprudência da `v1.4.x`) DEVEM nascer em subdiretórios próprios de domínio (ex.: `src/tools/juris/search_juris.ts`, `src/tools/juris/fetch_juris.ts`, `src/tools/juris/statutory_bridge.ts`, `src/tools/juris/anatomical_slicer.ts`), jamais sendo empilhadas dentro de arquivos existentes;
 - **Governança Modular de Testes ($\le 500$ linhas):** É terminantemente proibido manter ou criar monólitos de teste em `test/`. A homologação de novas cortes, UFs ou funcionalidades deve ser alocada cirurgicamente no subdiretório modular de seu domínio (ex.: novos conectores de tribunais estaduais/municipais em `test/juris/state_courts.test.ts` ou sub-arquivos dedicados por corte/tier), garantindo que cada arquivo permaneça $\le 500$ linhas e seja executável de forma pontual (`bun test test/juris/state_courts.test.ts -t "TCE-SP"`);
 - **Leitura Fatiada (*Target-Lines Only*):** Durante manutenções e inspeções, o agente DEVE inspecionar apenas o submódulo específico ou intervalo estrito de linhas alvo, evitando leituras integrais de arquivos grandes para prevenir sobrecarga de contexto e economia de tokens;
-- **Execução Cirúrgica de Testes durante Micro-Commits:** Durante o ciclo de micro-commits intermediários (`MC-1` a `MC-3`), o agente DEVE executar apenas o arquivo de teste unitário afetado (`bun test test/<alvo>.test.ts`), reservando a bateria completa `bun test` para o micro-commit final de fechamento de release.
+- **Execução Cirúrgica de Testes durante Micro-Commits:** Durante o ciclo de micro-commits intermediários (`MC-1` a `MC-3`), o agente DEVE executar apenas o arquivo de teste unitário afetado (`bun run test test/<alvo>.test.ts`), reservando a bateria completa `bun run test` (modo compacto padrão via `scripts/run_tests.ts`, ~15 linhas com heartbeat e Top 3 lentos) para o micro-commit final de fechamento de release, e `bun run test:verbose` (ou `bun test <arquivo>`) para depuração detalhada de falhas.
 
 ---
 
@@ -86,7 +86,7 @@ Todo plano técnico elaborado pelo agente deve incluir explicitamente uma seçã
 
 ### 4. Definition of Done (DoD) Global do Motor
 Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do checklist abaixo:
-- [ ] **1. Testes Automatizados:** 100% de aprovação na suíte de testes (`bun test`);
+- [ ] **1. Testes Automatizados:** 100% de aprovação na suíte de testes (`bun run test`, padrão compacto via `scripts/run_tests.ts`);
 - [ ] **2. Teto MCP (Lei 2):** Resposta sintética de ferramentas MCP abaixo de 1024 bytes (folga preventiva garantida `< 900 bytes`);
 - [ ] **3. Self-Discovery & Lockstep Documental (Lei 4 & Lei 7):** `--dump-spec` (`docs/especificacao_motor.md`), `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, prompts MCP, help da CLI, `docs/ARCHITECTURE_AND_MODULES.md` e `README.md` sincronizados com `VERSION`;
 - [ ] **4. Neutralidade Institucional (Lei 5):** Ausência de nomes específicos de órgãos/localidades;

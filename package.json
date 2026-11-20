@@ -5,7 +5,8 @@
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
-    "test": "bun test",
+    "test": "bun run scripts/run_tests.ts",
+    "test:verbose": "bun run scripts/run_tests.ts --verbose",
     "test:live": "bun run ./scripts/run_live_tests.ts",
     "test:live:pncp": "bun run ./scripts/run_live_tests.ts --suite=pncp",
     "test:live:updater": "bun run ./scripts/run_live_tests.ts --suite=updater",
