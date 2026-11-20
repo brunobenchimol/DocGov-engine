@@ -48,12 +48,16 @@ export function auditContractAddendums(input: RawContractInput): AddendumAuditRe
     (targetInstrument === "ARP")
   );
 
+  const inAny = input as Record<string, any>;
   const initialBaseValue = Number(
     input.updated_initial_value ??
     input.updatedInitialValue ??
     input.initial_value ??
     input.initialValue ??
-    0
+    inAny.original_value ??
+    inAny.originalValue ??
+    (inAny.initial_value_cents !== undefined ? Number(inAny.initial_value_cents) / 100 : undefined) ??
+    (inAny.initialValueCents !== undefined ? Number(inAny.initialValueCents) / 100 : 0)
   );
 
   const rawAddendums = input.addendums || input.aditivos || [];

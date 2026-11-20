@@ -435,6 +435,8 @@ export interface ContractAuditReport {
     dosimetry_opinion_docx_path?: string;
     dosimetry_opinion_pdf_path?: string;
   };
+  unknown_keys?: string[];
+  schema_warnings?: string[];
 }
 
 export interface AuditContractSyntheticResult {
@@ -443,6 +445,7 @@ export interface AuditContractSyntheticResult {
   contract_id: string;
   legal_regime?: string;
   blocking_tags: string[];
+  unknown_keys?: string[];
   adherence_summary?: {
     gross_increase_pct?: number;
     gross_decrease_pct?: number;

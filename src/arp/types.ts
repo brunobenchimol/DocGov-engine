@@ -111,7 +111,6 @@ export interface RawArpInput {
   hasTechnicalJustification?: boolean;
   items?: RawArpItem[];
   adhesion_request?: RawAdhesionRequest;
-  adhesion_requests?: RawAdhesionRequest[];
   adherent_sphere?: FederativeSphere;
   adherentSphere?: FederativeSphere;
   adherent_regime?: LegalRegime;
@@ -188,6 +187,8 @@ export interface ArpGovernDossier {
     docx_path?: string;
     pdf_path?: string;
   };
+  unknown_keys?: string[];
+  schema_warnings?: string[];
 }
 
 export interface ArpGovernSyntheticResult {
@@ -196,6 +197,7 @@ export interface ArpGovernSyntheticResult {
   arp_number: string;
   decision: "APPROVED" | "REJECTED";
   blocking_tags: string[];
+  unknown_keys?: string[];
   ledger_summary?: {
     items_checked: number;
     max_individual_ratio_pct: number;

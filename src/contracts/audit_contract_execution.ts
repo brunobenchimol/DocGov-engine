@@ -23,6 +23,7 @@ import { compileContractExecutionArtifacts } from "./contract_compiler.ts";
 import {
   hasRecognizedContractExecutionInput,
   createContractExecutionContractError,
+  detectContractExecutionUnknownKeys,
 } from "./gen5_contract_errors.ts";
 import type {
   RawContractInput,
@@ -47,6 +48,9 @@ function buildCompactSyntheticResult(
     contract_id: report.contract_id,
     legal_regime: report.legal_regime,
     blocking_tags: [...report.blocking_tags],
+    ...(report.unknown_keys && report.unknown_keys.length > 0
+      ? { unknown_keys: report.unknown_keys.slice(0, 5) }
+      : {}),
     adherence_summary: {
       gross_increase_pct: s.gross_increase_pct,
       gross_decrease_pct: s.gross_decrease_pct,
@@ -148,6 +152,7 @@ export async function auditContractExecution(
     );
   }
 
+  const unknownKeys = detectContractExecutionUnknownKeys(rawData);
   const contractId = rawData.contract_id || rawData.contractId || "CONTRATO_GENERICO";
   const legalRegime = rawData.legal_regime || rawData.legalRegime || "LEI_14133";
   const objectType =
@@ -242,6 +247,14 @@ export async function auditContractExecution(
     },
     price_basket_analysis: basketRes.price_basket_analysis,
     extraordinary_rebalance_analysis: basketRes.extraordinary_rebalance_analysis,
+    ...(unknownKeys.length > 0
+      ? {
+          unknown_keys: unknownKeys,
+          schema_warnings: [
+            `Chaves desconhecidas ignoradas pelo parser determinístico (consulte --dump-spec): ${unknownKeys.join(", ")}`,
+          ],
+        }
+      : {}),
   };
 
   // Compilação opcional DOCX/PDF (Marco 8.5)
@@ -290,6 +303,11 @@ function generateDossierMarkdown(report: ContractAuditReport): string {
   if (report.blocking_tags.length > 0) {
     lines.push(`\n## ⚠️ Apontamentos Críticos e Tags de Bloqueio`);
     report.blocking_tags.forEach((tag) => lines.push(`- \`${tag}\``));
+  }
+
+  if (report.unknown_keys && report.unknown_keys.length > 0) {
+    lines.push(`\n## ⚠️ Aviso de Schema (unknown_keys Ignoradas)`);
+    report.unknown_keys.forEach((k) => lines.push(`- \`${k}\``));
   }
 
   lines.push(`\n## 1. Auditoria de Aditamentos (Art. 125 Lei 14.133 / Art. 81 Lei 13.303)`);

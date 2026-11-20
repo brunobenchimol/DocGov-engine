@@ -283,15 +283,35 @@ Auditoria determinística e fiscalização contínua de contratos administrativo
 - **Adequação Federativa do PAS & Dosimetria LINDB Art. 22 (Marco 8.6):** Alcance territorial estrito do impedimento (`[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]`), regime sancionatório estrito das Estatais <= 24m sem inidoneidade (`[PAS_STATE_ENTERPRISE_SANCTION_REGIME_MISMATCH_BLOCK]`), competência exclusiva e parecer conclusivo para inidoneidade (`[PAS_INCOMPETENT_AUTHORITY_FOR_DEBARMENT_BLOCK]`), resolução determinística do Tribunal de Contas competente (`competent_audit_court`: `TCU`/`TCDF`/`TCE-<UF>`/`TCM-<UF>`) e remessa obrigatória CEIS/CNEP/PNCP (`[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]`), além de ancoragem jurisprudencial da dosimetria (`[PAS_ARBITRARY_UNANCHORED_DOSIMETRY_ALERT]`) e bloqueio de outliers desproporcionais sem agravantes comprovadas (`[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]`).
 - **Cesta de Preços IN 65/2021 e Álea Extraordinária (Marco 8.5):** Cálculo determinístico de média aritmética, mediana, desvio padrão, coeficiente de variação (CV%), limites de expurgo e média saneada, bloqueando média simples sob alta dispersão (`CV > 25%` -> `[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]`), além de validação de matriz de risco em reequilíbrios (`[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]`).
 - **Schema de Entrada JSON (Objetos Aninhados + Aliases Naturais / Flat):**
-  - *Raiz:* `contract_id`, `legal_regime` (`"LEI_14133"` | `"LEI_13303"`), `object_type` (`"SERVICE"` | `"WORK"` | `"ENGINEERING_REFORM"` | `"SUPPLY"`), `target_instrument` (`"CONTRACT"` | `"ARP"`), `sphere` (`"FEDERAL"` | `"STATE"` | `"MUNICIPAL"`), `uf`, `municipality`, `initial_value_cents` (ou `initial_value` / `updated_initial_value` / `original_value`), `signing_authority_role`, `has_conclusive_legal_opinion`, `has_surety_bond`, `insurer_notified`.
-  - *`addenda[]` (aliases `addendums[]`, `aditivos[]`, `termos_aditivos[]`):* `id`, `type` (`"ADDITION"` | `"SUPPRESSION"` | `"MIXED"`), `addition_value` (`value_increase`, `increase_pct`), `suppression_value` (`value_decrease`, `decrease_pct`), `attempts_compensation` (`compensated_attempt`), `is_unilateral` / `consensual` (`is_consensual`).
-  - *`tripartite_items[]` (alias `items[]`):* `item_id`, `description`, `tr_estimated_unit_price` (`tr_unit_price`), `proposal_unit_price`, `arp_unit_price`, `contract_unit_price`, `invoiced_unit_price` (`invoice_unit_price`), `contracted_qty` (`contract_qty`), `invoiced_qty`.
-  - *`readjustments[]` (aliases `reajustes[]`, `repactuations[]`):* `id`, `type` (`"READJUSTMENT"` | `"REPACTUATION"` | `"REAJUSTE_INDICE"` | `"REPACTUACAO_CCT"`), `months_since_budget_or_last` (`months_elapsed`, `interregnum_months`), `requested_pct` (`applied_percentage`), `index_variation_pct`, `has_registered_cct` (`has_cct_proof`).
+  - *Raiz:* `contract_id`, `legal_regime` (`"LEI_14133"` | `"LEI_13303"`), `object_type` (`"SERVICE"` | `"WORK"` | `"ENGINEERING_REFORM"` | `"SUPPLY"`), `target_instrument` (`"CONTRACT"` | `"ARP"`), `sphere` (`"FEDERAL"` | `"STATE"` | `"MUNICIPAL"`), `uf`, `municipality`, `initial_value` (ou `updated_initial_value` / `original_value` / `initial_value_cents`), `signing_authority_role`, `has_conclusive_legal_opinion`, `has_surety_bond`, `insurer_notified`.
+  - *`addendums[]` (alias `aditivos[]`):* `id` (`numero`), `type`, `value_increase` (`valueIncrease`, `increase_pct`, `gross_increase_pct`), `value_decrease` (`valueDecrease`, `decrease_pct`, `gross_decrease_pct`), `compensated_attempt` (`compensatedAttempt`), `is_unilateral` (`isUnilateral`, `unilateral`) / `is_consensual` (`isConsensual`), `justification`. *(Chaves divergentes como `addenda`, `addition_value`, `suppression_value`, `attempts_compensation` ou `compensation_attempted` são reportadas em `unknown_keys` sem alias silencioso).*
+  - *`tripartite_items[]` (aliases `tripartite[]`, `items[]`):* `item_id`, `description`, `tr_unit_price` (`edital_tr.unit_price`), `proposal_unit_price` (`winning_proposal.unit_price`), `arp_unit_price` (`arp.unit_price`), `contract_unit_price`, `invoice_unit_price` (`contract_or_invoice.unit_price`), `homologated_qty` (`contract_qty`), `invoiced_qty` (`attested_qty`), `overpricing_detected`, `advance_payment_without_guarantee`.
+  - *`readjustments[]` (alias `reajustes[]`, ou objeto singular `readjustment` / `reajuste`):* `id`, `type` (`"REAJUSTE_INDICE"` | `"REPACTUACAO_CCT"`), `index_name` (`index`), `base_date` (`budget_base_date`), `request_date` (`grant_date`), `months_elapsed` (`interregnum_months`), `applied_percentage`, `has_cct_proof` (`hasCctProof`, `cct_attached`, `cctAttached`).
   - *`pas_sanctions[]` (aliases `pas_processes[]`, `pas_evaluation`, `pas[]`, `sanctions[]` ou campos na raiz):* `process_id`, `sanction_type` / `penalty_type` (`"ADVERTENCIA"` | `"MULTA"` | `"IMPEDIMENTO_LICITAR_CONTRATAR"` | `"DECLARACAO_INIDONEIDADE"`), `sanction_scope_claimed` (`"OWN_ENTITY"` | `"FEDERATIVE_ENTITY"` | `"NATIONAL"` | `"ALL_SPHERES"`), `duration_months` (`debarment_months` / `debarment_years`), `fine_pct` (`fine_percentage`, `multa_pct`, `multa_percentual`, `multa_sancionatoria_proposta.percentual`), `opened_formal_pas`, `prior_notification_sent`, `defense_deadline_business_days` (`defense_business_days`, `defense_deadline_days`, `defense_period_days`, `contradictory_days`, `prazo_defesa_dias_uteis`, `prazo_defesa_dias`, `defense_days_type`), `sla_glosa_misclassified` (`is_imr_classified_as_sanction`, `is_sla_glosa` + `classified_as_penalty`, `glosa_ans_como_multa`, `ans_imr.classificado_como_multa`, `treated_as_penalty`), `has_surety_bond` / `seguro_garantia`, `insurer_notified` / `seguradora_notificada` (`garantia.seguradora_notificada`, `surety_bond.insurer_notified`), `signing_authority_role`, `has_conclusive_legal_opinion`, `registries_commanded` (`["CEIS", "CNEP", "PNCP", "TCE-<UF>"]`) e flags `register_pncp`, `register_ceis_cnep`, `notify_audit_court` / `external_control_court_notified`, além de `dosimetry_benchmark` / `dosimetry_evaluation` (ou direto no item: `juris_precedent_id`, `benchmark_precedents`, `jurisprudential_precedents`, `precedentes_citados`, `benchmark_range_pct`, `precedent_range_pct`, `precedent_min_pct`, `precedent_max_pct`, `benchmark_median_pct`, `precedent_median_pct`, `historical_average_fine_pct`, `precedent_fines_pct[]`, `benchmark_max_pct`, `lindb_art22_weighed`, `art156_par1_weighed`, `has_jurisprudential_calibration`, `aggravating_factors_proven`, `is_primary_offender`, `concrete_damage_proven`).
   - *`price_basket` (aliases `price_basket_items`, `cesta_precos`, `pesquisa_precos`):* array `[{ item_id, quotes | cotacoes | prices | values: [...], selected_method: "MEAN" | "MEDIAN" | "SANITIZED_MEAN", claimed_reference_price }]` ou objeto direto na raiz `{ cotacoes | quotes | prices | values: [...] }` (números ou objetos `{ valor | value | price | preco }`).
   - *`risk_matrix_events[]` (aliases `rebalance_requests[]`, `rebalance_events[]`, `reequilibrio`):* `id`, `event_description`, `event_nature` (`"EXTRAORDINARY_UNFORESEEN"` | `"ORDINARY_INFLATION"`), `risk_allocated_to` (`alocacao_matriz_riscos` / `risco_alocado`: `"CONTRACTOR"` | `"CONTRATADA"` | `"ADMINISTRATION"`), `is_extraordinary_unforeseeable`, `request_accepted`.
+- **Detector Determinístico de `unknown_keys` (Lei 3):** Qualquer chave desconhecida na raiz ou nos arrays principais (`addendums[]`, `pas_sanctions[]`, `tripartite_items[]`, `readjustments[]`, `price_basket`, `risk_matrix_events[]`) é reportada em `unknown_keys` e `schema_warnings` no dossiê JSON em disco e no campo compacto `unknown_keys` do envelope MCP (somente quando não vazio, respeitando `< 900B`).
 - **Compilação OpenXML (`compilationMode` / `--mode` & `outputFormat` / `--format`):** Gera `Notificacao_Previa_Descumprimento_e_PAS.docx/.pdf` (`PAS_NOTIFICATION`) e/ou `Parecer_Dosimetria_Sancao_ou_Glosa_ANS.docx/.pdf` (`SANCTION_DOSIMETRY_OPINION`, alias `DOSIMETRY_OPINION`, ou `BOTH`) com Quadro de Enquadramento Jurisdicional e Quadro de Calibragem Jurisprudencial da Dosimetria (LINDB Art. 22).
-- **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `contract_id`, `legal_regime`, `blocking_tags`, `adherence_summary`, `compiled_docs_count`, `report_json_path`, `dossier_md_path` e `next_step_hint`.
+- **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `contract_id`, `legal_regime`, `blocking_tags`, `unknown_keys` (opcional, somente se houver desvio de schema), `adherence_summary`, `compiled_artifacts`, `report_json_path`, `dossier_md_path` e `next_step_hint`.
+- **Exemplo Canônico de Entrada para `docgov_audit_contract_execution`:**
+```json
+{
+  "contract_id": "CT-001/2026",
+  "legal_regime": "LEI_14133",
+  "object_type": "SERVICE",
+  "target_instrument": "CONTRACT",
+  "sphere": "FEDERAL",
+  "initial_value": 1000000,
+  "addendums": [
+    { "id": "TA-01", "value_increase": 200000, "value_decrease": 0 }
+  ],
+  "tripartite_items": [],
+  "readjustments": [],
+  "pas_sanctions": [],
+  "price_basket": [],
+  "risk_matrix_events": []
+}
+```
 
 ### 2.12. docgov_govern_arp (CLI: govern-arp)
 Motor determinístico de governança de Ata de Registro de Preços e gestão de caronas (Gen5 Marco 8.4).
@@ -302,10 +322,40 @@ Motor determinístico de governança de Ata de Registro de Preços e gestão de 
 - **Vigência e Desacoplamento:** Auditoria de vigência (12+12m), renovação no 2º ano (`[ARP_RENEWAL_WITHOUT_EDITAL_CLAUSE_BLOCK]`) e desacoplamento de contratos derivados (até 5 anos).
 - **Schema de Entrada JSON (Objetos Aninhados + Normalização Flat):**
   - *Raiz:* `arp_number`, `managing_organ` (`{ name, sphere, legal_regime, is_state_enterprise }`), `adherent_sphere` / `manager_sphere`, `adherent_regime` / `manager_regime`, `is_tic` / `is_ict_arp`, `is_umbrella_or_single_lot`, `has_granulated_calculation_memory`.
-  - *`validity` (alias `vigencia`):* `validity_months`, `is_renewed_year_2`, `renew_quantities_second_year`, `has_edital_renewal_clause`, `has_advantage_proof`, `derived_contract_duration_months`.
-  - *`items[]` e `adhesion_request` (ou flat na raiz):* `items[]` (`item_id`, `registered_quantity` / `registered_qty`, `unit_price`, `consumed_by_managing_and_participants` / `own_balance`, `previous_carona_adhesions` / `prior_adhesions_qty`, `requested_adhesion_qty` / `requested_qty`), `adhesion_request` (`requesting_organ`, `items_requested[]`, `supplier_consent`, `market_price_comparison[]`, `etp_pdtic_alignment_summary`, `justification_no_bidding`).
+  - *`validity` (alias `vigencia`):* `validity_months` (`arp_months`), `is_renewed_year_2` (`is_second_year_renewal`), `renew_quantities_second_year`, `has_edital_renewal_clause`, `has_advantage_proof`, `derived_contract_duration_months`.
+  - *`items[]` e `adhesion_request` (ou flat na raiz):* `items[]` (`item_id`, `registered_quantity` / `registered_qty`, `unit_price`, `consumed_by_managing_and_participants` / `own_balance` / `manager_own_qty` + `participants_qty`, `previous_carona_adhesions` / `prior_adhesions_qty`, `requested_adhesion_qty` / `requestedQty`), `adhesion_request` (`requesting_organ: { name, sphere, legal_regime, is_state_enterprise }` ou alias `adherent_organ`, `items_requested[]`, `supplier_consent`, `market_price_comparison[]`, `etp_pdtic_alignment_summary`, `justification_no_bidding`).
+- **Detector Determinístico de `unknown_keys` (Lei 3):** Chaves não reconhecidas na raiz ou estruturas aninhadas (`items[]`, `validity`, `managing_organ`, `adhesion_request` / `adhesions[]`, ou `requesting_organ` enviado como string em vez de objeto estruturado) são registradas em `unknown_keys` e `schema_warnings` no dossiê JSON em disco e expostas em `unknown_keys` no envelope MCP (somente quando não vazio, `< 900B`).
 - **Compilação Nativa OpenXML DOCX/PDF:** Modos `ARP_ADHESION_GRANT_NOTE` (`Nota_Tecnica_Anuencia_ou_Negativa_Adesao_ARP.docx/.pdf`) e `ARP_ADVANTAGE_STUDY` (`Estudo_Tecnico_Vantajosidade_Adesao_ARP.docx/.pdf`).
-- **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `arp_number`, `decision`, `blocking_tags`, `ledger_summary`, `dossier_json_path`, `dossier_md_path`, caminhos compilados e `next_step_hint`.
+- **Retorno Sintético MCP (< 900 bytes):** Devolve `status`, `engine_version`, `arp_number`, `decision`, `blocking_tags`, `unknown_keys` (opcional, somente se houver desvio de schema), `ledger_summary`, `dossier_json_path`, `dossier_md_path`, caminhos compilados e `next_step_hint`.
+- **Exemplo Canônico de Entrada para `docgov_govern_arp`:**
+```json
+{
+  "arp_number": "ARP-001/2026",
+  "managing_organ": {
+    "name": "ORGAO_CONTRATANTE",
+    "sphere": "FEDERAL",
+    "legal_regime": "LEI_14133",
+    "is_state_enterprise": false
+  },
+  "adherent_sphere": "FEDERAL",
+  "adherent_regime": "LEI_14133",
+  "validity": { "validity_months": 12, "is_renewed_year_2": false },
+  "items": [
+    {
+      "item_id": "IT-01",
+      "registered_quantity": 100,
+      "unit_price": 500,
+      "consumed_by_managing_and_participants": 20,
+      "previous_carona_adhesions": 0,
+      "requested_adhesion_qty": 30
+    }
+  ],
+  "adhesion_request": {
+    "requesting_organ": { "name": "ORGAO_A", "sphere": "FEDERAL", "legal_regime": "LEI_14133" },
+    "supplier_consent": true
+  }
+}
+```
 
 ### 2.13. docgov_evaluate_bidding_proposals (CLI: evaluate-proposals)
 Motor determinístico da Fase Externa, Conluio Forense, Exequibilidade (75%/85%), Jogo de Planilha e Fase Recursal (Gen6 Marco 9 — `v1.6.10`).

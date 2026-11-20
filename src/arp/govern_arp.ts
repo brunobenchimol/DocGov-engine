@@ -23,6 +23,7 @@ import {
 import {
   hasRecognizedArpGovernanceInput,
   createArpGovernanceContractError,
+  detectArpGovernanceUnknownKeys,
 } from "../contracts/gen5_contract_errors.ts";
 import type {
   RawArpInput,
@@ -51,6 +52,7 @@ export async function governArpExecution(
     );
   }
 
+  const unknownKeys = detectArpGovernanceUnknownKeys(rawData);
   const arpNumber = rawData.arp_number || rawData.arpNumber || "ARP-GENERICA";
 
   // Execução do livro-razão e matriz de compatibilidade
@@ -114,6 +116,14 @@ export async function governArpExecution(
     compatibility_analysis: compatRes.compatibility_analysis,
     validity_analysis: compatRes.validity_analysis,
     compilation,
+    ...(unknownKeys.length > 0
+      ? {
+          unknown_keys: unknownKeys,
+          schema_warnings: [
+            `Chaves desconhecidas ignoradas pelo parser determinístico (consulte --dump-spec): ${unknownKeys.join(", ")}`,
+          ],
+        }
+      : {}),
   };
 
   const dossierJsonPath = join(outDir, "dossie_governanca_arp.json");
@@ -151,6 +161,7 @@ export async function governArpExecution(
       arp_number: arpNumber,
       decision,
       blocking_tags: [...blocking_tags],
+      ...(unknownKeys.length > 0 ? { unknown_keys: unknownKeys.slice(0, 5) } : {}),
       ledger_summary: {
         items_checked: ledgerRes.items_checked,
         max_individual_ratio_pct: ledgerRes.max_individual_ratio_pct,
@@ -234,6 +245,11 @@ function generateArpVisionMarkdown(dossier: ArpGovernDossier): string {
   if (dossier.blocking_tags.length > 0) {
     lines.push(`\n## ⚠️ Vedações Legais e Óbices Ativos`);
     dossier.blocking_tags.forEach((tag) => lines.push(`- \`${tag}\``));
+  }
+
+  if (dossier.unknown_keys && dossier.unknown_keys.length > 0) {
+    lines.push(`\n## ⚠️ Aviso de Schema (unknown_keys Ignoradas)`);
+    dossier.unknown_keys.forEach((k) => lines.push(`- \`${k}\``));
   }
 
   lines.push(`\n## 1. Livro-Razão de Quantitativos e Travas (Art. 86 §§ 4º e 5º da Lei 14.133/2021)`);
