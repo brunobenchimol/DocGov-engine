@@ -1,11 +1,21 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterEach } from "bun:test";
 import { defaultJurisdictionRegistry } from "../../src/tools/juris/provider_registry.ts";
 import { TstProvider } from "../../src/tools/juris/providers/tst_provider.ts";
+import { searchAguCatalog } from "../../src/tools/juris/providers/agu_catalog.ts";
 import { parseCanonicalAcordaoRef } from "../../src/tools/juris/providers/http_client.ts";
 import { assertAuthenticAcordao, sliceAcordaoAnatomically } from "../../src/tools/juris/anatomical_slicer.ts";
 import { scoreJurisItem } from "../../src/tools/juris/relevance_scorer.ts";
 
 describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () => {
+  const originalAguEnv = process.env.DOCGOV_JURIS_AGU_URL;
+
+  afterEach(() => {
+    if (originalAguEnv === undefined) {
+      delete process.env.DOCGOV_JURIS_AGU_URL;
+    } else {
+      process.env.DOCGOV_JURIS_AGU_URL = originalAguEnv;
+    }
+  });
   it("TstProvider v1.4.2: deve integrar conector TST, auto-trigger trabalhista e fatiamento anatômico", async () => {
     const tst = defaultJurisdictionRegistry.get("TST");
     expect(tst).toBeDefined();
@@ -105,13 +115,12 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-SUMULA-34")).toBe("AGU");
     expect(defaultJurisdictionRegistry.detectCourtFromRef("PARECER-CNLCA-001-2024")).toBe("AGU");
 
-    // 4. Busca no catálogo curado oficial
-    const searchResults = await agu.search("prorrogação serviços contínuos vigência");
+    // 4. Busca no catálogo curado oficial (100% offline/hermético)
+    const searchResults = searchAguCatalog("prorrogação serviços contínuos vigência");
     expect(searchResults.length).toBeGreaterThan(0);
     const item50 = searchResults.find((r) => r.id.includes("050") || r.id.includes("50"));
     expect(item50).toBeDefined();
-    expect(item50?.court).toBe("AGU");
-    expect(item50?.tese).toContain("serviço contínuo");
+    expect(item50?.enunciado).toContain("serviço contínuo");
 
     // 5. Fetch determinístico no catálogo curado (suportando lookup canônico e aliases)
     const fetched50 = await agu.fetch("ON-AGU-050-2014");
@@ -173,5 +182,59 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     );
     expect(scored84.outcome).toBe("PROCEDENTE / DETERMINACAO");
     expect(scored84.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
+  });
+
+  it("AguProvider (Mock Server DOCGOV_JURIS_AGU_URL): deve suportar /search, /fetch e anti-alucinação offline", async () => {
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname === "/search") {
+          return Response.json({
+            items: [
+              {
+                id: "ON-AGU-050-2014",
+                numero: "50",
+                ano: 2014,
+                colegiado: "Advogado-Geral da União",
+                tese: "Serviço contínuo não pode ser prorrogado após encerramento da vigência.",
+                dispositivo: "Vedada a prorrogação retroativa de serviço contínuo.",
+              },
+            ],
+          });
+        }
+        if (url.pathname.startsWith("/fetch")) {
+          if (url.pathname.includes("999999")) {
+            return new Response(JSON.stringify({ error: "not_found" }), { status: 404 });
+          }
+          return Response.json({
+            id: "ON-AGU-050-2014",
+            numero: "50",
+            ano: 2014,
+            tese: "Serviço contínuo",
+            dispositivo: "Vedada prorrogação retroativa.",
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    try {
+      process.env.DOCGOV_JURIS_AGU_URL = `http://127.0.0.1:${server.port}`;
+      const agu = defaultJurisdictionRegistry.get("AGU")!;
+      const hits = await agu.search("prorrogação serviços contínuos vigência");
+      expect(hits.length).toBe(1);
+      expect(hits[0].court).toBe("AGU");
+      expect(hits[0].tese).toContain("Serviço contínuo");
+
+      const okFetch = await agu.fetch("ON-AGU-050-2014");
+      expect(okFetch?.exists).toBe(true);
+      expect(okFetch?.rawTextOrJson.numero).toBe("50");
+
+      const fakeFetch = await agu.fetch("AGU-ON-999999");
+      expect(fakeFetch).toBeNull();
+    } finally {
+      server.stop(true);
+    }
   });
 });
