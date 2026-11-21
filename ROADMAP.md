@@ -27,10 +27,10 @@
 | **Geração 7.5** | `v1.7.5` *(hotfix `1.7.6–1.7.7`)* | 2ª Perna Anti-Fraude (Parte 3) & 15ª Tool MCP: Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP (LC 123/2006 / R$ 4,8M), Subcontratação Ilícita (Art. 122) & `docgov_audit_antifraud_and_integrity` | `[PLANEJADO]` |
 | **Geração 7.8** | `v1.7.8` *(hotfix `1.7.9`)* | Fechamento do Ciclo Contratual & 16ª Tool MCP: Mutabilidade Econômica (Reajuste/Repactuação/Fato do Príncipe vs. Revisão Art. 124, II, "d"), PCA Multi-Caso & Regime SICX (Art. 75, § 7º), Emissor Oficial de ACT (Art. 88, §§ 3º–4º), Encerramento/TRD & `docgov_audit_rebalance_and_closeout` | `[PLANEJADO]` |
 | **Geração 7.10** | `v1.7.10` *(hotfix `1.7.11+`)* | Modalidades Avançadas de TIC & 17ª Tool MCP: Governança de Prova de Conceito (`PoC`), Licenciamento Enterprise & FinOps de Nuvem (`USN`) via `docgov_evaluate_poc_and_cloud_finops` | `[PLANEJADO]` |
-| **Geração 8.0** | `v1.8.0` *(hotfix `1.8.1–1.8.2`)* | Conectores de Dados Abertos (Parte 1): Integridade e Sanções ao Vivo (`CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) via `fetch_supplier_integrity` | `[PLANEJADO]` |
-| **Geração 8.3** | `v1.8.3` *(hotfix `1.8.4`)* | Conectores de Dados Abertos (Parte 2): Hidratação Cadastral Receita Federal / CNPJ Público (`BrasilAPI + ReceitaWS + MinhaReceita`) para ACT e Grafo de Conluio | `[PLANEJADO]` |
-| **Geração 8.5** | `v1.8.5` *(hotfix `1.8.6–1.8.7`)* | Conectores de Dados Abertos (Parte 3): Catálogo `CATMAT/CATSER` (*Loose Matching* com `WARNING` Consultivo + Top-3 Sugestões) & Painel de Preços Homologados (`API Dados Abertos Compras.gov.br`) via `search_comprasgov_prices` | `[PLANEJADO]` |
-| **Geração 8.8** | `v1.8.8` *(hotfix `1.8.9+`)* | Conectores de Dados Abertos (Parte 4): Índices Econômicos Oficiais (`Banco Central SGS + IBGE SIDRA` — IPCA, INPC, IGP-M, ICTI, IST, INCC, PTAX) via `fetch_official_economic_indices` | `[PLANEJADO]` |
+| **Geração 8.0** | `v1.8.0` *(hotfix `1.8.1–1.8.2`)* | **[Fase 1 — Oficial]** Conectores de Dados Abertos (Parte 1): Shared Open-Data Kernel & Índices Econômicos Oficiais (`Banco Central SGS/Olinda + IBGE SIDRA` — IPCA, INPC, IGP-M, ICTI, IST, INCC, PTAX) via `fetch_official_economic_indices` | `[PLANEJADO]` |
+| **Geração 8.3** | `v1.8.3` *(hotfix `1.8.4`)* | **[Fase 1 — Oficial]** Conectores de Dados Abertos (Parte 2): Integridade e Sanções ao Vivo (`TCU Certidão Consolidada zero-key [TCU + CEIS + CNEP + CNJ/CNCIAI]` & `CGU` opcional Env/Disco) via `fetch_supplier_integrity` | `[PLANEJADO]` |
+| **Geração 8.5** | `v1.8.5` *(hotfix `1.8.6–1.8.7`)* | **[Fase 2 — Opt-In]** Conectores de Dados Abertos (Parte 3): Hidratação Cadastral RFB/CNPJ (`fetch_cnpj_profile` — `BrasilAPI → MinhaReceita → ReceitaWS`) & ME/EPP *Sniper* Opt-In (`PNCP Contratos`) | `[PLANEJADO]` |
+| **Geração 8.8** | `v1.8.8` *(hotfix `1.8.9+`)* | **[Fase 2 — Opt-In]** Conectores de Dados Abertos (Parte 4): Catálogo `CATMAT/CATSER` Híbrido (*Loose Matching* `WARNING` + Top-3 Sugestões) & Painel de Preços Homologados 12m (`API Dados Abertos Compras.gov.br`) via `search_comprasgov_prices` | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -207,27 +207,44 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 > **Padrão Arquitetural Obrigatório:** Todos os conectores da Geração 8 operam estritamente sob o padrão **Live API Primary + Curated/Deterministic Fallback**, garantindo zero dependência de internet na suíte `bun test` hermética e validação real contra as APIs públicas via `bun run test:live` com seletor `--connector=<ID>`.
 
-### MARCO 11.1 — `v1.8.0` (Geração 8.0 — Conector de Integridade e Sanções: `CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) *(Reserva de Hotfix: `v1.8.1`–`v1.8.2`)*
+- **Estruturação em 2 Fases:**
+  - **Fase 1 — Conectores Oficiais Sólidos (`v1.8.0` e `v1.8.3`):** APIs institucionais de alta estabilidade para índices econômicos oficiais (`BACEN`/`IBGE`) e integridade sancionatória (`TCU` *zero-key* + enriquecimento `CGU`);
+  - **Fase 2 — Conectores Sensíveis / Opt-In Sob Demanda (`v1.8.5` e `v1.8.8`):** Hidratação cadastral RFB/CNPJ, teto de faturamento ME/EPP *Sniper* e catálogo/preços homologados `Compras.gov.br`.
+- **Fronteira Determinístico vs. Cognitivo:** O motor **nunca** dispara chamadas de rede em cascata por conta própria; cada conector retorna envelope sintético MCP `< 900B` (Lei 2) com `artifact_path` + campo consultivo `enrichment_available`, cabendo aos motores analíticos (Gen 5/6/7) consumir os JSONs completos direto do disco via `open_data_refs`.
+- **Whitelist `ENG-10` & Cache Dual:** Aplicação obrigatória de whitelist `ENG-10` nas 4 tools combinada ao **Cache Dual**:
+  - *Camada 1 (Global):* TTL `365d+` para histórico imutável com janela `24h` nos últimos `45d`; `30d` para perfis CNPJ/preços; `90d` para catálogo `CATMAT/CATSER`; e `24h` para sanções/ME-EPP;
+  - *Camada 2 (Por Caso):* Snapshot imutável persistido em `<caseDir>/state/open_data/`.
+- **Credencial CGU *Non-Blocking*:** Resolução em cadeia `DOCGOV_CGU_API_KEY` (Env) $\rightarrow$ `~/.docgov/credentials.json` (ou `DOCGOV_CREDENTIALS_FILE`, fora do Git) $\rightarrow$ *skip* gracioso (tanto em produção quanto na suíte `tests_live/`).
+- **Exclusões Explícitas (`v1.8.x`):** Zero scraping de certidões (`CND`, `FGTS`, `CNDT`, `SICAF`, `SEFAZ`); zero API live para tabelas `SINAPI` (mensal) e `SICRO` (trimestral) — ingestão local via `.xlsx` em `inputs/`; e zero ingestão de Diários Oficiais na `v1.8.x`.
+- **Nota de Revisão Pré-Execução:** Revalidar disponibilidade, limites de taxa e contratos das APIs em novo brainstorm ao concluir a `v1.7.x`.
 
-- [ ] **11.1.1. Ferramenta `fetch_supplier_integrity` (CLI `--check-integrity`):**
-  - Consulta API do Portal da Transparência (`CGU`) e dados abertos do `TCU` por CNPJ da licitante e CPF/CNPJ de seus sócios (`QSA`), verificando sanções vigentes e alcance federativo (`[LIVE_CEIS_IMPEDIMENT_ACTIVE_IN_SPHERE_BLOCK]` / `[LIVE_TCU_CNEP_NATIONAL_DEBARMENT_BLOCK]`), alimentando automaticamente o detector de sucessão fraudulenta da `v1.7.3`.
+### MARCO 11.1 — `v1.8.0` (Geração 8.0 — Fase 1 [Oficial]: Shared Open-Data Kernel & Índices Econômicos Oficiais: `Banco Central SGS/Olinda + IBGE SIDRA`) *(Reserva de Hotfix: `v1.8.1`–`v1.8.2`)*
 
-### MARCO 11.2 — `v1.8.3` (Geração 8.3 — Conector Cadastral Receita Federal / CNPJ Público: `BrasilAPI + ReceitaWS + MinhaReceita`) *(Reserva de Hotfix: `v1.8.4`)*
+- [ ] **11.1.1. Shared Open-Data Kernel (`src/tools/open_data/`):**
+  - Cliente HTTP padronizado com *timeout*, *backoff* e isolamento offline, implementando o Cache Dual (Camada 1 Global + Camada 2 `<caseDir>/state/open_data/`), guarda `ENG-10`, referências `open_data_refs` em disco e sinalização consultiva `enrichment_available` no envelope `< 900B` (Lei 2).
+- [ ] **11.1.2. Ferramenta `fetch_official_economic_indices` (CLI `--fetch-indices`):**
+  - Consulta as APIs oficiais do `BACEN` (`bcdata.sgs` e **BCB Olinda** para `PTAX`) e `IBGE` (`SIDRA` operando sobre **números-índice** para exatidão decimal) para calcular ao centavo o fator acumulado exato no interregno contratual de **IPCA, INPC, IGP-M, ICTI (Ipea), IST (Anatel), INCC e PTAX**;
+  - Suporte nativo a **tabelas históricas curadas embutidas + sync live opcional** para `ICTI (Ipea)` e `IST (Anatel)`, barrando pleitos de reajuste ou reequilíbrio com índices divergentes da série oficial (`[OFFICIAL_INDEX_ACCUMULATED_FACTOR_MISMATCH_BLOCK]`).
 
-- [ ] **11.2.1. Hidratação Cadastral Automática por CNPJ:**
-  - Hidratação automática ao vivo de dados societários e cadastrais a partir apenas do CNPJ (situação cadastral, data de abertura, capital social, porte ME/EPP, CNAE principal/secundários, QSA completo e endereço/CEP/e-mail na RFB), alimentando sem fricção os 7 Vetores de ACT (Geração 6) e o Grafo de Conluio Societário (Geração 7.3) (`[LIVE_CNPJ_INACTIVE_OR_SUSPENDED_RFB_BLOCK]` e `[LIVE_QSA_AUTO_HYDRATED_COLLUSION_MATCH]`).
+### MARCO 11.2 — `v1.8.3` (Geração 8.3 — Fase 1 [Oficial]: Conector de Integridade e Sanções: `TCU Certidão Consolidada + CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) *(Reserva de Hotfix: `v1.8.4`)*
 
-### MARCO 11.3 — `v1.8.5` (Geração 8.5 — Conector Catálogo `CATMAT/CATSER` & Painel de Preços Homologados: `API Dados Abertos Compras.gov.br`) *(Reserva de Hotfix: `v1.8.6`–`v1.8.7`)*
+- [ ] **11.2.1. Ferramenta `fetch_supplier_integrity` (CLI `--check-integrity`):**
+  - **Camada *Zero-Key* (`TCU Certidão Consolidada`) + Enriquecimento Opcional `CGU`:** Consulta a Certidão Consolidada do `TCU` (*zero-key*, que já traz agregados `CEIS + CNEP` para Pessoa Jurídica, além de `TCU Inidôneos/Inabilitados` e `CNJ/CNCIAI` Improbidade) e, mediante credencial *non-blocking* (`DOCGOV_CGU_API_KEY` $\rightarrow$ `~/.docgov/credentials.json` / `DOCGOV_CREDENTIALS_FILE` $\rightarrow$ *skip* gracioso), complementa via API do Portal da Transparência (`CGU` — `CEIS + CNEP + CEPIM`) por CNPJ da licitante e CPF/CNPJ de seus sócios (`QSA`); na ausência de chave CGU, prossegue normalmente emitindo alerta consultivo `[INTEGRITY_PARTIAL_COVERAGE_NO_CGU_KEY_WARNING]` sem bloquear o fluxo;
+  - Verifica sanções vigentes e alcance federativo (`[LIVE_CEIS_IMPEDIMENT_ACTIVE_IN_SPHERE_BLOCK]` / `[LIVE_TCU_CNEP_NATIONAL_DEBARMENT_BLOCK]`), alimentando automaticamente o detector de sucessão fraudulenta da `v1.7.3` via `open_data_refs`.
 
-- [ ] **11.3.1. Ferramenta `search_comprasgov_prices` (CLI `--search-comprasgov`):**
-  - Consulta os módulos `/modulo-material`, `/modulo-servico` e `/modulo-pesquisa-preco` de `dadosabertos.compras.gov.br` e extrai séries de preços praticados em licitações homologadas para alimentar diretamente o cálculo estatístico da `IN SEGES 65/2021` (`price_basket_auditor.ts`);
+### MARCO 11.3 — `v1.8.5` (Geração 8.5 — Fase 2 [Opt-In]: Conector Cadastral Receita Federal / CNPJ Público & ME/EPP *Sniper* Opt-In) *(Reserva de Hotfix: `v1.8.6`–`v1.8.7`)*
+
+- [ ] **11.3.1. Ferramenta `fetch_cnpj_profile` (CLI `--fetch-cnpj`) — Cascata Mono-Usuário `BrasilAPI → MinhaReceita → ReceitaWS`:**
+  - Hidratação automática ao vivo de dados societários e cadastrais em cascata (`BrasilAPI → MinhaReceita → ReceitaWS`, como 3º fallback de emergência) a partir apenas do CNPJ, cobrindo 100% dos dados do Cartão CNPJ (situação cadastral, data de abertura, capital social, porte ME/EPP, Simples/MEI, CNAE principal/secundários, QSA completo com `data_entrada_sociedade`/CPF mascarado e endereço/CEP/e-mail na RFB), alimentando sem fricção os 7 Vetores de ACT (Geração 6) e o Grafo de Conluio Societário (Geração 7.3) via `open_data_refs` (`[LIVE_CNPJ_INACTIVE_OR_SUSPENDED_RFB_BLOCK]` e `[LIVE_QSA_AUTO_HYDRATED_COLLUSION_MATCH]`).
+- [ ] **11.3.2. Teto de Faturamento ME/EPP *Sniper* Opt-In (`PNCP Contratos` + `Despesas CGU`):**
+  - Opera exclusivamente sob disparo explícito (`check_public_revenue_cap: false` por padrão $\rightarrow$ sinalização consultiva via `enrichment_available`), consultando o acumulado contratual no `PNCP Contratos` e em despesas públicas `CGU` somente quando acionado para confrontar o teto da LC nº 123/2006 (`v1.7.5`).
+
+### MARCO 11.4 — `v1.8.8` (Geração 8.8 — Fase 2 [Opt-In]: Conector Catálogo `CATMAT/CATSER` Híbrido & Painel de Preços Homologados 12m: `API Dados Abertos Compras.gov.br`) *(Reserva de Hotfix: `v1.8.9+`)*
+
+- [ ] **11.4.1. Ferramenta `search_comprasgov_prices` (CLI `--search-comprasgov`):**
+  - **Fluxo Híbrido Anti-Lentidão & Janela Estrita de 12 Meses (`IN SEGES 65/2021`):** Recebe códigos candidatos já levantados do TR ou via `search_web` pelo agente para consulta cirúrgica nos módulos `/modulo-material`, `/modulo-servico` e `/modulo-pesquisa-preco` de `dadosabertos.compras.gov.br` e extrai séries de preços praticados nos **últimos 12 meses** em licitações homologadas para alimentar diretamente o cálculo estatístico da `IN SEGES 65/2021` (`price_basket_auditor.ts`);
   - **Matching Flexível (*Loose Semantic & Lexical Range*) com Severidade Estritamente Consultiva (`WARNING`, Nunca `BLOCK`):** avalia aderência por faixa (*range*) de classe/família/PDM (reconhecendo que itens compostos ou de TIC nem sempre possuem encaixe 1:1 perfeito no catálogo federal), emitindo exclusivamente alertas consultivos em caso de baixa aderência semântica ou uso de código abrangente (`[CATMAT_CATSER_LOOSE_ALIGNMENT_WARNING]` e `[CATMAT_GENERIC_UMBRELLA_CODE_WARNING]`), jamais bloqueando a minuta ou reprovando a contratação;
   - **Motor Recomendador (`Top-3 Suggested Codes`):** sempre que identificar código sub-ótimo ou com baixa aderência, retorna automaticamente os **Top 3 códigos PDM/CATMAT/CATSER mais aderentes** do catálogo oficial (código, descrição oficial, PDM e unidade de fornecimento) para apoiar a decisão do gestor.
-
-### MARCO 11.4 — `v1.8.8` (Geração 8.8 — Conector de Índices Econômicos Oficiais: `Banco Central SGS + IBGE SIDRA`) *(Reserva de Hotfix: `v1.8.9+`)*
-
-- [ ] **11.4.1. Ferramenta `fetch_official_economic_indices` (CLI `--fetch-indices`):**
-  - Consulta as APIs oficiais do `BACEN` (`bcdata.sgs`) e `IBGE` (`SIDRA`) para calcular ao centavo o fator acumulado exato no interregno contratual de **IPCA, INPC, IGP-M, ICTI (Ipea), IST (Anatel), INCC e PTAX**, barrando pleitos de reajuste ou reequilíbrio com índices divergentes da série oficial (`[OFFICIAL_INDEX_ACCUMULATED_FACTOR_MISMATCH_BLOCK]`).
 
 ---
 
