@@ -162,8 +162,34 @@ export interface ExtractedPdfImageAsset {
   png_data?: Buffer;
 }
 
+export interface PdfPadesSignatureDetail {
+  signature_index: number;
+  byte_range?: [number, number, number, number];
+  covers_eof: boolean;
+  post_signature_bytes: number;
+  post_signature_classification:
+    | "NONE"
+    | "BENIGN_CO_SIGNATURE_OR_TIMESTAMP"
+    | "SUSPECT_INCREMENTAL_TAMPERING";
+  digest_algorithm?: string;
+  message_digest_hex?: string;
+  computed_byte_range_hash_hex?: string;
+  digest_verified?: boolean;
+  subject_cn: string | null;
+  issuer_cn: string | null;
+  subject_dn: string | null;
+  issuer_dn: string | null;
+  icp_brasil_cpf: string | null;
+  icp_brasil_cnpj: string | null;
+  not_before_iso: string | null;
+  not_after_iso: string | null;
+  is_self_signed: boolean;
+  is_trusted_icp_chain: boolean;
+  anomalies: string[];
+}
+
 export interface DocumentForensicMeta {
-  source_format: "pdf" | "docx";
+  source_format: "pdf" | "docx" | "xlsx";
   title: string | null;
   author: string | null;
   last_modified_by: string | null;
@@ -179,6 +205,10 @@ export interface DocumentForensicMeta {
   editing_software_traces: string[];
   forensic_anomalies: string[];
   links_detected_count?: number;
+  pades_signatures?: PdfPadesSignatureDetail[];
+  rsid_root?: string | null;
+  rsid_sample?: string[];
+  rsid_unique_count?: number;
 }
 
 export interface PdfExtractionResult {

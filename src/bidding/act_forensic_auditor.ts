@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 import type { DocumentForensicMeta } from "../types/index.ts";
 import { extractPdfPages } from "../utils/pdf.ts";
 import { detectPdfEditingSoftwareTraces } from "../utils/pdf/forensic_meta.ts";
+import { comparePadesSignerIdentity } from "../utils/pdf/pades_signature_auditor.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import type {
   ActForensicItemInput,
@@ -67,6 +68,10 @@ export async function hydrateActForensicsItems(
         item.editing_software_traces && item.editing_software_traces.length > 0
           ? item.editing_software_traces
           : meta.editing_software_traces,
+      pades_signatures:
+        item.pades_signatures && item.pades_signatures.length > 0
+          ? item.pades_signatures
+          : meta.pades_signatures,
     });
   }
 
@@ -270,6 +275,34 @@ export function auditActForensics(
           ", "
         )}).`
       );
+    }
+
+    // Perícia Criptográfica PKCS#7/PAdES e /ByteRange
+    if (item.pades_signatures && item.pades_signatures.length > 0) {
+      const padesTagsBefore = itemTags.length;
+      for (const sig of item.pades_signatures) {
+        for (const tag of sig.anomalies) {
+          if (!itemTags.includes(tag)) {
+            itemTags.push(tag);
+          }
+          details.push(
+            `Vetor 7 (PAdES #${sig.signature_index} / ${sig.subject_cn || "Sem CN"}): anomalia criptográfica ${tag}.`
+          );
+        }
+      }
+      const identityReasons = comparePadesSignerIdentity(item.pades_signatures, {
+        expectedSignerName: item.expected_signer_name,
+        expectedSignerCpfCnpj: item.expected_signer_cpf_cnpj || item.issuer_cnpj,
+      });
+      if (identityReasons.length > 0) {
+        if (!itemTags.includes("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]")) {
+          itemTags.push("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]");
+        }
+        identityReasons.forEach((r) => details.push(`Vetor 7 (Identidade X.509): ${r}`));
+      }
+      if (itemTags.length > padesTagsBefore) {
+        triggered_vectors.push("VETOR_7_CRIPTOGRAFIA_PADES");
+      }
     }
 
     itemTags.forEach((t) => allTagsSet.add(t));

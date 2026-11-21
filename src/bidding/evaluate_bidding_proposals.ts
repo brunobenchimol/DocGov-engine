@@ -180,6 +180,9 @@ export async function evaluateBiddingProposals(
     !qualRes.financial_rules_ok ||
     blocking_tags.includes("[UNIT_PRICE_OVERPRICING_JOGO_DE_PLANILHA_BLOCK]") ||
     blocking_tags.includes("[ACT_CHRONOLOGY_OR_INACTIVE_CNPJ_FRAUD_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]") ||
     blocking_tags.includes("[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]") ||
     blocking_tags.includes("[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]") ||
     blocking_tags.includes("[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]") ||

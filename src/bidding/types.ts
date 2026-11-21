@@ -3,7 +3,7 @@
 // docgov-engine v1.6.0 — src/bidding/types.ts
 // ============================================================================
 
-import type { DocumentForensicMeta } from "../types/index.ts";
+import type { DocumentForensicMeta, PdfPadesSignatureDetail } from "../types/index.ts";
 
 export type IctMetricType =
   | "UST"
@@ -138,6 +138,9 @@ export interface ActForensicItemInput {
   act_pdf_path?: string;
   act_structure_json_path?: string;
   is_second_copy_declared?: boolean;
+  expected_signer_name?: string;
+  expected_signer_cpf_cnpj?: string;
+  pades_signatures?: PdfPadesSignatureDetail[];
 }
 
 export interface CompetingProposalMetaInput {

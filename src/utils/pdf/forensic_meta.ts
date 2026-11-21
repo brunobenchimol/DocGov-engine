@@ -1,5 +1,6 @@
 import { extractLinks, getMeta } from "unpdf";
 import type { DocumentForensicMeta } from "../../types/index.ts";
+import { auditPdfPadesSignatures } from "./pades_signature_auditor.ts";
 
 export const SUSPECT_PDF_EDITOR_PATTERNS: Array<{ label: string; regex: RegExp }> = [
   { label: "Canva", regex: /\bcanva\b/i },
@@ -108,14 +109,25 @@ export async function extractPdfForensicMeta(params: {
 
   const rawLatin1 = sourceBuffer.toString("latin1");
   const hasSigObject = /\/Type\s*\/Sig\b/.test(rawLatin1);
+  const maybeHasSig =
+    hasSigObject || isSignaturesPresent || /\/ByteRange\s*\[\s*\d+/.test(rawLatin1);
   const sigDateMatch = rawLatin1.match(/\/M\s*\(D:(\d{8,14})/);
   const signatureDateIso = sigDateMatch ? parsePdfRawDateToIso(sigDateMatch[1]) : null;
-  const hasDigitalSignature = isSignaturesPresent || hasSigObject || Boolean(signatureDateIso);
+  const padesSignatures = maybeHasSig ? auditPdfPadesSignatures(sourceBuffer) : [];
+  const hasDigitalSignature =
+    isSignaturesPresent || hasSigObject || Boolean(signatureDateIso) || padesSignatures.length > 0;
 
   const editingSoftwareTraces = detectPdfEditingSoftwareTraces(creatorTool, producer);
   const forensicAnomalies: string[] = [];
   if (editingSoftwareTraces.length > 0) {
     forensicAnomalies.push("[PDF_EDITOR_MANIPULATION_TRACE]");
+  }
+  for (const sig of padesSignatures) {
+    for (const tag of sig.anomalies) {
+      if (!forensicAnomalies.includes(tag)) {
+        forensicAnomalies.push(tag);
+      }
+    }
   }
 
   return {
@@ -135,5 +147,6 @@ export async function extractPdfForensicMeta(params: {
     editing_software_traces: editingSoftwareTraces,
     forensic_anomalies: forensicAnomalies,
     ...(linksDetectedCount > 0 ? { links_detected_count: linksDetectedCount } : {}),
+    ...(padesSignatures.length > 0 ? { pades_signatures: padesSignatures } : {}),
   };
 }
