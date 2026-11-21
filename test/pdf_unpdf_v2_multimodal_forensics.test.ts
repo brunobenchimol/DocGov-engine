@@ -366,7 +366,7 @@ describe("unpdf@2.1.0+ Multimodal Assets, 5 Page Classes & Dual PDF/DOCX Forensi
 
     const bsRes = await bootstrapCase(resolve(caseDir));
     const masterMd = readFileSync(bsRes.indice_mestre_path!, "utf-8");
-    expect(masterMd).toContain("### 🔍 Inventário Forense de Metadados (PDF & DOCX) e Cobertura Visual Multimodal");
+    expect(masterMd).toContain("### 🔍 Inventário Forense de Metadados (PDF, DOCX & XLSX) e Cobertura Visual Multimodal");
     expect(masterMd).toContain("Consultor_Conluio_X");
     expect(masterMd).toContain("[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]");
   });

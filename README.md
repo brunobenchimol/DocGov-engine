@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.6.11)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.0)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,11 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.6.x` — Versão Atual `v1.6.10` (Eixo 5: Higiene de Tokens MCP `tools/list` + Onda 3 `TCM-PA` + Geração 6.5 Completa)
+## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.0` (Geração 7.0 — 2ª Perna Anti-Fraude Parte 1 + Pilares Criptográfico & Documental)
 
-A versão **`v1.6.10`** consolida a diretriz de **Orçamento Estrito de Tokens no Handshake MCP (`tools/list`) — Eixo 5**, padronizando todas as **16 ferramentas MCP nativas** com descrições enxutas (`<= 600` caracteres / ~150 tokens por tool; `-63,3%` na soma das descrições e `-29,0%` no payload total `tools/list`, **zero breaking changes** em nomes ou `inputSchema`) sob guarda de regressão automatizada em `test/mcp_spec.test.ts`, mantendo a **Onda 3 Municipal (`TCM-PA`, 12ª corte oficial)** com coexistência via `sphere: "STATE" | "MUNICIPAL" | "ALL"` sobre a base completa da **Geração 6.5** (`v1.6.5`–`v1.6.7`).
+A versão **`v1.7.0`** inaugura a **Geração 7.0 (Marco 10.1)** com os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS (zero dependências nativas externas), mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+- **Perícia Criptográfica `PKCS#7/CMS/PAdES` & `/ByteRange` (`src/utils/pdf/asn1_der_parser.ts`, `pades_signature_auditor.ts`):** Parser Pure-JS `ASN.1/DER/BER`, extração ICP-Brasil `2.16.76.1.3.1`/`.3` (`CPF`/`CNPJ`), seleção do certificado folha via `SignerInfo.sid`, detecção de certificados autoassinados/não confiáveis (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`), confronto de identidade sem falso-positivo PF vs. PJ (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`) e auditoria de hash `/ByteRange` contra adulteração incremental pós-assinatura sem falso-positivo em co-assinaturas visuais (`/Subtype /Form`) (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
+- **Validador NF-e 44 Dígitos, Clones `w:rsid`, `.xlsx` Forense & `unknown_keys` Gen6 (`src/utils/forensics/`):** Recálculo Módulo 11 + confronto `CNPJ`/`AAMM` em diligências ACT Via B e Contratação Direta (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`, `[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`), clonagem OpenXML por `w:rsidRoot` / `w:rsidR` mesmo com `Author` apagado (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`), `forensic_meta` em `.xlsx` (`xlsx_forensic_meta.ts`) e detector determinístico de `unknown_keys` na Gen6 (Lei 3).
 
 ### 🏗️ Principais Inovações da Geração 6.5 — Eixo 2 (`v1.6.6`):
 1. **16ª Ferramenta MCP `docgov_audit_engineering_works` & CLI `audit-engineering-works` (Obras e Serviços de Engenharia):**
@@ -198,7 +200,7 @@ A versão **`v1.6.10`** consolida a diretriz de **Orçamento Estrito de Tokens n
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.6.11`):** Inclusão mandatória do campo `"engine_version": "1.6.11"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.0`):** Inclusão mandatória do campo `"engine_version": "1.7.0"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -636,8 +638,8 @@ bun test test/mcp_dispatch.test.ts test/mcp_spec.test.ts test/version.test.ts
 # 12. Fiscalização Contratual, PAS Federativo/LINDB Art. 22, Cesta IN 65/2021 e Governança de ARP (Geração 5)
 bun test test/contracts/ test/arp/ test/contracts_arp_mcp_cli.test.ts
 
-# 13. Fase Externa/Recursal, Contratação Direta & Ponte Multimodal unpdf@2.1+ / Perícia Dual (Geração 6)
-bun test test/bidding_gen6.test.ts test/bidding_inexeq_appeals_v164.test.ts test/direct_contracting_gen6.test.ts test/pdf_unpdf_v2_multimodal_forensics.test.ts
+# 13. Fase Externa/Recursal, Contratação Direta & Ponte Multimodal unpdf@2.1+ / Perícia Criptográfica PAdES, NF-e & w:rsid/XLSX (Gen6/Gen7.0)
+bun test test/bidding_gen6.test.ts test/bidding_inexeq_appeals_v164.test.ts test/direct_contracting_gen6.test.ts test/pdf_unpdf_v2_multimodal_forensics.test.ts test/pades_signature_auditor.test.ts test/nfe_key_validator.test.ts test/rsid_and_xlsx_forensics.test.ts
 ```
 
 ---

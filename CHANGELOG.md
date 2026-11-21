@@ -6,10 +6,29 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
-## [Unreleased]
+## [1.7.0] - 2026-11-21 — Geração 7.0 (Parte 1): Perícia Criptográfica `PKCS#7/PAdES` & `/ByteRange`, Validador NF-e 44 Dígitos, Clones `w:rsid` & Forense `.xlsx`
 
-### Melhorias de Engenharia & Testes (DX / Economia de Tokens)
-- **Runner Compacto de Testes (`scripts/run_tests.ts` — `bun run test`):** Adicionado wrapper determinístico de testes com saída compacta padrão (~95% de economia de tokens na suíte completa, ~14 linhas vs. 500+), heartbeat anti-travamento (lotes de 10 arquivos + alerta de 12s), preservação integral de falhas com buffer circular de fallback em `stderr`, ranking *Top 3* arquivos mais lentos e modo completo sob demanda (`bun run test:verbose`). Atualizados `package.json` e `AGENTS.md` (Lei 9 / DoD). *(Commit `1000793`)*
+### Added
+- **Pilar Anti-Fraude 1 — Parser Pure-JS `ASN.1/DER/BER` & Auditor `PKCS#7/CMS/PAdES` (`src/utils/pdf/asn1_der_parser.ts`, `src/utils/pdf/pades_signature_auditor.ts`, `src/utils/pdf/forensic_meta.ts`, `src/bidding/act_forensic_auditor.ts`):**
+  - Parser binário Pure-JS `ASN.1/DER` com suporte a BER *Indefinite-Length* (`0x80`...`0x00 0x00`), recorte exato pelo TLV raiz (sem *strip* cego de `0x00`) e re-parsing de `OCTET STRING` em `SubjectAlternativeName` (`2.5.29.17`) extraindo OIDs oficiais ICP-Brasil `2.16.76.1.3.1` (CPF após `DDMMAAAA`) e `2.16.76.1.3.3` (CNPJ), além de seleção obrigatória do certificado folha via `SignerInfo.sid` (`issuer` + `serialNumber`);
+  - Validação de cadeia `ICP-Brasil` / `Gov.br` contra certificados autoassinados ou não confiáveis (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`), confronto de identidade X.509 sem falsos-positivos entre e-CPF de diretor PF e CNPJ da PJ (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`) e auditoria matemática de `/ByteRange` via `node:crypto` (`SHA-256`/`384`/`512`/`SHA-1`) diferenciando co-assinaturas visuais legítimas em `/Subtype /Form` de modificações incrementais suspeitas pós-assinatura (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
+- **Pilar Anti-Fraude 5.1 — Validador Algorítmico NF-e 44 Dígitos (`src/utils/forensics/nfe_key_validator.ts`):**
+  - Decomposição posicional estrita (`UF[2] + AAMM[4] + CNPJ[14] + Modelo[2] + Série[3] + Número[9] + Emissão[1] + Código[8] + DV[1]`), validação das 27 UFs IBGE, mês `01..12`, modelos `55`/`65` e recálculo exato do Dígito Verificador Módulo 11 (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`);
+  - Confronto de `CNPJ` e `AAMM` (formatos `YYYY-MM-DD`, `DD/MM/YYYY` e `YYYY-MM`) em diligências ACT Via B (`diligence_nfe_keys[]` usando `expected_cnpj || bidder_cnpj`, nunca `issuer_cnpj`) e em `supplier_market_price_proofs[]` de Contratação Direta (`[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`).
+- **Pilar Anti-Fraude 5.2 & 5.3 — Clones `w:rsid` em `.docx` & `forensic_meta` em `.xlsx` (`src/utils/pdf/docx_forensic_meta.ts`, `src/utils/pdf/xlsx_forensic_meta.ts`, `src/utils/pdf/forensic_cross_audit.ts`, `src/tools/inspect/non_docx_pipeline.ts`, `src/tools/bootstrap.ts`):**
+  - Extração de `w:rsidRoot` (`word/settings.xml`, ignorando `00000000`/vazio) e `w:rsidR` (`word/document.xml`) para detecção cruzada de clonagem mesmo com `Author` apagado (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`);
+  - Extração unificada de `docProps/core.xml` e `docProps/app.xml` para planilhas `.xlsx` (`source_format: "xlsx"`) em `inspect_doc`, `bootstrap_case` (`Inventário Forense de Metadados (PDF, DOCX & XLSX)`), `forensic_collusion_auditor.ts` e `audit_direct_contracting.ts`.
+- **Guarda Determinística de `unknown_keys` na Gen6 (Lei 3 — `src/utils/forensics/gen6_contract_guard.ts`):**
+  - Detector determinístico de chaves não reconhecidas em `docgov_evaluate_bidding_proposals` e `docgov_audit_direct_contracting` (incluindo todos os novos campos `v1.7.0` na *allowlist* sem aliases silenciosos), gravando `unknown_keys` e `schema_warnings` nos dossiês em disco e expondo `unknown_keys` no envelope MCP apenas quando não vazio (`< 900B`).
+- **Suítes de Testes Modulares & Smoke `stdio` (`test/pades_signature_auditor.test.ts`, `test/nfe_key_validator.test.ts`, `test/rsid_and_xlsx_forensics.test.ts`, `test/mcp_stdio_smoke.test.ts`):**
+  - Cobertura ponta a ponta das 6 novas tags, `unknown_keys` na Gen6, manutenção de **16 tools MCP** com `description <= 600` chars e envelopes `< 900B`.
+- **Runner Compacto de Testes (`scripts/run_tests.ts` — `bun run test`):**
+  - Wrapper determinístico consolidado de `## [Unreleased]` com saída compacta padrão (~95% de economia de tokens na suíte completa), heartbeat anti-travamento, preservação integral de falhas, ranking *Top 3* arquivos mais lentos e modo completo sob demanda (`bun run test:verbose`). *(Commit `1000793`)*
+
+### Changed
+- **Elevação de Decisão & Auditoria Física Lei 9 (`src/bidding/evaluate_bidding_proposals.ts`, `scripts/check_lines.ts`, `src/mcp/spec.ts`):**
+  - Todas as 6 novas tags forenses `[FORENSIC_*_BLOCK]` elevam `decision` para `"REJECTED"` em `docgov_evaluate_bidding_proposals`;
+  - Diretório `src/utils/forensics` registrado na verificação automática de teto `<= 500` linhas em `scripts/check_lines.ts` e especificação sincronizada em `src/mcp/spec.ts` (`--dump-spec`).
 
 ## [1.6.11] - 2026-11-19 — Blindagem de Contratos Gen5 (`Exact Copy-Paste Error` & Detector de `unknown_keys`), Smoke Test MCP `stdio` Real & Automação de Release Notes
 

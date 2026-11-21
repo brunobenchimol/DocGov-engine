@@ -1,4 +1,4 @@
-# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.6.11`)
+# Memória Evolutiva Executiva — `docgov-engine` (`v0.1` a `v1.7.0`)
 
 ---
 
@@ -10,7 +10,7 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 
 ---
 
-## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.6.11`)
+## 2. Radiografia Evolutiva das Gerações (`v0.1` a `v1.7.0`)
 
 ### Geração 1 (`v0.1` a `v1.1.0` — Fundação OpenXML, Cartografia Sem IA e Radar Pericial)
 - **Tools MCP:** `bootstrap_case`, `inspect_doc`, `build_docx_template`, `fill_docx_template`, `generate_audit_docx`.
@@ -92,3 +92,10 @@ Este documento constitui a **Radiografia Histórica e Funcional Cumulativa** do 
 ### Blindagem de Contratos Gen5, Detector de `unknown_keys` & Smoke Test MCP via `stdio` Real (`v1.6.11`)
 - **Exact Copy-Paste Error & Detector Determinístico de `unknown_keys` (`src/contracts/gen5_contract_errors.ts`):** Bloqueio *fail-fast* com snippet JSON canônico copiável para entradas vazias/inválidas em `docgov_audit_contract_execution` e `docgov_govern_arp` (`49fb4e9`, `316d078`), somado à detecção de chaves desconhecidas na raiz e arrays principais (`addendums[]`, `pas_sanctions[]`, `tripartite_items[]`, `readjustments[]`, `price_basket`, `risk_matrix_events[]`, `items[]`, `adhesion_request` / `adhesions[]`) sem criar aliases silenciosos (Lei 3). Registra `unknown_keys` e `schema_warnings` nos dossiês JSON/MD em disco e expõe `unknown_keys` no envelope MCP somente quando não vazio (`< 900B`, Lei 2).
 - **Paridade Estrita `spec.ts` vs. Parsers `.ts` & Smoke Test `stdio` Real (`test/mcp_stdio_smoke.test.ts`):** Alinhamento 100% entre `--dump-spec` e os parsers reais (`addendums`, `value_increase`, `value_decrease`, `compensated_attempt`, `requesting_organ` estruturado), validado ponta a ponta via `StdioClientTransport` real (`c16287c`), além da automação e Dupla Defesa de Release Notes (`scripts/extract_release_notes.ts` e `.github/workflows/release.yml`).
+
+### Geração 7.0 (`v1.7.0` — 2ª Perna Anti-Fraude Parte 1: Perícia `PKCS#7/PAdES`, NF-e 44 Dígitos, Clones `w:rsid` & `.xlsx`)
+- **Tools MCP Enriquecidas (16 mantidas, `<= 600` chars):** `bootstrap_case`, `inspect_doc`, `docgov_evaluate_bidding_proposals` e `docgov_audit_direct_contracting` + runner compacto `scripts/run_tests.ts`.
+- **Motores (`<= 500` linhas):** `src/utils/pdf/asn1_der_parser.ts`, `src/utils/pdf/pades_signature_auditor.ts`, `src/utils/pdf/xlsx_forensic_meta.ts`, `src/utils/forensics/nfe_key_validator.ts` e `src/utils/forensics/gen6_contract_guard.ts`.
+- **Capacidades & 6 Novas Tags Bloqueantes (elevando `decision` para `"REJECTED"`):**
+  - **Pilar 1 (Pure-JS `ASN.1/DER/BER` & `/ByteRange`):** Recorte pelo TLV raiz (sem *strip* cego de `0x00`), suporte a BER *indefinite-length*, seleção do certificado folha via `SignerInfo.sid`, extração de ICP-Brasil `2.16.76.1.3.1`/`.3` (`SAN OCTET STRING`), verificação de cadeia (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`), confronto de identidade X.509 sem falso-positivo PF vs. PJ (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`) e detecção de adulteração incremental vs. co-assinatura visual benigna `/Subtype /Form` (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
+  - **Pilar 5 (NF-e 44 Dígitos, `w:rsid` & `.xlsx`):** Decomposição e recálculo Módulo 11 (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`), confronto CNPJ/AAMM com `bidder_cnpj` no ACT Via B e `supplier_market_price_proofs[]` (`[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`), clones `.docx` por `w:rsidRoot` / `w:rsidR` mesmo com `Author` limpo (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`), `forensic_meta` para `.xlsx` e guarda `unknown_keys` na Gen6 (`< 900B`).
