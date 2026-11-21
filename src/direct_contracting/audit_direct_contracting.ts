@@ -19,6 +19,10 @@ import type { DocumentForensicMeta } from "../types/index.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { evaluateDirectContractingRules } from "./direct_contracting_auditor.ts";
 import { compileDirectContractingOpinion } from "./direct_contracting_compiler.ts";
+import {
+  buildUnknownKeySchemaWarnings,
+  detectDirectContractingUnknownKeys,
+} from "../utils/forensics/gen6_contract_guard.ts";
 import type {
   RawDirectContractingInput,
   AuditDirectContractingOptions,
@@ -46,6 +50,9 @@ function buildCompactSyntheticResult(
       : {}),
     dossier_json_path: toCompactWorkspacePath(jsonPath),
     dossier_md_path: toCompactWorkspacePath(mdPath),
+    ...(dossier.unknown_keys && dossier.unknown_keys.length > 0
+      ? { unknown_keys: dossier.unknown_keys.slice(0, 6) }
+      : {}),
     next_step_hint:
       dossier.blocking_tags.length > 0
         ? `Instrução bloqueada (${dossier.blocking_tags.length} tag(s)).`
@@ -63,6 +70,9 @@ function buildCompactSyntheticResult(
     synthetic.dossier_md_path = basename(mdPath);
   }
   if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880 && synthetic.unknown_keys) {
+      delete synthetic.unknown_keys;
+    }
     if (minSizeOf(synthetic) > 880) {
       delete synthetic.pdf_path;
     }
@@ -97,6 +107,9 @@ function buildDossierMarkdown(d: DirectContractingAuditDossier): string {
     "",
     "## Achados",
     ...(d.findings.length > 0 ? d.findings.map((f) => `- ${f}`) : ["- Conformidade integral."]),
+    ...(d.schema_warnings && d.schema_warnings.length > 0
+      ? ["", "## Avisos de Contrato (Lei 3 — unknown_keys)", ...d.schema_warnings.map((w) => `- ${w}`)]
+      : []),
   ].join("\n");
 }
 
@@ -158,6 +171,8 @@ export async function auditDirectContracting(
 
   const processId = raw.process_id || "PROC-DIRETA-GENERICO";
   const evalRes = evaluateDirectContractingRules(raw);
+  const unknownKeys = detectDirectContractingUnknownKeys(raw);
+  const schemaWarnings = buildUnknownKeySchemaWarnings(unknownKeys);
 
   const decision: DirectContractingAuditDossier["decision"] =
     evalRes.blocking_tags.length > 0 ? "REJECTED" : "APPROVED";
@@ -203,6 +218,7 @@ export async function auditDirectContracting(
     ...(evalRes.inexigibility_summary ? { inexigibility_summary: evalRes.inexigibility_summary } : {}),
     ...(evalRes.dispensation_summary ? { dispensation_summary: evalRes.dispensation_summary } : {}),
     ...(evalRes.state_opportunity_summary ? { state_opportunity_summary: evalRes.state_opportunity_summary } : {}),
+    ...(unknownKeys.length > 0 ? { unknown_keys: unknownKeys, schema_warnings: schemaWarnings } : {}),
     raw_context: raw,
   };
 

@@ -8,6 +8,7 @@ import type { DocumentForensicMeta } from "../types/index.ts";
 import { extractPdfPages } from "../utils/pdf.ts";
 import { detectPdfEditingSoftwareTraces } from "../utils/pdf/forensic_meta.ts";
 import { comparePadesSignerIdentity } from "../utils/pdf/pades_signature_auditor.ts";
+import { parseAndValidateNfeAccessKey } from "../utils/forensics/nfe_key_validator.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import type {
   ActForensicItemInput,
@@ -116,7 +117,7 @@ function hasCommonQsaPartner(a: string[] = [], b: string[] = []): boolean {
 
 export function auditActForensics(
   items: ActForensicItemInput[] = [],
-  options: { bidderName?: string } = {}
+  options: { bidderName?: string; bidderCnpj?: string } = {}
 ): ActForensicEvaluation {
   const allTagsSet = new Set<string>();
   const findings: ActForensicFinding[] = [];
@@ -302,6 +303,34 @@ export function auditActForensics(
       }
       if (itemTags.length > padesTagsBefore) {
         triggered_vectors.push("VETOR_7_CRIPTOGRAFIA_PADES");
+      }
+    }
+
+    // Validação Algorítmica NF-e 44 Dígitos (Diligência ACT Via B)
+    const nfeInputs = [
+      ...(item.nfe_access_key
+        ? [{ access_key: item.nfe_access_key, declared_issue_date: item.nfe_declared_issue_date }]
+        : []),
+      ...(item.diligence_nfe_keys || []).map((entry) =>
+        typeof entry === "string"
+          ? { access_key: entry, declared_issue_date: item.nfe_declared_issue_date }
+          : entry
+      ),
+    ];
+    if (nfeInputs.length > 0) {
+      const nfeTagsBefore = itemTags.length;
+      for (const nfeEntry of nfeInputs) {
+        const nfeCheck = parseAndValidateNfeAccessKey(nfeEntry.access_key, {
+          expectedCnpj: nfeEntry.expected_cnpj || options.bidderCnpj,
+          declaredIssueDate: nfeEntry.declared_issue_date || item.nfe_declared_issue_date,
+        });
+        for (const tag of nfeCheck.blocking_tags) {
+          if (!itemTags.includes(tag)) itemTags.push(tag);
+        }
+        nfeCheck.reasons.forEach((r) => details.push(`Vetor 7 (NF-e 44 Dígitos): ${r}`));
+      }
+      if (itemTags.length > nfeTagsBefore) {
+        triggered_vectors.push("VETOR_7_NFE_44_DIGITOS");
       }
     }
 

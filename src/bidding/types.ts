@@ -101,6 +101,12 @@ export interface FinancialQualificationInput {
   requires_cumulative_capital_and_equity?: boolean;
 }
 
+export interface DiligenceNfeKeyInput {
+  access_key: string;
+  expected_cnpj?: string;
+  declared_issue_date?: string;
+}
+
 export interface ActForensicItemInput {
   certificate_id?: string;
   issuer_name?: string;
@@ -141,6 +147,9 @@ export interface ActForensicItemInput {
   expected_signer_name?: string;
   expected_signer_cpf_cnpj?: string;
   pades_signatures?: PdfPadesSignatureDetail[];
+  nfe_access_key?: string;
+  nfe_declared_issue_date?: string;
+  diligence_nfe_keys?: Array<string | DiligenceNfeKeyInput>;
 }
 
 export interface CompetingProposalMetaInput {
@@ -336,6 +345,8 @@ export interface BiddingProposalDossier {
   forensic_collusion?: ForensicCollusionEvaluation;
   inexequibility_check?: InexequibilityEvaluation;
   appeals_evaluation?: AppealsEvaluation;
+  unknown_keys?: string[];
+  schema_warnings?: string[];
   raw_context?: RawBiddingProposalInput;
   compiled_artifacts?: {
     judgment_opinion_docx_path?: string;
@@ -361,5 +372,6 @@ export interface BiddingSyntheticResult {
   dossier_json_path: string;
   dossier_md_path: string;
   compiled_artifacts?: string[];
+  unknown_keys?: string[];
   next_step_hint?: string;
 }

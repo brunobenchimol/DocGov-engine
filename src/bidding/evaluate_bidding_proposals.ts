@@ -24,6 +24,10 @@ import { auditCompetingProposalsCollusion } from "./forensic_collusion_auditor.t
 import { evaluateProposalInexequibility } from "./inexequibility_evaluator.ts";
 import { evaluateAdministrativeAppeal } from "./appeals_evaluator.ts";
 import { compileBiddingArtifacts } from "./bidding_docx_compiler.ts";
+import {
+  buildUnknownKeySchemaWarnings,
+  detectBiddingUnknownKeys,
+} from "../utils/forensics/gen6_contract_guard.ts";
 import type {
   RawBiddingProposalInput,
   EvaluateBiddingOptions,
@@ -52,6 +56,9 @@ function buildCompactSyntheticResult(
     dossier_json_path: toCompactWorkspacePath(jsonPath),
     dossier_md_path: toCompactWorkspacePath(mdPath),
     ...(compiledNames.length > 0 ? { compiled_artifacts: compiledNames } : {}),
+    ...(dossier.unknown_keys && dossier.unknown_keys.length > 0
+      ? { unknown_keys: dossier.unknown_keys.slice(0, 6) }
+      : {}),
     next_step_hint:
       dossier.blocking_tags.length > 0
         ? `Bloqueio/diligência (${dossier.blocking_tags.length} tag(s)). Veja dossiê.`
@@ -73,6 +80,9 @@ function buildCompactSyntheticResult(
     delete synthetic.next_step_hint;
   }
   if (sizeOf(synthetic) > 850) {
+    if (minSizeOf(synthetic) > 880 && synthetic.unknown_keys) {
+      delete synthetic.unknown_keys;
+    }
     if (minSizeOf(synthetic) > 880) {
       delete synthetic.proposal_decision;
     }
@@ -118,6 +128,9 @@ function buildDossierMarkdown(d: BiddingProposalDossier): string {
       `### ${it.certificate_id} — ${it.issuer_name} (${it.issuer_cnpj})`,
       ...it.details.map((det) => `- ${det}`),
     ]),
+    ...(d.schema_warnings && d.schema_warnings.length > 0
+      ? ["", "## Avisos de Contrato (Lei 3 — unknown_keys)", ...d.schema_warnings.map((w) => `- ${w}`)]
+      : []),
   ].join("\n");
 }
 
@@ -144,12 +157,14 @@ export async function evaluateBiddingProposals(
   const ictRes = evaluateIctExecutionAndExequibility(raw);
   const qualRes = evaluateQualification(raw);
   const hydratedActs = await hydrateActForensicsItems(raw.act_forensic_items || []);
-  const actRes = auditActForensics(hydratedActs, { bidderName });
+  const actRes = auditActForensics(hydratedActs, { bidderName, bidderCnpj: raw.bidder_cnpj });
   const collusionRes = await auditCompetingProposalsCollusion(
     raw.competing_proposals_meta || []
   );
   const inexRes = evaluateProposalInexequibility(raw);
   const appealsRes = evaluateAdministrativeAppeal(raw.appeal_context, raw);
+  const unknownKeys = detectBiddingUnknownKeys(raw);
+  const schemaWarnings = buildUnknownKeySchemaWarnings(unknownKeys);
 
   const tagsSet = new Set<string>([
     ...ictRes.blocking_tags,
@@ -183,6 +198,9 @@ export async function evaluateBiddingProposals(
     blocking_tags.includes("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]") ||
     blocking_tags.includes("[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]") ||
     blocking_tags.includes("[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]") ||
+    blocking_tags.includes("[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]") ||
     blocking_tags.includes("[APPEAL_IMMEDIATE_INTENT_PRECLUSION_BLOCK]") ||
     blocking_tags.includes("[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]") ||
     blocking_tags.includes("[APPEAL_UNTIMELY_3_BUSINESS_DAYS_BLOCK]") ||
@@ -234,6 +252,7 @@ export async function evaluateBiddingProposals(
       ? { inexequibility_check: inexRes }
       : {}),
     ...(appealsRes.evaluated ? { appeals_evaluation: appealsRes } : {}),
+    ...(unknownKeys.length > 0 ? { unknown_keys: unknownKeys, schema_warnings: schemaWarnings } : {}),
     raw_context: raw,
   };
 

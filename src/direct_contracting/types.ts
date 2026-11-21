@@ -26,6 +26,8 @@ export interface MarketPriceProofInput {
   issue_date?: string;
   pdf_path?: string;
   structure_json_path?: string;
+  nfe_access_key?: string;
+  issuer_cnpj?: string;
 }
 
 export interface QuotationForensicMetaInput {
@@ -70,6 +72,7 @@ export interface RawDirectContractingInput {
   legal_regime?: "LEI_14133" | "LEI_13303" | string;
   contracted_amount?: number;
   contracted_Amount?: number;
+  supplier_cnpj?: string;
   caseDir?: string;
   case_dir?: string;
   outputDir?: string;
@@ -118,6 +121,8 @@ export interface DirectContractingAuditDossier {
   contracted_amount?: number;
   blocking_tags: string[];
   findings: string[];
+  unknown_keys?: string[];
+  schema_warnings?: string[];
   raw_context?: RawDirectContractingInput;
   inexigibility_summary?: {
     exclusivity_valid: boolean;
@@ -158,5 +163,6 @@ export interface DirectContractingSyntheticResult {
   pdf_path?: string;
   dossier_json_path: string;
   dossier_md_path: string;
+  unknown_keys?: string[];
   next_step_hint?: string;
 }

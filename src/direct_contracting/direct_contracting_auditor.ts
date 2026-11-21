@@ -9,6 +9,7 @@ import type {
   DirectContractingAuditDossier,
 } from "./types.ts";
 import { detectCrossDocumentForensicCollisions } from "../utils/pdf/forensic_cross_audit.ts";
+import { parseAndValidateNfeAccessKey } from "../utils/forensics/nfe_key_validator.ts";
 
 function computeSanitizedMedian(values: number[]): number | undefined {
   const valid = values
@@ -147,6 +148,20 @@ export function evaluateDirectContractingRules(raw: RawDirectContractingInput): 
       .map((p) => Number(p.unit_price))
       .filter((n) => Number.isFinite(n) && n > 0);
     const sanitizedMedian = computeSanitizedMedian(proofPrices);
+
+    for (const proof of inex.supplier_market_price_proofs || []) {
+      if (!proof.nfe_access_key) continue;
+      const nfeRes = parseAndValidateNfeAccessKey(proof.nfe_access_key, {
+        expectedCnpj: proof.issuer_cnpj || raw.supplier_cnpj,
+        declaredIssueDate: proof.issue_date,
+      });
+      for (const tag of nfeRes.blocking_tags) {
+        if (!blocking_tags.includes(tag)) blocking_tags.push(tag);
+      }
+      nfeRes.reasons.forEach((r) =>
+        findings.push(`Perícia NF-e 44 dígitos (${proof.identifier || "sem ID"}): ${r}`)
+      );
+    }
 
     const qty = Number(raw.unit_quantity || 0);
     const rawProposed =
