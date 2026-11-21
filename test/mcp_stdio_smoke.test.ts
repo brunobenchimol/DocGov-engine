@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { VERSION } from "../src/constants/index.ts";
+import { computeNfeMod11CheckDigit } from "../src/utils/forensics/nfe_key_validator.ts";
 import { createSuiteTempDir } from "./helpers/fixtures.ts";
 
 const ROOT_DIR = resolve(import.meta.dir, "..");
@@ -270,5 +271,80 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     );
     expect(diskArpDossier.unknown_keys).toContain("adhesions[0].unmapped_flag");
     expect(diskArpDossier.schema_warnings?.[0]).toContain("adhesions[0].unmapped_flag");
+  });
+
+  test("7. tools/call via stdio Gen6 (v1.7.0) deve bloquear NF-e inválida, detectar unknown_keys e manter envelope < 900B", async () => {
+    const base43 = "3526041122233300018155001000000123112345678";
+    const invalidNfeKey = `${base43}${(computeNfeMod11CheckDigit(base43) + 1) % 10}`;
+    const bidDir = join(tempDir, "gen6_bid_smoke");
+    const bidPath = join(tempDir, "bidding_v170.json");
+    writeFileSync(
+      bidPath,
+      JSON.stringify({
+        process_id: "PROC-STDIO-V170",
+        bidder_name: "EMPRESA_GENERICA",
+        bidder_cnpj: "11.222.333/0001-81",
+        invented_bidding_alias: true,
+        act_forensic_items: [
+          {
+            certificate_id: "ACT-STDIO-1",
+            issuer_name: "ORGAO_CONTRATANTE",
+            issuer_cnpj: "99.888.777/0001-66",
+            nfe_access_key: invalidNfeKey,
+          },
+        ],
+      }),
+      "utf-8"
+    );
+
+    const bidRes = await client.callTool({
+      name: "docgov_evaluate_bidding_proposals",
+      arguments: { proposalJsonPath: bidPath, outputDir: bidDir },
+    });
+    expect(bidRes.isError).toBeFalsy();
+    const bidText = extractFirstTextContent(bidRes);
+    expect(Buffer.byteLength(bidText, "utf-8")).toBeLessThan(900);
+    const bidJson = JSON.parse(bidText);
+    expect(bidJson.decision).toBe("REJECTED");
+    expect(bidJson.blocking_tags).toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
+    expect(bidJson.unknown_keys).toEqual(["invented_bidding_alias"]);
+
+    const dirOut = join(tempDir, "gen6_dir_smoke");
+    const dirPath = join(tempDir, "direct_v170.json");
+    writeFileSync(
+      dirPath,
+      JSON.stringify({
+        process_id: "PROC-DIR-V170",
+        contracting_modality: "INEXIGIBILIDADE",
+        supplier_cnpj: "11222333000181",
+        inexigibility_details: {
+          competition_infeasibility_proven: true,
+          exclusivity_certificate: { provided: true, sumula_255_tcu_verified: true },
+          supplier_market_price_proofs: [
+            {
+              identifier: "NF-01",
+              unit_price: 500,
+              nfe_access_key: invalidNfeKey,
+              alias_inventado: true,
+            },
+            { identifier: "NF-02", unit_price: 500 },
+            { identifier: "NF-03", unit_price: 500 },
+          ],
+        },
+      }),
+      "utf-8"
+    );
+
+    const dirRes = await client.callTool({
+      name: "docgov_audit_direct_contracting",
+      arguments: { directContractingJsonPath: dirPath, outputDir: dirOut },
+    });
+    expect(dirRes.isError).toBeFalsy();
+    const dirText = extractFirstTextContent(dirRes);
+    expect(Buffer.byteLength(dirText, "utf-8")).toBeLessThan(900);
+    const dirJson = JSON.parse(dirText);
+    expect(dirJson.decision).toBe("REJECTED");
+    expect(dirJson.blocking_tags).toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
+    expect(dirJson.unknown_keys).toEqual(["inexigibility_details.supplier_market_price_proofs[0].alias_inventado"]);
   });
 });
