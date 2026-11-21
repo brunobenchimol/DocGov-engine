@@ -771,6 +771,7 @@ export async function bootstrapCase(
             tablesCount: compact.tables.length,
             paragraphsCount: full.line_count ?? 0,
             compactStructure: compact,
+            ...(full.forensic_meta ? { forensic_meta: full.forensic_meta } : {}),
             ...(compact.audit_view_path ? { audit_view_path: compact.audit_view_path } : {}),
           });
 

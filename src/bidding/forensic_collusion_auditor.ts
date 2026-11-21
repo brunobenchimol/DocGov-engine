@@ -6,6 +6,7 @@ import {
   type ForensicInventoryItem,
 } from "../utils/pdf/forensic_cross_audit.ts";
 import { extractDocxForensicMetaFromBuffer } from "../utils/pdf/docx_forensic_meta.ts";
+import { extractXlsxForensicMetaFromBuffer } from "../utils/pdf/xlsx_forensic_meta.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import type {
   CompetingProposalMetaInput,
@@ -36,6 +37,9 @@ async function resolveProposalForensicMeta(
         const buf = readFileSync(p);
         if (p.toLowerCase().endsWith(".docx")) {
           return await extractDocxForensicMetaFromBuffer(buf);
+        }
+        if (p.toLowerCase().endsWith(".xlsx")) {
+          return await extractXlsxForensicMetaFromBuffer(buf);
         }
         const extraction = await extractPdfPages(buf, {
           skipPageInspection: true,
@@ -85,7 +89,11 @@ export async function auditCompetingProposalsCollusion(
 
   const collisions = detectCrossDocumentForensicCollisions(resolved);
   for (const col of collisions) {
-    tagsSet.add("[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]");
+    if (col.code === "FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK") {
+      tagsSet.add("[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]");
+    } else {
+      tagsSet.add("[BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT]");
+    }
     findings.push(col.reason);
   }
 

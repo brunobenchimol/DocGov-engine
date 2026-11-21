@@ -2,6 +2,7 @@ import { writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { resolve, dirname, basename } from "node:path";
 import { isPdfBuffer, extractPdfPages } from "../../utils/pdf.ts";
 import { materializeExtractedPdfImages } from "../../utils/pdf/forensic_cross_audit.ts";
+import { extractXlsxForensicMetaFromBuffer } from "../../utils/pdf/xlsx_forensic_meta.ts";
 import {
   buildPdfCartography,
   buildDocxCartography,
@@ -43,6 +44,14 @@ export async function inspectSpreadsheetDocument(
   const extraction = isCsv
     ? parseCsvBuffer(buffer)
     : await parseXlsxBuffer(buffer);
+  let xlsxForensicMeta = undefined;
+  if (!isCsv && buffer.length > 30 && buffer[0] === 0x50 && buffer[1] === 0x4b) {
+    try {
+      xlsxForensicMeta = await extractXlsxForensicMetaFromBuffer(buffer);
+    } catch {
+      xlsxForensicMeta = undefined;
+    }
+  }
 
   const budgetAudit = auditDocumentBudget({ docxTables: extraction.tables });
   const baseStem = outputPath
@@ -125,6 +134,7 @@ export async function inspectSpreadsheetDocument(
     tables: extraction.tables,
     toc_map,
     budget_audit: budgetAudit,
+    ...(xlsxForensicMeta ? { forensic_meta: xlsxForensicMeta } : {}),
   };
 
   if (targetOutputPath) {

@@ -117,9 +117,79 @@ export interface ForensicInventoryItem {
 export interface CrossForensicCollisionAlert {
   code:
     | "BID_RIGGING_SHARED_AUTHOR_METADATA_ALERT"
-    | "PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK";
+    | "PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK"
+    | "FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK";
   files: string[];
   reason: string;
+}
+
+function normalizeRsidToken(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const norm = raw.trim().toUpperCase();
+  if (!/^[0-9A-F]{1,8}$/.test(norm)) return null;
+  const padded = norm.padStart(8, "0");
+  return padded === "00000000" ? null : padded;
+}
+
+function detectDocxRsidCollisions(
+  withMeta: ForensicInventoryItem[],
+  alerts: CrossForensicCollisionAlert[]
+): void {
+  const byRoot = new Map<string, string[]>();
+  for (const it of withMeta) {
+    const root = normalizeRsidToken(it.forensicMeta?.rsid_root);
+    if (!root) continue;
+    const list = byRoot.get(root) || [];
+    if (!list.includes(it.fileName)) list.push(it.fileName);
+    byRoot.set(root, list);
+  }
+
+  const flaggedPairs = new Set<string>();
+  for (const [root, files] of byRoot.entries()) {
+    if (files.length < 2) continue;
+    for (let i = 0; i < files.length; i++) {
+      for (let j = i + 1; j < files.length; j++) {
+        flaggedPairs.add([files[i], files[j]].sort().join("\0"));
+      }
+    }
+    alerts.push({
+      code: "FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK",
+      files,
+      reason: `Clonagem estrutural OpenXML (w:rsidRoot=${root} compartilhado) detectada entre ${files.length} arquivos (${files.join(", ")}), mesmo após eventual limpeza de Author.`,
+    });
+  }
+
+  const sampleEntries = withMeta
+    .map((it) => ({
+      fileName: it.fileName,
+      rsids: new Set(
+        (it.forensicMeta?.rsid_sample || [])
+          .map((r) => normalizeRsidToken(r))
+          .filter((r): r is string => Boolean(r))
+      ),
+    }))
+    .filter((e) => e.rsids.size >= 3);
+
+  for (let i = 0; i < sampleEntries.length; i++) {
+    for (let j = i + 1; j < sampleEntries.length; j++) {
+      const a = sampleEntries[i];
+      const b = sampleEntries[j];
+      const pairKey = [a.fileName, b.fileName].sort().join("\0");
+      if (flaggedPairs.has(pairKey)) continue;
+
+      let intersection = 0;
+      for (const r of a.rsids) if (b.rsids.has(r)) intersection++;
+      const union = a.rsids.size + b.rsids.size - intersection;
+      const jaccard = union > 0 ? intersection / union : 0;
+      if (intersection >= 3 && jaccard >= 0.5) {
+        alerts.push({
+          code: "FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK",
+          files: [a.fileName, b.fileName],
+          reason: `Sobreposição elevada de histórico w:rsidR (${intersection} revisões em comum, Jaccard ${(jaccard * 100).toFixed(1)}%) entre '${a.fileName}' e '${b.fileName}'.`,
+        });
+      }
+    }
+  }
 }
 
 function normalizePersonKey(val: string | null | undefined): string | null {
@@ -190,6 +260,7 @@ export function detectCrossDocumentForensicCollisions(
     });
   }
 
+  detectDocxRsidCollisions(withMeta, alerts);
   return alerts;
 }
 
@@ -197,7 +268,7 @@ export function renderForensicInventorySectionMarkdown(
   items: ForensicInventoryItem[]
 ): string[] {
   const lines: string[] = [];
-  lines.push("### 🔍 Inventário Forense de Metadados (PDF & DOCX) e Cobertura Visual Multimodal");
+  lines.push("### 🔍 Inventário Forense de Metadados (PDF, DOCX & XLSX) e Cobertura Visual Multimodal");
   lines.push("");
 
   const inspected = items.filter((i) => Boolean(i.forensicMeta));
@@ -235,6 +306,9 @@ export function renderForensicInventorySectionMarkdown(
     }
     if (item.hybridScanPages && item.hybridScanPages.length > 0) {
       notes.push(`Scan Híbrido Pág(s): ${item.hybridScanPages.join(", ")}`);
+    }
+    if (m.rsid_root) {
+      notes.push(`rsidRoot=${m.rsid_root}${m.rsid_unique_count ? ` (${m.rsid_unique_count} rsidR)` : ""}`);
     }
 
     lines.push(

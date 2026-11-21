@@ -47,10 +47,14 @@ function checkQuotationForensicSimulation(
   );
 
   if (collisions.length > 0) {
-    if (!blocking_tags.includes("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]")) {
-      blocking_tags.push("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
-    }
     for (const col of collisions) {
+      if (col.code === "FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK") {
+        if (!blocking_tags.includes("[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]")) {
+          blocking_tags.push("[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]");
+        }
+      } else if (!blocking_tags.includes("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]")) {
+        blocking_tags.push("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
+      }
       findings.push(
         `Simulação fraudulenta na pesquisa de preços detectada por colisão de metadados: ${col.reason}`
       );

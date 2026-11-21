@@ -29,8 +29,59 @@ function normalizeIso(raw: string | null): string | null {
   return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString();
 }
 
-export async function extractDocxForensicMetaFromZip(
-  zip: JSZip
+function normalizeRsidHex(raw: string | undefined): string | null {
+  if (!raw) return null;
+  const norm = raw.trim().toUpperCase();
+  if (!/^[0-9A-F]{1,8}$/.test(norm)) return null;
+  const padded = norm.padStart(8, "0");
+  return padded === "00000000" ? null : padded;
+}
+
+async function extractDocxRsidMeta(zip: JSZip): Promise<{
+  rsid_root: string | null;
+  rsid_sample?: string[];
+  rsid_unique_count?: number;
+}> {
+  let rsidRoot: string | null = null;
+  const settingsFile = zip.file("word/settings.xml");
+  if (settingsFile) {
+    try {
+      const settingsXml = await settingsFile.async("string");
+      const rootMatch = settingsXml.match(
+        /<(?:[A-Za-z0-9_]+:)?rsidRoot\b[^>]*?(?:w:val|val)=["']([^"']+)["']/i
+      );
+      rsidRoot = normalizeRsidHex(rootMatch?.[1]);
+    } catch {
+      rsidRoot = null;
+    }
+  }
+
+  const rsidSet = new Set<string>();
+  const docFile = zip.file("word/document.xml");
+  if (docFile) {
+    try {
+      const docXml = await docFile.async("string");
+      for (const m of docXml.matchAll(/\bw:rsidR=["']([0-9A-Fa-f]{1,8})["']/gi)) {
+        const norm = normalizeRsidHex(m[1]);
+        if (norm) rsidSet.add(norm);
+      }
+    } catch {
+      // Ignore XML parse failure
+    }
+  }
+
+  const uniqueRsids = Array.from(rsidSet).sort();
+  return {
+    rsid_root: rsidRoot,
+    ...(uniqueRsids.length > 0
+      ? { rsid_sample: uniqueRsids.slice(0, 32), rsid_unique_count: uniqueRsids.length }
+      : {}),
+  };
+}
+
+export async function extractOoxmlCoreAppMeta(
+  zip: JSZip,
+  sourceFormat: "docx" | "xlsx"
 ): Promise<DocumentForensicMeta> {
   let coreXml: string | null = null;
   let appXml: string | null = null;
@@ -76,8 +127,10 @@ export async function extractDocxForensicMetaFromZip(
     forensicAnomalies.push("[PDF_EDITOR_MANIPULATION_TRACE]");
   }
 
+  const rsidMeta = sourceFormat === "docx" ? await extractDocxRsidMeta(zip) : {};
+
   return {
-    source_format: "docx",
+    source_format: sourceFormat,
     title,
     author,
     last_modified_by: lastModifiedBy,
@@ -92,12 +145,19 @@ export async function extractDocxForensicMetaFromZip(
     signature_date_iso: null,
     editing_software_traces: editingSoftwareTraces,
     forensic_anomalies: forensicAnomalies,
+    ...rsidMeta,
   };
+}
+
+export async function extractDocxForensicMetaFromZip(
+  zip: JSZip
+): Promise<DocumentForensicMeta> {
+  return extractOoxmlCoreAppMeta(zip, "docx");
 }
 
 export async function extractDocxForensicMetaFromBuffer(
   buffer: Buffer
 ): Promise<DocumentForensicMeta> {
   const zip = await JSZip.loadAsync(buffer);
-  return extractDocxForensicMetaFromZip(zip);
+  return extractOoxmlCoreAppMeta(zip, "docx");
 }

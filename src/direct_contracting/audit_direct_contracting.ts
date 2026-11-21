@@ -15,6 +15,7 @@ import {
 } from "../utils/json.ts";
 import { extractPdfPages } from "../utils/pdf.ts";
 import { extractDocxForensicMetaFromBuffer } from "../utils/pdf/docx_forensic_meta.ts";
+import { extractXlsxForensicMetaFromBuffer } from "../utils/pdf/xlsx_forensic_meta.ts";
 import type { DocumentForensicMeta } from "../types/index.ts";
 import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
 import { evaluateDirectContractingRules } from "./direct_contracting_auditor.ts";
@@ -152,6 +153,8 @@ export async function auditDirectContracting(
             const buf = readFileSync(p);
             if (p.toLowerCase().endsWith(".docx")) {
               meta = await extractDocxForensicMetaFromBuffer(buf);
+            } else if (p.toLowerCase().endsWith(".xlsx")) {
+              meta = await extractXlsxForensicMetaFromBuffer(buf);
             } else {
               const ex = await extractPdfPages(buf, {
                 skipPageInspection: true,
