@@ -179,22 +179,26 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       },
     };
 
+    const originalTcu = defaultJurisdictionRegistry.get("TCU");
     defaultJurisdictionRegistry.register(mockProvider);
+    try {
+      const res = await fetchJuris({
+        acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário",
+        shortname: "acordao_teste_gen4",
+      });
 
-    const res = await fetchJuris({
-      acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário",
-      shortname: "acordao_teste_gen4",
-    });
+      expect(res.canonicalId).toContain("1234");
+      expect(res.slicedResult.layers.layer_1B_entity_regime.isStateItEntity).toBe(true);
 
-    expect(res.canonicalId).toContain("1234");
-    expect(res.slicedResult.layers.layer_1B_entity_regime.isStateItEntity).toBe(true);
-
-    const synthetic = formatFetchJurisSyntheticResult(res);
-    const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
-    expect(byteLength).toBeLessThan(900);
-    expect(synthetic.verified_authentic).toBe(true);
-    expect(synthetic.source).toBe("LIVE");
-    expect(synthetic.layers_extracted.length).toBe(10);
+      const synthetic = formatFetchJurisSyntheticResult(res);
+      const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      expect(byteLength).toBeLessThan(900);
+      expect(synthetic.verified_authentic).toBe(true);
+      expect(synthetic.source).toBe("LIVE");
+      expect(synthetic.layers_extracted.length).toBe(10);
+    } finally {
+      if (originalTcu) defaultJurisdictionRegistry.register(originalTcu);
+    }
   });
 
   it("Transparência Cognitiva: deve expor live_degraded, origin, source e garantir < 900B no pior cenário", async () => {
