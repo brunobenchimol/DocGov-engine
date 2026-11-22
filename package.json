@@ -17,7 +17,9 @@
     "build:windows": "bun build ./src/index.ts --compile --target=bun-windows-x64 --minify --outfile ./bin/docgov-engine.exe",
     "check:lines": "bun run ./scripts/check_lines.ts",
     "dump:spec": "bun run ./src/index.ts --dump-spec docs/especificacao_motor.md",
-    "release:notes": "bun run ./scripts/extract_release_notes.ts"
+    "release:notes": "bun run ./scripts/extract_release_notes.ts",
+    "smoke:real:discover": "bun run ./scripts/discover_real_corpus.ts",
+    "smoke:real": "bun run ./scripts/run_real_smoke.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",

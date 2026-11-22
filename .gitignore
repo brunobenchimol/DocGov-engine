@@ -4,6 +4,7 @@ dist/
 dist-release/
 smoke_test/
 temp_test_run/
+.local_real_corpus/
 bin/*
 !bin/.gitkeep
 **/docgov-docx

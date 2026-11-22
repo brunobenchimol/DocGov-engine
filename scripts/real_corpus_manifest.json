@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.7.0",
+  "local_cache_dir": ".local_real_corpus",
+  "discovery_notes": {
+    "regenerate_command": "bun run smoke:real:discover",
+    "run_smoke_command": "bun run smoke:real",
+    "fallback_strategy": "Se qualquer URL retornar HTTP 404/403 ou HTML (Content-Type inválido), o runner marca o slot como NEEDS_URL_REFRESH. Execute 'bun run smoke:real:discover' para redescobrir automaticamente novos artefatos públicos no PNCP e portal AGU/Gov.br.",
+    "slot_criteria": {
+      "pades_single_icp": "PDF público real (%PDF-) com 1 ocorrência bruta de /Type /Sig.",
+      "pades_cosigned_or_ltv": "PDF público real (%PDF-) com >= 2 ocorrências brutas de /Type /Sig ou /DSS / /DocTimeStamp.",
+      "ooxml_docx_agu_a": "Modelo público .docx (PK\\x03\\x04) da AGU/Gov.br com w:rsidRoot válido (#A).",
+      "ooxml_docx_agu_b": "Modelo público .docx (PK\\x03\\x04) da AGU/Gov.br com w:rsidRoot válido (#B != #A).",
+      "ooxml_xlsx_agu": "Planilha pública .xlsx (PK\\x03\\x04) da AGU/Compras.gov.br/PNCP com docProps.",
+      "nfe_public_transparency": "Chave pública real de NF-e modelo 55 (44 dígitos) validada pelo Módulo 11 + UF IBGE + AAMM + CNPJ."
+    }
+  },
+  "slots": {
+    "pades_single_icp": {
+      "url": "https://pncp.gov.br/pncp-api/v1/orgaos/43776491000170/contratos/2026/391/arquivos/1",
+      "file_name": "pades_single_icp.pdf",
+      "sha256": "5fdfa42c2da85d24eec40e8a4e89bf1f79d79c81e52f584c04362dd99b9eb5d9",
+      "expected_magic": "%PDF-",
+      "signature_count": 1,
+      "issuer_cn": "AC Final do Governo Federal do Brasil v1"
+    },
+    "pades_cosigned_or_ltv": {
+      "url": "https://pncp.gov.br/pncp-api/v1/orgaos/87612982000150/contratos/2026/74/arquivos/1",
+      "file_name": "pades_cosigned_or_ltv.pdf",
+      "sha256": "d2504ae2da8fc98f9f26e8bc8b463a2b42195ccc2c2d5b32f3f9458b0a7658d9",
+      "expected_magic": "%PDF-",
+      "signature_count": 2,
+      "issuer_cn": "AC DIGITAL MULTIPLA G1"
+    },
+    "ooxml_docx_agu_a": {
+      "url": "https://www.gov.br/agu/pt-br/composicao/cgu/cgu/modelos/licitacoesecontratos/edital-chamamento-publico-coleta-seletiva-cidada-fev-2025.docx",
+      "file_name": "ooxml_docx_agu_a.docx",
+      "sha256": "8761d7eae4909c6774d767f2acca2884f8cf2ea5d320dc5ac1d8595136e9b31e",
+      "expected_magic": "PK",
+      "rsid_root": "00662658"
+    },
+    "ooxml_docx_agu_b": {
+      "url": "https://www.gov.br/agu/pt-br/composicao/cgu/cgu/modelos/licitacoesecontratos/14133/pregao-e-concorrencia/modelo-de-edital-pregao-e-concorrencia-menor-preco-e-maior-desconto-lei-no-14-133-nov-25.docx",
+      "file_name": "ooxml_docx_agu_b.docx",
+      "sha256": "98cd1236ed830c350762055e25ddae434af48f07ab54b72d65dfb31e499b504f",
+      "expected_magic": "PK",
+      "rsid_root": "008251AB"
+    },
+    "ooxml_xlsx_agu": {
+      "url": "https://www.gov.br/compras/pt-br/agente-publico/orientacoes-e-procedimentos/midia/modelo-planilha-para-portal-compras1.xlsx",
+      "file_name": "ooxml_xlsx_agu.xlsx",
+      "sha256": "8439c95171719c0defadc4343358d64f2be845b06226dea8b987a75aa83294bb",
+      "expected_magic": "PK"
+    },
+    "nfe_public_transparency": {
+      "url": "https://portaldatransparencia.gov.br/download-de-dados/notas-fiscais/202610",
+      "access_key_44": "53261011668411000176550010001482211230323007",
+      "issuer_cnpj": "11668411000176",
+      "issue_date": "2026-10-01"
+    }
+  }
+}
