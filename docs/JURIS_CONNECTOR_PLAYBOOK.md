@@ -17,10 +17,11 @@ Este playbook estabelece o protocolo autônomo canônico para implementar novos 
 
 ### 2.1. Leitura Seletiva Obrigatória (Target-Lines Only)
 Para economizar tokens e evitar contexto degradado:
-1. `src/tools/juris/providers/tce_pr_provider.ts` e `tce_pr_catalog.ts` (arquitetura canônica *Live Primary + Curated Fallback* homologada na `v1.4.6`);
-2. `src/tools/juris/provider_registry.ts` e `src/tools/juris/types.ts` (contratos e registro plug-and-play);
-3. `test/juris/state_courts.test.ts` (verificar contagem de linhas; se ultrapassar 450 linhas, planejar `test/juris/state_courts_wave2.test.ts` para cumprir a Lei 9);
-4. Linhas de versão em `package.json`, `src/constants/index.ts` e `src/mcp/spec.ts`.
+1. `src/tools/juris/providers/base_provider.ts` e `src/tools/juris/providers/catalog_helper.ts` (superclasse canônica `BaseJurisdictionProvider` com orçamento defensivo, Circuit Breaker e transparência cognitiva + helper compartilhado de catálogo);
+2. `src/tools/juris/providers/tce_pr_provider.ts` e `tce_pr_catalog.ts` (referência de subclasse *Live Primary + Curated Fallback* estendendo `BaseJurisdictionProvider`);
+3. `src/tools/juris/provider_registry.ts` e `src/tools/juris/types.ts` (contratos e registro plug-and-play);
+4. `test/juris/state_courts.test.ts` (verificar contagem de linhas; se ultrapassar 450 linhas, planejar `test/juris/state_courts_wave2.test.ts` para cumprir a Lei 9);
+5. Linhas de versão em `package.json`, `src/constants/index.ts` e `src/mcp/spec.ts`.
 
 ### 2.2. Sondagem Real no Terminal (Obrigatória antes de Codificar)
 Inspecione via terminal (`curl -i -s -L --max-time 10 ...` ou fetch one-liner Bun) a superfície pública do tribunal:
@@ -33,7 +34,7 @@ Apresente no `/plan`:
 1. **Contrato de Mock e Override**: `process.env.DOCGOV_JURIS_<CORTE>_URL` (com aliases canônicos) e suporte ao `JurisMockServer`;
 2. **Normalização Bidirecional de IDs**: Reconhecimento uniforme de `<CORTE>-PREJULGADO-<N>`, `<CORTE>-SUMULA-<N>`, `<CORTE>-ACORDAO-<N>-<ANO>`, etc., em `search_juris` e `fetch_juris`;
 3. **Higiene Estrita de `autoTriggerKeywords`**: Termos exclusivos do tribunal e de sua legislação (`tce-<uf>`, `tce<uf>`, `tribunal de contas do estado de ...`, decretos/leis estaduais). **PROIBIDO** usar nome do estado ou cidade isolado (ex.: "Paraná", "São Paulo") para prevenir falsos-positivos entre UFs ou entre TCE e TCM;
-4. **Catálogo Curado (8 a 9 Precedentes)**: Prejulgados vinculantes, Súmulas e Consultas normativas sobre a Lei nº 14.133/2021 e Lei nº 13.303/2016, incluindo obrigatoriamente o precedente exigido no Sub-Assert `.NET` e sua calibração em `stance_alignment`.
+4. **Catálogo Curado Verificado (Proibição Absoluta de Alucinação):** É **estritamente proibido fabricar números de acórdãos ou precedentes**. Inclua **exclusivamente** súmulas, OJs, prejulgados vinculantes, temas ou atos normativos **verificados na fonte oficial do tribunal** (e o precedente exigido no Sub-Assert `.NET` calibrado em `stance_alignment`), preferindo um catálogo enxuto de **2 a 4 itens 100% autênticos** a preencher qualquer cota artificial.
 
 ### 2.4. Padrão Arquitetural Onda 3: Coexistência Estadual vs. Municipal na Mesma UF (`TCE-<UF>` vs. `TCM-<UF>`)
 Para cortes municipais que compartilham a sigla da UF com o TCE estadual (`TCM-PA`/`TCE-PA`, `TCM-SP`/`TCE-SP`, `TCM-RIO`/`TCE-RJ`, `TCM-BA`/`TCE-BA`, `TCM-GO`/`TCE-GO`):
@@ -52,8 +53,8 @@ Para cortes municipais que compartilham a sigla da UF com o TCE estadual (`TCM-P
 
 Após aprovação do plano, execute a sequência atômica de commits:
 
-### Micro-Commit 1 (MC-1) — Catálogo Curado
-- Crie `src/tools/juris/providers/<corte>_catalog.ts` ($\le 500$ linhas) com os 8-9 precedentes, `normalize<Corte>Id`, `get<Corte>CatalogItemById` e `search<Corte>Catalog`.
+### Micro-Commit 1 (MC-1) — Catálogo Curado Verificado
+- Crie `src/tools/juris/providers/<corte>_catalog.ts` ($\le 500$ linhas) reutilizando `src/tools/juris/providers/catalog_helper.ts`, contendo **exclusivamente** súmulas, prejulgados ou atos normativos reais verificados na fonte oficial (preferindo 2 a 4 itens 100% autênticos a qualquer número incerto; proibido fabricar acórdãos), além de `normalize<Corte>CatalogId`, `get<Corte>CatalogItemById`, `search<Corte>Catalog` e `map<Corte>CatalogItemToFetch`.
 - Commit: `feat(juris): implement <corte> curated normative catalog`
 
 ### Micro-Commit 2 (MC-2) — Provider e Registro Plug-and-Play
@@ -63,19 +64,24 @@ Após aprovação do plano, execute a sequência atômica de commits:
   - Precedência **Live-First** em buscas abertas e *short-circuit* normativo via `shouldShortCircuitCatalog`;
   - Transparência cognitiva (`origin`, `source_mode`, `live_error`, `live_degraded`, `source: "LIVE" | "CURATED_CATALOG"`) e válvula `force_live` / `--force-live`;
   - Resolução unificada de Mock Server (`mockEnvKeys`, `baseUrlEnvKeys`, `mockFetchStyle: "path" | "query"`, `notFoundStyle: "null" | "exists_false"`), com degradação curada em HTTP `5xx` (quando `!force_live`) e trava anti-alucinação em HTTP `404` (`[ANTI_HALLUCINATION_BLOCK]`).
-- Utilize `src/tools/juris/providers/catalog_helper.ts` para eliminar duplicação no `<corte>_catalog.ts`.
+- **Checklist Obrigatório dos 3 Hooks do Catálogo na Subclasse:** implemente explicitamente os 3 *overrides*:
+  - `searchCatalog(query, limit)`
+  - `shouldShortCircuitCatalog(query)`
+  - `findCatalogItemById(idOrRef)`
+  *(Alerta crítico: omitir `searchCatalog` ou `findCatalogItemById` faz `BaseJurisdictionProvider` retornar `[]` / `null` silenciosamente, anulando o fallback curado).*
+- **Armadilha `liveSmokeQuery` × `shouldShortCircuitCatalog`:** `liveSmokeQuery` **NUNCA** deve conter termo que acione `shouldShortCircuitCatalog` (ex.: `"súmula 331"`), sob risco de `test:live:juris` responder em `~3ms` pelo catálogo local sem exercitar a API real do tribunal.
 - Registre o provedor em `src/tools/juris/provider_registry.ts` ($\le 500$ linhas).
 - Commit: `feat(juris): implement <corte> provider extending BaseJurisdictionProvider with mock support`
 
-### Micro-Commit 3 (MC-3) — Testes Modulares e Verificação de Linhas
-- Adicione o bloco de testes em `test/juris/state_courts.test.ts` (ou crie `test/juris/state_courts_wave2.test.ts` caso o primeiro se aproxime de 500 linhas):
-  - Roteamento por `uf` e `courts`;
-  - Higiene de auto-trigger (rejeição de termos de outras UFs);
-  - Normalização bidirecional de IDs;
-  - Busca no catálogo e cálculo de `relevance_score` / `stance_alignment`;
-  - Trava `[ANTI_HALLUCINATION_BLOCK]`;
-  - Fatiamento anatômico em 10 sub-camadas;
-  - Teto de payload sintético MCP (< 900 bytes).
+### Micro-Commit 3 (MC-3) — Testes Modulares, Sonda Live e Verificação de Linhas
+- Atualize `tests_live/juris_api.live.ts`: registre um ID do catálogo curado em `getCanonicalFallbackId("<CORTE>")` e o respectivo prefixo em `CURATED_ID_REGEX`, prevenindo falha em cascata na Sonda 2 caso a Sonda 1 degrade com `WARN (DEGRADED -> CURATED)`.
+- Adicione o bloco de testes em `test/juris/state_courts.test.ts` (ou crie `test/juris/state_courts_wave2.test.ts` caso o primeiro se aproxime de 450 linhas) cobrindo obrigatoriamente:
+  - Roteamento por `uf` e `courts`, higiene de `autoTriggerKeywords` e normalização bidirecional de IDs;
+  - Busca no catálogo, cálculo de `relevance_score` / `stance_alignment` e fatiamento anatômico em 10 sub-camadas;
+  - **Cobertura Obrigatória de Resiliência & Anti-Alucinação:**
+    - `HTTP 503` sem `force_live` → `CURATED_FALLBACK` com `live_degraded` no retorno MCP (`< 900B`) e `live_error` gravado em disco;
+    - `HTTP 503` com `force_live: true` → `LIVE_FAILED` explícito (sem degradação silenciosa e ignorando circuit breaker);
+    - `HTTP 404` / ID inexistente → `[ANTI_HALLUCINATION_BLOCK]` sem gravar arquivo espúrio.
 - Execute:
   - `bun test test/juris/state_courts.test.ts` (ou arquivo de teste afetado);
   - `bun run ./scripts/check_lines.ts all` ($\le 500$ linhas em 100% dos arquivos auditados).

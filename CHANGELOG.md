@@ -6,6 +6,24 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Superclasse Única de Conectores (`BaseJurisdictionProvider` — `src/tools/juris/providers/base_provider.ts` & `catalog_helper.ts`):** Padrão *Template Method* centralizando orçamento defensivo (`retries: 0`), Circuit Breaker de 30s (automaticamente desabilitado em `isMockMode() === true`, com `resetCircuit()` / `resetAllCircuits()`), resolução unificada de Mock Server (`mockFetchStyle: "path" | "query"` e `notFoundStyle: "null" | "exists_false"`), degradação graciosa em HTTP `5xx` (quando `!force_live`) e trava anti-alucinação em HTTP `404` (`[ANTI_HALLUCINATION_BLOCK]`).
+- **Camada de Transparência Cognitiva (`src/tools/juris/types.ts`, `search_juris.ts`, `fetch_juris.ts`):** Exposição inequívoca da origem dos precedentes com `live_degraded` no envelope sintético MCP de `search_juris`, `source: "LIVE" | "CURATED_CATALOG"` em `fetch_juris` (e cabeçalho dos dossiês), além de `origin`, `source_mode` e `live_error` em `state/juris_search_results.json`/`.md`, com poda progressiva garantindo `< 880B` (Lei 2 `< 900B`).
+- **Válvula de Retry Consciente (`force_live` / `--force-live`):** Parâmetro opcional em `search_juris`, `fetch_juris`, `tools_definition.ts`, `tool_dispatchers.ts` e CLI (`src/cli/connectors_cli.ts`, `src/cli/index.ts`), ignorando circuit breaker e *short-circuit* de catálogo com janela estendida única (`9000ms`, `retries: 0`) e falha explícita (`LIVE_FAILED` / `[LIVE_UNAVAILABLE]`) sem degradação silenciosa.
+- **7 Novos Catálogos Normativos Curados Verificados (Lei 5 & Anti-Alucinação):** Criação de `tst_catalog.ts`, `tcu_catalog.ts`, `stf_catalog.ts`, `stj_catalog.ts`, `tcdf_catalog.ts`, `tce_ce_catalog.ts` e `tce_pa_catalog.ts` com súmulas, OJs, temas vinculantes e atos normativos verificados em fontes oficiais.
+- **Runner Live Anti-Falso-Verde (`tests_live/juris_api.live.ts`, `tests_live/pncp_api.live.ts`, `scripts/run_live_tests.ts`):** Novo status `WARN (DEGRADED -> CURATED)` sempre que uma sonda live degradar ao catálogo curado por erro/timeout da API real, e `getCanonicalFallbackId` alinhado a IDs curados verificados.
+
+### Changed
+- **Migração 12/12 dos Conectores para `BaseJurisdictionProvider`:** Unificação integral de `TST`, `AGU`, `TCE-SP`, `TCE-MG`, `TCE-PR`, `TCM-PA`, `TCU`, `STF`, `STJ`, `TCDF`, `TCE-CE` e `TCE-PA`, com precedência **Live-First** no *merge* de buscas abertas (reservando *Curated-First* para *short-circuit* normativo explícito e fallback).
+- **Endurecimento Global de Transporte & Playbook (`docs/JURIS_CONNECTOR_PLAYBOOK.md`, `docs/ARCHITECTURE_AND_MODULES.md`, `src/constants/index.ts`, `src/mcp/spec.ts`):** Imposição de `retries: 0` e teto de timeout na classe base, além dos 6 guardrails obrigatórios no Playbook para novos conectores (proibição de fabricação de acórdãos, hooks obrigatórios, prevenção de armadilha `liveSmokeQuery`, fallback `WARN`, testes `503`/`force_live`/`404` e leitura seletiva atualizada).
+
+### Fixed
+- **Resiliência do `TST`, `TCU`, `TCE-CE`, `AGU` e `TCE-SP`:** Correção da falha em cascata do `TST` sob oscilação momentânea do portal, eliminação do pior caso de hang sequencial (`~100s` potenciais) no `TcuProvider.fetch` via orçamento único de deadline, correção do `fetch()` POST sem `AbortSignal.timeout()` no `TceCeProvider` e eliminação do `retries: 1` herdado silenciosamente por `AGU` e `TCE-SP`.
+
+---
+
 ## [1.7.0] - 2026-11-21 — Geração 7.0 (Parte 1): Perícia Criptográfica `PKCS#7/PAdES` & `/ByteRange`, Validador NF-e 44 Dígitos, Clones `w:rsid` & Forense `.xlsx`
 
 ### Added
