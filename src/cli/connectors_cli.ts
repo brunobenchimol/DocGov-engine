@@ -239,9 +239,10 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const limit = limitIdx !== -1 && args[limitIdx + 1] && !args[limitIdx + 1].startsWith("--")
       ? parseInt(args[limitIdx + 1], 10)
       : undefined;
+    const force_live = args.includes("--force-live");
 
     try {
-      const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit });
+      const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit, force_live });
       const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {
@@ -284,9 +285,10 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const stance = stanceIdx !== -1 && args[stanceIdx + 1] && !args[stanceIdx + 1].startsWith("--")
       ? (args[stanceIdx + 1] as any)
       : undefined;
+    const force_live = args.includes("--force-live");
 
     try {
-      const res = await fetchJuris({ acordaoIdOrUrl: acordaoId, caseDir, shortname, topicFilter, stance });
+      const res = await fetchJuris({ acordaoIdOrUrl: acordaoId, caseDir, shortname, topicFilter, stance, force_live });
       const synthetic = formatFetchJurisSyntheticResult(res);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {

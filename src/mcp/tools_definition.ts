@@ -241,6 +241,11 @@ export function getMcpToolsDefinition() {
             description:
               "Número máximo de precedentes retornados no ranking (padrão: 10).",
           },
+          force_live: {
+            type: "boolean",
+            description:
+              "Se true, ignora circuit breaker e short-circuit de catálogo curado, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
+          },
         },
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true },
@@ -280,6 +285,11 @@ export function getMcpToolsDefinition() {
             enum: ["DEFENSE", "ATTACK", "BOTH"],
             description:
               "Postura tática opcional para enquadramento da ratio decidendi.",
+          },
+          force_live: {
+            type: "boolean",
+            description:
+              "Se true, ignora atalho de catálogo curado e circuit breaker, tentando captura ao vivo com janela estendida única (9s, retries: 0).",
           },
         },
       },

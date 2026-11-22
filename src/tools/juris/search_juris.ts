@@ -23,6 +23,7 @@ import type {
   SearchJurisSyntheticResult,
   SearchJurisFileResult,
   JurisSearchResultItem,
+  JurisSourceMode,
 } from "./types.ts";
 
 export async function searchJuris(
@@ -77,6 +78,8 @@ export async function searchJuris(
     const provStart = Date.now();
     let provHits: any[] = [];
     let provError: string | null = null;
+    let provLiveError: string | null = null;
+    let provSourceMode: JurisSourceMode | undefined;
     let provStatus: "ok" | "error" = "ok";
 
     try {
@@ -85,22 +88,41 @@ export async function searchJuris(
           const res = await prov.searchWithDiagnostic(q, {
             limit,
             colegiado: options.colegiado,
+            force_live: options.force_live,
           });
           provHits.push(...res.hits);
-          if (res.diagnostic.status === "error" && !provError) {
-            provError = res.diagnostic.error;
+          if (res.diagnostic.status === "error") {
+            provStatus = "error";
+            if (!provError) provError = res.diagnostic.error;
+          }
+          if (res.diagnostic.live_error && !provLiveError) {
+            provLiveError = res.diagnostic.live_error;
+          }
+          if (res.diagnostic.source_mode) {
+            if (
+              !provSourceMode ||
+              res.diagnostic.source_mode === "CURATED_FALLBACK" ||
+              res.diagnostic.source_mode === "CIRCUIT_OPEN_FALLBACK" ||
+              res.diagnostic.source_mode === "LIVE_FAILED"
+            ) {
+              provSourceMode = res.diagnostic.source_mode;
+            }
           }
         } else {
           const hits = await prov.search(q, {
             limit,
             colegiado: options.colegiado,
+            force_live: options.force_live,
           });
           provHits.push(...hits);
+          provSourceMode = provSourceMode || "LIVE";
         }
       }
     } catch (err: any) {
       provStatus = "error";
       provError = err?.message || String(err);
+      provLiveError = provError;
+      provSourceMode = "LIVE_FAILED";
     }
 
     const latency = Date.now() - provStart;
@@ -114,6 +136,8 @@ export async function searchJuris(
       hits: provHits.length,
       latency_ms: latency,
       error: provError,
+      source_mode: provSourceMode,
+      live_error: provLiveError,
     });
 
     rawHits.push(...provHits);
@@ -151,6 +175,7 @@ export async function searchJuris(
         stance_alignment: scoring.stance_alignment,
         relevance_score: scoring.relevance_score,
         score: scoring.score,
+        origin: raw.origin || "LIVE",
         statutory_bridge_refs: scoring.statutoryBridgeRefs,
       };
 
@@ -215,6 +240,32 @@ export async function searchJuris(
   };
 }
 
+function buildLiveDegradedNotices(
+  diagnostics?: import("./types.ts").CourtDiagnostic[]
+): string[] {
+  if (!diagnostics || diagnostics.length === 0) return [];
+  const notices: string[] = [];
+  for (const d of diagnostics) {
+    const mode = d.source_mode;
+    if (mode === "CURATED_FALLBACK") {
+      const reason = /timeout|timed out/i.test(d.live_error || "")
+        ? "timeout"
+        : d.live_error
+        ? d.live_error.slice(0, 18).replace(/\s+/g, " ")
+        : "fallback";
+      notices.push(`${d.court}(${reason}->curated; retry com force_live=true)`);
+    } else if (mode === "CIRCUIT_OPEN_FALLBACK") {
+      notices.push(`${d.court}(circuit_open->curated; retry com force_live=true)`);
+    } else if (mode === "CURATED_SHORT_CIRCUIT") {
+      notices.push(`${d.court}(short_circuit->curated; force_live=true p/ live)`);
+    } else if (mode === "LIVE_FAILED") {
+      const errShort = (d.live_error || d.error || "err").slice(0, 22);
+      notices.push(`${d.court}(live_failed:${errShort})`);
+    }
+  }
+  return notices;
+}
+
 function generateJurisSearchMarkdown(
   res: SearchJurisFileResult,
   isEphemeral: boolean
@@ -223,6 +274,10 @@ function generateJurisSearchMarkdown(
   md += `> **Query:** \`${res.query}\` | **Stance Tático:** \`${res.stance}\` | **Regime:** \`${res.regime}\`\n`;
   md += `> **Total de Precedentes Encontrados:** ${res.total_hits} | **Cortes Consultadas:** \`${res.jurisdiction_routing.executed_courts.join(", ")}\`\n`;
 
+  const degradedNotices = buildLiveDegradedNotices(res.court_diagnostics);
+  if (degradedNotices.length > 0) {
+    md += `> ⚠️ **Aviso de Origem Curada / Degradação Live:** \`${degradedNotices.join(" | ")}\`\n`;
+  }
   if (res.jurisdiction_routing.fallback_notice) {
     md += `> ⚠️ **Aviso de Graceful Fallback:** ${res.jurisdiction_routing.fallback_notice}\n`;
   }
@@ -241,19 +296,21 @@ function generateJurisSearchMarkdown(
 
   if (res.court_diagnostics && res.court_diagnostics.length > 0) {
     md += `## 📡 Telemetria e Diagnóstico dos Conectores (Court Diagnostics)\n\n`;
-    md += `| Corte | Status | Precedentes | Latência | Detalhe / Diagnóstico |\n`;
-    md += `| :---: | :---: | :---: | :---: | :--- |\n`;
+    md += `| Corte | Status | Modo / Origem | Precedentes | Latência | Detalhe / Diagnóstico |\n`;
+    md += `| :---: | :---: | :---: | :---: | :---: | :--- |\n`;
     for (const d of res.court_diagnostics) {
       const statusIcon = d.status === "ok" ? "✅ OK" : "⚠️ FALHA";
-      const detail = d.error ? d.error.replace(/\|/g, "/") : "Conexão e parser operacionais";
-      md += `| \`${d.court}\` | ${statusIcon} | ${d.hits} | ${d.latency_ms}ms | ${detail} |\n`;
+      const modeLabel = d.source_mode || "LIVE";
+      const rawDetail = d.error || d.live_error || "Conexão e parser operacionais";
+      const detail = rawDetail.replace(/\|/g, "/");
+      md += `| \`${d.court}\` | ${statusIcon} | \`${modeLabel}\` | ${d.hits} | ${d.latency_ms}ms | ${detail} |\n`;
     }
     md += "\n";
   }
 
   md += `## 🏆 Precedentes Ranqueados (Top ${res.results.length})\n\n`;
-  md += `| Score | Corte | Identificador | Desfecho / Comando | Tese Fixada / Ementa |\n`;
-  md += `| :---: | :---: | :--- | :--- | :--- |\n`;
+  md += `| Score | Corte | Origem | Identificador | Desfecho / Comando | Tese Fixada / Ementa |\n`;
+  md += `| :---: | :---: | :---: | :--- | :--- | :--- |\n`;
 
   for (const item of res.results) {
     const teseMini = (item.tese_short || item.tese || "").slice(0, 140).replace(/\|/g, "/");
@@ -262,7 +319,8 @@ function generateJurisSearchMarkdown(
         ? " ⚠️ `[ADVERSO — EXIGE DISTINGUISHING]`"
         : "";
     const outcomeCol = `\`${item.outcome || "DECISAO"}\`${adverseNotice}`;
-    md += `| **${item.relevance_score} pts** | \`${item.court}\` | **${item.id}** | ${outcomeCol} | ${teseMini} |\n`;
+    const originCol = `\`${item.origin || "LIVE"}\``;
+    md += `| **${item.relevance_score} pts** | \`${item.court}\` | ${originCol} | **${item.id}** | ${outcomeCol} | ${teseMini} |\n`;
   }
 
   md += `\n---\n*Para fatiar e validar o inteiro teor de qualquer precedente acima, acione \`fetch_juris\` informando o identificador.*`;
@@ -288,6 +346,8 @@ export function formatSearchJurisSyntheticResult(
     tese_short: (h.tese_short || h.tese || "").slice(0, 110),
   }));
 
+  const liveDegraded = buildLiveDegradedNotices(fileResult.court_diagnostics);
+
   const payload: SearchJurisSyntheticResult = {
     status: "success",
     engine_version: VERSION,
@@ -297,6 +357,7 @@ export function formatSearchJurisSyntheticResult(
     total_hits: fileResult.total_hits,
     statutory_bridge_applied: fileResult.statutory_bridge_applied.slice(0, 2),
     jurisdiction_routing: fileResult.jurisdiction_routing,
+    ...(liveDegraded.length > 0 ? { live_degraded: liveDegraded } : {}),
     top_hits: topHits,
     results_md: relMd,
     next_step_hint: `Consulte ${relMd} e execute 'fetch_juris' nos leading cases escolhidos.`,
@@ -319,6 +380,31 @@ export function formatSearchJurisSyntheticResult(
       payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 45);
     }
     payload.next_step_hint = `Consulte ${relMd}`;
+  }
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880 && payload.live_degraded) {
+    const courts = payload.live_degraded.map((s) => s.split("(")[0]).join(",");
+    payload.live_degraded = [`${courts}(curated;force_live=true)`];
+    if (payload.top_hits[0]) {
+      payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 30);
+    }
+  }
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
+    payload.statutory_bridge_applied = payload.statutory_bridge_applied.map((s) =>
+      s.split(":")[0].slice(0, 8)
+    );
+    if (payload.jurisdiction_routing.fallback_notice) {
+      payload.jurisdiction_routing.fallback_notice = `UF '${payload.jurisdiction_routing.unimplemented_uf_requested}' -> fallback federal.`;
+    }
+    if (payload.top_hits[0]) {
+      payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 18);
+    }
+  }
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
+    payload.top_hits = [];
+    payload.statutory_bridge_applied = [];
   }
 
   return payload;

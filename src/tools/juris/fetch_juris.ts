@@ -20,6 +20,7 @@ import {
 import type {
   FetchJurisOptions,
   FetchJurisSyntheticResult,
+  JurisOrigin,
   SlicedDossierResult,
 } from "./types.ts";
 
@@ -38,6 +39,7 @@ export async function fetchJuris(
   fullPath: string;
   court: string;
   canonicalId: string;
+  source: JurisOrigin;
 }> {
   const ref = options?.acordaoIdOrUrl || (options as any)?.id;
   if (!options || !ref || typeof ref !== "string") {
@@ -52,11 +54,12 @@ export async function fetchJuris(
   }
 
   // 1. Busca na fonte oficial (ou Mock Server)
-  const rawFetch = await provider.fetch(ref);
+  const rawFetch = await provider.fetch(ref, { force_live: options.force_live });
 
   // 2. Trava Anti-Alucinação Estrita (Lei 3)
   const isAuthentic = !!rawFetch && rawFetch.exists && !!rawFetch.rawTextOrJson;
   assertAuthenticAcordao(isAuthentic, ref, court);
+  const source: JurisOrigin = rawFetch?.source || "LIVE";
 
   // 3. Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)
   const slicedResult = sliceAcordaoAnatomically(rawFetch!.rawTextOrJson, {
@@ -96,8 +99,13 @@ export async function fetchJuris(
   const dossiePath = join(stateDir, `dossie_juris_${cleanShortname}.md`);
   const fullPath = join(inputsJurisDir, "inteiro_teor_anatomico.md");
 
-  writeFileSync(dossiePath, slicedResult.dossieMarkdown, "utf-8");
-  writeFileSync(fullPath, slicedResult.fullMarkdown, "utf-8");
+  const sourceBanner =
+    source === "CURATED_CATALOG"
+      ? `> **Fonte de Autenticação:** \`CURATED_CATALOG\` *(Dado normativo curado local; use \`force_live=true\` / \`--force-live\` para consulta ao vivo)*\n\n`
+      : `> **Fonte de Autenticação:** \`LIVE\`\n\n`;
+
+  writeFileSync(dossiePath, sourceBanner + slicedResult.dossieMarkdown, "utf-8");
+  writeFileSync(fullPath, sourceBanner + slicedResult.fullMarkdown, "utf-8");
 
   return {
     slicedResult,
@@ -105,6 +113,7 @@ export async function fetchJuris(
     fullPath,
     court,
     canonicalId,
+    source,
   };
 }
 
@@ -118,17 +127,20 @@ export function formatFetchJurisSyntheticResult(
     fullPath: string;
     court: string;
     canonicalId: string;
+    source?: JurisOrigin;
   },
   baseDir: string = process.cwd()
 ): FetchJurisSyntheticResult {
   const relDossie = relative(baseDir, result.dossiePath).replace(/\\/g, "/") || result.dossiePath;
   const relFull = relative(baseDir, result.fullPath).replace(/\\/g, "/") || result.fullPath;
   const l = result.slicedResult.layers;
+  const source: JurisOrigin = result.source || "LIVE";
 
   const payload: FetchJurisSyntheticResult = {
     status: "success",
     engine_version: VERSION,
     verified_authentic: true,
+    source,
     canonical_id: result.canonicalId,
     court: result.court,
     colegiado: l.layer_1A_metadata.colegiado,
@@ -139,12 +151,24 @@ export function formatFetchJurisSyntheticResult(
     topics_matched: result.slicedResult.topicsMatched,
     dossie_sliced_md: relDossie,
     inteiro_teor_full_md: relFull,
-    next_step_hint: `Consulte ${relDossie} para citação e ${relFull} para leitura integral.`,
+    next_step_hint:
+      source === "CURATED_CATALOG"
+        ? `Dado curado local (use force_live=true p/ live). Consulte ${relDossie}`
+        : `Consulte ${relDossie} para citação e ${relFull} para leitura integral.`,
   };
 
   // Garante teto de 900 bytes (Lei 2)
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
-    payload.next_step_hint = `Consulte ${relDossie}`;
+    payload.next_step_hint =
+      source === "CURATED_CATALOG"
+        ? `CURATED (force_live=true). Veja ${relDossie}`
+        : `Consulte ${relDossie}`;
+  }
+
+  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
+    payload.relator = payload.relator.slice(0, 28);
+    payload.colegiado = payload.colegiado.slice(0, 28);
+    payload.outcome = payload.outcome.slice(0, 28);
   }
 
   return payload;

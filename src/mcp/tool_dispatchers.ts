@@ -91,6 +91,7 @@ export async function dispatchModularTool(
       regime: args.regime,
       colegiado: args.colegiado,
       limit: args.limit,
+      force_live: args.force_live === true,
     });
     const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
     return {
@@ -114,6 +115,7 @@ export async function dispatchModularTool(
       shortname: args.shortname,
       topicFilter: args.topicFilter,
       stance: args.stance,
+      force_live: args.force_live === true,
     });
     const synthetic = formatFetchJurisSyntheticResult(res);
     return {

@@ -193,6 +193,101 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
     expect(byteLength).toBeLessThan(900);
     expect(synthetic.verified_authentic).toBe(true);
+    expect(synthetic.source).toBe("LIVE");
     expect(synthetic.layers_extracted.length).toBe(10);
+  });
+
+  it("Transparência Cognitiva: deve expor live_degraded, origin, source e garantir < 900B no pior cenário", async () => {
+    const customReg = new JurisdictionProviderRegistry();
+    for (const c of ["TCU", "STJ", "STF", "TCE-PA"]) {
+      customReg.register({
+        courtId: c,
+        tier: c === "TCE-PA" ? "STATE" : "FEDERAL",
+        uf: c === "TCE-PA" ? "PA" : undefined,
+        defaultFederal: c !== "TCE-PA",
+        async search() {
+          return [];
+        },
+        async searchWithDiagnostic() {
+          return {
+            hits: [
+              {
+                id: `${c}-SUMULA-1`,
+                court: c,
+                tese: "Enunciado normativo curado com texto extenso para testar poda progressiva de payload.",
+                origin: "CURATED_CATALOG",
+              },
+            ],
+            diagnostic: {
+              court: c,
+              status: "ok",
+              hits: 1,
+              latency_ms: 4501,
+              error: null,
+              source_mode: "CURATED_FALLBACK",
+              live_error: "The operation timed out.",
+            },
+          };
+        },
+        async fetch() {
+          return null;
+        },
+      });
+    }
+
+    const res = await searchJuris(
+      { query: "lote único", uf: "AM", limit: 5 },
+      customReg
+    );
+
+    expect(res.fileResult.results[0]?.origin).toBe("CURATED_CATALOG");
+    expect(res.fileResult.court_diagnostics?.[0]?.source_mode).toBe("CURATED_FALLBACK");
+    expect(res.fileResult.court_diagnostics?.[0]?.live_error).toContain("timed out");
+
+    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+    const bytes = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+    expect(bytes).toBeLessThan(900);
+    expect(synthetic.live_degraded).toBeDefined();
+    expect(synthetic.live_degraded!.length).toBeGreaterThan(0);
+
+    // Verifica pior caso em formatFetchJurisSyntheticResult com source: CURATED_CATALOG
+    const fetchSynth = formatFetchJurisSyntheticResult({
+      slicedResult: {
+        layers: {
+          layer_1A_metadata: {
+            tribunal: "TST",
+            colegiado: "Tribunal Pleno Administrativo",
+            numero: "331",
+            ano: 2011,
+            relator: "Jurisprudência Consolidada do TST",
+          },
+          layer_1B_entity_regime: {
+            regimeLegal: "LEI_14133_ADM_DIRETA",
+            isStateItEntity: false,
+          },
+          layer_2A_indexing_tags: [],
+          layer_2B_enunciado_tese: "",
+          layer_3A_factual_controversy: "",
+          layer_3B_defense_arguments: "",
+          layer_3C_technical_unit_analysis: "",
+          layer_4A_ratio_decidendi: "",
+          layer_5A_operative_commands: [],
+          outcome_summary: "RESPONSABILIDADE_SUBSIDIARIA_CULPA_IN_VIGILANDO",
+          layer_6A_closing_quorum: { quorum: "Pleno" },
+        },
+        topicsMatched: 1,
+        matchedSections: [],
+        dossieMarkdown: "",
+        fullMarkdown: "",
+      },
+      dossiePath: "cases/caso_grande_teste/state/dossie_juris_tst_sumula_331.md",
+      fullPath: "cases/caso_grande_teste/inputs/juris_tst_sumula_331/inteiro_teor_anatomico.md",
+      court: "TST",
+      canonicalId: "ACORDAO-TST-SUMULA_331-2011-TRIBUNAL_PLENO",
+      source: "CURATED_CATALOG",
+    });
+    expect(fetchSynth.source).toBe("CURATED_CATALOG");
+    expect(fetchSynth.next_step_hint).toContain("force_live=true");
+    expect(Buffer.byteLength(JSON.stringify(fetchSynth), "utf-8")).toBeLessThan(900);
   });
 });

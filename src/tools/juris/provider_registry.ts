@@ -66,6 +66,12 @@ export class JurisdictionProviderRegistry {
     return Array.from(this.providers.values());
   }
 
+  public resetAllCircuits(): void {
+    for (const prov of this.providers.values()) {
+      prov.resetCircuit?.();
+    }
+  }
+
   /**
    * Deriva dinamicamente a lista de UFs suportadas a partir dos conectores registrados.
    */
