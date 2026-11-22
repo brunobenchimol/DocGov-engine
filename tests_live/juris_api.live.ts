@@ -23,10 +23,10 @@ function getCanonicalFallbackId(courtId: string): string {
     case "STF": return "SUMULA-STF-473";
     case "TST": return "SUMULA-TST-331";
     case "AGU": return "PARECER-CNLCA-001-2021";
-    case "TCE-PA": return "TCE-PA-1-2024";
+    case "TCE-PA": return "TCE-PA-RESOLUCAO-19669-2024";
     case "TCM-PA": return "TCM-PA-ACORDAO-42110-2024";
-    case "TCE-CE": return "TCE-CE-Acórdão-5741-2026";
-    case "TCDF": return "TCDF-Decisão-1038-2020";
+    case "TCE-CE": return "SUMULA-TCECE-2";
+    case "TCDF": return "SUMULA-TCDF-13";
     case "TCE-SP": return "SUMULA-TCESP-30";
     case "TCE-MG": return "CONSULTA-TCEMG-1119769";
     case "TCE-PR": return "TCE-PR-PREJULGADO-28";

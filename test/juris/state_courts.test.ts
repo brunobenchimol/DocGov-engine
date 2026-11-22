@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterEach } from "bun:test";
 import { defaultJurisdictionRegistry } from "../../src/tools/juris/provider_registry.ts";
 import { TceSpProvider } from "../../src/tools/juris/providers/tce_sp_provider.ts";
 import {
@@ -28,6 +28,19 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 
 describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TCMs)", () => {
+  const origTcdf = process.env.DOCGOV_TCDF_BASE_URL;
+  const origTceCe = process.env.DOCGOV_TCE_CE_BASE_URL;
+  const origTcePa = process.env.DOCGOV_TCE_PA_BASE_URL;
+
+  afterEach(() => {
+    if (origTcdf === undefined) delete process.env.DOCGOV_TCDF_BASE_URL;
+    else process.env.DOCGOV_TCDF_BASE_URL = origTcdf;
+    if (origTceCe === undefined) delete process.env.DOCGOV_TCE_CE_BASE_URL;
+    else process.env.DOCGOV_TCE_CE_BASE_URL = origTceCe;
+    if (origTcePa === undefined) delete process.env.DOCGOV_TCE_PA_BASE_URL;
+    else process.env.DOCGOV_TCE_PA_BASE_URL = origTcePa;
+    defaultJurisdictionRegistry.resetAllCircuits();
+  });
   it("Jurisprudência v1.4.4 — TceSpProvider: deve integrar conector TCE-SP, catálogo curado, auto-trigger e Sub-Assert 29.9", async () => {
     const tcesp = new TceSpProvider();
     expect(tcesp.courtId).toBe("TCE-SP");
@@ -353,4 +366,53 @@ describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TC
     const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
     expect(synthFetchBytes).toBeLessThan(900);
   }, 15000);
+
+  it("TCDF, TCE-CE e TCE-PA — Resiliência Dupla com Catálogos Curados, HTTP 503 e Anti-Alucinação", async () => {
+    const server503 = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response("Service Unavailable", { status: 503 });
+      },
+    });
+    try {
+      process.env.DOCGOV_TCDF_BASE_URL = `http://127.0.0.1:${server503.port}`;
+      process.env.DOCGOV_TCE_CE_BASE_URL = `http://127.0.0.1:${server503.port}`;
+      process.env.DOCGOV_TCE_PA_BASE_URL = `http://127.0.0.1:${server503.port}`;
+
+      const tcdf = defaultJurisdictionRegistry.get("TCDF")!;
+      const tcece = defaultJurisdictionRegistry.get("TCE-CE")!;
+      const tcepa = defaultJurisdictionRegistry.get("TCE-PA")!;
+
+      const tcdfDeg = await tcdf.searchWithDiagnostic!("inexigibilidade exclusividade");
+      expect(tcdfDeg.diagnostic.status).toBe("ok");
+      expect(tcdfDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(tcdfDeg.hits.some((h) => h.id === "SUMULA-TCDF-69")).toBe(true);
+
+      const tceceDeg = await tcece.searchWithDiagnostic!("obras engenharia menor relevância");
+      expect(tceceDeg.diagnostic.status).toBe("ok");
+      expect(tceceDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(tceceDeg.hits.some((h) => h.id === "SUMULA-TCECE-2")).toBe(true);
+
+      const tcepaDeg = await tcepa.searchWithDiagnostic!("suprimento de fundos 14.133");
+      expect(tcepaDeg.diagnostic.status).toBe("ok");
+      expect(tcepaDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(tcepaDeg.hits.some((h) => h.id === "TCE-PA-RESOLUCAO-19669-2024")).toBe(true);
+
+      expect((await tcdf.fetch("SUMULA-TCDF-13"))?.source).toBe("CURATED_CATALOG");
+      expect((await tcece.fetch("SUMULA-TCECE-2"))?.source).toBe("CURATED_CATALOG");
+      expect((await tcepa.fetch("TCE-PA-RESOLUCAO-19669-2024"))?.source).toBe("CURATED_CATALOG");
+
+      // Trava anti-alucinação em todos os 3
+      expect(await tcdf.fetch("TCDF-999999")).toBeNull();
+      expect(await tcece.fetch("TCE-CE-999999")).toBeNull();
+      expect(await tcepa.fetch("TCE-PA-999999")).toBeNull();
+
+      // force_live sob 503 falha explicitamente
+      const tceceFl = await tcece.searchWithDiagnostic!("licitação", { force_live: true });
+      expect(tceceFl.diagnostic.status).toBe("error");
+      expect(tceceFl.diagnostic.source_mode).toBe("LIVE_FAILED");
+    } finally {
+      server503.stop(true);
+    }
+  });
 });

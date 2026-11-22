@@ -1,209 +1,143 @@
 // ============================================================================
 // Conector TCE-PA (Tribunal de Contas do Estado do Pará)
-// Integração via HTTP/1.1 Resiliente (insecureHTTPParser) com Fallback Mock
+// docgov-engine — providers/tce_pa_provider.ts (extends BaseJurisdictionProvider)
+// Integração via HTTP/1.1 Resiliente (insecureHTTPParser) com Catálogo Curado
 // ============================================================================
 
 import type {
-  JurisdictionProvider,
-  RawJurisSearchResult,
   RawJurisFetchResult,
-  SearchJurisOptions,
-  CourtDiagnostic,
+  RawJurisSearchResult,
 } from "../types.ts";
 import {
+  BaseJurisdictionProvider,
+  type LiveFetchContext,
+  type LiveSearchContext,
+} from "./base_provider.ts";
+import {
   executeLegacyHttp1Request,
-  sanitizeQueryForCourt,
   parseCanonicalAcordaoRef,
+  sanitizeQueryForCourt,
 } from "./http_client.ts";
+import {
+  getTcePaCatalogItemById,
+  mapTcePaCatalogItemToFetch,
+  searchTcePaCatalog,
+} from "./tce_pa_catalog.ts";
 
-export class TcePaProvider implements JurisdictionProvider {
+export class TcePaProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-PA";
   public readonly tier = "STATE" as const;
   public readonly uf = "PA";
   public readonly envOverrideKey = "DOCGOV_TCE_PA_BASE_URL";
+  protected override readonly mockEnvKeys = ["DOCGOV_JURIS_TCE_PA_URL"];
+  protected override readonly baseUrlEnvKeys = ["DOCGOV_TCE_PA_BASE_URL"];
+  protected override readonly mockFetchStyle = "path" as const;
+  protected override readonly notFoundStyle = "null" as const;
+  protected override readonly defaultLiveTimeoutMs = 6000;
+  protected override readonly defaultFetchTimeoutMs = 7000;
+
   public readonly liveSmokeQuery = "licitação";
   public readonly idPatterns = [/\bTCE[-_\s]?PA\b/i, /\bTCEPA\b/i];
   // Auto-trigger estrito exclusivo do TCE-PA (sem 'pará' ou 'pa' isolados para evitar colisão com TCM-PA)
   public readonly autoTriggerKeywords =
     /\b(tce[- ]pa|tce\/pa|tcepa|tribunal\s+de\s+contas\s+do\s+estado\s+do\s+par[aá]|tribunal\s+de\s+contas\s+do\s+par[aá])\b/i;
 
-  private getBaseUrl(): string {
-    if (process.env.DOCGOV_JURIS_BASE_URL) {
-      return process.env.DOCGOV_JURIS_BASE_URL.replace(/\/+$/, "");
-    }
+  protected getDefaultBaseUrl(): string {
+    return "https://www.tcepa.tc.br";
+  }
+
+  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
+    return searchTcePaCatalog(query, limit);
+  }
+
+  protected override shouldShortCircuitCatalog(query: string): boolean {
     return (
-      process.env.DOCGOV_TCE_PA_BASE_URL || "https://www.tcepa.tc.br"
-    ).replace(/\/+$/, "");
+      /\bresolu[çc][aã]o\s*(?:n[º°o]\s*)?19\.?669\b/i.test(query) ||
+      /\bprejulgado\s*(?:n[º°o]\s*)?21\b/i.test(query)
+    );
   }
 
-  public async search(
+  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
+    const entry = getTcePaCatalogItemById(idOrRef);
+    return entry ? mapTcePaCatalogItemToFetch(entry) : null;
+  }
+
+  protected async executeLiveSearch(
     query: string,
-    options?: Partial<SearchJurisOptions>
+    limit: number,
+    ctx: LiveSearchContext
   ): Promise<RawJurisSearchResult[]> {
-    const res = await this.searchWithDiagnostic(query, options);
-    return res.hits;
+    const baseUrl = this.getBaseUrl();
+    const { cleanQuery, shortQuery } = sanitizeQueryForCourt(query);
+    const queryTerm = (shortQuery || cleanQuery || query).slice(0, 50);
+    const url = `${baseUrl}/index.php?option=com_search&searchword=${encodeURIComponent(
+      queryTerm
+    )}&searchphrase=any&ordering=newest&tmpl=component`;
+
+    const response = await executeLegacyHttp1Request(url, {
+      timeoutMs: ctx.timeoutMs,
+      isPlainHttp: url.startsWith("http://"),
+    });
+
+    if (response.status !== 200) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return this.parseHtmlSearchResults(response.body, limit);
   }
 
-  public async searchWithDiagnostic(
-    query: string,
-    options?: Partial<SearchJurisOptions>
-  ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
-    const startTime = Date.now();
-    const baseUrl = this.getBaseUrl();
-    const limit = options?.limit || 10;
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
-
-    try {
-      if (isMock) {
-        const url = `${baseUrl}/search?court=TCE-PA&q=${encodeURIComponent(query)}&limit=${limit}`;
-        const resp = await fetch(url, {
-          headers: { Accept: "application/json", "User-Agent": "DocGov-Engine/1.4.0" },
-        });
-        if (!resp.ok) {
-          return {
-            hits: [],
-            diagnostic: {
-              court: this.courtId,
-              status: "error",
-              hits: 0,
-              latency_ms: Date.now() - startTime,
-              error: `HTTP ${resp.status}`,
-            },
-          };
-        }
-        const data = await resp.json();
-        const hits = Array.isArray(data)
-          ? data
-          : Array.isArray(data.items)
-          ? data.items
-          : [];
-        const mapped = this.mapMockHits(hits);
-        return {
-          hits: mapped,
-          diagnostic: {
-            court: this.courtId,
-            status: "ok",
-            hits: mapped.length,
-            latency_ms: Date.now() - startTime,
-            error: null,
-          },
-        };
-      }
-
-      // Conexão real contra TCE-PA via HTTP/1.1 legado
-      const { cleanQuery, shortQuery } = sanitizeQueryForCourt(query);
-      const queryTerm = (shortQuery || cleanQuery || query).slice(0, 50);
-      const url = `${baseUrl}/index.php?option=com_search&searchword=${encodeURIComponent(
-        queryTerm
-      )}&searchphrase=any&ordering=newest&tmpl=component`;
-
-      const response = await executeLegacyHttp1Request(url, {
-        timeoutMs: 8000,
-        isPlainHttp: url.startsWith("http://"),
+  protected async executeLiveFetch(
+    idOrRef: string,
+    ctx: LiveFetchContext
+  ): Promise<RawJurisFetchResult | null> {
+    if (idOrRef.startsWith("http://") || idOrRef.startsWith("https://")) {
+      const response = await executeLegacyHttp1Request(idOrRef, {
+        timeoutMs: ctx.timeoutMs,
+        isPlainHttp: idOrRef.startsWith("http://"),
       });
-
+      if (response.status === 404) return null;
       if (response.status !== 200) {
-        return {
-          hits: [],
-          diagnostic: {
-            court: this.courtId,
-            status: "error",
-            hits: 0,
-            latency_ms: Date.now() - startTime,
-            error: `HTTP ${response.status}`,
-          },
-        };
+        throw new Error(`HTTP ${response.status}`);
       }
-
-      const parsedHits = this.parseHtmlSearchResults(response.body, limit);
+      const cleanText = this.stripHtml(response.body);
       return {
-        hits: parsedHits,
-        diagnostic: {
-          court: this.courtId,
-          status: "ok",
-          hits: parsedHits.length,
-          latency_ms: Date.now() - startTime,
-          error: null,
-        },
-      };
-    } catch (err: any) {
-      return {
-        hits: [],
-        diagnostic: {
-          court: this.courtId,
-          status: "error",
-          hits: 0,
-          latency_ms: Date.now() - startTime,
-          error: err?.message || String(err),
-        },
+        id: idOrRef,
+        court: "TCE-PA",
+        exists: true,
+        source: "LIVE",
+        rawTextOrJson: { url: idOrRef, text: cleanText, html: response.body },
       };
     }
-  }
 
-  public async fetch(idOrRef: string): Promise<RawJurisFetchResult | null> {
-    const baseUrl = this.getBaseUrl();
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
+    const parsedRef = parseCanonicalAcordaoRef(idOrRef);
+    const searchQuery = parsedRef ? `Acórdão ${parsedRef.numero}` : idOrRef;
+    const searchRes = await this.executeLiveSearch(searchQuery, 3, {
+      timeoutMs: ctx.timeoutMs,
+    });
 
-    if (isMock) {
-      const url = `${baseUrl}/fetch/${encodeURIComponent(idOrRef)}?court=TCE-PA`;
-      try {
-        const resp = await fetch(url, {
-          headers: { Accept: "application/json", "User-Agent": "DocGov-Engine/1.4.0" },
-        });
-        if (!resp.ok) return null;
-        const data = await resp.json();
-        const item = Array.isArray(data) ? data[0] : data;
-        if (!item) return null;
-        return { id: idOrRef, court: "TCE-PA", exists: true, rawTextOrJson: item };
-      } catch {
-        return null;
-      }
+    if (
+      searchRes.length > 0 &&
+      searchRes[0].processo &&
+      searchRes[0].processo.startsWith("http")
+    ) {
+      return await this.executeLiveFetch(searchRes[0].processo, ctx);
     }
 
-    try {
-      // Se for uma URL direta
-      if (idOrRef.startsWith("http://") || idOrRef.startsWith("https://")) {
-        const response = await executeLegacyHttp1Request(idOrRef, {
-          timeoutMs: 8000,
-          isPlainHttp: idOrRef.startsWith("http://"),
-        });
-        if (response.status !== 200) return null;
-        const cleanText = this.stripHtml(response.body);
-        return {
-          id: idOrRef,
-          court: "TCE-PA",
-          exists: true,
-          rawTextOrJson: { url: idOrRef, text: cleanText, html: response.body },
-        };
-      }
-
-      // Resolução autônoma via busca
-      const parsedRef = parseCanonicalAcordaoRef(idOrRef);
-      const searchQuery = parsedRef
-        ? `Acórdão ${parsedRef.numero}`
-        : idOrRef;
-      const searchRes = await this.search(searchQuery, { limit: 3 });
-      if (searchRes.length > 0 && searchRes[0].processo && searchRes[0].processo.startsWith("http")) {
-        return await this.fetch(searchRes[0].processo);
-      }
-
-      if (searchRes.length > 0) {
-        return {
-          id: idOrRef,
-          court: "TCE-PA",
-          exists: true,
-          rawTextOrJson: searchRes[0].rawPayload || searchRes[0],
-        };
-      }
-
-      return null;
-    } catch {
-      return null;
+    if (searchRes.length > 0) {
+      return {
+        id: idOrRef,
+        court: "TCE-PA",
+        exists: true,
+        source: "LIVE",
+        rawTextOrJson: searchRes[0].rawPayload || searchRes[0],
+      };
     }
+
+    return null;
   }
 
-  private mapMockHits(hits: any[]): RawJurisSearchResult[] {
-    return hits.map((hit: any) => ({
+  protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    return {
       id: hit.id || `TCE-PA-${hit.numero || "SN"}-${hit.ano || 2024}`,
       court: "TCE-PA",
       colegiado: hit.colegiado || "Plenário",
@@ -212,17 +146,18 @@ export class TcePaProvider implements JurisdictionProvider {
       processo: hit.processo,
       relator: hit.relator || "Conselheiro Relator",
       dataSessao: hit.dataSessao || hit.data,
-      entidade: hit.entidade || hit.orgao,
+      entidade: hit.entidade || hit.orgao || "ORGAO_CONTRATANTE",
       indexacao: hit.indexacao,
       tese: hit.tese || hit.ementa,
       dispositivo: hit.dispositivo,
       rawPayload: hit,
-    }));
+    };
   }
 
   private parseHtmlSearchResults(html: string, limit: number): RawJurisSearchResult[] {
     const results: RawJurisSearchResult[] = [];
-    const dtRegex = /<dt class="result-title">\s*(?:\d+\.\s*)?<a\s+href="([^"]+)">([\s\S]*?)<\/a>\s*<\/dt>(?:[\s\S]*?<dd class="result-text">([\s\S]*?)<\/dd>)?/gi;
+    const dtRegex =
+      /<dt class="result-title">\s*(?:\d+\.\s*)?<a\s+href="([^"]+)">([\s\S]*?)<\/a>\s*<\/dt>(?:[\s\S]*?<dd class="result-text">([\s\S]*?)<\/dd>)?/gi;
 
     let match;
     let idx = 0;
