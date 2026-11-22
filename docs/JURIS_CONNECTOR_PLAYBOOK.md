@@ -57,14 +57,15 @@ Após aprovação do plano, execute a sequência atômica de commits:
 - Commit: `feat(juris): implement <corte> curated normative catalog`
 
 ### Micro-Commit 2 (MC-2) — Provider e Registro Plug-and-Play
-- Crie `src/tools/juris/providers/<corte>_provider.ts` ($\le 500$ linhas) implementando `JurisdictionProvider` com:
-  - Live Primary (timeout 3000ms, zero retries, headers sanitizados);
-  - Curated Fallback acionado quando offline, erro HTTP ou busca local;
-  - Resolução no modo Mock (`DOCGOV_JURIS_<CORTE>_URL`);
-  - Trava anti-alucinação imediata (`[ANTI_HALLUCINATION_BLOCK]`) para IDs inexistentes (ex.: `<CORTE>-999999`);
-  - Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas com neutralidade institucional (`ORGAO_CONTRATANTE`).
+- Crie `src/tools/juris/providers/<corte>_provider.ts` ($\le 500$ linhas) **obrigatoriamente estendendo `BaseJurisdictionProvider`** (`src/tools/juris/providers/base_provider.ts`), nunca implementando `JurisdictionProvider` do zero nem herdando timeouts/retries genéricos de `http_client.ts`. A classe base já centraliza:
+  - Orçamento defensivo de timeout com `retries: 0` garantido (`defaultLiveTimeoutMs`, `defaultFetchTimeoutMs`, `forceLiveTimeoutMs: 9000`);
+  - Circuit breaker com TTL de 30s (automaticamente desabilitado em `isMockMode() === true`);
+  - Precedência **Live-First** em buscas abertas e *short-circuit* normativo via `shouldShortCircuitCatalog`;
+  - Transparência cognitiva (`origin`, `source_mode`, `live_error`, `live_degraded`, `source: "LIVE" | "CURATED_CATALOG"`) e válvula `force_live` / `--force-live`;
+  - Resolução unificada de Mock Server (`mockEnvKeys`, `baseUrlEnvKeys`, `mockFetchStyle: "path" | "query"`, `notFoundStyle: "null" | "exists_false"`), com degradação curada em HTTP `5xx` (quando `!force_live`) e trava anti-alucinação em HTTP `404` (`[ANTI_HALLUCINATION_BLOCK]`).
+- Utilize `src/tools/juris/providers/catalog_helper.ts` para eliminar duplicação no `<corte>_catalog.ts`.
 - Registre o provedor em `src/tools/juris/provider_registry.ts` ($\le 500$ linhas).
-- Commit: `feat(juris): implement <corte> provider with live search and mock support`
+- Commit: `feat(juris): implement <corte> provider extending BaseJurisdictionProvider with mock support`
 
 ### Micro-Commit 3 (MC-3) — Testes Modulares e Verificação de Linhas
 - Adicione o bloco de testes em `test/juris/state_courts.test.ts` (ou crie `test/juris/state_courts_wave2.test.ts` caso o primeiro se aproxime de 500 linhas):

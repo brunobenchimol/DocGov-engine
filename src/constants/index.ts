@@ -208,19 +208,19 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento e
   - Retorno sintético < 900 bytes com top candidatos e \`next_step_hint\` direcionando para download via \`fetch_pncp\`.
 
 ### Passo 9: Pesquisa Multi-Query de Precedentes e Equivalência Normativa (search_juris)
-- **Chamada:** \`search_juris({ caseDir: "cases/<nome_caso>", query: "orçamento sigiloso | padronização", courts: ["TCU", "TST", "AGU", "TCE-PA", "TCM-PA", "TCE-PR"], stance: "DEFENSE", limit: 10 })\`
+- **Chamada:** \`search_juris({ caseDir: "cases/<nome_caso>", query: "orçamento sigiloso | padronização", courts: ["TCU", "TST", "AGU", "TCE-PA", "TCM-PA", "TCE-PR"], stance: "DEFENSE", limit: 10, force_live?: false })\`
 - **Características:**
-  - Busca multi-query paralela em cortes de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR), suportando \`sphere: "STATE" | "MUNICIPAL" | "ALL"\` para UFs com cortes estaduais e municipais coexistentes.
+  - Busca multi-query paralela em cortes de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR), suportando \`sphere: "STATE" | "MUNICIPAL" | "ALL"\` para UFs com cortes estaduais e municipais coexistentes e \`force_live: true\` (\`--force-live\`) para retry consciente ao vivo (janela estendida 9s, \`retries: 0\`, falha explícita se indisponível).
+  - Resiliência dupla unificada (\`BaseJurisdictionProvider\`) com precedência **Live-First** em buscas abertas, Circuit Breaker de 30s e transparência cognitiva obrigatória: reporta \`live_degraded\` no retorno sintético MCP e \`origin\` / \`source_mode\` / \`live_error\` em \`state/juris_search_results.json\` e \`.md\`.
   - Statutory Bridge: equivalência determinística Lei 13.303/2016 + RILC <-> Lei 14.133/2021 (10 eixos normativos SB-01 a SB-10).
   - Motor de Ranking de Relevância (0..100 pts) ponderando aderência léxica, postura tática (DEFENSE/ATTACK), regime jurídico, colegiado e contemporaneidade.
   - Roteamento jurisdicional com degradação graciosa (graceful fallback) caso solicitada UF não implementada.
-  - Geração de painel consolidado \`state/juris_search_results.md\` e \`state/juris_search_results.json\`.
   - Retorno sintético MCP < 900 bytes com top precedentes e \`next_step_hint\` direcionando ao fatiamento anatômico via \`fetch_juris\`.
 
 ### Passo 10: Trava Anti-Alucinação e Fatiamento Anatômico (fetch_juris)
-- **Chamada:** \`fetch_juris({ caseDir: "cases/<nome_caso>", acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário", stance: "DEFENSE", topicFilter: "lote único" })\`
+- **Chamada:** \`fetch_juris({ caseDir: "cases/<nome_caso>", acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário", stance: "DEFENSE", topicFilter: "lote único", force_live?: false })\`
 - **Características:**
-  - Trava anti-alucinação estrita: valida existência real do acórdão no tribunal ou mock server e barra precedentes fabricados com \`[ANTI_HALLUCINATION_BLOCK]\`.
+  - Trava anti-alucinação estrita: valida existência real do acórdão no tribunal ou mock server e barra precedentes fabricados com \`[ANTI_HALLUCINATION_BLOCK]\`, declarando sempre \`source: "LIVE" | "CURATED_CATALOG"\` no retorno sintético MCP e no cabeçalho do dossiê.
   - Fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas (Cabeçalho, Ementa, Relatório fático/defesa/unidade técnica, Voto condutor, Dispositivo e Fecho com quórum).
   - Topic-Aware Windowing (Estágio 2): extrai janelas contextuais focadas no tópico solicitado com fundamentação integral do voto.
   - Geração de \`state/dossie_juris_<shortname>.md\` (dossiê fatiado para citação) e \`inputs/juris_<shortname>/inteiro_teor_anatomico.md\` (inteiro teor do Estágio 3).
