@@ -14,12 +14,23 @@ export interface JurisdictionRoutingInfo {
   fallback_notice: string | null;
 }
 
+export type JurisOrigin = "LIVE" | "CURATED_CATALOG";
+export type JurisSourceMode =
+  | "LIVE"
+  | "MIXED"
+  | "CURATED_FALLBACK"
+  | "CIRCUIT_OPEN_FALLBACK"
+  | "CURATED_SHORT_CIRCUIT"
+  | "LIVE_FAILED";
+
 export interface CourtDiagnostic {
   court: string;
   status: "ok" | "error";
   hits: number;
   latency_ms: number;
   error: string | null;
+  source_mode?: JurisSourceMode;
+  live_error?: string | null;
 }
 
 export interface StatutoryBridgeMapping {
@@ -51,6 +62,7 @@ export interface JurisSearchResultItem {
   stance_alignment?: StanceAlignment;
   relevance_score: number; // 0..100
   score?: number; // alias para relevance_score
+  origin?: JurisOrigin;
   statutory_bridge_refs?: string[];
 }
 
@@ -66,6 +78,7 @@ export interface SearchJurisOptions {
   colegiado?: string;
   anoMin?: number;
   limit?: number;
+  force_live?: boolean;
 }
 
 export interface SearchJurisSyntheticResult {
@@ -77,6 +90,7 @@ export interface SearchJurisSyntheticResult {
   total_hits: number;
   statutory_bridge_applied: string[];
   jurisdiction_routing: JurisdictionRoutingInfo;
+  live_degraded?: string[];
   top_hits: Array<{
     id: string;
     court: string;
@@ -165,12 +179,14 @@ export interface FetchJurisOptions {
   shortname?: string;
   topicFilter?: string;
   stance?: JurisStance;
+  force_live?: boolean;
 }
 
 export interface FetchJurisSyntheticResult {
   status: "success";
   engine_version: string;
   verified_authentic: true;
+  source: JurisOrigin;
   canonical_id: string;
   court: string;
   colegiado: string;
@@ -201,6 +217,7 @@ export interface RawJurisSearchResult {
   indexacao?: string;
   tese?: string;
   dispositivo?: string;
+  origin?: JurisOrigin;
   rawPayload?: any;
 }
 
@@ -208,10 +225,15 @@ export interface RawJurisFetchResult {
   id: string;
   court: string;
   exists: boolean;
+  source?: JurisOrigin;
   rawTextOrJson: any;
 }
 
 export type JurisdictionTier = "FEDERAL" | "STATE" | "MUNICIPAL";
+
+export interface FetchProviderOptions {
+  force_live?: boolean;
+}
 
 export interface JurisdictionProvider {
   readonly courtId: string;
@@ -227,5 +249,6 @@ export interface JurisdictionProvider {
     hits: RawJurisSearchResult[];
     diagnostic: CourtDiagnostic;
   }>;
-  fetch(idOrRef: string): Promise<RawJurisFetchResult | null>;
+  fetch(idOrRef: string, options?: FetchProviderOptions): Promise<RawJurisFetchResult | null>;
+  resetCircuit?(): void;
 }
