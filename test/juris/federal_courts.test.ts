@@ -9,24 +9,24 @@ import { scoreJurisItem } from "../../src/tools/juris/relevance_scorer.ts";
 describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () => {
   const originalAguEnv = process.env.DOCGOV_JURIS_AGU_URL;
   const originalTstEnv = process.env.DOCGOV_TST_BASE_URL;
+  const originalTcuEnv = process.env.DOCGOV_TCU_BASE_URL;
+  const originalStfEnv = process.env.DOCGOV_STF_BASE_URL;
+  const originalStjEnv = process.env.DOCGOV_STJ_BASE_URL;
   const originalJurisEnv = process.env.DOCGOV_JURIS_BASE_URL;
 
   afterEach(() => {
-    if (originalAguEnv === undefined) {
-      delete process.env.DOCGOV_JURIS_AGU_URL;
-    } else {
-      process.env.DOCGOV_JURIS_AGU_URL = originalAguEnv;
-    }
-    if (originalTstEnv === undefined) {
-      delete process.env.DOCGOV_TST_BASE_URL;
-    } else {
-      process.env.DOCGOV_TST_BASE_URL = originalTstEnv;
-    }
-    if (originalJurisEnv === undefined) {
-      delete process.env.DOCGOV_JURIS_BASE_URL;
-    } else {
-      process.env.DOCGOV_JURIS_BASE_URL = originalJurisEnv;
-    }
+    if (originalAguEnv === undefined) delete process.env.DOCGOV_JURIS_AGU_URL;
+    else process.env.DOCGOV_JURIS_AGU_URL = originalAguEnv;
+    if (originalTstEnv === undefined) delete process.env.DOCGOV_TST_BASE_URL;
+    else process.env.DOCGOV_TST_BASE_URL = originalTstEnv;
+    if (originalTcuEnv === undefined) delete process.env.DOCGOV_TCU_BASE_URL;
+    else process.env.DOCGOV_TCU_BASE_URL = originalTcuEnv;
+    if (originalStfEnv === undefined) delete process.env.DOCGOV_STF_BASE_URL;
+    else process.env.DOCGOV_STF_BASE_URL = originalStfEnv;
+    if (originalStjEnv === undefined) delete process.env.DOCGOV_STJ_BASE_URL;
+    else process.env.DOCGOV_STJ_BASE_URL = originalStjEnv;
+    if (originalJurisEnv === undefined) delete process.env.DOCGOV_JURIS_BASE_URL;
+    else process.env.DOCGOV_JURIS_BASE_URL = originalJurisEnv;
     defaultJurisdictionRegistry.resetAllCircuits();
   });
   it("TstProvider v1.4.2: deve integrar conector TST, auto-trigger trabalhista e fatiamento anatômico", async () => {
@@ -334,6 +334,55 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
       expect(mock404).toBeNull();
     } finally {
       server.stop(true);
+    }
+  });
+
+  it("TCU, STF e STJ — Resiliência Dupla com Catálogos Curados, HTTP 503 e Anti-Alucinação", async () => {
+    const server503 = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response("Service Unavailable", { status: 503 });
+      },
+    });
+    try {
+      process.env.DOCGOV_TCU_BASE_URL = `http://127.0.0.1:${server503.port}`;
+      process.env.DOCGOV_STF_BASE_URL = `http://127.0.0.1:${server503.port}`;
+      process.env.DOCGOV_STJ_BASE_URL = `http://127.0.0.1:${server503.port}`;
+
+      const tcu = defaultJurisdictionRegistry.get("TCU")!;
+      const stf = defaultJurisdictionRegistry.get("STF")!;
+      const stj = defaultJurisdictionRegistry.get("STJ")!;
+
+      const tcuDeg = await tcu.searchWithDiagnostic!("parcelamento lote único");
+      expect(tcuDeg.diagnostic.status).toBe("ok");
+      expect(tcuDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(tcuDeg.hits.some((h) => h.id === "SUMULA-TCU-247")).toBe(true);
+
+      const stfDeg = await stf.searchWithDiagnostic!("terceirização administração pública");
+      expect(stfDeg.diagnostic.status).toBe("ok");
+      expect(stfDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(stfDeg.hits.some((h) => h.id === "STF-ADC-16" || h.id === "STF-TEMA-246")).toBe(true);
+
+      const stjDeg = await stj.searchWithDiagnostic!("licitação sociedade economia mista");
+      expect(stjDeg.diagnostic.status).toBe("ok");
+      expect(stjDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(stjDeg.hits.some((h) => h.id === "SUMULA-STJ-333")).toBe(true);
+
+      expect((await tcu.fetch("SUMULA-TCU-247"))?.source).toBe("CURATED_CATALOG");
+      expect((await stf.fetch("SUMULA-STF-473"))?.source).toBe("CURATED_CATALOG");
+      expect((await stj.fetch("SUMULA-STJ-333"))?.source).toBe("CURATED_CATALOG");
+
+      // Trava anti-alucinação em todos os 3
+      expect(await tcu.fetch("TCU-999999")).toBeNull();
+      expect(await stf.fetch("STF-999999")).toBeNull();
+      expect(await stj.fetch("STJ-999999")).toBeNull();
+
+      // force_live sob 503 falha explicitamente sem mascarar
+      const tcuFl = await tcu.searchWithDiagnostic!("licitação", { force_live: true });
+      expect(tcuFl.diagnostic.status).toBe("error");
+      expect(tcuFl.diagnostic.source_mode).toBe("LIVE_FAILED");
+    } finally {
+      server503.stop(true);
     }
   });
 });

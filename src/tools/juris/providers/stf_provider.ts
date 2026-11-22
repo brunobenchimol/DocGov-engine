@@ -1,37 +1,50 @@
 // ============================================================================
 // Conector Oficial do Supremo Tribunal Federal (STF Provider)
-// docgov-engine v1.4.0 — providers/stf_provider.ts
+// docgov-engine — providers/stf_provider.ts (extends BaseJurisdictionProvider)
 // ============================================================================
 
 import type {
-  JurisdictionProvider,
-  RawJurisSearchResult,
   RawJurisFetchResult,
-  SearchJurisOptions,
-  CourtDiagnostic,
+  RawJurisSearchResult,
 } from "../types.ts";
 import {
-  executeJurisHttpRequest,
-  sanitizeQueryForCourt,
+  BaseJurisdictionProvider,
+  type LiveFetchContext,
+  type LiveSearchContext,
+} from "./base_provider.ts";
+import {
   parseCanonicalAcordaoRef,
+  sanitizeQueryForCourt,
 } from "./http_client.ts";
+import {
+  getStfCatalogItemById,
+  mapStfCatalogItemToFetch,
+  searchStfCatalog,
+} from "./stf_catalog.ts";
 
-export class StfProvider implements JurisdictionProvider {
+export class StfProvider extends BaseJurisdictionProvider {
   public readonly courtId = "STF";
   public readonly tier = "FEDERAL" as const;
   public readonly defaultFederal = true;
   public readonly envOverrideKey = "DOCGOV_STF_BASE_URL";
-  public readonly liveSmokeQuery = "licitação contrato administrativo";
-  public readonly idPatterns = [/\bSTF\b/i, /\bRE\s*\d+/i, /\bADI\s*\d+/i];
+  protected override readonly mockEnvKeys = ["DOCGOV_JURIS_STF_URL"];
+  protected override readonly baseUrlEnvKeys = ["DOCGOV_STF_BASE_URL"];
+  protected override readonly mockFetchStyle = "path" as const;
+  protected override readonly notFoundStyle = "null" as const;
+  protected override readonly defaultLiveTimeoutMs = 5000;
+  protected override readonly defaultFetchTimeoutMs = 7000;
 
-  private getBaseUrl(): string {
-    if (process.env.DOCGOV_JURIS_BASE_URL) {
-      return process.env.DOCGOV_JURIS_BASE_URL.replace(/\/+$/, "");
-    }
-    return (
-      process.env.DOCGOV_STF_BASE_URL ||
-      "https://jurisprudencia.stf.jus.br/api/search/search"
-    ).replace(/\/+$/, "");
+  public readonly liveSmokeQuery = "licitação contrato administrativo";
+  public readonly idPatterns = [
+    /\bSTF\b/i,
+    /\bRE\s*\d+/i,
+    /\bADI\s*\d+/i,
+    /\b(?:SV|SUMULA[-_]VINCULANTE|ADC)[-_]?(?:STF[-_]?)?\d+\b/i,
+    /\bSTF[-_]TEMA[-_]\d+\b/i,
+  ];
+
+  protected getDefaultBaseUrl(): string {
+    return "https://jurisprudencia.stf.jus.br/api/search/search";
   }
 
   private getSearchEndpoint(baseUrl: string): string {
@@ -40,77 +53,47 @@ export class StfProvider implements JurisdictionProvider {
     return `${baseUrl}/api/search/search`;
   }
 
-  public async search(
-    query: string,
-    options?: Partial<SearchJurisOptions>
-  ): Promise<RawJurisSearchResult[]> {
-    const { hits } = await this.searchWithDiagnostic(query, options);
-    return hits;
+  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
+    return searchStfCatalog(query, limit);
   }
 
-  public async searchWithDiagnostic(
+  protected override shouldShortCircuitCatalog(query: string): boolean {
+    return (
+      /\bs[úu]mula\s*(?:vinculante\s*)?(?:n[º°o]\s*)?(?:473|10|13)\b/i.test(query) ||
+      /\b(?:adc\s*16|adi\s*5\.?624|tema\s*(?:246|1\.?118))\b/i.test(query)
+    );
+  }
+
+  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
+    const entry = getStfCatalogItemById(idOrRef);
+    return entry ? mapStfCatalogItemToFetch(entry) : null;
+  }
+
+  protected async executeLiveSearch(
     query: string,
-    options?: Partial<SearchJurisOptions>
-  ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
+    limit: number,
+    ctx: LiveSearchContext
+  ): Promise<RawJurisSearchResult[]> {
     const baseUrl = this.getBaseUrl();
-    const limit = options?.limit || 10;
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
-
-    // 1. Modo Mock Server (.NET Assert 29)
-    if (isMock) {
-      const url = `${baseUrl}/search?court=STF&q=${encodeURIComponent(query)}&limit=${limit}`;
-      const res = await executeJurisHttpRequest(url);
-      if (!res.ok) {
-        return {
-          hits: [],
-          diagnostic: {
-            court: "STF",
-            status: "error",
-            hits: 0,
-            latency_ms: res.latencyMs,
-            error: res.error,
-          },
-        };
-      }
-      const data = res.data;
-      const rawHits = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.result?.hits?.hits)
-        ? data.result.hits.hits.map((h: any) => h._source || h)
-        : [];
-
-      const hits = rawHits.map((h: any) => this.mapStfHitToResult(h));
-      return {
-        hits,
-        diagnostic: {
-          court: "STF",
-          status: "ok",
-          hits: hits.length,
-          latency_ms: res.latencyMs,
-          error: null,
-        },
-      };
-    }
-
-    // 2. Modo Produção Oficial STF Elasticsearch
     const { cleanQuery } = sanitizeQueryForCourt(query);
     const queryTerm = cleanQuery || query;
 
-    const isDirectProcessSearch = /\b(ADI|ADC|ADPF|RE|ARE|Rcl|MS|MI|SV)\s*[-Nº]*\s*\d+/i.test(queryTerm);
+    const isDirectProcessSearch = /\b(ADI|ADC|ADPF|RE|ARE|Rcl|MS|MI|SV)\s*[-Nº]*\s*\d+/i.test(
+      queryTerm
+    );
     const mustClauses: any[] = [{ query_string: { query: queryTerm } }];
     const mustNotClauses: any[] = [];
 
     if (!isDirectProcessSearch) {
       mustClauses.push({
         query_string: {
-          query: '(licitação OR licitações OR contratação OR edital OR pregão OR "administração pública" OR "contrato administrativo" OR estatal OR 13.303 OR 14.133 OR 8.666 OR "tribunal de contas" OR terceirização OR "serviço público")',
+          query:
+            '(licitação OR licitações OR contratação OR edital OR pregão OR "administração pública" OR "contrato administrativo" OR estatal OR 13.303 OR 14.133 OR 8.666 OR "tribunal de contas" OR terceirização OR "serviço público")',
         },
       });
       mustNotClauses.push({
         query_string: {
-          query: '(ICMS AND ISS) OR bitributação',
+          query: "(ICMS AND ISS) OR bitributação",
         },
       });
     }
@@ -133,65 +116,23 @@ export class StfProvider implements JurisdictionProvider {
       bodyPayload.query.bool.must_not = mustNotClauses;
     }
 
-    const res = await executeJurisHttpRequest(endpoint, {
+    const res = await this.executeHttp(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bodyPayload),
-      timeoutMs: 8000,
+      timeoutMs: ctx.timeoutMs,
     });
 
-    if (!res.ok || !res.data) {
-      return {
-        hits: [],
-        diagnostic: {
-          court: "STF",
-          status: "error",
-          hits: 0,
-          latency_ms: res.latencyMs,
-          error: res.error,
-        },
-      };
-    }
-
+    this.assertHttpOk(res);
     const rawHits = res.data?.result?.hits?.hits || [];
-    const hits = rawHits.map((h: any) => this.mapStfHitToResult(h._source || h));
-
-    return {
-      hits,
-      diagnostic: {
-        court: "STF",
-        status: "ok",
-        hits: hits.length,
-        latency_ms: res.latencyMs,
-        error: null,
-      },
-    };
+    return rawHits.map((h: any) => this.mapStfHitToResult(h._source || h));
   }
 
-  public async fetch(idOrRef: string): Promise<RawJurisFetchResult | null> {
+  protected async executeLiveFetch(
+    idOrRef: string,
+    ctx: LiveFetchContext
+  ): Promise<RawJurisFetchResult | null> {
     const baseUrl = this.getBaseUrl();
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
-
-    // 1. Modo Mock Server (.NET Assert 29)
-    if (isMock) {
-      const url = `${baseUrl}/fetch/${encodeURIComponent(idOrRef)}?court=STF`;
-      const res = await executeJurisHttpRequest(url);
-      if (!res.ok || !res.data) return null;
-      const item = Array.isArray(res.data)
-        ? res.data[0]
-        : Array.isArray(res.data?.items)
-        ? res.data.items[0]
-        : res.data;
-      if (!item) return null;
-      return {
-        id: idOrRef,
-        court: "STF",
-        exists: true,
-        rawTextOrJson: item,
-      };
-    }
-
-    // 2. Modo Produção Oficial STF Elasticsearch
     const endpoint = this.getSearchEndpoint(baseUrl);
     const parsed = parseCanonicalAcordaoRef(idOrRef);
     const searchTerm = parsed.numero ? `${parsed.numero}` : idOrRef;
@@ -206,14 +147,16 @@ export class StfProvider implements JurisdictionProvider {
       size: 5,
     };
 
-    const res = await executeJurisHttpRequest(endpoint, {
+    const res = await this.executeHttp(endpoint, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(bodyPayload),
-      timeoutMs: 8000,
+      timeoutMs: ctx.timeoutMs,
     });
 
-    if (!res.ok || !res.data) return null;
+    if (res.status === 404) return null;
+    this.assertHttpOk(res);
+
     const rawHits = res.data?.result?.hits?.hits || [];
     if (rawHits.length === 0) return null;
 
@@ -222,8 +165,13 @@ export class StfProvider implements JurisdictionProvider {
       id: idOrRef,
       court: "STF",
       exists: true,
+      source: "LIVE",
       rawTextOrJson: item,
     };
+  }
+
+  protected mapMockHitToResult(raw: any): RawJurisSearchResult {
+    return this.mapStfHitToResult(raw);
   }
 
   private mapStfHitToResult(hit: any): RawJurisSearchResult {

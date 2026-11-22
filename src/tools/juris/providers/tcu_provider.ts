@@ -1,101 +1,72 @@
 // ============================================================================
 // Conector Oficial do Tribunal de Contas da União (TCU Provider)
-// docgov-engine v1.4.0 — providers/tcu_provider.ts
+// docgov-engine — providers/tcu_provider.ts (extends BaseJurisdictionProvider)
 // ============================================================================
 
 import type {
-  JurisdictionProvider,
-  RawJurisSearchResult,
   RawJurisFetchResult,
-  SearchJurisOptions,
-  CourtDiagnostic,
+  RawJurisSearchResult,
 } from "../types.ts";
 import {
-  executeJurisHttpRequest,
-  sanitizeQueryForCourt,
+  BaseJurisdictionProvider,
+  type LiveFetchContext,
+  type LiveSearchContext,
+} from "./base_provider.ts";
+import {
   parseCanonicalAcordaoRef,
+  sanitizeQueryForCourt,
 } from "./http_client.ts";
+import {
+  getTcuCatalogItemById,
+  mapTcuCatalogItemToFetch,
+  searchTcuCatalog,
+} from "./tcu_catalog.ts";
 
-export class TcuProvider implements JurisdictionProvider {
+export class TcuProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCU";
   public readonly tier = "FEDERAL" as const;
   public readonly defaultFederal = true;
   public readonly envOverrideKey = "DOCGOV_TCU_BASE_URL";
+  protected override readonly mockEnvKeys = ["DOCGOV_JURIS_TCU_URL"];
+  protected override readonly baseUrlEnvKeys = ["DOCGOV_TCU_BASE_URL"];
+  protected override readonly mockFetchStyle = "path" as const;
+  protected override readonly notFoundStyle = "null" as const;
+  protected override readonly defaultLiveTimeoutMs = 5000;
+  protected override readonly defaultFetchTimeoutMs = 7000;
+
   public readonly liveSmokeQuery = "orçamento sigiloso padronização";
-  public readonly idPatterns = [/\bTCU\b/i, /\bAcórdão\s+\d+[/_-]\d+[-_\s]*TCU/i];
+  public readonly idPatterns = [
+    /\bTCU\b/i,
+    /\bAcórdão\s+\d+[/_-]\d+[-_\s]*TCU/i,
+    /\bSUMULA[-_]?TCU[-_]?\d{3}\b/i,
+  ];
 
-  private getBaseUrl(): string {
-    if (process.env.DOCGOV_JURIS_BASE_URL) {
-      return process.env.DOCGOV_JURIS_BASE_URL.replace(/\/+$/, "");
-    }
-    return (
-      process.env.DOCGOV_TCU_BASE_URL ||
-      "https://pesquisa.apps.tcu.gov.br/rest/publico/base"
-    ).replace(/\/+$/, "");
+  protected getDefaultBaseUrl(): string {
+    return "https://pesquisa.apps.tcu.gov.br/rest/publico/base";
   }
 
-  public async search(
+  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
+    return searchTcuCatalog(query, limit);
+  }
+
+  protected override shouldShortCircuitCatalog(query: string): boolean {
+    return /\bs[úu]mula\s*(?:n[º°o]\s*)?(?:177|222|247|250|253|254|263|269|272)\b/i.test(query);
+  }
+
+  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
+    const entry = getTcuCatalogItemById(idOrRef);
+    return entry ? mapTcuCatalogItemToFetch(entry) : null;
+  }
+
+  protected async executeLiveSearch(
     query: string,
-    options?: Partial<SearchJurisOptions>
+    limit: number,
+    ctx: LiveSearchContext
   ): Promise<RawJurisSearchResult[]> {
-    const { hits } = await this.searchWithDiagnostic(query, options);
-    return hits;
-  }
-
-  public async searchWithDiagnostic(
-    query: string,
-    options?: Partial<SearchJurisOptions>
-  ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
     const baseUrl = this.getBaseUrl();
-    const limit = options?.limit || 10;
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
-
-    // 1. Modo Mock Server (.NET Assert 29)
-    if (isMock) {
-      const url = `${baseUrl}/search?court=TCU&q=${encodeURIComponent(query)}&limit=${limit}`;
-      const res = await executeJurisHttpRequest(url);
-      if (!res.ok) {
-        return {
-          hits: [],
-          diagnostic: {
-            court: "TCU",
-            status: "error",
-            hits: 0,
-            latency_ms: res.latencyMs,
-            error: res.error,
-          },
-        };
-      }
-      const data = res.data;
-      const rawItems = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.items)
-        ? data.items
-        : Array.isArray(data?.resultado)
-        ? data.resultado
-        : Array.isArray(data?.documentos)
-        ? data.documentos
-        : [];
-
-      const hits = rawItems.map((hit: any) => this.mapTcuDocToResult(hit));
-      return {
-        hits,
-        diagnostic: {
-          court: "TCU",
-          status: "ok",
-          hits: hits.length,
-          latency_ms: res.latencyMs,
-          error: null,
-        },
-      };
-    }
-
-    // 2. Modo Produção Oficial TCU REST
     const { cleanQuery, shortQuery } = sanitizeQueryForCourt(query);
     const queryToUse = cleanQuery || query;
 
-    const t0 = performance.now();
-    // Consulta em paralelo em Jurisprudência Selecionada e Acórdãos Completos
     const urlJurisSel = `${baseUrl}/jurisprudencia-selecionada/documento?termo=${encodeURIComponent(
       queryToUse
     )}&inicio=0&quantidade=${limit}`;
@@ -104,32 +75,41 @@ export class TcuProvider implements JurisdictionProvider {
     )}&inicio=0&quantidade=${limit}`;
 
     const [resJuris, resAcordao] = await Promise.all([
-      executeJurisHttpRequest(urlJurisSel),
-      executeJurisHttpRequest(urlAcordaoComp),
+      this.executeHttp(urlJurisSel, { timeoutMs: ctx.timeoutMs }),
+      this.executeHttp(urlAcordaoComp, { timeoutMs: ctx.timeoutMs }),
     ]);
 
-    let docsJuris: any[] = resJuris.ok && Array.isArray(resJuris.data?.documentos)
-      ? resJuris.data.documentos
-      : [];
-    let docsAcordao: any[] = resAcordao.ok && Array.isArray(resAcordao.data?.documentos)
-      ? resAcordao.data.documentos
-      : [];
+    if (!resJuris.ok && !resAcordao.ok) {
+      this.assertHttpOk(resAcordao);
+    }
 
-    // Fallback de alta revocação com query enxuta se nenhuma retornou resultados
-    if (docsJuris.length === 0 && docsAcordao.length === 0 && shortQuery && shortQuery !== queryToUse) {
+    const docsJuris: any[] =
+      resJuris.ok && Array.isArray(resJuris.data?.documentos)
+        ? resJuris.data.documentos
+        : [];
+    let docsAcordao: any[] =
+      resAcordao.ok && Array.isArray(resAcordao.data?.documentos)
+        ? resAcordao.data.documentos
+        : [];
+
+    if (
+      docsJuris.length === 0 &&
+      docsAcordao.length === 0 &&
+      shortQuery &&
+      shortQuery !== queryToUse
+    ) {
       const urlShortAcordao = `${baseUrl}/acordao-completo/documento?termo=${encodeURIComponent(
         shortQuery
       )}&inicio=0&quantidade=${limit}`;
-      const resShort = await executeJurisHttpRequest(urlShortAcordao);
+      const resShort = await this.executeHttp(urlShortAcordao, {
+        timeoutMs: ctx.timeoutMs,
+      });
       if (resShort.ok && Array.isArray(resShort.data?.documentos)) {
         docsAcordao = resShort.data.documentos;
       }
     }
 
-    const totalLatencyMs = Math.round(performance.now() - t0);
     const combinedMap = new Map<string, RawJurisSearchResult>();
-
-    // Prioriza teses e enunciados da jurisprudência selecionada
     for (const doc of docsJuris) {
       const hit = this.mapTcuDocToResult(doc);
       combinedMap.set(hit.id, hit);
@@ -141,134 +121,113 @@ export class TcuProvider implements JurisdictionProvider {
       }
     }
 
-    const hits = Array.from(combinedMap.values()).slice(0, limit);
-    const hasError = !resJuris.ok && !resAcordao.ok;
-
-    return {
-      hits,
-      diagnostic: {
-        court: "TCU",
-        status: hasError ? "error" : "ok",
-        hits: hits.length,
-        latency_ms: totalLatencyMs,
-        error: hasError ? resAcordao.error || resJuris.error : null,
-      },
-    };
+    return Array.from(combinedMap.values()).slice(0, limit);
   }
 
-  public async fetch(idOrRef: string): Promise<RawJurisFetchResult | null> {
+  protected async executeLiveFetch(
+    idOrRef: string,
+    ctx: LiveFetchContext
+  ): Promise<RawJurisFetchResult | null> {
     const baseUrl = this.getBaseUrl();
-    const isMock = !!process.env.DOCGOV_JURIS_BASE_URL;
-
-    // 1. Modo Mock Server (.NET Assert 29)
-    if (isMock) {
-      const url = `${baseUrl}/fetch/${encodeURIComponent(idOrRef)}?court=TCU`;
-      const res = await executeJurisHttpRequest(url);
-      if (!res.ok || !res.data) return null;
-      const item = Array.isArray(res.data)
-        ? res.data[0]
-        : Array.isArray(res.data?.items)
-        ? res.data.items[0]
-        : res.data;
-      if (!item) return null;
-      return {
-        id: idOrRef,
-        court: "TCU",
-        exists: true,
-        rawTextOrJson: item,
-      };
-    }
-
-    // 2. Modo Produção Oficial TCU REST
     const parsed = parseCanonicalAcordaoRef(idOrRef);
+    const deadline = Date.now() + ctx.timeoutMs;
     let exactDoc: any = null;
+    let lastTransientError: string | null = null;
 
-    // 2.1 Lookup direto por KEY na base respectiva
+    const remainingTimeout = (): number => {
+      const left = deadline - Date.now();
+      return left > 200 ? left : 0;
+    };
+
+    const queryTcu = async (url: string): Promise<any[] | null> => {
+      const left = remainingTimeout();
+      if (left <= 0) {
+        throw new Error(lastTransientError || "TCU fetch timeout budget exceeded");
+      }
+      const res = await this.executeHttp(url, { timeoutMs: left });
+      if (res.ok) {
+        return Array.isArray(res.data?.documentos) ? res.data.documentos : [];
+      }
+      if (res.status === 404 || res.status === 400) return [];
+      lastTransientError = res.error || `HTTP ${res.status || 0}`;
+      return null;
+    };
+
+    // 1. Lookup direto por KEY se prefixado
     if (idOrRef.toUpperCase().startsWith("JURISPRUDENCIA-SELECIONADA-")) {
-      const urlKey = `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
-      const resKey = await executeJurisHttpRequest(urlKey);
-      if (resKey.ok && Array.isArray(resKey.data?.documentos) && resKey.data.documentos.length > 0) {
-        exactDoc = resKey.data.documentos[0];
-      }
+      const docs = await queryTcu(
+        `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
+      );
+      if (docs && docs.length > 0) exactDoc = docs[0];
     } else if (idOrRef.toUpperCase().startsWith("ACORDAO-COMPLETO-")) {
-      const urlKey = `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
-      const resKey = await executeJurisHttpRequest(urlKey);
-      if (resKey.ok && Array.isArray(resKey.data?.documentos) && resKey.data.documentos.length > 0) {
-        exactDoc = resKey.data.documentos[0];
-      }
+      const docs = await queryTcu(
+        `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
+      );
+      if (docs && docs.length > 0) exactDoc = docs[0];
     }
 
-    // 2.2 Consulta direta por número e ano na base de acórdãos completos
+    // 2. Consulta direta por número/ano
     if (!exactDoc && parsed.numero && parsed.ano) {
-      const url = `${baseUrl}/acordao-completo/documento?termo=${parsed.numero}/${parsed.ano}&quantidade=20`;
-      const res = await executeJurisHttpRequest(url);
-      if (res.ok && Array.isArray(res.data?.documentos)) {
-        const docs = res.data.documentos;
+      const docs = await queryTcu(
+        `${baseUrl}/acordao-completo/documento?termo=${parsed.numero}/${parsed.ano}&quantidade=20`
+      );
+      if (docs && docs.length > 0) {
         const matches = docs.filter(
           (d: any) =>
             String(d.NUMACORDAO || "").trim() === parsed.numero &&
             String(d.ANOACORDAO || "").trim() === String(parsed.ano)
         );
         if (matches.length > 0) {
-          if (parsed.colegiado) {
-            exactDoc =
-              matches.find(
-                (d: any) =>
-                  String(d.COLEGIADO || "")
-                    .toLowerCase()
-                    .includes(parsed.colegiado!.toLowerCase())
-              ) || matches[0];
-          } else {
-            exactDoc = matches[0];
-          }
+          exactDoc = parsed.colegiado
+            ? matches.find((d: any) =>
+                String(d.COLEGIADO || "")
+                  .toLowerCase()
+                  .includes(parsed.colegiado!.toLowerCase())
+              ) || matches[0]
+            : matches[0];
         }
       }
     }
 
-    // 2.3 Se ainda não encontrou, tenta por filtro KEY em ambas as bases
-    if (!exactDoc) {
-      const urlKeyAcordao = `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
-      const resKeyAcordao = await executeJurisHttpRequest(urlKeyAcordao);
-      if (resKeyAcordao.ok && Array.isArray(resKeyAcordao.data?.documentos) && resKeyAcordao.data.documentos.length > 0) {
-        exactDoc = resKeyAcordao.data.documentos[0];
+    // 3. Fallback por filtro KEY e termo livre respeitando o orçamento único
+    if (!exactDoc && !lastTransientError) {
+      const docsKeyAc = await queryTcu(
+        `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
+      );
+      if (docsKeyAc && docsKeyAc.length > 0) {
+        exactDoc = docsKeyAc[0];
       } else {
-        const urlKeyJuris = `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`;
-        const resKeyJuris = await executeJurisHttpRequest(urlKeyJuris);
-        if (resKeyJuris.ok && Array.isArray(resKeyJuris.data?.documentos) && resKeyJuris.data.documentos.length > 0) {
-          exactDoc = resKeyJuris.data.documentos[0];
-        }
+        const docsKeyJur = await queryTcu(
+          `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
+        );
+        if (docsKeyJur && docsKeyJur.length > 0) exactDoc = docsKeyJur[0];
       }
     }
 
-    // 2.4 Fallback por termo livre em acordao-completo e jurisprudencia-selecionada
-    if (!exactDoc) {
-      const urlFallback = `${baseUrl}/acordao-completo/documento?termo=${encodeURIComponent(
-        idOrRef
-      )}&quantidade=5`;
-      const resFallback = await executeJurisHttpRequest(urlFallback);
-      if (resFallback.ok && Array.isArray(resFallback.data?.documentos) && resFallback.data.documentos.length > 0) {
-        exactDoc = resFallback.data.documentos[0];
-      } else {
-        const urlFallbackJuris = `${baseUrl}/jurisprudencia-selecionada/documento?termo=${encodeURIComponent(
-          idOrRef
-        )}&quantidade=5`;
-        const resFallbackJuris = await executeJurisHttpRequest(urlFallbackJuris);
-        if (resFallbackJuris.ok && Array.isArray(resFallbackJuris.data?.documentos) && resFallbackJuris.data.documentos.length > 0) {
-          exactDoc = resFallbackJuris.data.documentos[0];
-        }
-      }
+    if (!exactDoc && !lastTransientError) {
+      const docsFb = await queryTcu(
+        `${baseUrl}/acordao-completo/documento?termo=${encodeURIComponent(idOrRef)}&quantidade=5`
+      );
+      if (docsFb && docsFb.length > 0) exactDoc = docsFb[0];
     }
 
-    if (!exactDoc) {
-      return null;
+    if (!exactDoc && lastTransientError) {
+      throw new Error(lastTransientError);
     }
+
+    if (!exactDoc) return null;
 
     return {
       id: idOrRef,
       court: "TCU",
       exists: true,
+      source: "LIVE",
       rawTextOrJson: exactDoc,
     };
+  }
+
+  protected mapMockHitToResult(raw: any): RawJurisSearchResult {
+    return this.mapTcuDocToResult(raw);
   }
 
   private mapTcuDocToResult(doc: any): RawJurisSearchResult {
@@ -280,7 +239,9 @@ export class TcuProvider implements JurisdictionProvider {
         ? `Acórdão ${num}/${ano}-TCU-${col}`
         : doc.KEY ||
           doc.id ||
-          `ACORDAO-TCU-${num || "SN"}-${ano || 2024}-${String(col).toUpperCase().replace(/\s+/g, "_")}`;
+          `ACORDAO-TCU-${num || "SN"}-${ano || 2024}-${String(col)
+            .toUpperCase()
+            .replace(/\s+/g, "_")}`;
 
     const procRaw = doc.PROC || doc.processo || "";
     const procClean = procRaw.replace(/<[^>]+>/g, "").trim() || undefined;

@@ -18,9 +18,9 @@ import type { LiveProbeResult } from "./pncp_api.live.ts";
  */
 function getCanonicalFallbackId(courtId: string): string {
   switch (courtId) {
-    case "TCU": return "ACORDAO-COMPLETO-255-2023-Plenario";
-    case "STJ": return "1467577";
-    case "STF": return "sjur505834";
+    case "TCU": return "SUMULA-TCU-247";
+    case "STJ": return "SUMULA-STJ-333";
+    case "STF": return "SUMULA-STF-473";
     case "TST": return "SUMULA-TST-331";
     case "AGU": return "PARECER-CNLCA-001-2021";
     case "TCE-PA": return "TCE-PA-1-2024";
