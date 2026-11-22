@@ -286,4 +286,78 @@ describe("Pilar 1 (v1.7.0) — Perícia Pure-JS PKCS#7/PAdES, ASN.1/BER e /ByteR
     expect(res.dossier.decision).toBe("REJECTED");
     expect(res.dossier.blocking_tags).toContain("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]");
   });
+
+  test("6. Hierarquia oficial Gov.br (AC Final do Governo Federal do Brasil v1) é aceita como confiável", () => {
+    const leaf = buildCert({
+      serial: [0x11],
+      issuerCn: "AC Final do Governo Federal do Brasil v1",
+      subjectCn: "SERVIDOR GENERICO:11122233344",
+      cpf: "11122233344",
+    });
+    const pdf = buildSignedPdf((digest) =>
+      buildCms({
+        certs: [leaf],
+        signerIssuerCn: "AC Final do Governo Federal do Brasil v1",
+        signerSerial: [0x11],
+        messageDigest: digest,
+      })
+    );
+    const sigs = auditPdfPadesSignatures(pdf);
+    expect(sigs.length).toBe(1);
+    expect(sigs[0].is_self_signed).toBe(false);
+    expect(sigs[0].is_trusted_icp_chain).toBe(true);
+    expect(sigs[0].digest_verified).toBe(true);
+    expect(sigs[0].anomalies).toEqual([]);
+  });
+
+  test("7. Caminhamento encadeado X.509 aceita AC intermediária vinculada a AC Raiz confiável", () => {
+    const leaf = buildCert({
+      serial: [0x21],
+      issuerCn: "AC Corporativa Intermediaria G1",
+      subjectCn: "ENGENHEIRO RESPONSAVEL:55566677788",
+      cpf: "55566677788",
+    });
+    const intermediate = buildCert({
+      serial: [0x20],
+      issuerCn: "Autoridade Certificadora Raiz Brasileira v10",
+      subjectCn: "AC Corporativa Intermediaria G1",
+    });
+    const pdf = buildSignedPdf((digest) =>
+      buildCms({
+        certs: [leaf, intermediate],
+        signerIssuerCn: "AC Corporativa Intermediaria G1",
+        signerSerial: [0x21],
+        messageDigest: digest,
+      })
+    );
+    const sigs = auditPdfPadesSignatures(pdf);
+    expect(sigs.length).toBe(1);
+    expect(sigs[0].is_trusted_icp_chain).toBe(true);
+    expect(sigs[0].anomalies).toEqual([]);
+  });
+
+  test("8. Anti-bypass: certificado ICP-Brasil solto não vinculado ao issuerDn da folha continua bloqueado", () => {
+    const leafUntrusted = buildCert({
+      serial: [0x31],
+      issuerCn: "Emissor Desconhecido XYZ",
+      subjectCn: "SIGNATARIO NAO CREDENCIADO",
+    });
+    const detachedTrusted = buildCert({
+      serial: [0x32],
+      issuerCn: "Autoridade Certificadora Raiz Brasileira v5",
+      subjectCn: "AC Soluti ICP-Brasil",
+    });
+    const pdf = buildSignedPdf((digest) =>
+      buildCms({
+        certs: [leafUntrusted, detachedTrusted],
+        signerIssuerCn: "Emissor Desconhecido XYZ",
+        signerSerial: [0x31],
+        messageDigest: digest,
+      })
+    );
+    const sigs = auditPdfPadesSignatures(pdf);
+    expect(sigs.length).toBe(1);
+    expect(sigs[0].is_trusted_icp_chain).toBe(false);
+    expect(sigs[0].anomalies).toContain("[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]");
+  });
 });

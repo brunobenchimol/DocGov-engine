@@ -7,7 +7,7 @@ import {
 } from "./asn1_der_parser.ts";
 
 const TRUSTED_ICP_ISSUER_REGEX =
-  /(ICP-?Brasil|Autoridade Certificadora Raiz Brasileira|AC-?Raiz|\bGOV\.BR\b|\bITI\b|\bSERPRO\b|\bCertisign\b|\bSoluti\b|\bValid\b|\bSafeweb\b|\bAC\s*RFB\b|\bDigitalSign\b|\bImprensa Oficial\b|\bAC\s+Caixa\b|\bAC\s+Receita\b|\bAC\s+JUS\b|\bAC\s+OAB\b)/i;
+  /(ICP-?Brasil|Autoridade Certificadora Raiz Brasileira|AC-?Raiz|AC\s+(?:Final|Intermedi[aá]ria|Raiz)\s+do\s+Governo\s+Federal\s+do\s+Brasil|Governo\s+Federal\s+do\s+Brasil|Secretaria\s+de\s+Governo\s+Digital|\bGOV\.BR\b|\bITI\b|\bSERPRO\b|\bCertisign\b|\bSoluti\b|\bValid\b|\bSafeweb\b|\bAC\s*RFB\b|\bDigitalSign\b|\bImprensa Oficial\b|\bAC\s+Caixa\b|\bAC\s+Receita\b|\bAC\s+JUS\b|\bAC\s+OAB\b)/i;
 
 function normalizeDn(dn: string | null | undefined): string {
   if (!dn) return "";
@@ -17,6 +17,48 @@ function normalizeDn(dn: string | null | undefined): string {
     .replace(/\s*=\s*/g, "=")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function hasTrustedIcpIssuerChain(
+  certs: ParsedX509Certificate[],
+  leaf: ParsedX509Certificate | null,
+  issuerDn: string | null,
+  isSelfSigned: boolean
+): boolean {
+  if (!issuerDn || isSelfSigned) return false;
+  if (TRUSTED_ICP_ISSUER_REGEX.test(issuerDn)) return true;
+  if (!leaf || certs.length === 0) return false;
+
+  const visitedSubjectDns = new Set<string>();
+  const leafSubjectNorm = normalizeDn(leaf.subjectDn);
+  if (leafSubjectNorm) visitedSubjectDns.add(leafSubjectNorm);
+
+  let currentIssuerDn = issuerDn;
+  for (let depth = 0; depth < 5; depth++) {
+    const currentIssuerNorm = normalizeDn(currentIssuerDn);
+    if (!currentIssuerNorm) return false;
+
+    const parent = certs.find((c) => {
+      const subNorm = normalizeDn(c.subjectDn);
+      return Boolean(subNorm) && subNorm === currentIssuerNorm && !visitedSubjectDns.has(subNorm);
+    });
+    if (!parent) return false;
+
+    if (
+      (parent.subjectDn && TRUSTED_ICP_ISSUER_REGEX.test(parent.subjectDn)) ||
+      (parent.issuerDn && TRUSTED_ICP_ISSUER_REGEX.test(parent.issuerDn))
+    ) {
+      return true;
+    }
+
+    const parentSubNorm = normalizeDn(parent.subjectDn);
+    const parentIssNorm = normalizeDn(parent.issuerDn);
+    if (!parentIssNorm || parentSubNorm === parentIssNorm) return false;
+
+    visitedSubjectDns.add(parentSubNorm);
+    currentIssuerDn = parent.issuerDn!;
+  }
+  return false;
 }
 
 function normalizeTextTokens(text: string): string[] {
@@ -166,8 +208,11 @@ export function auditPdfPadesSignatures(pdfBuffer: Buffer): PdfPadesSignatureDet
     const isSelfSigned = Boolean(
       subjectDn && issuerDn && normalizeDn(subjectDn) === normalizeDn(issuerDn)
     );
-    const isTrustedIcpChain = Boolean(
-      issuerDn && !isSelfSigned && TRUSTED_ICP_ISSUER_REGEX.test(issuerDn)
+    const isTrustedIcpChain = hasTrustedIcpIssuerChain(
+      parsedCms?.certificates ?? [],
+      leaf,
+      issuerDn,
+      isSelfSigned
     );
 
     const anomalies: string[] = [];
