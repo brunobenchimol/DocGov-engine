@@ -8,6 +8,8 @@ import { scoreJurisItem } from "../../src/tools/juris/relevance_scorer.ts";
 
 describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () => {
   const originalAguEnv = process.env.DOCGOV_JURIS_AGU_URL;
+  const originalTstEnv = process.env.DOCGOV_TST_BASE_URL;
+  const originalJurisEnv = process.env.DOCGOV_JURIS_BASE_URL;
 
   afterEach(() => {
     if (originalAguEnv === undefined) {
@@ -15,6 +17,17 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     } else {
       process.env.DOCGOV_JURIS_AGU_URL = originalAguEnv;
     }
+    if (originalTstEnv === undefined) {
+      delete process.env.DOCGOV_TST_BASE_URL;
+    } else {
+      process.env.DOCGOV_TST_BASE_URL = originalTstEnv;
+    }
+    if (originalJurisEnv === undefined) {
+      delete process.env.DOCGOV_JURIS_BASE_URL;
+    } else {
+      process.env.DOCGOV_JURIS_BASE_URL = originalJurisEnv;
+    }
+    defaultJurisdictionRegistry.resetAllCircuits();
   });
   it("TstProvider v1.4.2: deve integrar conector TST, auto-trigger trabalhista e fatiamento anatômico", async () => {
     const tst = defaultJurisdictionRegistry.get("TST");
@@ -233,6 +246,92 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
 
       const fakeFetch = await agu.fetch("AGU-ON-999999");
       expect(fakeFetch).toBeNull();
+    } finally {
+      server.stop(true);
+    }
+  });
+
+  it("TstProvider — Resiliência Dupla, HTTP 503, force_live e Trava Anti-Alucinação", async () => {
+    let return503 = true;
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        if (url.pathname.startsWith("/rest/pesquisa-textual")) {
+          if (return503) return new Response("Service Unavailable", { status: 503 });
+          return Response.json({
+            registros: [
+              {
+                registro: {
+                  id: "0123456789abcdef0123456789abcdef",
+                  numFormatado: "AIRR - 0000590-72.2025.5.10.0009",
+                  ementa: "Terceirização. Responsabilidade subsidiária da Administração Pública.",
+                },
+              },
+            ],
+          });
+        }
+        if (url.pathname.startsWith("/search")) {
+          if (return503) return new Response("Service Unavailable", { status: 503 });
+          return Response.json({
+            items: [{ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock TST Live" }],
+          });
+        }
+        if (url.pathname.startsWith("/fetch")) {
+          if (url.pathname.includes("999999")) {
+            return new Response("Not Found", { status: 404 });
+          }
+          if (return503) return new Response("Service Unavailable", { status: 503 });
+          return Response.json({ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock OK" });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
+
+    try {
+      const tst = defaultJurisdictionRegistry.get("TST")!;
+      // 1. Modo Produção simulando 503 em DOCGOV_TST_BASE_URL -> degrada p/ catálogo
+      process.env.DOCGOV_TST_BASE_URL = `http://127.0.0.1:${server.port}`;
+      const deg = await tst.searchWithDiagnostic!("terceirização administração pública", { limit: 3 });
+      expect(deg.diagnostic.status).toBe("ok");
+      expect(deg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(deg.diagnostic.live_error).toContain("HTTP 503");
+      expect(deg.hits.some((h) => h.id === "SUMULA-TST-331")).toBe(true);
+      expect(deg.hits[0]?.origin).toBe("CURATED_CATALOG");
+
+      // 2. force_live sob 503 persistente -> LIVE_FAILED sem fallback silencioso
+      const flErr = await tst.searchWithDiagnostic!("terceirização", { force_live: true });
+      expect(flErr.diagnostic.status).toBe("error");
+      expect(flErr.diagnostic.source_mode).toBe("LIVE_FAILED");
+
+      // 3. Recuperação com force_live (Live-First)
+      return503 = false;
+      const flOk = await tst.searchWithDiagnostic!("terceirização", { force_live: true });
+      expect(flOk.diagnostic.status).toBe("ok");
+      expect(flOk.hits[0]?.id).toBe("TST-AIRR-0000590-72.2025.5.10.0009");
+      expect(flOk.hits[0]?.origin).toBe("LIVE");
+
+      // 4. fetch curado e trava anti-alucinação
+      const sum331 = await tst.fetch("SUMULA-TST-331");
+      expect(sum331?.exists).toBe(true);
+      expect(sum331?.source).toBe("CURATED_CATALOG");
+
+      const fakeProd = await tst.fetch("TST-AIRR-9999999-99.2099.5.01.0001");
+      expect(fakeProd).toBeNull();
+
+      // 5. Modo Mock (DOCGOV_JURIS_BASE_URL) -> 503 degrada p/ SUMULA-TST-331 e 404 bloqueia TST-999999
+      delete process.env.DOCGOV_TST_BASE_URL;
+      process.env.DOCGOV_JURIS_BASE_URL = `http://127.0.0.1:${server.port}`;
+      return503 = true;
+      const mock503 = await tst.searchWithDiagnostic!("terceirização súmula 331");
+      expect(mock503.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(mock503.hits[0]?.id).toBe("SUMULA-TST-331");
+
+      const mockFetch503 = await tst.fetch("SUMULA-TST-331");
+      expect(mockFetch503?.source).toBe("CURATED_CATALOG");
+
+      const mock404 = await tst.fetch("TST-999999");
+      expect(mock404).toBeNull();
     } finally {
       server.stop(true);
     }

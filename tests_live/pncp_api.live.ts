@@ -12,7 +12,7 @@ import type { PncpSearchCandidate } from "../src/types/index.ts";
 
 export interface LiveProbeResult {
   name: string;
-  status: "PASS" | "FAIL";
+  status: "PASS" | "WARN" | "FAIL";
   durationMs: number;
   details: string;
   error?: string;

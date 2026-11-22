@@ -21,7 +21,7 @@ function getCanonicalFallbackId(courtId: string): string {
     case "TCU": return "ACORDAO-COMPLETO-255-2023-Plenario";
     case "STJ": return "1467577";
     case "STF": return "sjur505834";
-    case "TST": return "TST-AIRR-0000590-72.2025.5.10.0009";
+    case "TST": return "SUMULA-TST-331";
     case "AGU": return "PARECER-CNLCA-001-2021";
     case "TCE-PA": return "TCE-PA-1-2024";
     case "TCM-PA": return "TCM-PA-ACORDAO-42110-2024";
@@ -34,6 +34,9 @@ function getCanonicalFallbackId(courtId: string): string {
   }
 }
 
+const CURATED_ID_REGEX =
+  /^(SUMULA|CONSULTA|ON-AGU|PARECER|OJ-TST|TST-TEMA|STF-(?:ADC|ADI|TEMA)|STJ-TEMA|TCE-PA-(?:RESOLUCAO|PREJULGADO)|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i;
+
 /**
  * Classifica a origem real dos resultados (Live API, Híbrido ou Fallback Curado).
  */
@@ -42,11 +45,14 @@ function classifyOrigin(
   results: any[]
 ): "API Live Direta" | "Híbrido (Live + Curado)" | "Fallback Curado Local" {
   if (!results || results.length === 0) return "API Live Direta";
-  const curatedPattern = /^(SUMULA|CONSULTA|ON-AGU|PARECER|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i;
-  const allCurated = results.every((r) => curatedPattern.test(r.id || ""));
-  const someCurated = results.some((r) => curatedPattern.test(r.id || ""));
+  const allCurated = results.every(
+    (r) => r.origin === "CURATED_CATALOG" || CURATED_ID_REGEX.test(r.id || "")
+  );
+  const someCurated = results.some(
+    (r) => r.origin === "CURATED_CATALOG" || CURATED_ID_REGEX.test(r.id || "")
+  );
 
-  if (allCurated && ["AGU", "TCE-SP", "TCE-MG"].includes(courtId)) {
+  if (allCurated) {
     return "Fallback Curado Local";
   }
   if (someCurated) {
@@ -106,6 +112,7 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
   try {
     for (const prov of targetProviders) {
       let firstHitId = "";
+      let searchDegradedToCurated = false;
 
       // ------------------------------------------------------------------------
       // Sonda 1: searchJuris online + Statutory Bridge
@@ -142,6 +149,11 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
           const diag = searchRes.fileResult.court_diagnostics?.find((d) => d.court === prov.courtId);
           const diagStatus = diag ? diag.status : "ok";
           const diagLatency = diag ? `${diag.latency_ms}ms` : `${durationS1}ms`;
+          const isDegraded =
+            diag?.source_mode === "CURATED_FALLBACK" ||
+            diag?.source_mode === "CIRCUIT_OPEN_FALLBACK" ||
+            !!diag?.live_error;
+          if (isDegraded) searchDegradedToCurated = true;
 
           if (hitsCount > 0 && rawJson.results && rawJson.results[0]?.id) {
             firstHitId = rawJson.results[0].id;
@@ -164,6 +176,13 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
               durationMs: durationS1,
               details: `[${origin}] Payload MCP excedeu teto da Lei 2: ${synthBytes}B >= 900B.`,
               error: `MCP Payload ceiling exceeded: ${synthBytes} bytes`,
+            });
+          } else if (isDegraded) {
+            probes.push({
+              name: `Sonda [${prov.courtId}] 1: searchJuris (${prov.courtId})`,
+              status: "WARN",
+              durationMs: durationS1,
+              details: `[DEGRADED -> CURATED] ${hitsCount} hits (Top: ${firstHitId || "N/A"}). Causa live: ${diag?.live_error || diag?.source_mode}. Latência: ${diagLatency}. Payload MCP: ${synthBytes}B.`,
             });
           } else {
             probes.push({
@@ -204,9 +223,10 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
         const dossieContent = existsSync(fetchRes.dossiePath) ? readFileSync(fetchRes.dossiePath, "utf-8") : "";
         const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
 
-        const fetchOrigin = /^(SUMULA|CONSULTA|ON-AGU|PARECER|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i.test(targetId)
-          ? "Catálogo Normativo Curado"
-          : "API Live Direta";
+        const fetchOrigin =
+          fetchRes.source === "CURATED_CATALOG" || CURATED_ID_REGEX.test(targetId)
+            ? "Catálogo Normativo Curado"
+            : "API Live Direta";
 
         if (hasAntiHallucination) {
           probes.push({
@@ -223,6 +243,13 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
             durationMs: durationS2,
             details: `[${fetchOrigin}] Payload MCP excedeu teto da Lei 2: ${synth2Bytes}B >= 900B.`,
             error: `MCP Payload ceiling exceeded: ${synth2Bytes} bytes`,
+          });
+        } else if (searchDegradedToCurated && fetchRes.source === "CURATED_CATALOG") {
+          probes.push({
+            name: `Sonda [${prov.courtId}] 2: fetchJuris (${prov.courtId})`,
+            status: "WARN",
+            durationMs: durationS2,
+            details: `[DEGRADED -> CURATED] Decisão [${targetId}] fatiada via fallback curado após falha live na Sonda 1. Payload MCP: ${synth2Bytes}B.`,
           });
         } else {
           probes.push({

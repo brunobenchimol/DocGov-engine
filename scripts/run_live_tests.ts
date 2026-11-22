@@ -65,8 +65,14 @@ async function main() {
   console.log("--------------------------------------------------------------------------------\n");
 
   let failCount = 0;
+  let warnCount = 0;
   for (const res of results) {
-    const icon = res.status === "PASS" ? "✅ PASS" : "❌ FAIL";
+    const icon =
+      res.status === "PASS"
+        ? "✅ PASS"
+        : res.status === "WARN"
+        ? "⚠️ WARN (DEGRADED -> CURATED)"
+        : "❌ FAIL";
     console.log(`${icon} [${res.durationMs}ms] ${res.name}`);
     console.log(`   Detalhes: ${res.details}`);
     if (res.error) {
@@ -76,11 +82,14 @@ async function main() {
 
     if (res.status === "FAIL") {
       failCount++;
+    } else if (res.status === "WARN") {
+      warnCount++;
     }
   }
 
+  const passCount = results.length - failCount - warnCount;
   console.log("================================================================================");
-  console.log(`Total de Sondas: ${results.length} | Aprovadas: ${results.length - failCount} | Falhas: ${failCount} | Tempo Total: ${(totalDuration / 1000).toFixed(2)}s`);
+  console.log(`Total de Sondas: ${results.length} | Aprovadas: ${passCount} | Degradadas (WARN): ${warnCount} | Falhas: ${failCount} | Tempo Total: ${(totalDuration / 1000).toFixed(2)}s`);
   console.log("================================================================================");
 
   // Integração com painel do GitHub Actions via GITHUB_STEP_SUMMARY
@@ -88,14 +97,25 @@ async function main() {
   if (summaryPath) {
     try {
       let md = `## 🌐 Relatório de Testes Online de Contrato de API (Live API Smoke Tests)\n\n`;
-      md += `**Status Global:** ${failCount === 0 ? "✅ **100% OPERACIONAL**" : "❌ **FALHAS DETECTADAS**"}\n`;
+      const globalLabel =
+        failCount > 0
+          ? "❌ **FALHAS DETECTADAS**"
+          : warnCount > 0
+          ? "⚠️ **OPERACIONAL COM DEGRADAÇÃO CURADA (WARN)**"
+          : "✅ **100% OPERACIONAL**";
+      md += `**Status Global:** ${globalLabel}\n`;
       md += `**Data/Hora da Execução:** ${new Date().toISOString()}\n`;
       md += `**Duração Total:** ${(totalDuration / 1000).toFixed(2)}s\n\n`;
       md += `| Status | Sonda | Duração | Detalhes |\n`;
       md += `| :---: | :--- | :---: | :--- |\n`;
 
       for (const res of results) {
-        const badge = res.status === "PASS" ? "🟢 PASS" : "🔴 FAIL";
+        const badge =
+          res.status === "PASS"
+            ? "🟢 PASS"
+            : res.status === "WARN"
+            ? "🟡 WARN"
+            : "🔴 FAIL";
         md += `| ${badge} | ${res.name} | ${res.durationMs}ms | ${res.details}${res.error ? `<br/>*Erro: ${res.error}*` : ""} |\n`;
       }
 
