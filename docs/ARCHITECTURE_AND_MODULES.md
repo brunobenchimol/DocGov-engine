@@ -75,10 +75,10 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
 ## 4. Governança Física de Linhas (Lei 9 & `scripts/check_lines.ts`)
 
 - **Diretórios com enforcement estrito automático (`<= 500` linhas em `bun run check:lines`):**
-  - Código: `src/tools/juris`, `src/utils/pdf`, `src/utils/forensics`, `src/contracts`, `src/arp`, `src/bidding`, `src/direct_contracting`, `src/demo_costs`, `src/engineering`;
+  - Código: `src/tools/juris`, `src/utils/pdf`, `src/utils/forensics`, `src/contracts`, `src/arp`, `src/bidding`, `src/direct_contracting`, `src/demo_costs`, `src/engineering`, `src/cli`, `src/mcp`, `src/parsers`, `src/constants`;
   - Testes e Automação: `test`, `tests_live`, `scripts`.
-- **Pastas legadas/raiz de `src/` atualmente fora da varredura automática de `scripts/check_lines.ts`:**
-  - `src/index.ts`, `src/cli/`, `src/constants/`, `src/types/`, `src/mcp/`, `src/core/`, `src/parsers/`, `src/tools/` (raiz, `src/tools/inspect/`, `src/tools/openxml/`) e `src/utils/` (arquivos raiz como `archives.ts`, `pdf.ts`, `pdf_exporter.ts`, `xml.ts`).
+- **Pastas legadas/raiz de `src/` atualmente fora da varredura automática de `scripts/check_lines.ts` (19 arquivos $> 500$ linhas mapeados para fatiamento futuro):**
+  - `src/index.ts`, `src/types/`, `src/core/`, `src/tools/` (raiz, `src/tools/inspect/`, `src/tools/openxml/`) e `src/utils/` (arquivos raiz como `archives.ts`, `pdf.ts`, `pdf_exporter.ts`, `xml.ts`).
 - **Diretriz de Manutenção Segura:**
   1. **Não expandir monólitos legados in-place:** novas features devem nascer em subdiretórios modulares ou submódulos coesos (`<= 500` linhas).
   2. **Não refatorar arquivos estáveis próximos do teto sem necessidade funcional:** preserva-se a estabilidade de arquivos próximos a 500 linhas (ex.: `src/contracts/pas_sanction_auditor.ts`, `src/tools/juris/providers/tce_pr_catalog.ts`, `test/fill_template_multilevel.test.ts`, `test/contracts/pas_federative_v156.test.ts`, `test/inspect.test.ts`) evitando churn desnecessário.
