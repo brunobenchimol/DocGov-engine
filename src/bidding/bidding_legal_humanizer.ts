@@ -134,6 +134,9 @@ export function translateForensicVectorName(vec: string): string {
     VETOR_5_PLAGIO_EDITAL: "Vetor 5 — Similitude Textual Literal com o Termo de Referência",
     VETOR_6_VOLUME_PRAZO: "Vetor 6 — Desproporção Volumétrica entre Esforço Atestado e Prazo",
     VETOR_7_METADADOS_PDF: "Vetor 7 — Divergência Cronológica em Metadados PDF / Assinatura Digital",
+    VETOR_7_SOFTWARES_EDICAO: "Vetor 7 — Rastro de Software de Edição Externa no PDF do ACT",
+    VETOR_7_CRIPTOGRAFIA_PADES: "Vetor 7 — Perícia Criptográfica PKCS#7/PAdES e /ByteRange",
+    VETOR_7_NFE_44_DIGITOS: "Vetor 7 — Validação Algorítmica da Chave NF-e de 44 Dígitos",
   };
   return map[vec] || vec.replace(/_/g, " ");
 }
@@ -396,6 +399,67 @@ export function describeBiddingTagLegalProse(
           "Identificada necessidade de admissão em diligência de documento comprobatório de condição preexistente (Acórdão 1.211/2021) ou obrigatoriedade de remessa à Autoridade Superior (decisão mantida, prazo de 10 dias úteis).",
         recommendation:
           "Conhecer o documento preexistente via diligência saneadora ou encaminhar imediatamente os autos à Autoridade Superior no efeito suspensivo.",
+      };
+    case "[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]":
+      return {
+        title: "Divergência de Identidade Criptográfica do Signatário X.509/ICP-Brasil",
+        legalBasis: is13303
+          ? "Art. 56, § 2º e Art. 83 da Lei nº 13.303/2016; MP nº 2.200-2/2001; Lei nº 14.063/2020"
+          : "Arts. 5º, 64, 67 e 155, VIII e X da Lei nº 14.133/2021; MP nº 2.200-2/2001; Lei nº 14.063/2020; Art. 337-I do Código Penal",
+        factualAnalysis: `O certificado digital ICP-Brasil/Gov.br extraído de ${affectedActs} apresenta titularidade (CN/CPF/CNPJ) incompatível com o signatário ou emissor esperado.`,
+        recommendation:
+          "Rejeitar/inabilitar o atestado impugnado, instaurar Processo Administrativo Sancionador (PAS — Art. 155, VIII/X) e comunicar os órgãos de controle e o Ministério Público diante de indício de falsidade documental.",
+      };
+    case "[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]":
+      return {
+        title: "Assinatura Digital com Certificado Autoassinado ou Fora da Cadeia ICP-Brasil/Gov.br",
+        legalBasis: is13303
+          ? "Art. 56, § 2º da Lei nº 13.303/2016; MP nº 2.200-2/2001 (ICP-Brasil); Lei nº 14.063/2020"
+          : "Arts. 5º, 64, 67 e 155, VIII da Lei nº 14.133/2021; MP nº 2.200-2/2001 (ICP-Brasil); Lei nº 14.063/2020",
+        factualAnalysis: `Identificada em ${affectedActs} assinatura PAdES lastreada em certificado autoassinado ou sem encadeamento válido a Autoridade Certificadora confiável ICP-Brasil/Gov.br.`,
+        recommendation:
+          "Negar eficácia probatória ao documento, proceder à rejeição/inabilitação da proposta quanto ao atestado, instaurar PAS e comunicar os órgãos de controle caso subsistam indícios de fraude.",
+      };
+    case "[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]":
+      return {
+        title: "Adulteração Incremental Pós-Assinatura Digital ou Divergência de Hash /ByteRange",
+        legalBasis: is13303
+          ? "Art. 56, § 2º e Art. 83 da Lei nº 13.303/2016; MP nº 2.200-2/2001; Lei nº 14.063/2020; Arts. 299 e 337-I do Código Penal"
+          : "Arts. 5º, 64, 67 e 155, VIII e X da Lei nº 14.133/2021; MP nº 2.200-2/2001; Lei nº 14.063/2020; Arts. 299 e 337-I do Código Penal",
+        factualAnalysis: `Constatada em ${affectedActs} divergência criptográfica entre o hash de /ByteRange e o messageDigest assinado ou injeção suspeita de conteúdo após o bloco de assinatura.`,
+        recommendation:
+          "Determinar a imediata rejeição/inabilitação da licitante, preservar a cadeia de custódia digital do arquivo, instaurar PAS e comunicar os órgãos de controle externo e o Ministério Público.",
+      };
+    case "[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]":
+      return {
+        title: "Chave de Acesso NF-e de 44 Dígitos Matematicamente Inválida (Módulo 11 / Estrutura Fiscal)",
+        legalBasis: is13303
+          ? "Art. 56, § 2º e Art. 83 da Lei nº 13.303/2016; Ajuste SINIEF nº 07/2005; Art. 337-I do Código Penal"
+          : "Arts. 5º, 64, 67 e 155, VIII e X da Lei nº 14.133/2021; Ajuste SINIEF nº 07/2005; Art. 337-I do Código Penal",
+        factualAnalysis: `Em ${affectedActs}, a chave de acesso NF-e apresentada em diligência apresentou falha estrutural ou no Dígito Verificador (Módulo 11), indicando documento fiscal inexistente ou adulterado.`,
+        recommendation:
+          "Promover a rejeição/inabilitação imediata, instaurar PAS por apresentação de documento falso e encaminhar comunicação aos órgãos de controle e à autoridade fazendária.",
+      };
+    case "[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]":
+      return {
+        title: "Divergência de CNPJ Emitente ou Competência (AAMM) na Chave NF-e de 44 Dígitos",
+        legalBasis: is13303
+          ? "Art. 56, § 2º e Art. 83 da Lei nº 13.303/2016; Ajuste SINIEF nº 07/2005; Art. 337-I do Código Penal"
+          : "Arts. 5º, 64, 67 e 155, VIII e X da Lei nº 14.133/2021; Ajuste SINIEF nº 07/2005; Art. 337-I do Código Penal",
+        factualAnalysis: `Em ${affectedActs}, o CNPJ emitente ou a competência (AAMM) embutidos na chave NF-e de 44 dígitos divergem dos dados declarados pela licitante no atestado ou na diligência.`,
+        recommendation:
+          "Promover a rejeição/inabilitação do atestado por incompatibilidade do lastro fiscal, instaurar PAS para apuração de responsabilidade e comunicar os órgãos de controle.",
+      };
+    case "[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]":
+      return {
+        title: "Indício Objetivo de Conluio por Clonagem de Identificadores OpenXML (w:rsidRoot / w:rsidR)",
+        legalBasis: is13303
+          ? "Art. 31 e Art. 83 da Lei nº 13.303/2016; Arts. 337-F e 337-I do Código Penal"
+          : "Arts. 5º e 155, IX e X da Lei nº 14.133/2021; Arts. 337-F e 337-I do Código Penal",
+        factualAnalysis:
+          "Detectada identidade de sessão de edição OpenXML (w:rsidRoot ou sobreposição relevante de w:rsidR) entre arquivos .docx de proponentes distintos, mesmo após eventual remoção do metadado Author.",
+        recommendation:
+          "Bloquear/rejeitar as propostas envolvidas por forte indício de frustração à competitividade, instaurar imediatamente PAS e encaminhar representação ao Tribunal de Contas competente e ao Ministério Público.",
       };
     default:
       return {

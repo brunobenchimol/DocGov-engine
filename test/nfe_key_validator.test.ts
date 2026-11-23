@@ -16,6 +16,10 @@ import {
   auditDirectContracting,
   serializeDirectContractingSyntheticResult,
 } from "../src/direct_contracting/audit_direct_contracting.ts";
+import { auditActForensics } from "../src/bidding/act_forensic_auditor.ts";
+import { describeBiddingTagLegalProse } from "../src/bidding/bidding_legal_humanizer.ts";
+import { buildActDiligenceLetterXmlParts } from "../src/bidding/act_diligence_letter_sections.ts";
+import type { BiddingProposalDossier } from "../src/bidding/types.ts";
 
 function makeNfeKey(uf: string, aamm: string, cnpj: string, modelo = "55"): string {
   const base43 = `${uf}${aamm}${cnpj.replace(/\D/g, "").padStart(14, "0")}${modelo}001000000123112345678`;
@@ -182,5 +186,90 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
     ]);
     expect(dirRes.synthetic.unknown_keys).toEqual(dirRes.dossier.unknown_keys);
     expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(dirRes.synthetic), "utf-8")).toBeLessThanOrEqual(880);
+  });
+
+  test("6. Polimento R4: dicionário jurídico das 6 tags v1.7.0 no Parecer DOCX (sem fallback genérico)", () => {
+    const tagsV170 = [
+      "[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]",
+      "[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]",
+      "[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]",
+      "[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]",
+      "[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]",
+      "[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]",
+    ];
+    const mockDossier = {
+      legal_regime: "LEI_14133_2021",
+      ict_execution: {},
+      act_forensics: {
+        certificates_audited: 1,
+        total_alerts: 1,
+        blocking_tags: tagsV170,
+        items: [{ certificate_id: "ACT-R4", issuer_name: "ORGAO_A", issuer_cnpj: tomadorCnpj, triggered_vectors: [], blocking_tags: tagsV170, details: [] }],
+      },
+    } as unknown as BiddingProposalDossier;
+
+    for (const tag of tagsV170) {
+      const prose = describeBiddingTagLegalProse(tag, mockDossier);
+      expect(prose.recommendation).not.toContain("Sanear integralmente o apontamento");
+      expect(prose.recommendation).toMatch(/PAS|rejei|inabilit|Bloquear/i);
+      expect(prose.legalBasis).toMatch(/14\.133|SINIEF|337-/);
+    }
+  });
+
+  test("7. Polimento R4: deduplica chave NF-e idêntica entre nfe_access_key e diligence_nfe_keys[]", () => {
+    const validKey = makeNfeKey("35", "2405", bidderCnpj);
+    const badDvKey = `${validKey.slice(0, 43)}${(Number(validKey[43]) + 1) % 10}`;
+    const spacedKey = badDvKey.replace(/(\d{4})/g, "$1 ").trim();
+    const res = auditActForensics(
+      [
+        {
+          certificate_id: "ACT-DEDUP",
+          issuer_name: "ORGAO_A",
+          issuer_cnpj: tomadorCnpj,
+          nfe_access_key: badDvKey,
+          diligence_nfe_keys: [{ access_key: spacedKey, declared_issue_date: "2024-05-10" }],
+        },
+      ],
+      { bidderName: "EMPRESA GENERICA", bidderCnpj }
+    );
+    const dvDetails = res.items[0].details.filter((d) => d.includes("Dígito Verificador Módulo 11"));
+    expect(dvDetails.length).toBe(1);
+    expect(res.items[0].blocking_tags).toEqual(["[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]"]);
+  });
+
+  test("8. Polimento R4: Ofício de Diligência distingue total_alerts === 0 (rotina Art. 64) vs >= 1 (investigativa)", () => {
+    const baseDossier = (alerts: number): BiddingProposalDossier =>
+      ({
+        process_id: "PROC-R4-OFICIO",
+        legal_regime: "LEI_14133_2021",
+        bidder_name: "EMPRESA_GENERICA",
+        bidder_cnpj: bidderCnpj,
+        ict_execution: { diligence_required: false, is_exequible: true, offered_unit_value: 100, parametric_floor_value: 90 },
+        act_forensics: {
+          certificates_audited: 1,
+          total_alerts: alerts,
+          blocking_tags: alerts > 0 ? ["[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]"] : [],
+          items: [
+            {
+              certificate_id: "ACT-01",
+              issuer_name: "ORGAO_A",
+              issuer_cnpj: tomadorCnpj,
+              triggered_vectors: alerts > 0 ? ["VETOR_7_CRIPTOGRAFIA_PADES"] : [],
+              blocking_tags: alerts > 0 ? ["[ACT_FORENSIC_SIGNATURE_DATE_MISMATCH]"] : [],
+              details: alerts > 0 ? ["Divergência detectada"] : [],
+            },
+          ],
+        },
+      }) as unknown as BiddingProposalDossier;
+
+    const zeroXml = buildActDiligenceLetterXmlParts(baseDossier(0)).join("\n");
+    expect(zeroXml).not.toContain("0 alerta(s) objetivo(s)");
+    expect(zeroXml).not.toContain("exigindo a imediata deflagração");
+    expect(zeroXml).toContain("situação preliminar CONFORME");
+    expect(zeroXml).toContain("verificação facultativa e preventiva de rotina");
+
+    const oneXml = buildActDiligenceLetterXmlParts(baseDossier(1)).join("\n");
+    expect(oneXml).toContain("identificou 1 alerta(s) objetivo(s)");
+    expect(oneXml).toContain("exigindo a imediata deflagração de diligência investigativa em dupla via");
   });
 });

@@ -56,6 +56,10 @@ export function buildActDiligenceLetterXmlParts(dossier: BiddingProposalDossier)
 
   const needPriceDiligence =
     dossier.ict_execution.diligence_required || !dossier.ict_execution.is_exequible;
+  const hasAlerts = dossier.act_forensics.total_alerts > 0;
+  const part1Intro = hasAlerts
+    ? `Durante o exame de habilitação técnica da licitante ${dossier.bidder_name} (CNPJ ${dossier.bidder_cnpj}) no processo ${dossier.process_id}, o módulo de auditoria pericial identificou ${dossier.act_forensics.total_alerts} alerta(s) objetivo(s) nos ${dossier.act_forensics.certificates_audited} atestado(s) analisado(s), exigindo a imediata deflagração de diligência investigativa em dupla via para apuração da veracidade material e documental:`
+    : `Durante o exame de habilitação técnica da licitante ${dossier.bidder_name} (CNPJ ${dossier.bidder_cnpj}) no processo ${dossier.process_id}, o módulo de auditoria pericial não identificou alertas objetivos de inconformidade nos ${dossier.act_forensics.certificates_audited} atestado(s) analisado(s) (situação preliminar CONFORME). A presente minuta permanece disponível exclusivamente para eventual verificação facultativa e preventiva de rotina (Art. 64 da Lei nº 14.133/2021), a critério do Agente de Contratação / Pregoeiro:`;
 
   const parts: string[] = [
     pDocHeader(
@@ -70,9 +74,7 @@ export function buildActDiligenceLetterXmlParts(dossier: BiddingProposalDossier)
 
     // PARTE I
     pHeading("PARTE I — Quadro Diagnóstico dos Atestados Submetidos à Diligência Forense", 1),
-    pBody(
-      `Durante o exame de habilitação técnica da licitante ${dossier.bidder_name} (CNPJ ${dossier.bidder_cnpj}) no processo ${dossier.process_id}, o módulo de auditoria pericial identificou ${dossier.act_forensics.total_alerts} alerta(s) objetivo(s) nos ${dossier.act_forensics.certificates_audited} atestado(s) analisado(s), exigindo a imediata deflagração de diligência investigativa em dupla via para apuração da veracidade material e documental:`
-    ),
+    pBody(part1Intro),
     buildTableXml(
       ["Atestado", "Emissor e Situação RFB", "Vetores Forenses Acionados", "Evidências Apuradas e Rastreabilidade"],
       actRows.length > 0
@@ -105,7 +107,7 @@ export function buildActDiligenceLetterXmlParts(dossier: BiddingProposalDossier)
     ),
     pBullet(
       "Item 3 — Vínculo Contratual e Lastro Fiscal Correspondente",
-      "Indicar o número do contrato administrativo ou privado, eventual registro público (PNCP/empenho, se ente público ou estatal) e a relação das Notas Fiscais Eletrônicas emitidas em contraprestação, esclarecendo pontualmente os achados preliminares de cadastro, cronologia ou volume apontados."
+      `Indicar o número do contrato administrativo ou privado, eventual registro público (PNCP/empenho, se ente público ou estatal) e a relação das Notas Fiscais Eletrônicas emitidas em contraprestação${hasAlerts ? ", esclarecendo pontualmente os achados preliminares de cadastro, cronologia ou volume apontados" : ""}.`
     ),
     pCallout(
       "ADVERTÊNCIA LEGAL AO EMISSOR (RESPONSABILIDADE PENAL E ADMINISTRATIVA)",

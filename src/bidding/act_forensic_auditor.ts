@@ -307,7 +307,7 @@ export function auditActForensics(
     }
 
     // Validação Algorítmica NF-e 44 Dígitos (Diligência ACT Via B)
-    const nfeInputs = [
+    const rawNfeInputs = [
       ...(item.nfe_access_key
         ? [{ access_key: item.nfe_access_key, declared_issue_date: item.nfe_declared_issue_date }]
         : []),
@@ -317,6 +317,30 @@ export function auditActForensics(
           : entry
       ),
     ];
+    const dedupedNfeMap = new Map<
+      string,
+      { access_key: string; expected_cnpj?: string; declared_issue_date?: string }
+    >();
+    for (const entry of rawNfeInputs) {
+      const digits = String(entry.access_key || "").replace(/\D/g, "");
+      const normKey = digits || String(entry.access_key || "").trim();
+      if (!normKey) continue;
+      const existing = dedupedNfeMap.get(normKey);
+      if (!existing) {
+        dedupedNfeMap.set(normKey, {
+          access_key: entry.access_key,
+          expected_cnpj: entry.expected_cnpj,
+          declared_issue_date: entry.declared_issue_date,
+        });
+      } else {
+        dedupedNfeMap.set(normKey, {
+          access_key: existing.access_key,
+          expected_cnpj: existing.expected_cnpj || entry.expected_cnpj,
+          declared_issue_date: existing.declared_issue_date || entry.declared_issue_date,
+        });
+      }
+    }
+    const nfeInputs = Array.from(dedupedNfeMap.values());
     if (nfeInputs.length > 0) {
       const nfeTagsBefore = itemTags.length;
       for (const nfeEntry of nfeInputs) {
