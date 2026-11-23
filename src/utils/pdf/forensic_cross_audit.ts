@@ -327,3 +327,48 @@ export function renderForensicInventorySectionMarkdown(
   lines.push("");
   return lines;
 }
+
+export function formatCompactForensicMetaMarkdown(
+  meta?: DocumentForensicMeta | null
+): string[] {
+  if (!meta) return [];
+  const lines: string[] = [];
+  lines.push("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
+  lines.push(
+    `- **Formato:** \`.${meta.source_format}\` | **Author:** ${meta.author || "-"} | **LastModifiedBy:** ${meta.last_modified_by || "-"} | **Creator / Producer:** ${meta.creator_tool || "-"} / ${meta.producer || "-"}`
+  );
+  lines.push(
+    `- **Datas:** \`creation_date_iso=${meta.creation_date_iso || "-"}\` | \`mod_date_iso=${meta.mod_date_iso || "-"}\``
+  );
+
+  if (meta.source_format === "docx" && meta.rsid_root) {
+    lines.push(
+      `- **OpenXML \`w:rsid\`:** \`rsid_root=${meta.rsid_root}\` (\`rsid_unique_count=${meta.rsid_unique_count ?? 0}\`)`
+    );
+  }
+
+  if (meta.pades_signatures && meta.pades_signatures.length > 0) {
+    lines.push(`- **Assinaturas PAdES (${meta.pades_signatures.length}):**`);
+    for (const s of meta.pades_signatures) {
+      const docTag = s.icp_brasil_cpf
+        ? `CPF=${s.icp_brasil_cpf}`
+        : s.icp_brasil_cnpj
+        ? `CNPJ=${s.icp_brasil_cnpj}`
+        : "Doc=-";
+      lines.push(
+        `  - \`#${s.signature_index}\`: CN=\`${s.subject_cn || "-"}\` | AC=\`${s.issuer_cn || "-"}\` | ${docTag} | trusted_icp=\`${s.is_trusted_icp_chain}\` | digest=\`${s.digest_verified ?? "n/a"}\` | post_sig=\`${s.post_signature_classification} (${s.post_signature_bytes}B)\` | anomalies=\`[${s.anomalies.join(", ")}]\``
+      );
+    }
+  }
+
+  const alerts = [
+    ...(meta.forensic_anomalies || []),
+    ...(meta.editing_software_traces || []).map((t) => `Editor: ${t}`),
+  ];
+  if (alerts.length > 0) {
+    lines.push(`- **Alertas / Rastros:** ${alerts.join("; ")}`);
+  }
+
+  lines.push("");
+  return lines;
+}

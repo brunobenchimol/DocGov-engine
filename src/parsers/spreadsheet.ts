@@ -1,7 +1,8 @@
 import JSZip from "jszip";
 import { DOMParser } from "@xmldom/xmldom";
 import { sanitizeXmlString } from "../utils/xml.ts";
-import type { TableInfo, TableRowInfo, TableCellInfo } from "../types/index.ts";
+import { formatCompactForensicMetaMarkdown } from "../utils/pdf/forensic_cross_audit.ts";
+import type { TableInfo, TableRowInfo, TableCellInfo, DocumentForensicMeta } from "../types/index.ts";
 
 // ============================================================================
 // Ingestão Nativa de Planilhas (.xlsx e .csv) — Marco 5.2a
@@ -428,7 +429,8 @@ export function parseCsvBuffer(buffer: Buffer): SpreadsheetExtractionResult {
  */
 export function generateSpreadsheetLinearAuditViewMarkdown(
   docName: string,
-  result: SpreadsheetExtractionResult
+  result: SpreadsheetExtractionResult,
+  forensicMeta?: DocumentForensicMeta | null
 ): string {
   const lines: string[] = [];
   lines.push(`# Visão Linear de Auditoria: ${docName}`);
@@ -436,6 +438,7 @@ export function generateSpreadsheetLinearAuditViewMarkdown(
     `> Planilha de dados inspecionada por docgov-engine (${result.sheets.length} aba(s), ${result.totalRows} linha(s) de dados).`
   );
   lines.push("");
+  lines.push(...formatCompactForensicMetaMarkdown(forensicMeta));
 
   for (const sheet of result.sheets) {
     const sheetPrefix = sheet.name.replace(/[^a-zA-Z0-9_-]/g, "_").toUpperCase();

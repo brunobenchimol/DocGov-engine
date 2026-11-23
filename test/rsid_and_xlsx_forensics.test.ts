@@ -5,7 +5,14 @@ import { join } from "node:path";
 import JSZip from "jszip";
 import { extractDocxForensicMetaFromBuffer } from "../src/utils/pdf/docx_forensic_meta.ts";
 import { extractXlsxForensicMetaFromBuffer } from "../src/utils/pdf/xlsx_forensic_meta.ts";
-import { detectCrossDocumentForensicCollisions } from "../src/utils/pdf/forensic_cross_audit.ts";
+import {
+  detectCrossDocumentForensicCollisions,
+  formatCompactForensicMetaMarkdown,
+} from "../src/utils/pdf/forensic_cross_audit.ts";
+import {
+  generatePdfLinearAuditViewMarkdown,
+  generateLinearAuditViewMarkdown,
+} from "../src/tools/inspect/audit_view_formatter.ts";
 import { inspectDocx } from "../src/tools/inspect.ts";
 import { bootstrapCase } from "../src/tools/bootstrap.ts";
 import { evaluateBiddingProposals } from "../src/bidding/evaluate_bidding_proposals.ts";
@@ -180,5 +187,80 @@ describe("Pilar 5.2 & 5.3 (v1.7.0) — Clones w:rsid em DOCX & forensic_meta em 
     const xlsxMeta = await extractXlsxForensicMetaFromBuffer(readFileSync(q1));
     expect(xlsxMeta.source_format).toBe("xlsx");
     expect(xlsxMeta.author).toBe("Operador Unico");
+  });
+
+  test("5. Polimento R4: bloco compacto forensic_meta no topo de visao_auditoria_*.md (PDF, DOCX e XLSX)", async () => {
+    const dir = makeTempDir("docgov-visao-forensic-");
+    const xlsxPath = join(dir, "planilha_r4.xlsx");
+    const docxPath = join(dir, "minuta_r4.docx");
+    writeFileSync(xlsxPath, await buildSyntheticXlsx({ author: "Perito XLSX R4" }));
+    writeFileSync(docxPath, await buildSyntheticDocx({ rsidRoot: "1234ABCD", rsidRs: ["1234ABCD", "AABB1122"], author: "Perito DOCX R4" }));
+
+    const xlsxRes = await inspectDocx(xlsxPath, undefined, true);
+    const xlsxMd = readFileSync(xlsxRes.audit_view_path!, "utf-8");
+    expect(xlsxMd).toContain("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
+    expect(xlsxMd).toContain("`.xlsx`");
+    expect(xlsxMd).toContain("**Author:** Perito XLSX R4");
+
+    const docxRes = await inspectDocx(docxPath, undefined, true);
+    const docxMd = readFileSync(docxRes.audit_view_path!, "utf-8");
+    expect(docxMd).toContain("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
+    expect(docxMd).toContain("`.docx`");
+    expect(docxMd).toContain("`rsid_root=1234ABCD`");
+    expect(docxMd).toContain("`rsid_unique_count=2`");
+
+    const pdfMd = generatePdfLinearAuditViewMarkdown(
+      "certidao_r4.pdf",
+      {
+        pageCount: 1,
+        lineCount: 1,
+        pages: [{ pageNumber: 1, lines: [{ bracket_coord: "[PAG_001 | L0001]", text: "Conteúdo" }] }],
+        lines: [{ bracket_coord: "[PAG_001 | L0001]", text: "Conteúdo" }],
+        forensic_meta: {
+          source_format: "pdf",
+          title: null,
+          author: "Autor PDF R4",
+          last_modified_by: null,
+          creator_tool: "Writer",
+          producer: "LibreOffice",
+          company: null,
+          template: null,
+          revision_count: null,
+          creation_date_iso: "2026-10-01T10:00:00Z",
+          mod_date_iso: "2026-10-02T10:00:00Z",
+          has_digital_signature: true,
+          signature_date_iso: null,
+          editing_software_traces: [],
+          forensic_anomalies: [],
+          pades_signatures: [
+            {
+              signature_index: 0,
+              byte_range: [0, 100, 200, 300],
+              covers_eof: true,
+              post_signature_bytes: 0,
+              post_signature_classification: "NONE",
+              digest_verified: true,
+              subject_cn: "SIGNATARIO R4",
+              issuer_cn: "AC Final do Governo Federal do Brasil v1",
+              subject_dn: "CN=SIGNATARIO R4",
+              issuer_dn: "CN=AC Final do Governo Federal do Brasil v1",
+              icp_brasil_cpf: "12345678901",
+              icp_brasil_cnpj: null,
+              not_before_iso: null,
+              not_after_iso: null,
+              is_self_signed: false,
+              is_trusted_icp_chain: true,
+              anomalies: [],
+            },
+          ],
+        },
+      },
+      { outline_headings: [], page_signals: [], impugnation_zones: [] }
+    );
+    expect(pdfMd).toContain("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
+    expect(pdfMd).toContain("Assinaturas PAdES (1)");
+    expect(pdfMd).toContain("`#0`: CN=`SIGNATARIO R4` | AC=`AC Final do Governo Federal do Brasil v1` | CPF=12345678901 | trusted_icp=`true` | digest=`true`");
+    expect(formatCompactForensicMetaMarkdown(null)).toEqual([]);
+    expect(generateLinearAuditViewMarkdown("doc_sem_meta.docx", { headers: [], footers: [], paragraphs: [], tables: [] })).not.toContain("Resumo Forense");
   });
 });

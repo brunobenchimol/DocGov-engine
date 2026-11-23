@@ -1,6 +1,6 @@
 import { relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
-import { formatAssetAnchorLine } from "../../utils/pdf/forensic_cross_audit.ts";
+import { formatAssetAnchorLine, formatCompactForensicMetaMarkdown } from "../../utils/pdf/forensic_cross_audit.ts";
 import {
   buildDocxCartography,
   renderCartographyMarkdownBlock,
@@ -296,6 +296,7 @@ export function generatePdfLinearAuditViewMarkdown(
   }
   lines.push("");
 
+  lines.push(...formatCompactForensicMetaMarkdown(extraction.forensic_meta));
   lines.push(...renderCartographyMarkdownBlock(cartography));
 
   lines.push("## Bloco 2: Conteúdo Integral Paginado");
@@ -354,6 +355,8 @@ export function generateLinearAuditViewMarkdown(
     `> Espelho estrutural gerado por docgov-docx v${VERSION} para leitura integral em turno único.`
   );
   lines.push("");
+
+  lines.push(...formatCompactForensicMetaMarkdown(inspection.forensic_meta));
 
   const postCompileAlerts =
     inspection.post_compile_alerts ??

@@ -86,7 +86,8 @@ export async function inspectSpreadsheetDocument(
   if (!options.skipAuditArtifacts) {
     let auditMd = generateSpreadsheetLinearAuditViewMarkdown(
       basename(resolvedDocx),
-      extraction
+      extraction,
+      xlsxForensicMeta
     );
     if (budgetAudit.has_budget_table) {
       auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
