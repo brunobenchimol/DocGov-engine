@@ -6,9 +6,14 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
-## [Unreleased]
+## [1.7.2] - 2026-11-23 — Triagem A/B Estruturada do Conector TST (4 Baldes), Refatoração Modular 100% Lei 9 & Polimentos R4
 
 ### Added
+- **Triagem A/B Estruturada Exclusiva do Conector TST (`src/tools/juris/tst_precedent_triage.ts`, `src/tools/juris/providers/tst_provider.ts`, `src/tools/juris/search_juris.ts`, `src/tools/juris/types.ts`, `src/mcp/tools_definition.ts`, `src/mcp/tool_dispatchers.ts`, `src/cli/connectors_cli.ts`, `test/juris/tst_precedent_triage.test.ts`):**
+  - Módulo puro (`<= 500L`, zero I/O e zero acoplamento a `BaseJurisdictionProvider`) introduzindo o parâmetro opcional `triage_mode?: "triaged" | "raw" | "compare"` (CLI `--triage-mode`, padrão `"triaged"` apenas para `TST`; ignorado silenciosamente com **0 bytes** de alteração nos outros 11 conectores);
+  - Coleta base única (`TstProvider.fetchTstLegacy`) preservando integralmente o comportamento `v1.7.1` em `"raw"` e executando exatamente **1 única consulta subjacente** também no modo `"compare"` (`raw_diff` + baldes);
+  - Classificação determinística estrita por metadados estruturados (sem inspecionar texto livre da ementa) em 4 baldes (`erga_omnes` [`SV`, `RG`, `IRR`, `IAC`], `orientativas` [`SUMULA`, `OJ`, Embargos `E-RR`/`Ag-E-RR` -> `SBDI-1`, `SBDI-2`, `SDC`, `ORGAO_ESPECIAL`, `PLENO`], `inter_partes` [Turmas `1ª..8ª`, `MONOCRATICA`, `ArgInc` mesmo quando julgada no `Tribunal Pleno`] e fallback defensivo `unclassified`), extração confiável de `year` (omitido se ausente), piso mínimo de pertinência (`filtered_out` com bypass normativo/catálogo), agregação multi-query (`|`) sem duplo filtro, isolamento em consultas multi-corte e compactação progressiva garantindo `< 900B` (preservando `filtered_out_ids` antes de zerar em `"compare"`);
+  - Manutenção das **16 tools MCP** com `search_juris.description` em **516 caracteres** (`<= 600`).
 - **Resumo Compacto `forensic_meta` no Topo de `visao_auditoria_*.md` (`src/utils/pdf/forensic_cross_audit.ts`, `src/tools/inspect/audit_view_formatter.ts`, `src/parsers/spreadsheet.ts`, `src/tools/inspect/non_docx_pipeline.ts`):** Inclusão de bloco compacto legível no início do espelho de leitura linear para PDF, DOCX e XLSX (`source_format`, `author`, `last_modified_by`, `creation_date_iso`, `mod_date_iso`, `rsid_root`/`rsid_unique_count` em `.docx` e linha resumida por assinatura `pades_signatures` em `.pdf`), evitando leituras exploratórias de JSONs extensos e preservando o teto MCP `< 900B` inalterado.
 
 ### Changed
