@@ -10,3 +10,4 @@ export * from "./provider_registry.ts";
 export * from "./search_juris.ts";
 export * from "./fetch_juris.ts";
 export * from "./tactical_compiler.ts";
+export * from "./tst_precedent_triage.ts";

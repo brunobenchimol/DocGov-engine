@@ -92,6 +92,7 @@ export async function dispatchModularTool(
       colegiado: args.colegiado,
       limit: args.limit,
       force_live: args.force_live === true,
+      triage_mode: args.triage_mode,
     });
     const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
     return {

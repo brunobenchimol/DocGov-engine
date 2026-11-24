@@ -185,7 +185,7 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM via uf/sphere com Graceful Fallback), com Statutory Bridge (Lei 13.303 <-> 14.133) e ranking tático 0..100 (DEFENSE/ATTACK). Retorno sintético < 900B.\n" +
+        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM via uf/sphere com Graceful Fallback), com Statutory Bridge (Lei 13.303 <-> 14.133), ranking tático 0..100 (DEFENSE/ATTACK) e triagem A/B exclusiva do TST em 4 baldes (triage_mode: triaged|raw|compare). Retorno sintético < 900B.\n" +
         "- Quando usar: Para pesquisa jurídica sob demanda fundamentando pareceres, defesas ou impugnações.\n" +
         "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris para autenticar e fatiar os leading cases.",
       inputSchema: {
@@ -245,6 +245,12 @@ export function getMcpToolsDefinition() {
             type: "boolean",
             description:
               "Se true, ignora circuit breaker e short-circuit de catálogo curado, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
+          },
+          triage_mode: {
+            type: "string",
+            enum: ["triaged", "raw", "compare"],
+            description:
+              "Modo A/B exclusivo do conector TST: 'triaged' (padrão TST, 4 baldes), 'raw' (legado v1.7.1) ou 'compare' (4 baldes + raw_diff em 1 única consulta). Ignorado nos demais 11 conectores.",
           },
         },
       },

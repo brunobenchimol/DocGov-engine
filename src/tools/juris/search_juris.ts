@@ -18,6 +18,11 @@ import {
 } from "./provider_registry.ts";
 import { expandQueryWithStatutoryBridge } from "./statutory_bridge.ts";
 import { scoreJurisItem } from "./relevance_scorer.ts";
+import {
+  compactTstTriageToBudget,
+  mergeTstTriageResults,
+  type TstTriageResult,
+} from "./tst_precedent_triage.ts";
 import type {
   SearchJurisOptions,
   SearchJurisSyntheticResult,
@@ -73,6 +78,7 @@ export async function searchJuris(
   // 3. Execução paralela por provedor com telemetria determinística (court_diagnostics)
   const courtDiagnostics: import("./types.ts").CourtDiagnostic[] = [];
   const rawHits: any[] = [];
+  const tstTriageParts: TstTriageResult[] = [];
 
   const providerTasks = selectedProviders.map(async (prov) => {
     const provStart = Date.now();
@@ -81,6 +87,7 @@ export async function searchJuris(
     let provLiveError: string | null = null;
     let provSourceMode: JurisSourceMode | undefined;
     let provStatus: "ok" | "error" = "ok";
+    const isTst = prov.courtId === "TST";
 
     try {
       for (const q of rawQueries) {
@@ -89,8 +96,12 @@ export async function searchJuris(
             limit,
             colegiado: options.colegiado,
             force_live: options.force_live,
+            ...(isTst && options.triage_mode ? { triage_mode: options.triage_mode } : {}),
           });
           provHits.push(...res.hits);
+          if (isTst && res.tst_triage) {
+            tstTriageParts.push(res.tst_triage);
+          }
           if (res.diagnostic.status === "error") {
             provStatus = "error";
             if (!provError) provError = res.diagnostic.error;
@@ -144,6 +155,13 @@ export async function searchJuris(
   });
 
   await Promise.all(providerTasks);
+
+  let finalTstTriage: TstTriageResult | undefined;
+  if (tstTriageParts.length === 1) {
+    finalTstTriage = tstTriageParts[0];
+  } else if (tstTriageParts.length > 1) {
+    finalTstTriage = mergeTstTriageResults(tstTriageParts, tstTriageParts[0].mode);
+  }
 
   // 4. Desduplicação e Cálculo Determinístico do Score (0..100)
   const hitMap = new Map<string, JurisSearchResultItem>();
@@ -225,6 +243,7 @@ export async function searchJuris(
     normative_bridge: appliedBridges, // alias para conformidade com .NET Gen4
     jurisdiction_routing: routingInfo,
     court_diagnostics: courtDiagnostics,
+    ...(finalTstTriage ? { tst_triage: finalTstTriage } : {}),
     results: finalHits,
   };
 
@@ -308,6 +327,10 @@ function generateJurisSearchMarkdown(
     md += "\n";
   }
 
+  if (res.tst_triage) {
+    md += renderTstTriageMarkdownSection(res.tst_triage);
+  }
+
   md += `## 🏆 Precedentes Ranqueados (Top ${res.results.length})\n\n`;
   md += `| Score | Corte | Origem | Identificador | Desfecho / Comando | Tese Fixada / Ementa |\n`;
   md += `| :---: | :---: | :---: | :--- | :--- | :--- |\n`;
@@ -324,6 +347,33 @@ function generateJurisSearchMarkdown(
   }
 
   md += `\n---\n*Para fatiar e validar o inteiro teor de qualquer precedente acima, acione \`fetch_juris\` informando o identificador.*`;
+  return md;
+}
+
+function renderTstTriageMarkdownSection(triage: TstTriageResult): string {
+  const c = triage.counts;
+  let md = `## ⚖️ Triagem Estruturada TST (4 Baldes — modo \`${triage.mode}\`)\n\n`;
+  md += `> **Contagens:** \`erga_omnes=${c.erga_omnes}\` | \`orientativas=${c.orientativas}\` | \`inter_partes=${c.inter_partes}\` | \`unclassified=${c.unclassified}\` | \`filtered_out=${c.filtered_out}\`\n\n`;
+  const bucketLabels: Array<[keyof TstTriageResult["buckets"], string]> = [
+    ["erga_omnes", "Erga Omnes (SV, RG, IRR, IAC)"],
+    ["orientativas", "Orientativas (Súmulas, OJs, SBDI/SDC/Pleno)"],
+    ["inter_partes", "Inter Partes (Turmas, Monocráticas, ArgInc)"],
+    ["unclassified", "Não Classificados (Fallback Defensivo)"],
+  ];
+  for (const [key, label] of bucketLabels) {
+    const items = triage.buckets[key];
+    if (items.length === 0) continue;
+    md += `### ${label} (${items.length})\n`;
+    for (const it of items) {
+      md += `- **${it.id}** [\`${it.kind}\`${it.year ? `, ${it.year}` : ""}]: ${it.title}\n`;
+    }
+    md += "\n";
+  }
+  if (triage.raw_diff) {
+    md += `### Diff Modo Compare (\`raw_total=${triage.raw_diff.raw_total}\`)\n`;
+    md += `- **raw_top_ids:** ${triage.raw_diff.raw_top_ids.join(", ") || "nenhum"}\n`;
+    md += `- **filtered_out_ids:** ${triage.raw_diff.filtered_out_ids.join(", ") || "nenhum"}\n\n`;
+  }
   return md;
 }
 
@@ -359,9 +409,15 @@ export function formatSearchJurisSyntheticResult(
     jurisdiction_routing: fileResult.jurisdiction_routing,
     ...(liveDegraded.length > 0 ? { live_degraded: liveDegraded } : {}),
     top_hits: topHits,
+    ...(fileResult.tst_triage ? { tst_triage: structuredClone(fileResult.tst_triage) } : {}),
     results_md: relMd,
     next_step_hint: `Consulte ${relMd} e execute 'fetch_juris' nos leading cases escolhidos.`,
   };
+
+  if (payload.tst_triage) {
+    compactTstTriageToBudget(payload, relMd, 880);
+    return payload;
+  }
 
   // Poda Progressiva Rigorosa garantindo < 900 bytes (Lei 2)
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {

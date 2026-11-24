@@ -2,6 +2,17 @@
 // Tipos e Modelos do Domínio de Jurisprudência (docgov-engine v1.4.0)
 // ============================================================================
 
+import type { TstTriageMode, TstTriageResult } from "./tst_precedent_triage.ts";
+export type {
+  TstTriageMode,
+  TstPrecedentBucket,
+  TstTriageItem,
+  TstTriageCounts,
+  TstTriageBuckets,
+  TstRawDiff,
+  TstTriageResult,
+} from "./tst_precedent_triage.ts";
+
 export type JurisStance = "DEFENSE" | "ATTACK" | "BOTH";
 export type JurisLegalRegime = "13303" | "14133" | "BOTH";
 export type JurisdictionSphere = "STATE" | "MUNICIPAL" | "ALL";
@@ -79,6 +90,7 @@ export interface SearchJurisOptions {
   anoMin?: number;
   limit?: number;
   force_live?: boolean;
+  triage_mode?: TstTriageMode;
 }
 
 export interface SearchJurisSyntheticResult {
@@ -99,6 +111,7 @@ export interface SearchJurisSyntheticResult {
     outcome: string;
     tese_short: string;
   }>;
+  tst_triage?: TstTriageResult;
   results_md: string;
   next_step_hint: string;
 }
@@ -115,6 +128,7 @@ export interface SearchJurisFileResult {
   normative_bridge: string[]; // alias obrigatório para statutory_bridge_applied (.NET Gen4)
   jurisdiction_routing: JurisdictionRoutingInfo;
   court_diagnostics?: CourtDiagnostic[];
+  tst_triage?: TstTriageResult;
   results: JurisSearchResultItem[];
 }
 
@@ -248,6 +262,7 @@ export interface JurisdictionProvider {
   searchWithDiagnostic?(query: string, options?: Partial<SearchJurisOptions>): Promise<{
     hits: RawJurisSearchResult[];
     diagnostic: CourtDiagnostic;
+    tst_triage?: TstTriageResult;
   }>;
   fetch(idOrRef: string, options?: FetchProviderOptions): Promise<RawJurisFetchResult | null>;
   resetCircuit?(): void;

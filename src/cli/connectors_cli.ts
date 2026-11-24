@@ -205,6 +205,7 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const stanceIdx = args.indexOf("--stance");
     const regimeIdx = args.indexOf("--regime");
     const limitIdx = args.indexOf("--limit");
+    const triageModeIdx = args.indexOf("--triage-mode");
 
     let query: string | undefined;
     if (queryIdx !== -1 && args[queryIdx + 1] && !args[queryIdx + 1].startsWith("--")) {
@@ -240,9 +241,13 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
       ? parseInt(args[limitIdx + 1], 10)
       : undefined;
     const force_live = args.includes("--force-live");
+    const triage_mode =
+      triageModeIdx !== -1 && args[triageModeIdx + 1] && !args[triageModeIdx + 1].startsWith("--")
+        ? (args[triageModeIdx + 1] as any)
+        : undefined;
 
     try {
-      const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit, force_live });
+      const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit, force_live, triage_mode });
       const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, spyOn } from "bun:test";
 import {
   classifyTstHit,
   extractReliableYear,
@@ -8,7 +8,12 @@ import {
   compactTstTriageToBudget,
   type TstTriageResult,
 } from "../../src/tools/juris/tst_precedent_triage.ts";
+import { TstProvider } from "../../src/tools/juris/providers/tst_provider.ts";
+import { JurisdictionProviderRegistry } from "../../src/tools/juris/provider_registry.ts";
+import { searchJuris, formatSearchJurisSyntheticResult } from "../../src/tools/juris/search_juris.ts";
+import { getMcpToolsDefinition } from "../../src/mcp/tools_definition.ts";
 import type {
+  JurisdictionProvider,
   RawJurisSearchResult,
   SearchJurisSyntheticResult,
 } from "../../src/tools/juris/types.ts";
@@ -332,5 +337,126 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
     // Ajuste #4: em compare com filtered_out > 0, filtered_out_ids preserva ao menos 1 ID antes de zerar
     expect(payload.tst_triage?.raw_diff?.filtered_out_ids.length).toBeGreaterThanOrEqual(1);
     expect(payload.tst_triage?.counts).toEqual(heavyTriage.counts);
+  });
+});
+
+describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invariantes MCP", () => {
+  function buildSampleHits(): RawJurisSearchResult[] {
+    return [
+      { id: "TST-TEMA-1118-ONUS-PROVA", court: "TST", colegiado: "SBDI-1 / STF Repercussão Geral", dataSessao: "2025-02-13", indexacao: "Tema 1118; Ônus da Prova", tese: "Terceirização responsabilidade subsidiária administração pública.", origin: "LIVE" },
+      { id: "SUMULA-TST-331", court: "TST", colegiado: "Tribunal Pleno", dataSessao: "2011-05-31", indexacao: "Súmula 331; Terceirização", tese: "Terceirização e culpa in vigilando.", origin: "CURATED_CATALOG" },
+      { id: "TST-RR-100123-45.2020.5.02.0001", court: "TST", colegiado: "3ª Turma", dataSessao: "2024-06-10", indexacao: "Responsabilidade subsidiária", tese: "Aplicação da Súmula 331 na terceirização.", origin: "LIVE" },
+      { id: "TST-AIRR-999-11.2023.5.01.0001", court: "TST", colegiado: "4ª Turma", indexacao: "Motoboy periculosidade", tese: "Adicional de periculosidade motocicleta.", origin: "LIVE" },
+    ];
+  }
+
+  it("7. modos raw/triaged/compare executam fetchTstLegacy exatamente 1 única vez (spy) e respeitam < 900B + nomes limpos", async () => {
+    const tst = new TstProvider();
+    const sample = buildSampleHits();
+    const spy = spyOn(tst as any, "fetchTstLegacy").mockImplementation(async () => ({
+      hits: sample,
+      diagnostic: { court: "TST", status: "ok", hits: sample.length, latency_ms: 12, error: null, source_mode: "LIVE", live_error: null },
+    }));
+
+    const reg = new JurisdictionProviderRegistry();
+    reg.register(tst);
+
+    for (const mode of ["raw", "triaged", "compare"] as const) {
+      spy.mockClear();
+      const res = await searchJuris({ query: "terceirização responsabilidade subsidiária", courts: ["TST"], triage_mode: mode }, reg);
+      expect(spy).toHaveBeenCalledTimes(1);
+      const synth = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+      const jsonStr = JSON.stringify(synth);
+      expect(Buffer.byteLength(jsonStr, "utf-8")).toBeLessThan(900);
+
+      if (mode === "raw") {
+        expect(res.fileResult.tst_triage).toBeUndefined();
+        expect(synth.tst_triage).toBeUndefined();
+      } else {
+        expect(res.fileResult.tst_triage?.mode).toBe(mode);
+        expect(res.fileResult.tst_triage?.counts.filtered_out).toBe(1);
+        expect(synth.tst_triage?.mode).toBe(mode);
+        // Proibido chaves crípticas de 1 letra
+        for (const k of Object.keys(synth.tst_triage || {})) expect(k.length).toBeGreaterThan(1);
+        if (mode === "triaged") expect(synth.tst_triage?.raw_diff).toBeUndefined();
+        if (mode === "compare") expect(synth.tst_triage?.raw_diff?.raw_total).toBe(4);
+      }
+    }
+    spy.mockRestore();
+  });
+
+  it("8. multi-query (|) agrega sem duplo filtro e multi-corte [TST, TCU] isola tst_triage apenas ao TST", async () => {
+    const tst = new TstProvider();
+    const sample = buildSampleHits();
+    const spy = spyOn(tst as any, "fetchTstLegacy").mockImplementation(async () => ({
+      hits: sample,
+      diagnostic: { court: "TST", status: "ok", hits: sample.length, latency_ms: 5, error: null, source_mode: "LIVE", live_error: null },
+    }));
+    const mockTcu: JurisdictionProvider = {
+      courtId: "TCU",
+      tier: "FEDERAL",
+      async search() { return []; },
+      async searchWithDiagnostic() {
+        return {
+          hits: [{ id: "ACORDAO-TCU-1234-2024", court: "TCU", colegiado: "Plenário", ano: 2024, tese: "terceirização TCU" }],
+          diagnostic: { court: "TCU", status: "ok", hits: 1, latency_ms: 5, error: null, source_mode: "LIVE", live_error: null },
+        };
+      },
+      async fetch() { return null; },
+    };
+    const reg = new JurisdictionProviderRegistry();
+    reg.register(tst);
+    reg.register(mockTcu);
+
+    const res = await searchJuris(
+      { query: "terceirização responsabilidade | motoboy periculosidade", courts: ["TST", "TCU"], triage_mode: "compare" },
+      reg
+    );
+    expect(spy).toHaveBeenCalledTimes(2); // 1x por sub-query
+    const t = res.fileResult.tst_triage!;
+    expect(t.counts.erga_omnes).toBe(1);
+    expect(t.counts.orientativas).toBe(1);
+    expect(t.counts.inter_partes).toBe(2); // RR + AIRR aceito na 2a sub-query
+    expect(t.counts.filtered_out).toBe(0);
+    // TCU não contamina os baldes do TST
+    const allIds = [...t.buckets.erga_omnes, ...t.buckets.orientativas, ...t.buckets.inter_partes, ...t.buckets.unclassified].map((i) => i.id);
+    expect(allIds).not.toContain("ACORDAO-TCU-1234-2024");
+    spy.mockRestore();
+  });
+
+  it("9. demais 11 conectores têm 0 bytes de alteração mesmo quando triage_mode='compare' é enviado", async () => {
+    const otherCourts = ["TCU", "STJ", "STF", "AGU", "TCE-PA", "TCM-PA", "TCE-CE", "TCDF", "TCE-SP", "TCE-MG", "TCE-PR"];
+    const reg = new JurisdictionProviderRegistry();
+    for (const court of otherCourts) {
+      reg.register({
+        courtId: court,
+        tier: court.startsWith("TCM") ? "MUNICIPAL" : court.startsWith("TCE") || court === "TCDF" ? "STATE" : "FEDERAL",
+        async search() { return []; },
+        async searchWithDiagnostic() {
+          return {
+            hits: [{ id: `${court}-PRECEDENTE-1`, court, colegiado: "Plenário", ano: 2024, tese: "licitação contrato administrativo" }],
+            diagnostic: { court, status: "ok", hits: 1, latency_ms: 4, error: null, source_mode: "LIVE", live_error: null },
+          };
+        },
+        async fetch() { return null; },
+      });
+    }
+
+    for (const court of otherCourts) {
+      const baseRes = await searchJuris({ query: "licitação contrato", courts: [court] }, reg);
+      const cmpRes = await searchJuris({ query: "licitação contrato", courts: [court], triage_mode: "compare" }, reg);
+      expect(cmpRes.fileResult.tst_triage).toBeUndefined();
+      const s1 = JSON.stringify(formatSearchJurisSyntheticResult(baseRes.fileResult, baseRes.mdPath));
+      const s2 = JSON.stringify(formatSearchJurisSyntheticResult(cmpRes.fileResult, cmpRes.mdPath));
+      expect(s2).toBe(s1);
+    }
+  });
+
+  it("10. invariantes MCP: exatamente 16 tools e search_juris.description <= 600 chars", () => {
+    const tools = getMcpToolsDefinition();
+    expect(tools.length).toBe(16);
+    const sj = tools.find((t) => t.name === "search_juris")!;
+    expect(sj.description.length).toBeLessThanOrEqual(600);
+    expect((sj.inputSchema.properties as any).triage_mode?.enum).toEqual(["triaged", "raw", "compare"]);
   });
 });

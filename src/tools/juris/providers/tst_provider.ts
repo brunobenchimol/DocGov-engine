@@ -5,8 +5,12 @@
 // ============================================================================
 
 import type {
+  CourtDiagnostic,
   RawJurisFetchResult,
   RawJurisSearchResult,
+  SearchJurisOptions,
+  TstTriageMode,
+  TstTriageResult,
 } from "../types.ts";
 import {
   BaseJurisdictionProvider,
@@ -15,6 +19,7 @@ import {
 } from "./base_provider.ts";
 import { sanitizeQueryForCourt } from "./http_client.ts";
 import { cleanHtmlAndNormalize } from "../anatomical_slicer.ts";
+import { triageTstPrecedents } from "../tst_precedent_triage.ts";
 import {
   getTstCatalogItemById,
   mapTstCatalogItemToFetch,
@@ -47,6 +52,36 @@ export class TstProvider extends BaseJurisdictionProvider {
 
   protected getDefaultBaseUrl(): string {
     return "https://jurisprudencia-backend.tst.jus.br";
+  }
+
+  protected async fetchTstLegacy(
+    query: string,
+    options?: Partial<SearchJurisOptions>
+  ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
+    return super.searchWithDiagnostic(query, options);
+  }
+
+  public override async searchWithDiagnostic(
+    query: string,
+    options?: Partial<SearchJurisOptions>
+  ): Promise<{
+    hits: RawJurisSearchResult[];
+    diagnostic: CourtDiagnostic;
+    tst_triage?: TstTriageResult;
+  }> {
+    const mode: TstTriageMode =
+      options?.triage_mode === "raw" || options?.triage_mode === "compare"
+        ? options.triage_mode
+        : "triaged";
+    const legacy = await this.fetchTstLegacy(query, options);
+    if (mode === "raw") return legacy;
+
+    const { keptHits, triage } = triageTstPrecedents(legacy.hits, query, mode);
+    return {
+      hits: keptHits,
+      diagnostic: { ...legacy.diagnostic, hits: keptHits.length },
+      tst_triage: triage,
+    };
   }
 
   protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
