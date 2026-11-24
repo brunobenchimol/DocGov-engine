@@ -1,5 +1,6 @@
 import { describe, it, expect, spyOn } from "bun:test";
 import {
+  asCleanText,
   classifyTstHit,
   extractReliableYear,
   filterTstHitsByPertinence,
@@ -458,5 +459,21 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
     const sj = tools.find((t) => t.name === "search_juris")!;
     expect(sj.description.length).toBeLessThanOrEqual(600);
     expect((sj.inputSchema.properties as any).triage_mode?.enum).toEqual(["triaged", "raw", "compare"]);
+  });
+
+  it("11. regressão Sub-Assert 29.13: campos não-string (indexacao array, null, objeto) não lançam TypeError", () => {
+    expect(asCleanText(["A", "B"])).toBe("A; B");
+    expect(asCleanText(null)).toBe("");
+    expect(asCleanText({ bad: true })).toBe("");
+    const heteroHits: RawJurisSearchResult[] = [
+      { id: "TST-RR-ARRAY-1", court: "TST", colegiado: "3ª Turma", indexacao: ["ORIENTAÇÃO NORMATIVA", "AGU", "TERCEIRIZAÇÃO"] as any, tese: null as any },
+      { id: "TST-AIRR-NULL-2", court: "TST", colegiado: "4ª Turma", indexacao: null as any, tese: { raw: "obj" } as any, processo: 999 as any },
+      { id: "TST-OBJ-3", court: "TST", colegiado: { nome: "x" } as any, indexacao: { unexpected: 1 } as any, tese: ["motoboy", "periculosidade"] as any },
+    ];
+    const res = triageTstPrecedents(heteroHits, "terceirização", "compare");
+    expect(res.triage.counts.inter_partes).toBe(1);
+    expect(res.triage.counts.filtered_out).toBe(2);
+    expect(res.triage.buckets.inter_partes[0].title).toBe("ORIENTAÇÃO NORMATIVA; AGU; TERCEIRIZAÇÃO");
+    expect(res.triage.raw_diff?.filtered_out_ids).toEqual(["TST-AIRR-NULL-2", "TST-OBJ-3"]);
   });
 });

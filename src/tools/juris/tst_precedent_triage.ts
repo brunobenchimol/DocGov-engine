@@ -56,6 +56,15 @@ function buildCounts(buckets: TstTriageBuckets, filteredOutCount: number): TstTr
   };
 }
 
+export function asCleanText(val: unknown): string {
+  if (typeof val === "string") return val.replace(/\s+/g, " ").trim();
+  if (Array.isArray(val)) {
+    return val.map((item) => asCleanText(item)).filter((s) => s.length > 0).join("; ");
+  }
+  if (typeof val === "number" || typeof val === "boolean") return String(val);
+  return "";
+}
+
 function normalizeText(value: string): string {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -70,18 +79,13 @@ function getStructuredFields(hit: RawJurisSearchResult): { idAndClass: string; c
     raw?.codClasse,
     raw?.tipo,
   ]
-    .filter((v): v is string => typeof v === "string" && v.trim().length > 0)
+    .map((v) => asCleanText(v))
+    .filter((v) => v.length > 0)
     .join(" ");
 
-  const orgaoDesc = raw?.orgaoJudicante?.descricao;
-  const col =
-    typeof orgaoDesc === "string" && orgaoDesc.trim().length > 0
-      ? orgaoDesc
-      : typeof hit.colegiado === "string"
-        ? hit.colegiado
-        : "";
-
-  return { idAndClass, colegiadoText: col.trim() };
+  const orgaoDesc = asCleanText(raw?.orgaoJudicante?.descricao);
+  const col = orgaoDesc.length > 0 ? orgaoDesc : asCleanText(hit.colegiado);
+  return { idAndClass, colegiadoText: col };
 }
 
 export function classifyTstHit(hit: RawJurisSearchResult): { bucket: TstPrecedentBucket; kind: string } {
@@ -143,8 +147,8 @@ function parseReliableYearValue(raw: unknown): number | undefined {
   if (typeof raw === "number" && Number.isInteger(raw)) {
     return raw >= 1940 && raw <= 2099 ? raw : undefined;
   }
-  if (typeof raw !== "string") return undefined;
-  const trimmed = raw.trim();
+  if (typeof raw === "boolean" || raw == null) return undefined;
+  const trimmed = Array.isArray(raw) ? asCleanText(raw) : typeof raw === "string" ? raw.trim() : "";
   if (!trimmed) return undefined;
   const isoMatch = trimmed.match(/^((?:19|20)\d{2})(?:-\d{2}-\d{2}|$)/);
   if (isoMatch) return parseInt(isoMatch[1], 10);
@@ -193,8 +197,10 @@ function hasExplicitNormativeBypass(query: string): boolean {
 
 function isCuratedExactMatch(hit: RawJurisSearchResult, query: string): boolean {
   const normQuery = normalizeText(query);
-  if (hit.id && normQuery.includes(normalizeText(hit.id))) return true;
-  const catItem = getTstCatalogItemById(hit.id);
+  const hitId = asCleanText(hit.id);
+  if (hitId && normQuery.includes(normalizeText(hitId))) return true;
+  if (!hitId) return false;
+  const catItem = getTstCatalogItemById(hitId);
   if (!catItem) return false;
   if (hit.origin === "CURATED_CATALOG" || hit.rawPayload?.curated === true) {
     return catItem.keywords.some((rx) => rx.test(query)) || normQuery.includes(normalizeText(catItem.numero));
@@ -228,7 +234,8 @@ export function filterTstHitsByPertinence(
       continue;
     }
     const haystack = [hit.id, hit.processo, hit.indexacao, hit.tese, hit.dispositivo]
-      .filter((s): s is string => typeof s === "string" && s.length > 0)
+      .map((s) => asCleanText(s))
+      .filter((s) => s.length > 0)
       .join(" ");
     const hitTokens = tokenizeNormalized(haystack);
 
@@ -247,8 +254,13 @@ export function filterTstHitsByPertinence(
 }
 
 function buildShortTitle(hit: RawJurisSearchResult, maxLen: number = 90): string {
-  const source = (hit.indexacao || hit.tese || hit.processo || hit.id || "").replace(/\s+/g, " ").trim();
-  if (!source) return hit.id;
+  const hitId = asCleanText(hit.id);
+  const source =
+    asCleanText(hit.indexacao) ||
+    asCleanText(hit.tese) ||
+    asCleanText(hit.processo) ||
+    hitId;
+  if (!source) return hitId;
   return source.length > maxLen ? `${source.slice(0, maxLen - 3)}...` : source;
 }
 
@@ -264,7 +276,7 @@ export function triageTstPrecedents(
     const { bucket, kind } = classifyTstHit(hit);
     const year = extractReliableYear(hit);
     buckets[bucket].push({
-      id: hit.id,
+      id: asCleanText(hit.id),
       kind,
       ...(year !== undefined ? { year } : {}),
       title: buildShortTitle(hit, 90),
@@ -279,8 +291,8 @@ export function triageTstPrecedents(
       ? {
           raw_diff: {
             raw_total: hits.length,
-            raw_top_ids: hits.slice(0, 5).map((h) => h.id),
-            filtered_out_ids: filteredOut.map((h) => h.id),
+            raw_top_ids: hits.slice(0, 5).map((h) => asCleanText(h.id)),
+            filtered_out_ids: filteredOut.map((h) => asCleanText(h.id)),
           },
         }
       : {}),
