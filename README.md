@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.1)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.2)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,11 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.1` (Geração 7.0 — 2ª Perna Anti-Fraude Parte 1 + Hotfix Gov.br, Smoke Real & Resiliência JURIS)
+## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.2` (Geração 7.0 — Triagem A/B TST em 4 Baldes, Refatoração Modular 100% Lei 9 & Polimentos R4)
 
-A série **`v1.7.0` / `v1.7.1`** inaugura a **Geração 7.0 (Marco 10.1)** com os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS (zero dependências nativas externas), mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+A série **`v1.7.0` / `v1.7.1` / `v1.7.2`** inaugura a **Geração 7.0 (Marco 10.1)** com os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS (zero dependências nativas externas), mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+- **Triagem A/B Estruturada Exclusiva do Conector TST (`v1.7.2` — `src/tools/juris/tst_precedent_triage.ts`, `tst_provider.ts`, `search_juris.ts`):** Parâmetro opcional `triage_mode` (`"triaged"` | `"raw"` | `"compare"`, `--triage-mode`) com 1 única coleta base (`fetchTstLegacy`), classificação estrita por metadados estruturados em 4 baldes (`erga_omnes`, `orientativas`, `inter_partes`, `unclassified`), extração confiável de `year`, piso mínimo de pertinência (`filtered_out` com bypass normativo/catálogo) e compactação `< 900B` com **0 bytes** de impacto nos outros 11 conectores.
+- **Refatoração Modular 100% `src/` & Polimentos R4 (`v1.7.2`):** Cobertura universal `<= 500` linhas em `scripts/check_lines.ts`, resumo `forensic_meta` em `visao_auditoria_*.md`, dicionário jurídico das 6 tags `v1.7.0` na Rota E, deduplicação de chaves NF-e no ACT e coerência textual do Ofício de Diligência quando `total_alerts === 0`.
 - **Perícia Criptográfica `PKCS#7/CMS/PAdES` & `/ByteRange` (`src/utils/pdf/asn1_der_parser.ts`, `pades_signature_auditor.ts`):** Parser Pure-JS `ASN.1/DER/BER`, extração ICP-Brasil `2.16.76.1.3.1`/`.3` (`CPF`/`CNPJ`), seleção do certificado folha via `SignerInfo.sid`, reconhecimento da hierarquia `Gov.br` (`AC Final/Intermediária/Raiz do Governo Federal do Brasil`) com caminhamento encadeado X.509 (`current.issuerDn === parent.subjectDn`), detecção de certificados autoassinados/não confiáveis (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`), confronto de identidade sem falso-positivo PF vs. PJ (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`) e auditoria de hash `/ByteRange` contra adulteração incremental pós-assinatura sem falso-positivo em co-assinaturas visuais (`/Subtype /Form`) (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
 - **Validador NF-e 44 Dígitos, Clones `w:rsid`, `.xlsx` Forense, Smoke Test Real & Resiliência JURIS (`src/utils/forensics/`, `src/tools/juris/`):** Recálculo Módulo 11 + confronto `CNPJ`/`AAMM` em diligências ACT Via B e Contratação Direta (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`, `[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`), clonagem OpenXML por `w:rsidRoot` / `w:rsidR` mesmo com `Author` apagado (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`), `forensic_meta` em `.xlsx` (`xlsx_forensic_meta.ts`), detector de `unknown_keys` Gen6, smoke test automatizado com corpus público real (`smoke:real`) e superclasse única `BaseJurisdictionProvider` nos 12 conectores JURIS com transparência cognitiva (`live_degraded`, `source`) e válvula `force_live`.
 
@@ -200,7 +202,7 @@ A série **`v1.7.0` / `v1.7.1`** inaugura a **Geração 7.0 (Marco 10.1)** com o
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.1`):** Inclusão mandatória do campo `"engine_version": "1.7.1"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.2`):** Inclusão mandatória do campo `"engine_version": "1.7.2"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
