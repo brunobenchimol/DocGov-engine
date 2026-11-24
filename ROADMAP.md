@@ -37,16 +37,18 @@
 
 ## 🔌 TRILHA CONTÍNUA DE CONECTORES JURISPRUDENCIAIS SOB DEMANDA (On-Demand Track — Patch `+0.0.1`)
 
-> **Protocolo Operacional:** Conforme homologado a partir da `v1.4.6`, a esteira de novos tribunais de contas estaduais e municipais opera de forma contínua e independente de marcos funcionais maiores, seguindo o playbook de 2 fases e 4 micro-commits em [`docs/JURIS_CONNECTOR_PLAYBOOK.md`](docs/JURIS_CONNECTOR_PLAYBOOK.md).
+> **Protocolo Operacional:** Conforme homologado a partir da `v1.4.6`, a esteira de novos tribunais de contas estaduais/municipais e tribunais regionais federais (TRFs) opera de forma contínua e independente de marcos funcionais maiores, seguindo o playbook de 2 fases e 4 micro-commits em [`docs/JURIS_CONNECTOR_PLAYBOOK.md`](docs/JURIS_CONNECTOR_PLAYBOOK.md).
 
 ### 🏛️ Tabela de Cobertura Federativa e Fila Prioritária de Homologação
 
-| Nível / Onda | Tribunais de Contas | Cobertura e Estratégia | Status |
+| Nível / Onda | Tribunais / Cortes | Cobertura e Estratégia | Status |
 | :--- | :--- | :--- | :--- |
 | **1. Base Homologada (12/12)** | **Federais:** `TCU`, `STJ`, `STF`, `TST`, `AGU/CGU`<br>**Estaduais / DF:** `TCE-PA`, `TCE-CE`, `TCDF`, `TCE-SP`, `TCE-MG`, `TCE-PR`<br>**Municipal (Onda 3):** `[x] TCM-PA` (`v1.6.8`) | Arquitetura unificada de Resiliência Dupla (*Live Primary + Curated Fallback*), coexistência Estadual/Municipal (`sphere`), roteamento plug-and-play e Sub-Asserts do `DocGov`. | `[x] HOMOLOGADO` |
 | **2. Onda 3 — Tribunais Municipais (1/5 Homologados)** | `[x] TCM-PA` (Municípios do Pará — `v1.6.8`)<br>`[ ] TCM-SP` (Capital de São Paulo)<br>`[ ] TCM-RIO` (Capital do Rio de Janeiro)<br>`[ ] TCM-BA` (Municípios da Bahia)<br>`[ ] TCM-GO` (Municípios de Goiás) | **🔥 Alta Prioridade:** Conectores especializados para as 5 cortes de contas municipais do Brasil, com coexistência por `sphere` (`STATE`/`MUNICIPAL`/`ALL`) e higiene de auto-trigger anti-colisão com TCEs homônimos. | `[ ] PRIORIDADE 1` |
 | **3. Onda 2 Restante — Grandes Cortes Estaduais (6 TCEs)** | `[ ] TCE-RJ` (Rio de Janeiro)<br>`[ ] TCE-RS` (Rio Grande do Sul)<br>`[ ] TCE-PE` (Pernambuco)<br>`[ ] TCE-BA` (Bahia)<br>`[ ] TCE-SC` (Santa Catarina)<br>`[ ] TCE-AM` (Amazonas) | **🔥 Alta Prioridade:** Conectores com repertório normativo curado, Súmulas e busca live para os maiores tribunais estaduais restantes. | `[ ] PRIORIDADE 2` |
 | **4. Onda 4 — Demais 15 TCEs Estaduais** | `GO`, `ES`, `MT`, `MS`, `MA`, `RN`, `PB`, `AL`, `SE`, `PI`, `RO`, `AC`, `AP`, `RR`, `TO` | **Graceful Fallback Ativo:** Operam com busca automática na camada federal e aviso amigável; homologáveis individualmente sob demanda via patch `+0.0.1`. | `[ ] SOB DEMANDA` |
+| **5. Onda 5A — Justiça Federal Prioritária (`TRF-1`)** | `[ ] TRF-1` (Tribunal Regional Federal da 1ª Região) | **⚖️ Prioridade Complementar (Opt-In):** Prioridade inicial entre os TRFs. Atende parcialmente demandas de contratações públicas (mandados de segurança em licitações federais, sanções administrativas, execução contratual e teses relevantes antes de chegarem ao STJ/STF). Operará com `defaultFederal: false` (acionamento explícito ou citação direta `TRF-1`). | `[ ] PRIORIDADE 3 (COMPLEMENTAR)` |
+| **6. Onda 5B — Demais TRFs (2ª a 6ª Regiões)** | `[ ] TRF-2`, `[ ] TRF-3`, `[ ] TRF-4`, `[ ] TRF-5`, `[ ] TRF-6` | **Baixa Prioridade / Sob Demanda Ocasional:** Cobertura parcial e pontual para temas específicos relevantes em contratações públicas; homologáveis sob demanda (ou via camada unificada CJF) mantendo `defaultFederal: false`. | `[ ] BAIXA PRIORIDADE / SOB DEMANDA` |
 
 ---
 
