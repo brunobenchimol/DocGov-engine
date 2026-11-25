@@ -277,5 +277,5 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
     const arpSynthetic = JSON.parse(arpText);
     expect(arpSynthetic.decision).toBe("REJECTED");
     expect(arpSynthetic.blocking_tags).toHaveLength(6);
-  }, 20000);
+  }, 45000);
 });

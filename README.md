@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.2)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.3)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,10 +87,12 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.2` (Geração 7.0 — Triagem A/B TST em 4 Baldes, Refatoração Modular 100% Lei 9 & Polimentos R4)
+## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.3` (Geração 7.3 — Higienização Estrutural JURIS, Acumulação com Lock, Neutralidade, Cache TTL 24h TST & Migração para `state/`)
 
-A série **`v1.7.0` / `v1.7.1` / `v1.7.2`** inaugura a **Geração 7.0 (Marco 10.1)** com os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS (zero dependências nativas externas), mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
-- **Triagem A/B Estruturada Exclusiva do Conector TST (`v1.7.2` — `src/tools/juris/tst_precedent_triage.ts`, `tst_provider.ts`, `search_juris.ts`):** Parâmetro opcional `triage_mode` (`"triaged"` | `"raw"` | `"compare"`, `--triage-mode`) com 1 única coleta base (`fetchTstLegacy`), classificação estrita por metadados estruturados em 4 baldes (`erga_omnes`, `orientativas`, `inter_partes`, `unclassified`), extração confiável de `year`, piso mínimo de pertinência (`filtered_out` com bypass normativo/catálogo) e compactação `< 900B` com **0 bytes** de impacto nos outros 11 conectores.
+A série **`v1.7.0`–`v1.7.3`** consolida os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS e a **Higienização Estrutural do domínio JURIS (`v1.7.3`)**, mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+- **Acumulação Concorrente & Neutralidade Estrita em `search_juris` (`v1.7.3` — `src/tools/juris/juris_search_store.ts`, `relevance_scorer.ts`, `statutory_bridge.ts`):** Acumulação sem sobrescrita em `state/juris_search_results.json`/`.md` com mutex em memória + lockfile `juris_search.lock` (stale 5s) + escrita atômica, defaults neutros (`NEUTRAL`/`AUTO`) com rebalanceamento `0..100` em consulta livre, fim de `"ATI"`/`"CAIXA"`/`"ORGAO_CONTRATANTE"` forçado e `outcome` judicial neutro.
+- **Cache Dinâmico Live-Backed TTL 24h no TST (`v1.7.3` — `src/tools/juris/providers/tst_ttl_cache.ts`, `tst_mapper.ts`, `tst_provider.ts`):** Fim da mutação de query e do catálogo estático congelado no TST; consultas ao vivo para `SUM`, `OJ` e `ACORDAO` com cache de 24h (`DOCGOV_JURIS_CACHE_DIR`), falha explícita `LIVE_FAILED` / `[LIVE_UNAVAILABLE]` sem cache válido e migração do inteiro teor em `fetch_juris` para `state/juris_<shortname>/inteiro_teor_anatomico.md` com ordenação `1->6` e corte limpo.
+- **Triagem A/B Estruturada Exclusiva do Conector TST (`v1.7.2` — `src/tools/juris/tst_precedent_triage.ts`, `tst_provider.ts`, `search_juris.ts`):** Parâmetro opcional `triage_mode` (`"triaged"` | `"raw"` | `"compare"`, `--triage-mode`) com 1 única coleta base (`fetchTstLegacy`), classificação estrita por metadados estruturados em 4 baldes (`erga_omnes`, `orientativas`, `inter_partes`, `unclassified`), extração confiável de `year`, piso mínimo de pertinência (`filtered_out` com bypass normativo) e compactação `< 900B` com **0 bytes** de impacto nos outros 11 conectores.
 - **Refatoração Modular 100% `src/` & Polimentos R4 (`v1.7.2`):** Cobertura universal `<= 500` linhas em `scripts/check_lines.ts`, resumo `forensic_meta` em `visao_auditoria_*.md`, dicionário jurídico das 6 tags `v1.7.0` na Rota E, deduplicação de chaves NF-e no ACT e coerência textual do Ofício de Diligência quando `total_alerts === 0`.
 - **Perícia Criptográfica `PKCS#7/CMS/PAdES` & `/ByteRange` (`src/utils/pdf/asn1_der_parser.ts`, `pades_signature_auditor.ts`):** Parser Pure-JS `ASN.1/DER/BER`, extração ICP-Brasil `2.16.76.1.3.1`/`.3` (`CPF`/`CNPJ`), seleção do certificado folha via `SignerInfo.sid`, reconhecimento da hierarquia `Gov.br` (`AC Final/Intermediária/Raiz do Governo Federal do Brasil`) com caminhamento encadeado X.509 (`current.issuerDn === parent.subjectDn`), detecção de certificados autoassinados/não confiáveis (`[FORENSIC_UNTRUSTED_OR_SELF_SIGNED_CERT_BLOCK]`), confronto de identidade sem falso-positivo PF vs. PJ (`[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]`) e auditoria de hash `/ByteRange` contra adulteração incremental pós-assinatura sem falso-positivo em co-assinaturas visuais (`/Subtype /Form`) (`[FORENSIC_PDF_INCREMENTAL_TAMPERING_AFTER_SIGNATURE_BLOCK]`).
 - **Validador NF-e 44 Dígitos, Clones `w:rsid`, `.xlsx` Forense, Smoke Test Real & Resiliência JURIS (`src/utils/forensics/`, `src/tools/juris/`):** Recálculo Módulo 11 + confronto `CNPJ`/`AAMM` em diligências ACT Via B e Contratação Direta (`[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]`, `[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]`), clonagem OpenXML por `w:rsidRoot` / `w:rsidR` mesmo com `Author` apagado (`[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]`), `forensic_meta` em `.xlsx` (`xlsx_forensic_meta.ts`), detector de `unknown_keys` Gen6, smoke test automatizado com corpus público real (`smoke:real`) e superclasse única `BaseJurisdictionProvider` nos 12 conectores JURIS com transparência cognitiva (`live_degraded`, `source`) e válvula `force_live`.
@@ -149,7 +151,7 @@ A série **`v1.7.0` / `v1.7.1` / `v1.7.2`** inaugura a **Geração 7.0 (Marco 10
 4. **10ª Ferramenta MCP `fetch_juris` & CLI `--fetch-juris` (Fatiamento Anatômico e Dossiê):**
    - **Trava Anti-Alucinação Estrita:** Bloqueio mandatório de precedentes fictícios com `[ANTI_HALLUCINATION_BLOCK]`.
    - **Fatiador Anatômico Avançado (`AnatomicalSlicer`):** Decomposição em 6 Macro-Partes e 10 Sub-Camadas semânticas (Cabeçalho, Ementa, Controvérsia Fática, Argumentos de Defesa, Análise da Unidade Técnica AudTI/Sefti, Ratio Decidendi, Dispositivo e Fecho com Quórum).
-   - **Saída Dupla:** Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e Inteiro Teor Estruturado no Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md`).
+   - **Saída Dupla em `state/`:** Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e Inteiro Teor Estruturado no Estágio 3 (`state/juris_<shortname>/inteiro_teor_anatomico.md`) com corte em fronteira limpa e links diretos.
 5. **Arquitetura 100% Plug-and-Play de Provedores (`JurisdictionProviderRegistry`):**
    - Desacoplamento integral de cortes e UFs: novos tribunais são registrados declarativamente com metadados (`tier`, `uf`, `defaultFederal`, `envOverrideKey`, `liveSmokeQuery`, `idPatterns`).
    - Política evolutiva canônica: **1 Conector / UF = 1 Patch Release**.
@@ -202,7 +204,7 @@ A série **`v1.7.0` / `v1.7.1` / `v1.7.2`** inaugura a **Geração 7.0 (Marco 10
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.2`):** Inclusão mandatória do campo `"engine_version": "1.7.2"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.3`):** Inclusão mandatória do campo `"engine_version": "1.7.3"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
@@ -281,14 +283,14 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
    - Parâmetros: `caseDir`, `query` (*obrigatórios*), `status`, `uf`, `modalidade`, `limit` (*opcionais*).
 
 9. **`search_juris`**
-   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), Statutory Bridge (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), ranking determinístico (`0..100 pts`), postura tática `DEFENSE`/`ATTACK`, coexistência Estadual vs. Municipal via `sphere` (`STATE`/`MUNICIPAL`/`ALL`), auto-trigger isolado e degradação graciosa com graceful fallback por UF.
-   - Persiste Ficha de Triagem Rápida em `state/juris_search_results.json` e painel em `.md` com retorno sintético MCP conciso (< 900 bytes).
-   - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `sphere`, `stance`, `regime`, `limit` (*opcionais*).
+   - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), acumulação concorrente com lockfile em `state/`, defaults neutros (`NEUTRAL`/`AUTO`) com rebalanceamento `0..100`, Statutory Bridge condicional (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), cache dinâmico TTL 24h ao vivo no TST, coexistência Estadual vs. Municipal via `sphere` (`STATE`/`MUNICIPAL`/`ALL`) e degradação graciosa com graceful fallback por UF.
+   - Persiste resultados acumulados em `state/juris_search_results.json` e `.md` com retorno sintético MCP conciso (< 900 bytes).
+   - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `sphere`, `stance`, `regime`, `limit`, `force_live`, `triage_mode` (*opcionais*).
 
 10. **`fetch_juris`**
-    - Download oficial e fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas pelo `AnatomicalSlicer` com trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
-    - Grava o Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e o Inteiro Teor Estruturado no Estágio 3 (`inputs/juris_<shortname>/inteiro_teor_anatomico.md`).
-    - Parâmetros: `acordaoIdOrUrl` (*obrigatório*), `caseDir`, `court`, `shortname`, `topicFilter`, `stance` (*opcionais*).
+    - Download oficial (cache TTL 24h TST) e fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas pelo `AnatomicalSlicer` com trava anti-alucinação estrita (`[ANTI_HALLUCINATION_BLOCK]`).
+    - Grava o Dossiê Fatiado por tópico no Estágio 2 (`state/dossie_juris_<shortname>.md`) e o Inteiro Teor Estruturado no Estágio 3 (`state/juris_<shortname>/inteiro_teor_anatomico.md`), com ordenação `1->6`, corte limpo e links diretos.
+    - Parâmetros: `acordaoIdOrUrl` (*obrigatório*), `caseDir`, `court`, `shortname`, `topicFilter`, `stance`, `force_live` (*opcionais*).
 
 11. **`docgov_audit_contract_execution`**
     - Auditoria determinística e fiscalização contínua de contratos administrativos: limites de aditamento (25%/50% isolados, sem compensação mútua), batimento quadripartite (`[TR <-> Proposta <-> ARP <-> Contrato/Fatura]`) com bloqueio de aditivo direto em ARP, consensualidade em estatais, reajustes/repactuações com interregno de 12 meses, PAS Federativo (`TCU`, `TCDF`, `TCE`, `TCM`, `CEIS`/`CNEP`/`PNCP`) com dosimetria LINDB Art. 22, segregação ANS/IMR vs. multa (`0,5%`–`30%`), Seguro-Garantia, cesta de preços IN 65/2021 (`CV <= 25%`) e álea extraordinária.

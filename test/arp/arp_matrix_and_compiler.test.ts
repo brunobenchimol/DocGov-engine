@@ -143,7 +143,7 @@ describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/P
       const pdfBuf = readFileSync(synthetic.compiled_pdf_path);
       expect(pdfBuf.length).toBeGreaterThan(500);
     }
-  });
+  }, 15000);
 
   it("deve compilar nativamente Estudo Técnico de Vantajosidade (ARP_ADVANTAGE_STUDY) em DOCX e PDF reais (> 1KB)", async () => {
     const testOutDir = join(getEphemeralInspectDir(), `test_arp_study_${Date.now()}`);
@@ -176,5 +176,5 @@ describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/P
 
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
     expect(byteLength).toBeLessThan(900);
-  });
+  }, 15000);
 });

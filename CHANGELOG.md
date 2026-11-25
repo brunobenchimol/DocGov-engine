@@ -6,6 +6,26 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.7.3] - 2026-11-25 — Higienização Estrutural JURIS, Acumulação com Lock, Neutralidade, Cache TTL 24h TST e Migração para state/
+
+### Added
+- **Acumulação Concorrente, Desduplicação & Lockfile em `search_juris` (`src/tools/juris/juris_search_store.ts`, `src/tools/juris/search_juris.ts`, `src/tools/juris/types.ts`, `test/juris/search_accumulation_neutrality.test.ts`):**
+  - Persistência concorrente protegida por mutex em memória por `targetDir`, lockfile leve `juris_search.lock` (`O_CREAT|O_EXCL` com *stale timeout* de 5s) e escrita atômica (`.tmp.<pid>.<rand>` -> `renameSync`) em `state/juris_search_results.json` e `.md`;
+  - Desduplicação pela chave `${court}-${id}`.toUpperCase() preservando o maior `relevance_score` e acumulando `matched_queries[]`, `queries_executed[]`, `queries_history[]` e `results[]` sem truncar a 10 itens; topo do JSON (`query`, `total_hits`, `court_diagnostics`, `tst_triage`) e envelope MCP `< 900B` (`top_hits`, `total_hits`, `total_accumulated`, `tst_triage`) refletem estritamente a rodada atual.
+- **Cache Dinâmico Live-Backed TTL 24h no TST (`src/tools/juris/providers/tst_ttl_cache.ts`, `src/tools/juris/providers/tst_mapper.ts`, `src/tools/juris/providers/tst_provider.ts`, `test/juris/tst_ttl_cache.test.ts`):**
+  - Cache persistente em `os.tmpdir()/docgov_juris_cache/tst` (com override via `DOCGOV_JURIS_CACHE_DIR`, inclusive ativo em Mock Mode quando explicitamente definido) usando `{ fetched_at, ttl_ms: 86400000, key, payload }`;
+  - Suporte ao vivo para `SUM` (`SUMULA-TST-*`), `OJ` (`OJ-TST-SDI1-*`) e `ACORDAO` (incluindo `TST-TEMA-246` / `TST-TEMA-1118`) com classificação em `orientativas` (`SUMULA`/`OJ`) e falha explícita (`LIVE_FAILED` / `[LIVE_UNAVAILABLE]`) sem fallback congelado em HTTP `5xx` sem cache `< 24h`.
+- **Ordenação Sequencial, Corte Limpo & Migração para `state/` em `fetch_juris` (`src/tools/juris/anatomical_markdown.ts`, `src/tools/juris/anatomical_slicer.ts`, `src/tools/juris/fetch_juris.ts`, `test/juris/fetch_dossier_v173.test.ts`):**
+  - Gravação exclusiva do inteiro teor em `state/juris_<shortname>/inteiro_teor_anatomico.md` (sem criar/tocar `inputs/`), ordenação estrita `1 -> 2 -> 3 -> 4 -> 5 -> 6` no dossiê, `truncateCleanBoundary` em fronteira limpa com contagem de caracteres e links Markdown diretos no cabeçalho, trechos truncados e rodapé.
+
+### Changed
+- **Remoção Integral do Viés Licitatório & Taxonomia Neutra (`src/tools/juris/statutory_bridge.ts`, `relevance_scorer.ts`, `anatomical_slicer.ts`, `tst_precedent_triage.ts`, `tst_catalog.ts`):**
+  - Fim da injeção forçada de `"administração pública terceirização"` no `TstProvider.executeLiveSearch()` e remoção total de texto normativo estático congelado em `tst_catalog.ts` (retido apenas para normalização de aliases);
+  - Defaults `stance: "NEUTRAL"` e `regime: "AUTO"` com rebalanceamento `0..100` (`lexical 0..65`, `quorum 0..20`, `recency 0..15`) para consultas livres, `Statutory Bridge` condicional, `isStateItEntity()` com *word boundary* estrito exclusivamente sobre `entidade` (removendo `"ATI"` e `"CAIXA"` solto), remoção de `"ORGAO_CONTRATANTE"` como fallback (`"NAO_INFORMADA"` / `N/A`), `regime_detected` com `NAO_APLICAVEL` / `NAO_IDENTIFICADO`, `outcome` judicial neutro fora de licitação e calibração de `filterTstHitsByPertinence` para queries livres de 3+ termos.
+- **Governança `ROADMAP.md` (*Buffered Releases*):** Reestruturação da escada `v1.7.3` *(hotfix `v1.7.4`–`v1.7.5`)* -> `v1.7.6` -> `v1.7.8` (17ª Tool) -> `v1.7.10` (18ª Tool) -> `v1.7.12` (19ª Tool) e sincronização de `--dump-spec` com **16 tools MCP** (`<= 600` chars).
+
+---
+
 ## [1.7.2] - 2026-11-23 — Triagem A/B Estruturada do Conector TST (4 Baldes), Refatoração Modular 100% Lei 9 & Polimentos R4
 
 ### Added

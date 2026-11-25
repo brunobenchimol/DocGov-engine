@@ -185,9 +185,9 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM via uf/sphere com Graceful Fallback), com Statutory Bridge (Lei 13.303 <-> 14.133), ranking tático 0..100 (DEFENSE/ATTACK) e triagem A/B exclusiva do TST em 4 baldes (triage_mode: triaged|raw|compare). Retorno sintético < 900B.\n" +
-        "- Quando usar: Para pesquisa jurídica sob demanda fundamentando pareceres, defesas ou impugnações.\n" +
-        "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris para autenticar e fatiar os leading cases.",
+        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM) com acumulação/lock em state/, defaults neutros (NEUTRAL/AUTO), Statutory Bridge condicional, cache TTL 24h ao vivo no TST (SUM/OJ/ACORDAO) e triagem A/B TST (triaged|raw|compare). Retorno < 900B.\n" +
+        "- Quando usar: Pesquisa jurídica neutra ou tática (DEFENSE/ATTACK) em consultas livres ou licitatórias.\n" +
+        "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris nos precedentes escolhidos.",
       inputSchema: {
         type: "object",
         required: ["query"],
@@ -221,15 +221,15 @@ export function getMcpToolsDefinition() {
           },
           stance: {
             type: "string",
-            enum: ["DEFENSE", "ATTACK", "BOTH"],
+            enum: ["NEUTRAL", "DEFENSE", "ATTACK", "BOTH"],
             description:
-              "Postura tática da pesquisa: 'DEFENSE' (prioriza improcedência e manutenção do certame), 'ATTACK' (prioriza anulação/cautelar) ou 'BOTH' (neutro).",
+              "Postura da pesquisa: 'NEUTRAL' (padrão sem viés ou penalidade tática), 'DEFENSE' (prioriza improcedência e manutenção do certame), 'ATTACK' (prioriza anulação/cautelar) ou 'BOTH'.",
           },
           regime: {
             type: "string",
-            enum: ["13303", "14133", "BOTH"],
+            enum: ["AUTO", "13303", "14133", "BOTH"],
             description:
-              "Regime licitatório de foco: '13303' (Lei das Estatais), '14133' (Nova Lei de Licitações) ou 'BOTH'.",
+              "Regime jurídico: 'AUTO' (padrão; aplica Statutory Bridge apenas com evidência temática na query), '13303' (Lei das Estatais), '14133' (Nova Lei de Licitações) ou 'BOTH'.",
           },
           colegiado: {
             type: "string",
@@ -244,7 +244,7 @@ export function getMcpToolsDefinition() {
           force_live: {
             type: "boolean",
             description:
-              "Se true, ignora circuit breaker e short-circuit de catálogo curado, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
+              "Se true, ignora circuit breaker, cache TTL 24h do TST e short-circuit de catálogo curado, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
           },
           triage_mode: {
             type: "string",
@@ -259,9 +259,9 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_juris",
       description:
-        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes / 10 Sub-Camadas, autenticando o precedente na fonte oficial e gerando state/dossie_juris_<shortname>.md e inputs/juris_<shortname>/inteiro_teor_anatomico.md. Retorno < 900B.\n" +
-        "- Quando usar: Após identificar um precedente relevante em search_juris para citá-lo sem alucinação.\n" +
-        "- Próximo Passo: Leia o dossiê fatiado por tópico para fundamentar a peça ou parecer.",
+        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes (ordenação 1->6 com corte limpo), autenticando na fonte oficial (cache TTL 24h TST) e gravando state/dossie_juris_<shortname>.md e state/juris_<shortname>/inteiro_teor_anatomico.md. Retorno < 900B.\n" +
+        "- Quando usar: Após search_juris para autenticar e fatiar julgado antes de citá-lo.\n" +
+        "- Próximo Passo: Leia o dossiê fatiado em state/ com links diretos ao inteiro teor.",
       inputSchema: {
         type: "object",
         required: ["acordaoIdOrUrl"],
@@ -279,7 +279,7 @@ export function getMcpToolsDefinition() {
           shortname: {
             type: "string",
             description:
-              "Nome curto opcional para a subpasta de insumos e arquivo de dossiê (ex.: 'acordao_lote_unico').",
+              "Nome curto opcional para o arquivo de dossiê e subpasta em state/juris_<shortname>/ (ex.: 'acordao_lote_unico').",
           },
           topicFilter: {
             type: "string",
@@ -288,14 +288,14 @@ export function getMcpToolsDefinition() {
           },
           stance: {
             type: "string",
-            enum: ["DEFENSE", "ATTACK", "BOTH"],
+            enum: ["NEUTRAL", "DEFENSE", "ATTACK", "BOTH"],
             description:
-              "Postura tática opcional para enquadramento da ratio decidendi.",
+              "Postura opcional para enquadramento da ratio decidendi (padrão 'NEUTRAL').",
           },
           force_live: {
             type: "boolean",
             description:
-              "Se true, ignora atalho de catálogo curado e circuit breaker, tentando captura ao vivo com janela estendida única (9s, retries: 0).",
+              "Se true, ignora atalho de catálogo curado, cache TTL 24h do TST e circuit breaker, tentando captura ao vivo com janela estendida única (9s, retries: 0).",
           },
         },
       },
