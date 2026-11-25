@@ -94,7 +94,12 @@ export async function dispatchModularTool(
       force_live: args.force_live === true,
       triage_mode: args.triage_mode,
     });
-    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+    const synthetic = formatSearchJurisSyntheticResult(
+      res.fileResult,
+      res.mdPath,
+      process.cwd(),
+      res.currentHits
+    );
     return {
       content: [
         {

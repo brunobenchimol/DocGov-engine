@@ -1,4 +1,7 @@
 import { describe, it, expect } from "bun:test";
+import { existsSync, rmSync } from "node:fs";
+import { join } from "node:path";
+import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
 import {
   defaultJurisdictionRegistry,
   JurisdictionProviderRegistry,
@@ -120,6 +123,9 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     const customRegistry = new JurisdictionProviderRegistry();
     customRegistry.register(mockTcu);
 
+    const ephJson = join(getEphemeralInspectDir(), "juris_search_results.json");
+    if (existsSync(ephJson)) rmSync(ephJson, { force: true });
+
     const res = await searchJuris(
       {
         query: "lote único indivisível | adjudicação por preço global",
@@ -142,7 +148,7 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     expect(res.fileResult.results[0].relevance_score).toBe(res.fileResult.results[0].score);
 
     // Validação estrita do Teto MCP (< 900 bytes — Lei 2)
-    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath, process.cwd(), res.currentHits);
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
     expect(byteLength).toBeLessThan(900);
     expect(synthetic.status).toBe("success");
@@ -239,6 +245,9 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       });
     }
 
+    const ephJson = join(getEphemeralInspectDir(), "juris_search_results.json");
+    if (existsSync(ephJson)) rmSync(ephJson, { force: true });
+
     const res = await searchJuris(
       { query: "lote único", uf: "AM", limit: 5 },
       customReg
@@ -248,7 +257,7 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     expect(res.fileResult.court_diagnostics?.[0]?.source_mode).toBe("CURATED_FALLBACK");
     expect(res.fileResult.court_diagnostics?.[0]?.live_error).toContain("timed out");
 
-    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+    const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath, process.cwd(), res.currentHits);
     const bytes = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
     expect(bytes).toBeLessThan(900);
     expect(synthetic.live_degraded).toBeDefined();

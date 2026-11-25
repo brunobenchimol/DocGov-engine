@@ -248,7 +248,7 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
 
     try {
       const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit, force_live, triage_mode });
-      const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
+      const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath, process.cwd(), res.currentHits);
       console.log(JSON.stringify(synthetic, null, 2));
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);

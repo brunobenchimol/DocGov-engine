@@ -13,8 +13,13 @@ export type {
   TstTriageResult,
 } from "./tst_precedent_triage.ts";
 
-export type JurisStance = "DEFENSE" | "ATTACK" | "BOTH";
-export type JurisLegalRegime = "13303" | "14133" | "BOTH";
+export type JurisStance = "DEFENSE" | "ATTACK" | "BOTH" | "NEUTRAL";
+export type JurisLegalRegime = "13303" | "14133" | "BOTH" | "AUTO";
+export type JurisRegimeDetected =
+  | "LEI_13303_ESTATAIS"
+  | "LEI_14133_ADM_DIRETA"
+  | "NAO_APLICAVEL"
+  | "NAO_IDENTIFICADO";
 export type JurisdictionSphere = "STATE" | "MUNICIPAL" | "ALL";
 export type StanceAlignment = "FAVORABLE" | "ADVERSE_DISTINGUISHING_REQUIRED" | "NEUTRAL";
 
@@ -42,6 +47,8 @@ export interface CourtDiagnostic {
   error: string | null;
   source_mode?: JurisSourceMode;
   live_error?: string | null;
+  cache_hit?: boolean;
+  fetched_at?: string;
 }
 
 export interface StatutoryBridgeMapping {
@@ -64,7 +71,7 @@ export interface JurisSearchResultItem {
   relator?: string;
   dataSessao?: string;
   entidade?: string;
-  regimeLegal?: "LEI_13303_ESTATAIS" | "LEI_14133_ADM_DIRETA" | "OUTRO";
+  regimeLegal?: JurisRegimeDetected;
   indexacao?: string;
   tese?: string;
   tese_short?: string;
@@ -75,6 +82,7 @@ export interface JurisSearchResultItem {
   score?: number; // alias para relevance_score
   origin?: JurisOrigin;
   statutory_bridge_refs?: string[];
+  matched_queries?: string[];
 }
 
 export interface SearchJurisOptions {
@@ -93,6 +101,16 @@ export interface SearchJurisOptions {
   triage_mode?: TstTriageMode;
 }
 
+export interface JurisQueryHistoryEntry {
+  timestamp: string;
+  query: string;
+  courts: string[];
+  stance: JurisStance;
+  regime: JurisLegalRegime;
+  new_hits: number;
+  tst_triage?: TstTriageResult;
+}
+
 export interface SearchJurisSyntheticResult {
   status: "success";
   engine_version: string;
@@ -100,6 +118,7 @@ export interface SearchJurisSyntheticResult {
   stance: JurisStance;
   regime: JurisLegalRegime;
   total_hits: number;
+  total_accumulated?: number;
   statutory_bridge_applied: string[];
   jurisdiction_routing: JurisdictionRoutingInfo;
   live_degraded?: string[];
@@ -121,9 +140,11 @@ export interface SearchJurisFileResult {
   timestamp: string;
   query: string;
   queries_executed: string[];
+  queries_history?: JurisQueryHistoryEntry[];
   stance: JurisStance;
   regime: JurisLegalRegime;
   total_hits: number;
+  total_accumulated?: number;
   statutory_bridge_applied: string[];
   normative_bridge: string[]; // alias obrigatório para statutory_bridge_applied (.NET Gen4)
   jurisdiction_routing: JurisdictionRoutingInfo;
@@ -148,7 +169,7 @@ export interface Layer1A_Metadata {
 
 export interface Layer1B_EntityRegime {
   entidade?: string;
-  regimeLegal: "LEI_13303_ESTATAIS" | "LEI_14133_ADM_DIRETA" | "OUTRO";
+  regimeLegal: JurisRegimeDetected;
   isStateItEntity: boolean;
 }
 
@@ -205,7 +226,7 @@ export interface FetchJurisSyntheticResult {
   court: string;
   colegiado: string;
   relator: string;
-  regime_detected: "LEI_13303_ESTATAIS" | "LEI_14133_ADM_DIRETA" | "OUTRO";
+  regime_detected: JurisRegimeDetected;
   outcome: string;
   layers_extracted: string[];
   topics_matched: number;
@@ -240,6 +261,8 @@ export interface RawJurisFetchResult {
   court: string;
   exists: boolean;
   source?: JurisOrigin;
+  cache_hit?: boolean;
+  fetched_at?: string;
   rawTextOrJson: any;
 }
 

@@ -3,8 +3,8 @@
 // Busca Multi-Query Sob Demanda em APIs Oficiais de Controle Externo
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { resolve, join, relative } from "node:path";
+import { existsSync, mkdirSync } from "node:fs";
+import { join, relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { createJurisSearchContractError } from "../../contracts/errors.ts";
 import {
@@ -23,6 +23,11 @@ import {
   mergeTstTriageResults,
   type TstTriageResult,
 } from "./tst_precedent_triage.ts";
+import {
+  buildLiveDegradedNotices,
+  makeJurisDedupeKey,
+  persistAccumulatedJurisSearch,
+} from "./juris_search_store.ts";
 import type {
   SearchJurisOptions,
   SearchJurisSyntheticResult,
@@ -36,6 +41,7 @@ export async function searchJuris(
   registry: JurisdictionProviderRegistry = defaultJurisdictionRegistry
 ): Promise<{
   fileResult: SearchJurisFileResult;
+  currentHits: JurisSearchResultItem[];
   jsonPath: string;
   mdPath: string;
 }> {
@@ -77,15 +83,17 @@ export async function searchJuris(
 
   // 3. Execução paralela por provedor com telemetria determinística (court_diagnostics)
   const courtDiagnostics: import("./types.ts").CourtDiagnostic[] = [];
-  const rawHits: any[] = [];
+  const rawHits: Array<{ raw: any; matchedQuery: string }> = [];
   const tstTriageParts: TstTriageResult[] = [];
 
   const providerTasks = selectedProviders.map(async (prov) => {
     const provStart = Date.now();
-    let provHits: any[] = [];
+    let provHitsCount = 0;
     let provError: string | null = null;
     let provLiveError: string | null = null;
     let provSourceMode: JurisSourceMode | undefined;
+    let provCacheHit = false;
+    let provFetchedAt: string | undefined;
     let provStatus: "ok" | "error" = "ok";
     const isTst = prov.courtId === "TST";
 
@@ -98,7 +106,10 @@ export async function searchJuris(
             force_live: options.force_live,
             ...(isTst && options.triage_mode ? { triage_mode: options.triage_mode } : {}),
           });
-          provHits.push(...res.hits);
+          for (const h of res.hits) {
+            rawHits.push({ raw: h, matchedQuery: q });
+          }
+          provHitsCount += res.hits.length;
           if (isTst && res.tst_triage) {
             tstTriageParts.push(res.tst_triage);
           }
@@ -108,6 +119,12 @@ export async function searchJuris(
           }
           if (res.diagnostic.live_error && !provLiveError) {
             provLiveError = res.diagnostic.live_error;
+          }
+          if (res.diagnostic.cache_hit) {
+            provCacheHit = true;
+            if (!provFetchedAt && res.diagnostic.fetched_at) {
+              provFetchedAt = res.diagnostic.fetched_at;
+            }
           }
           if (res.diagnostic.source_mode) {
             if (
@@ -125,7 +142,10 @@ export async function searchJuris(
             colegiado: options.colegiado,
             force_live: options.force_live,
           });
-          provHits.push(...hits);
+          for (const h of hits) {
+            rawHits.push({ raw: h, matchedQuery: q });
+          }
+          provHitsCount += hits.length;
           provSourceMode = provSourceMode || "LIVE";
         }
       }
@@ -137,21 +157,20 @@ export async function searchJuris(
     }
 
     const latency = Date.now() - provStart;
-    if (provError && provHits.length === 0) {
+    if (provError && provHitsCount === 0) {
       provStatus = "error";
     }
 
     courtDiagnostics.push({
       court: prov.courtId,
       status: provStatus,
-      hits: provHits.length,
+      hits: provHitsCount,
       latency_ms: latency,
       error: provError,
       source_mode: provSourceMode,
       live_error: provLiveError,
+      ...(provCacheHit ? { cache_hit: true, ...(provFetchedAt ? { fetched_at: provFetchedAt } : {}) } : {}),
     });
-
-    rawHits.push(...provHits);
   });
 
   await Promise.all(providerTasks);
@@ -163,15 +182,19 @@ export async function searchJuris(
     finalTstTriage = mergeTstTriageResults(tstTriageParts, tstTriageParts[0].mode);
   }
 
-  // 4. Desduplicação e Cálculo Determinístico do Score (0..100)
+  // 4. Desduplicação da Rodada Atual e Cálculo Determinístico do Score (0..100)
   const hitMap = new Map<string, JurisSearchResultItem>();
 
-  for (const raw of rawHits) {
+  for (const { raw, matchedQuery } of rawHits) {
     if (!raw || !raw.id) continue;
-    const dedupeKey = `${raw.court}-${raw.id}`.toUpperCase();
+    const dedupeKey = makeJurisDedupeKey({ court: raw.court, id: raw.id });
+    const existing = hitMap.get(dedupeKey);
 
-    if (!hitMap.has(dedupeKey)) {
-      const scoring = scoreJurisItem(raw, rawQueries.join(" "), { stance, regime });
+    if (!existing) {
+      const scoring = scoreJurisItem(raw, matchedQuery || rawQueries.join(" "), {
+        stance,
+        regime,
+      });
       const teseClean = (raw.tese || "").replace(/\s+/g, " ").trim();
       const teseShort = teseClean.length > 180 ? `${teseClean.slice(0, 177)}...` : teseClean;
 
@@ -195,17 +218,29 @@ export async function searchJuris(
         score: scoring.score,
         origin: raw.origin || "LIVE",
         statutory_bridge_refs: scoring.statutoryBridgeRefs,
+        matched_queries: [matchedQuery],
       };
 
       hitMap.set(dedupeKey, scoredItem);
+    } else {
+      const prevQueries = existing.matched_queries || [];
+      if (matchedQuery && !prevQueries.includes(matchedQuery)) {
+        existing.matched_queries = [...prevQueries, matchedQuery];
+      }
+      const rescoring = scoreJurisItem(raw, matchedQuery, { stance, regime });
+      if (rescoring.relevance_score > existing.relevance_score) {
+        existing.relevance_score = rescoring.relevance_score;
+        existing.score = rescoring.score;
+        existing.outcome = rescoring.outcome;
+        existing.stance_alignment = rescoring.stance_alignment;
+      }
     }
   }
 
-  // Ordena por relevance_score decrescente
-  const rankedItems = Array.from(hitMap.values()).sort(
+  // Ordena rodada atual por relevance_score decrescente
+  const currentHits = Array.from(hitMap.values()).sort(
     (a, b) => b.relevance_score - a.relevance_score
   );
-  const finalHits = rankedItems.slice(0, Math.max(limit, 10));
 
   // 5. Determinação de Destino no Disco (com Whitelist ENG-10)
   let targetDir: string;
@@ -228,153 +263,33 @@ export async function searchJuris(
     mkdirSync(targetDir, { recursive: true });
   }
 
-  const jsonPath = join(targetDir, "juris_search_results.json");
-  const mdPath = join(targetDir, "juris_search_results.md");
-
-  const fileResult: SearchJurisFileResult = {
-    engine_version: VERSION,
-    timestamp: new Date().toISOString(),
-    query: options.query,
-    queries_executed: rawQueries,
-    stance,
-    regime,
-    total_hits: rankedItems.length,
-    statutory_bridge_applied: appliedBridges,
-    normative_bridge: appliedBridges, // alias para conformidade com .NET Gen4
-    jurisdiction_routing: routingInfo,
-    court_diagnostics: courtDiagnostics,
-    ...(finalTstTriage ? { tst_triage: finalTstTriage } : {}),
-    results: finalHits,
-  };
-
-  writeFileSync(jsonPath, JSON.stringify(fileResult, null, 2), "utf-8");
-
-  const markdownContent = generateJurisSearchMarkdown(fileResult, isEphemeral);
-  writeFileSync(mdPath, markdownContent, "utf-8");
+  const persisted = await persistAccumulatedJurisSearch({
+    targetDir,
+    isEphemeral,
+    currentHits,
+    currentRound: {
+      engine_version: VERSION,
+      timestamp: new Date().toISOString(),
+      query: qStr,
+      queries_executed: rawQueries,
+      stance,
+      regime,
+      total_hits: currentHits.length,
+      statutory_bridge_applied: appliedBridges,
+      normative_bridge: appliedBridges,
+      jurisdiction_routing: routingInfo,
+      court_diagnostics: courtDiagnostics,
+      ...(finalTstTriage ? { tst_triage: finalTstTriage } : {}),
+      results: currentHits,
+    },
+  });
 
   return {
-    fileResult,
-    jsonPath,
-    mdPath,
+    fileResult: persisted.fileResult,
+    currentHits,
+    jsonPath: persisted.jsonPath,
+    mdPath: persisted.mdPath,
   };
-}
-
-function buildLiveDegradedNotices(
-  diagnostics?: import("./types.ts").CourtDiagnostic[]
-): string[] {
-  if (!diagnostics || diagnostics.length === 0) return [];
-  const notices: string[] = [];
-  for (const d of diagnostics) {
-    const mode = d.source_mode;
-    if (mode === "CURATED_FALLBACK") {
-      const reason = /timeout|timed out/i.test(d.live_error || "")
-        ? "timeout"
-        : d.live_error
-        ? d.live_error.slice(0, 18).replace(/\s+/g, " ")
-        : "fallback";
-      notices.push(`${d.court}(${reason}->curated; retry com force_live=true)`);
-    } else if (mode === "CIRCUIT_OPEN_FALLBACK") {
-      notices.push(`${d.court}(circuit_open->curated; retry com force_live=true)`);
-    } else if (mode === "CURATED_SHORT_CIRCUIT") {
-      notices.push(`${d.court}(short_circuit->curated; force_live=true p/ live)`);
-    } else if (mode === "LIVE_FAILED") {
-      const errShort = (d.live_error || d.error || "err").slice(0, 22);
-      notices.push(`${d.court}(live_failed:${errShort})`);
-    }
-  }
-  return notices;
-}
-
-function generateJurisSearchMarkdown(
-  res: SearchJurisFileResult,
-  isEphemeral: boolean
-): string {
-  let md = `# ⚖️ Resultado da Pesquisa de Jurisprudência — docgov-engine v${res.engine_version}\n\n`;
-  md += `> **Query:** \`${res.query}\` | **Stance Tático:** \`${res.stance}\` | **Regime:** \`${res.regime}\`\n`;
-  md += `> **Total de Precedentes Encontrados:** ${res.total_hits} | **Cortes Consultadas:** \`${res.jurisdiction_routing.executed_courts.join(", ")}\`\n`;
-
-  const degradedNotices = buildLiveDegradedNotices(res.court_diagnostics);
-  if (degradedNotices.length > 0) {
-    md += `> ⚠️ **Aviso de Origem Curada / Degradação Live:** \`${degradedNotices.join(" | ")}\`\n`;
-  }
-  if (res.jurisdiction_routing.fallback_notice) {
-    md += `> ⚠️ **Aviso de Graceful Fallback:** ${res.jurisdiction_routing.fallback_notice}\n`;
-  }
-  if (isEphemeral) {
-    md += `> ℹ️ **Modo Pesquisa Livre (Standalone):** Arquivo gravado isoladamente em diretório efêmero temporário.\n`;
-  }
-  md += "\n";
-
-  if (res.statutory_bridge_applied.length > 0) {
-    md += `## 🌉 Pontes Normativas Aplicadas (Statutory Bridge)\n`;
-    for (const b of res.statutory_bridge_applied) {
-      md += `- ${b}\n`;
-    }
-    md += "\n";
-  }
-
-  if (res.court_diagnostics && res.court_diagnostics.length > 0) {
-    md += `## 📡 Telemetria e Diagnóstico dos Conectores (Court Diagnostics)\n\n`;
-    md += `| Corte | Status | Modo / Origem | Precedentes | Latência | Detalhe / Diagnóstico |\n`;
-    md += `| :---: | :---: | :---: | :---: | :---: | :--- |\n`;
-    for (const d of res.court_diagnostics) {
-      const statusIcon = d.status === "ok" ? "✅ OK" : "⚠️ FALHA";
-      const modeLabel = d.source_mode || "LIVE";
-      const rawDetail = d.error || d.live_error || "Conexão e parser operacionais";
-      const detail = rawDetail.replace(/\|/g, "/");
-      md += `| \`${d.court}\` | ${statusIcon} | \`${modeLabel}\` | ${d.hits} | ${d.latency_ms}ms | ${detail} |\n`;
-    }
-    md += "\n";
-  }
-
-  if (res.tst_triage) {
-    md += renderTstTriageMarkdownSection(res.tst_triage);
-  }
-
-  md += `## 🏆 Precedentes Ranqueados (Top ${res.results.length})\n\n`;
-  md += `| Score | Corte | Origem | Identificador | Desfecho / Comando | Tese Fixada / Ementa |\n`;
-  md += `| :---: | :---: | :---: | :--- | :--- | :--- |\n`;
-
-  for (const item of res.results) {
-    const teseMini = (item.tese_short || item.tese || "").slice(0, 140).replace(/\|/g, "/");
-    const adverseNotice =
-      item.stance_alignment === "ADVERSE_DISTINGUISHING_REQUIRED"
-        ? " ⚠️ `[ADVERSO — EXIGE DISTINGUISHING]`"
-        : "";
-    const outcomeCol = `\`${item.outcome || "DECISAO"}\`${adverseNotice}`;
-    const originCol = `\`${item.origin || "LIVE"}\``;
-    md += `| **${item.relevance_score} pts** | \`${item.court}\` | ${originCol} | **${item.id}** | ${outcomeCol} | ${teseMini} |\n`;
-  }
-
-  md += `\n---\n*Para fatiar e validar o inteiro teor de qualquer precedente acima, acione \`fetch_juris\` informando o identificador.*`;
-  return md;
-}
-
-function renderTstTriageMarkdownSection(triage: TstTriageResult): string {
-  const c = triage.counts;
-  let md = `## ⚖️ Triagem Estruturada TST (4 Baldes — modo \`${triage.mode}\`)\n\n`;
-  md += `> **Contagens:** \`erga_omnes=${c.erga_omnes}\` | \`orientativas=${c.orientativas}\` | \`inter_partes=${c.inter_partes}\` | \`unclassified=${c.unclassified}\` | \`filtered_out=${c.filtered_out}\`\n\n`;
-  const bucketLabels: Array<[keyof TstTriageResult["buckets"], string]> = [
-    ["erga_omnes", "Erga Omnes (SV, RG, IRR, IAC)"],
-    ["orientativas", "Orientativas (Súmulas, OJs, SBDI/SDC/Pleno)"],
-    ["inter_partes", "Inter Partes (Turmas, Monocráticas, ArgInc)"],
-    ["unclassified", "Não Classificados (Fallback Defensivo)"],
-  ];
-  for (const [key, label] of bucketLabels) {
-    const items = triage.buckets[key];
-    if (items.length === 0) continue;
-    md += `### ${label} (${items.length})\n`;
-    for (const it of items) {
-      md += `- **${it.id}** [\`${it.kind}\`${it.year ? `, ${it.year}` : ""}]: ${it.title}\n`;
-    }
-    md += "\n";
-  }
-  if (triage.raw_diff) {
-    md += `### Diff Modo Compare (\`raw_total=${triage.raw_diff.raw_total}\`)\n`;
-    md += `- **raw_top_ids:** ${triage.raw_diff.raw_top_ids.join(", ") || "nenhum"}\n`;
-    md += `- **filtered_out_ids:** ${triage.raw_diff.filtered_out_ids.join(", ") || "nenhum"}\n\n`;
-  }
-  return md;
 }
 
 /**
@@ -383,11 +298,13 @@ function renderTstTriageMarkdownSection(triage: TstTriageResult): string {
 export function formatSearchJurisSyntheticResult(
   fileResult: SearchJurisFileResult,
   mdPath: string,
-  baseDir: string = process.cwd()
+  baseDir: string = process.cwd(),
+  currentHits?: JurisSearchResultItem[]
 ): SearchJurisSyntheticResult {
   const relMd = relative(baseDir, mdPath).replace(/\\/g, "/") || mdPath;
+  const roundSource = currentHits ?? fileResult.results;
 
-  const topHits = fileResult.results.slice(0, 3).map((h) => ({
+  const topHits = roundSource.slice(0, 3).map((h) => ({
     id: h.id,
     court: h.court,
     score: h.relevance_score,
@@ -405,6 +322,7 @@ export function formatSearchJurisSyntheticResult(
     stance: fileResult.stance,
     regime: fileResult.regime,
     total_hits: fileResult.total_hits,
+    total_accumulated: fileResult.total_accumulated ?? fileResult.results.length,
     statutory_bridge_applied: fileResult.statutory_bridge_applied.slice(0, 2),
     jurisdiction_routing: fileResult.jurisdiction_routing,
     ...(liveDegraded.length > 0 ? { live_degraded: liveDegraded } : {}),
