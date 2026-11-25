@@ -294,7 +294,7 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
         fullMarkdown: "",
       },
       dossiePath: "cases/caso_grande_teste/state/dossie_juris_tst_sumula_331.md",
-      fullPath: "cases/caso_grande_teste/inputs/juris_tst_sumula_331/inteiro_teor_anatomico.md",
+      fullPath: "cases/caso_grande_teste/state/juris_tst_sumula_331/inteiro_teor_anatomico.md",
       court: "TST",
       canonicalId: "ACORDAO-TST-SUMULA_331-2011-TRIBUNAL_PLENO",
       source: "CURATED_CATALOG",

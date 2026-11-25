@@ -61,14 +61,14 @@ export async function fetchJuris(
   assertAuthenticAcordao(isAuthentic, ref, court);
   const source: JurisOrigin = rawFetch?.source || "LIVE";
 
-  // 3. Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas)
-  const slicedResult = sliceAcordaoAnatomically(rawFetch!.rawTextOrJson, {
+  // 3. Fatiamento Anatômico (6 Macro-Partes / 10 Sub-Camadas) com migração p/ state/
+  const prelimSlice = sliceAcordaoAnatomically(rawFetch!.rawTextOrJson, {
     court,
     topicFilter: options.topicFilter,
     stance: options.stance,
   });
 
-  const l1a = slicedResult.layers.layer_1A_metadata;
+  const l1a = prelimSlice.layers.layer_1A_metadata;
   const canonicalId = `ACORDAO-${court}-${l1a.numero}-${l1a.ano}-${l1a.colegiado
     .toUpperCase()
     .replace(/\s+/g, "_")}`;
@@ -77,7 +77,15 @@ export async function fetchJuris(
     options.shortname || `${court.toLowerCase()}_${l1a.numero}_${l1a.ano}`
   ).replace(/[^a-zA-Z0-9_-]/g, "_");
 
-  // 4. Determinação de Destinos em Disco (Estágio 2 em state/ e Estágio 3 em inputs/juris_*/)
+  const fullRelLink = `juris_${cleanShortname}/inteiro_teor_anatomico.md`;
+  const slicedResult = sliceAcordaoAnatomically(rawFetch!.rawTextOrJson, {
+    court,
+    topicFilter: options.topicFilter,
+    stance: options.stance,
+    fullRelLink,
+  });
+
+  // 4. Determinação de Destinos em Disco (Estágio 2 e Estágio 3 integralmente em state/)
   let baseCaseDir: string;
   if (options.caseDir) {
     const resolved = resolveWorkspacePath(options.caseDir);
@@ -91,17 +99,19 @@ export async function fetchJuris(
   }
 
   const stateDir = join(baseCaseDir, "state");
-  const inputsJurisDir = join(baseCaseDir, "inputs", `juris_${cleanShortname}`);
+  const stateJurisDir = join(stateDir, `juris_${cleanShortname}`);
 
   if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
-  if (!existsSync(inputsJurisDir)) mkdirSync(inputsJurisDir, { recursive: true });
+  if (!existsSync(stateJurisDir)) mkdirSync(stateJurisDir, { recursive: true });
 
   const dossiePath = join(stateDir, `dossie_juris_${cleanShortname}.md`);
-  const fullPath = join(inputsJurisDir, "inteiro_teor_anatomico.md");
+  const fullPath = join(stateJurisDir, "inteiro_teor_anatomico.md");
 
   const sourceBanner =
     source === "CURATED_CATALOG"
       ? `> **Fonte de Autenticação:** \`CURATED_CATALOG\` *(Dado normativo curado local; use \`force_live=true\` / \`--force-live\` para consulta ao vivo)*\n\n`
+      : rawFetch?.cache_hit
+      ? `> **Fonte de Autenticação:** \`LIVE\` *(cache TTL 24h${rawFetch.fetched_at ? `, coletado em ${rawFetch.fetched_at}` : ""})*\n\n`
       : `> **Fonte de Autenticação:** \`LIVE\`\n\n`;
 
   writeFileSync(dossiePath, sourceBanner + slicedResult.dossieMarkdown, "utf-8");

@@ -12,6 +12,13 @@ import type {
 } from "./types.ts";
 import { hasProcurementContext, isStateItEntity } from "./statutory_bridge.ts";
 import { classifyDecisionOutcome } from "./relevance_scorer.ts";
+import {
+  generateFullAnatomicalMarkdown,
+  generateSlicedDossierMarkdown,
+  truncateCleanBoundary,
+} from "./anatomical_markdown.ts";
+
+export { truncateCleanBoundary };
 
 /**
  * Remove tags HTML, entidades HTML e quebras redundantes.
@@ -97,6 +104,7 @@ export function sliceAcordaoAnatomically(
     court?: string;
     topicFilter?: string;
     stance?: JurisStance;
+    fullRelLink?: string;
   } = {}
 ): SlicedDossierResult {
   const court = options.court || rawInput.tribunal || rawInput.court || "TCU";
@@ -332,7 +340,13 @@ export function sliceAcordaoAnatomically(
 
   // Gera Markdown de Estágio 2 (Dossiê Fatiado)
   const canonicalId = `ACORDAO-${court}-${numero}-${ano}-${colegiado.toUpperCase().replace(/\s+/g, "_")}`;
-  const dossieMarkdown = generateSlicedDossierMarkdown(canonicalId, layers, matchedSections, options.topicFilter);
+  const dossieMarkdown = generateSlicedDossierMarkdown(
+    canonicalId,
+    layers,
+    matchedSections,
+    options.topicFilter,
+    options.fullRelLink
+  );
 
   // Gera Markdown de Estágio 3 (Inteiro Teor Estruturado)
   const fullMarkdown = generateFullAnatomicalMarkdown(canonicalId, layers, relatorioRaw, votoRaw, acordaoRaw);
@@ -344,96 +358,4 @@ export function sliceAcordaoAnatomically(
     dossieMarkdown,
     fullMarkdown,
   };
-}
-
-function generateSlicedDossierMarkdown(
-  canonicalId: string,
-  layers: AnatomicalLayers,
-  matchedSlices: TopicSectionSlice[],
-  topicFilter?: string
-): string {
-  const l1a = layers.layer_1A_metadata;
-  const l1b = layers.layer_1B_entity_regime;
-
-  let md = `# 🏛️ Dossiê Anatômico de Jurisprudência — ${canonicalId}\n\n`;
-  md += `> **Classificação Tática:** \`${layers.outcome_summary}\` | **Regime:** \`${l1b.regimeLegal}\` ${l1b.isStateItEntity ? "(Estatal de TI)" : ""}\n`;
-  md += `> **Filtro de Tópico Aplicado:** \`${topicFilter || "Nenhum (Visão Geral de Alta Densidade)"}\`\n\n`;
-
-  md += `## 1. Cabeçalho & Perfil da Jurisdição\n`;
-  md += `- **Tribunal / Colegiado:** ${l1a.tribunal} — ${l1a.colegiado}\n`;
-  md += `- **Número / Ano:** ${l1a.numero}/${l1a.ano}\n`;
-  md += `- **Processo:** ${l1a.processo || "N/A"}\n`;
-  md += `- **Relator:** ${l1a.relator || "N/A"}\n`;
-  md += `- **Unidade Jurisdicionada:** ${l1b.entidade && l1b.entidade !== "NAO_INFORMADA" ? l1b.entidade : "N/A"}\n`;
-  md += `- **Data da Sessão:** ${l1a.dataSessao || "N/A"}\n\n`;
-
-  md += `## 2. Ementa & Tese Fixada\n`;
-  if (layers.layer_2A_indexing_tags.length > 0) {
-    md += `**Indexação:** \`${layers.layer_2A_indexing_tags.join(" • ")}\`\n\n`;
-  }
-  md += `> ${layers.layer_2B_enunciado_tese.replace(/\n/g, "\n> ")}\n\n`;
-
-  md += `## 5. Dispositivo & Comando Decisório (Síntese Executiva)\n`;
-  for (const cmd of layers.layer_5A_operative_commands) {
-    md += `- ${cmd}\n`;
-  }
-  md += `\n**Quórum:** ${layers.layer_6A_closing_quorum.quorum} (${layers.layer_6A_closing_quorum.votos})\n\n`;
-
-  md += `## 3 & 4. Janelas Anatômicas Fatiadas por Tópico (Alta Densidade)\n`;
-  if (matchedSlices.length > 0) {
-    for (const slice of matchedSlices) {
-      md += `### 📌 ${slice.title}\n\n`;
-      md += `${slice.rawText.slice(0, 3000)}\n\n`;
-    }
-  } else {
-    if (layers.layer_3C_technical_unit_analysis) {
-      md += `### 🔬 Análise da Unidade Técnica Especializada\n\n`;
-      md += `${layers.layer_3C_technical_unit_analysis.slice(0, 2000)}\n\n`;
-    }
-    if (layers.layer_4A_ratio_decidendi) {
-      md += `### ⚖️ Fundamentação e Ratio Decidendi do Relator\n\n`;
-      md += `${layers.layer_4A_ratio_decidendi.slice(0, 3000)}\n\n`;
-    }
-  }
-
-  return md.trim() + "\n";
-}
-
-function generateFullAnatomicalMarkdown(
-  canonicalId: string,
-  layers: AnatomicalLayers,
-  relatorio: string,
-  voto: string,
-  acordao: string
-): string {
-  const l1a = layers.layer_1A_metadata;
-  const l1b = layers.layer_1B_entity_regime;
-
-  let md = `# Inteiro Teor Estruturado — ${canonicalId}\n\n`;
-  md += `## 1. Identificação Processual e Metadados\n`;
-  md += `- **Tribunal:** ${l1a.tribunal}\n`;
-  md += `- **Colegiado:** ${l1a.colegiado}\n`;
-  md += `- **Acórdão:** ${l1a.numero}/${l1a.ano}\n`;
-  md += `- **Processo:** ${l1a.processo}\n`;
-  md += `- **Relator:** ${l1a.relator}\n`;
-  md += `- **Entidade:** ${l1b.entidade}\n`;
-  md += `- **Regime Legal Identificado:** ${l1b.regimeLegal}\n\n`;
-
-  md += `## 2. Ementa e Tese Jurídica\n`;
-  md += `${layers.layer_2B_enunciado_tese}\n\n`;
-
-  md += `## 3. Relatório\n\n`;
-  md += `${relatorio || "(Relatório não disponível no registro)"}\n\n`;
-
-  md += `## 4. Voto / Fundamentação\n\n`;
-  md += `${voto || "(Voto não disponível no registro)"}\n\n`;
-
-  md += `## 5. Acórdão / Dispositivo\n\n`;
-  md += `${acordao || "(Dispositivo não disponível no registro)"}\n\n`;
-
-  md += `## 6. Fecho e Quórum\n`;
-  md += `- **Quórum:** ${layers.layer_6A_closing_quorum.quorum}\n`;
-  md += `- **Data da Sessão:** ${l1a.dataSessao || "N/A"}\n`;
-
-  return md.trim() + "\n";
 }
