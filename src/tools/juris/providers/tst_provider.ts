@@ -106,15 +106,7 @@ export class TstProvider extends BaseJurisdictionProvider {
   ): Promise<RawJurisSearchResult[]> {
     const baseUrl = this.getBaseUrl();
     const { cleanQuery } = sanitizeQueryForCourt(query);
-    let queryTerm = cleanQuery || query;
-
-    const hasAdminContext =
-      /\b(administra[çc][aã]o\s+p[úu]blica|ente\s+p[úu]blico|estatal|subsidi[áa]ria|331|licita[çc][aã]o|13\.?303|14\.?133|8\.?666|terceiriza[çc][aã]o)\b/i.test(
-        queryTerm
-      );
-    if (!hasAdminContext) {
-      queryTerm = `${queryTerm} administração pública terceirização`;
-    }
+    const queryTerm = cleanQuery || query;
 
     const endpoint = `${baseUrl}/rest/pesquisa-textual/1/${limit}?a=${Math.random().toFixed(4)}`;
     const bodyPayload = {
@@ -432,7 +424,7 @@ export class TstProvider extends BaseJurisdictionProvider {
       processo: numFmt || `TST ${canonicalNum}`,
       relator,
       dataSessao,
-      entidade: reg.entidade || "ORGAO_CONTRATANTE",
+      entidade: reg.entidade || "NAO_INFORMADA",
       indexacao,
       tese,
       dispositivo,

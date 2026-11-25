@@ -8,8 +8,9 @@ import type {
   SlicedDossierResult,
   TopicSectionSlice,
   JurisStance,
+  JurisRegimeDetected,
 } from "./types.ts";
-import { isStateItEntity } from "./statutory_bridge.ts";
+import { hasProcurementContext, isStateItEntity } from "./statutory_bridge.ts";
 import { classifyDecisionOutcome } from "./relevance_scorer.ts";
 
 /**
@@ -159,19 +160,22 @@ export function sliceAcordaoAnatomically(
     obj.entidade ||
     rawEntidade ||
     rawText.match(/Unidade\s+Jurisdicionada\s*[:\s]*([^\n\r]+)/i)?.[1] ||
-    (court === "AGU" ? "ADMINISTRAÇÃO_PÚBLICA_FEDERAL" : "ÓRGÃO_CONTRATANTE");
+    (court === "AGU" ? "ADMINISTRAÇÃO_PÚBLICA_FEDERAL" : "NAO_INFORMADA");
   const fullContent = `${rawText} ${obj.relatorio || obj.RELATORIO || ""} ${
     obj.voto || obj.VOTO || ""
   } ${obj.sumario || obj.SUMARIO || ""} ${
     obj.enunciado || obj.ENUNCIADO || ""
   }`;
-  const isItEntity = isStateItEntity(entidade) || isStateItEntity(fullContent);
-  const mentions13303 = /\b13\.?303\b/i.test(fullContent) || isItEntity;
-  const regimeLegal: "LEI_13303_ESTATAIS" | "LEI_14133_ADM_DIRETA" | "OUTRO" = mentions13303
+  const isItEntity = isStateItEntity(entidade);
+  const procurementCtx = hasProcurementContext(fullContent);
+  const mentions13303 = /\b(13\.?303|rilc)\b/i.test(fullContent) || (isItEntity && procurementCtx);
+  const regimeLegal: JurisRegimeDetected = mentions13303
     ? "LEI_13303_ESTATAIS"
     : /\b14\.?133\b/i.test(fullContent)
     ? "LEI_14133_ADM_DIRETA"
-    : "OUTRO";
+    : /^(TST|STJ|STF)$/i.test(court) && !procurementCtx
+    ? "NAO_APLICAVEL"
+    : "NAO_IDENTIFICADO";
 
   // 2A. Indexação / Tags
   let indexingTags: string[] = [];
@@ -260,7 +264,7 @@ export function sliceAcordaoAnatomically(
   } else {
     operativeCommands.push(enunciadoTese.slice(0, 800));
   }
-  const outcomeSummary = classifyDecisionOutcome(acordaoRaw, enunciadoTese);
+  const outcomeSummary = classifyDecisionOutcome(acordaoRaw, enunciadoTese, court);
 
   // 6A. Quórum de Fecho
   const isAgu = court === "AGU" || /AGU/i.test(court);
@@ -360,7 +364,7 @@ function generateSlicedDossierMarkdown(
   md += `- **Número / Ano:** ${l1a.numero}/${l1a.ano}\n`;
   md += `- **Processo:** ${l1a.processo || "N/A"}\n`;
   md += `- **Relator:** ${l1a.relator || "N/A"}\n`;
-  md += `- **Unidade Jurisdicionada:** ${l1b.entidade || "N/A"}\n`;
+  md += `- **Unidade Jurisdicionada:** ${l1b.entidade && l1b.entidade !== "NAO_INFORMADA" ? l1b.entidade : "N/A"}\n`;
   md += `- **Data da Sessão:** ${l1a.dataSessao || "N/A"}\n\n`;
 
   md += `## 2. Ementa & Tese Fixada\n`;

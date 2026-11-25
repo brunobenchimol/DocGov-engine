@@ -208,11 +208,25 @@ function isCuratedExactMatch(hit: RawJurisSearchResult, query: string): boolean 
   return catItem.keywords.some((rx) => rx.test(query));
 }
 
+const LEXICAL_EQUIVALENCES: Record<string, string[]> = {
+  teletrabalho: ["remoto", "home", "distancia", "virtual"],
+  presencial: ["fisico", "sede", "estabelecimento"],
+  retorno: ["reversao", "volta", "retornar"],
+};
+
 function tokenMatches(queryToken: string, hitTokens: string[]): boolean {
   if (hitTokens.includes(queryToken)) return true;
+  const eqs = LEXICAL_EQUIVALENCES[queryToken];
+  if (eqs && eqs.some((eq) => hitTokens.includes(eq))) return true;
   if (queryToken.length < 5) return false;
   const stem = queryToken.slice(0, 5);
   return hitTokens.some((ht) => ht.startsWith(stem) || (ht.length >= 5 && queryToken.startsWith(ht.slice(0, 5))));
+}
+
+function extractAssuntosText(raw: any): string {
+  const arr = raw?.assuntos;
+  if (!Array.isArray(arr)) return asCleanText(arr);
+  return arr.map((a: any) => (typeof a === "string" ? a : asCleanText(a?.descricao || a?.desAssunto || a?.nome || a?.titulo))).filter(Boolean).join(" ");
 }
 
 export function filterTstHitsByPertinence(
@@ -233,19 +247,23 @@ export function filterTstHitsByPertinence(
       kept.push(hit);
       continue;
     }
-    const haystack = [hit.id, hit.processo, hit.indexacao, hit.tese, hit.dispositivo]
+    const raw = hit.rawPayload || {};
+    const haystack = [hit.id, hit.processo, hit.indexacao, hit.tese, hit.dispositivo, raw.titulo, raw.txtEmentaHighlight, extractAssuntosText(raw)]
       .map((s) => asCleanText(s))
       .filter((s) => s.length > 0)
       .join(" ");
     const hitTokens = tokenizeNormalized(haystack);
 
     let matched = 0;
+    let strongMatch = false;
     for (const qt of queryTokens) {
-      if (tokenMatches(qt, hitTokens)) matched++;
+      if (tokenMatches(qt, hitTokens)) {
+        matched++;
+        if (qt.length >= 8) strongMatch = true;
+      }
     }
     const ratio = matched / queryTokens.length;
-    const isRelevant =
-      queryTokens.length <= 2 ? matched >= 1 : matched >= 2 || ratio >= 0.4;
+    const isRelevant = queryTokens.length <= 2 ? matched >= 1 : matched >= 2 || ratio >= 0.4 || strongMatch;
 
     if (isRelevant) kept.push(hit);
     else filteredOut.push(hit);

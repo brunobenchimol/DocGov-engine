@@ -3,7 +3,7 @@
 // ============================================================================
 
 import type { JurisSearchResultItem, JurisStance, JurisLegalRegime, StanceAlignment } from "./types.ts";
-import { findStatutoryBridgesForText, isStateItEntity } from "./statutory_bridge.ts";
+import { findStatutoryBridgesForText, hasProcurementContext, isStateItEntity } from "./statutory_bridge.ts";
 
 const STOPWORDS = new Set([
   "de", "a", "o", "da", "do", "em", "para", "com", "por", "sobre", "uma", "um",
@@ -44,20 +44,55 @@ export function tokenizeQuery(text: string): string[] {
 }
 
 /**
- * Classifica o comando do dispositivo em outcome semântico, com precedência da camada 5A (dispositivo).
+ * Classifica o comando do dispositivo em outcome semântico, com precedência da camada 5A (dispositivo),
+ * respeitando neutralidade judicial fora do contexto de licitações/controle externo.
  */
-export function classifyDecisionOutcome(dispositivo?: string, tese?: string): string {
+export function classifyDecisionOutcome(
+  dispositivo?: string,
+  tese?: string,
+  court?: string
+): string {
   const dispClean = (dispositivo || "").toLowerCase();
   const teseClean = (tese || "").toLowerCase();
+  const combined = `${dispClean} ${teseClean}`.trim();
 
-  // 1. Precedência da Camada 5A (Dispositivo)
+  if (/\b((?:deferir|conceder|adotar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+deferida|medida\s+cautelar\s+adotada|suspens[aã]o\s+cautelar)\b/i.test(dispClean || combined)) {
+    return "CAUTELAR_DEFERIDA";
+  }
+  if (/\b((?:indeferir|negar|revogar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+indeferida|revogar\s+a\s+medida\s+cautelar)\b/i.test(dispClean || combined)) {
+    return "CAUTELAR_INDEFERIDA";
+  }
+
+  const isAuditOrProcurement =
+    /^(TCU|TCE-|TCM-|TCDF|AGU)/i.test(court || "") ||
+    hasProcurementContext(combined) ||
+    /\b(representa[çc][aã]o|dar\s+ci[êe]ncia|certame|edital|licita[çc][aã]o|[óo]rg[aã]o)\b/i.test(combined);
+
+  if (!isAuditOrProcurement) {
+    const target = dispClean.length > 0 ? dispClean : combined;
+    if (/\bparcial(?:mente)?\s+provid[oa]\b|\bdar\s+provimento\s+parcial\b/i.test(target)) {
+      return "PARCIALMENTE_PROVIDO";
+    }
+    if (/\b(?:neg(?:a|ar|ado|ou)|n[aã]o)\s+provimento|improvid[oa]|desprovid[oa]|n[aã]o\s+provid[oa]|rejeit(?:a|ar|ado)\s+(?:os\s+)?embargos\b/i.test(target)) {
+      return "NAO_PROVIDO";
+    }
+    if (/\b(?:d[áa]|dar|dado|deu)\s+provimento|provid[oa]|conhecid[oa]\s+e\s+provid[oa]\b/i.test(target)) {
+      return "PROVIDO";
+    }
+    if (/\bn[aã]o\s+conhecer|n[aã]o\s+conhecid[oa]\b/i.test(target)) {
+      return "NAO_CONHECIDO";
+    }
+    if (/\b(improcedente|n[aã]o\s+procedente|excluir\s+(?:a\s+)?responsabilidade|afastar\s+(?:a\s+)?responsabilidade)\b/i.test(target)) {
+      return "IMPROCEDENTE";
+    }
+    if (/\b(procedente|anular|condenar|manter\s+(?:a\s+)?responsabilidade)\b/i.test(target)) {
+      return "PROCEDENTE";
+    }
+    return "DECISAO_ORDINARIA";
+  }
+
+  // Contexto de controle externo / licitações: precedência da Camada 5A (Dispositivo)
   if (dispClean.length > 0) {
-    if (/\b((?:deferir|conceder|adotar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+deferida|medida\s+cautelar\s+adotada|suspens[aã]o\s+cautelar)\b/i.test(dispClean)) {
-      return "CAUTELAR_DEFERIDA";
-    }
-    if (/\b((?:indeferir|negar|revogar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+indeferida|revogar\s+a\s+medida\s+cautelar)\b/i.test(dispClean)) {
-      return "CAUTELAR_INDEFERIDA";
-    }
     if (/\b(anular|anula[çc][aã]o|determinar|determina(?:-se)?|determina[çc][ãa]o|absten[çc][ãa]o|abster[- ]se|procedente|parcialmente\s+procedente|manter\s+(?:a\s+)?responsabilidade\s+subsidi[áa]ria|é\s+vedad[oa]|vedada?|vedação|não\s+se\s+aplica|nulidade|nulo)\b/i.test(dispClean)) {
       return "PROCEDENTE / DETERMINACAO";
     }
@@ -69,14 +104,7 @@ export function classifyDecisionOutcome(dispositivo?: string, tese?: string): st
     }
   }
 
-  // 2. Fallback para a Ementa / Tese (Camada 2B)
-  const combined = `${dispClean} ${teseClean}`.trim();
-  if (/\b((?:deferir|conceder|adotar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+deferida|medida\s+cautelar\s+adotada|suspens[aã]o\s+cautelar)\b/i.test(combined)) {
-    return "CAUTELAR_DEFERIDA";
-  }
-  if (/\b((?:indeferir|negar|revogar)\s+(?:a\s+)?medida\s+cautelar|cautelar\s+indeferida|revogar\s+a\s+medida\s+cautelar)\b/i.test(combined)) {
-    return "CAUTELAR_INDEFERIDA";
-  }
+  // Fallback para Ementa / Tese em contexto licitatório
   if (/\b(anular|anula[çc][aã]o|determinar|determina(?:-se)?|determina[çc][ãa]o|absten[çc][ãa]o|abster[- ]se|procedente|parcialmente\s+procedente|é\s+vedad[oa]|vedada?|vedação|não\s+se\s+aplica|nulidade|nulo)\b/i.test(combined)) {
     return "PROCEDENTE / DETERMINACAO";
   }
@@ -116,11 +144,83 @@ export function scoreJurisItem(
     regime?: JurisLegalRegime;
   } = {}
 ): ScoreResult {
-  const stance = options.stance || "DEFENSE";
-  const regime = options.regime || "BOTH";
+  const stance = options.stance || "NEUTRAL";
+  const regime = options.regime || "AUTO";
 
   const searchableText = `${item.indexacao || ""} ${item.tese || ""} ${item.dispositivo || ""}`.toLowerCase();
   const queryTokens = tokenizeQuery(query);
+  const outcome = classifyDecisionOutcome(item.dispositivo, item.tese, item.court);
+
+  const isPureNeutralQuery =
+    stance === "NEUTRAL" &&
+    regime === "AUTO" &&
+    !hasProcurementContext(query) &&
+    !hasProcurementContext(searchableText);
+
+  if (isPureNeutralQuery) {
+    let lexicalScore = 0;
+    if (queryTokens.length > 0) {
+      let matchedCount = 0;
+      for (const token of queryTokens) {
+        if (searchableText.includes(token)) matchedCount++;
+      }
+      lexicalScore += Math.round((matchedCount / queryTokens.length) * 50);
+
+      const normalizedQuery = query.toLowerCase().trim();
+      if (normalizedQuery.length > 5 && searchableText.includes(normalizedQuery)) {
+        lexicalScore += 15;
+      } else {
+        for (let i = 0; i < queryTokens.length - 1; i++) {
+          if (searchableText.includes(`${queryTokens[i]} ${queryTokens[i + 1]}`)) {
+            lexicalScore += 8;
+            break;
+          }
+        }
+      }
+    }
+    lexicalScore = Math.min(65, Math.max(0, lexicalScore));
+
+    let quorumScore = 10;
+    const colegiado = (item.colegiado || "").toLowerCase();
+    if (
+      colegiado.includes("plenário") ||
+      colegiado.includes("pleno") ||
+      colegiado.includes("corte especial") ||
+      colegiado.includes("sbdi") ||
+      colegiado.includes("sdc") ||
+      colegiado.includes("advogado-geral") ||
+      colegiado.includes("vinculante") ||
+      (item.court && item.court.toUpperCase() === "AGU")
+    ) {
+      quorumScore = 20;
+    } else if (colegiado.includes("câmara") || colegiado.includes("turma")) {
+      quorumScore = 14;
+    }
+
+    let recencyScore = 6;
+    const ano = item.ano || (item.dataSessao ? parseInt(item.dataSessao.slice(0, 4), 10) : 0);
+    if (ano >= 2023) recencyScore = 15;
+    else if (ano >= 2021) recencyScore = 12;
+    else if (ano >= 2018) recencyScore = 9;
+    else if (ano >= 2016) recencyScore = 6;
+    else if (ano > 0) recencyScore = 4;
+
+    const total = Math.min(100, Math.max(0, lexicalScore + quorumScore + recencyScore));
+    return {
+      relevance_score: total,
+      score: total,
+      breakdown: {
+        lexical: lexicalScore,
+        stanceAlignment: 0,
+        legalRegime: 0,
+        quorum: quorumScore,
+        recency: recencyScore,
+      },
+      outcome,
+      stance_alignment: "NEUTRAL",
+      statutoryBridgeRefs: [],
+    };
+  }
 
   // 1. Aderência Léxica (0..35 pts)
   let lexicalScore = 0;
@@ -152,7 +252,6 @@ export function scoreJurisItem(
   lexicalScore = Math.min(35, Math.max(0, lexicalScore));
 
   // 2. Alinhamento Tático do Dispositivo com o stance (0..25 pts) com Precedência de Desfecho
-  const outcome = classifyDecisionOutcome(item.dispositivo, item.tese);
   const dispText = (item.dispositivo || "").toLowerCase();
 
   const isPrimaryAdverseToDefense =
@@ -211,8 +310,8 @@ export function scoreJurisItem(
       }
     }
   } else {
-    // stance === "BOTH"
-    stanceScore = isPrimaryFavorableToDefense || isPrimaryAdverseToDefense ? 20 : 10;
+    // stance === "BOTH" | "NEUTRAL"
+    stanceScore = stance === "NEUTRAL" ? 15 : isPrimaryFavorableToDefense || isPrimaryAdverseToDefense ? 20 : 10;
     stanceAlignment = "NEUTRAL";
   }
 
@@ -220,8 +319,8 @@ export function scoreJurisItem(
   let regimeScore = 0;
   const bridges = findStatutoryBridgesForText(searchableText);
   const bridgeRefs = bridges.map((b) => b.id);
-  const hasStateEntity = isStateItEntity(item.entidade) || isStateItEntity(searchableText);
-  const mentions13303 = /\b13\.?303\b/i.test(searchableText) || hasStateEntity;
+  const hasStateEntity = isStateItEntity(item.entidade);
+  const mentions13303 = /\b(13\.?303|rilc)\b/i.test(searchableText) || (hasStateEntity && (hasProcurementContext(searchableText) || regime === "13303"));
   const mentions14133 = /\b14\.?133\b/i.test(searchableText);
 
   if (regime === "13303") {
@@ -233,7 +332,7 @@ export function scoreJurisItem(
     else if (bridgeRefs.length > 0) regimeScore = 14;
     else regimeScore = 6;
   } else {
-    // regime === "BOTH"
+    // regime === "BOTH" | "AUTO"
     if (mentions13303 || mentions14133 || bridgeRefs.length > 0) regimeScore = 18;
     else regimeScore = 10;
   }

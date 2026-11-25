@@ -59,8 +59,8 @@ export async function searchJuris(
     throw createJurisSearchContractError("Query de busca vazia.");
   }
 
-  const stance = options.stance || "DEFENSE";
-  const regime = options.regime || "BOTH";
+  const stance = options.stance || "NEUTRAL";
+  const regime = options.regime || "AUTO";
   const limit = options.limit || 10;
 
   // 1. Roteamento Jurisdicional e Graceful Fallback

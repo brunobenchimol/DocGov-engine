@@ -11,7 +11,8 @@ export const STATE_IT_ENTITIES = [
   "BB TECNOLOGIA",
   "BBTS",
   "PETROBRAS",
-  "CAIXA",
+  "CAIXA ECONÔMICA FEDERAL",
+  "CAIXA ECONOMICA FEDERAL",
   "BNDES",
   "PRODEPA",
   "PRODERJ",
@@ -22,7 +23,6 @@ export const STATE_IT_ENTITIES = [
   "PRODABEL",
   "EMPREL",
   "ETICE",
-  "ATI",
 ] as const;
 
 export const STATUTORY_BRIDGES: StatutoryBridgeMapping[] = [
@@ -210,13 +210,29 @@ export const STATUTORY_BRIDGES: StatutoryBridgeMapping[] = [
   },
 ];
 
+const STATE_IT_REGEXES: RegExp[] = STATE_IT_ENTITIES.map((entity) => {
+  const escaped = entity.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^A-ZÀ-Ý0-9])${escaped}(?:$|[^A-ZÀ-Ý0-9])`);
+});
+
 /**
- * Verifica se o nome da entidade corresponde a uma empresa pública de TI ou estatal relevante.
+ * Verifica se o nome da entidade corresponde a uma empresa pública de TI ou estatal relevante
+ * com fronteira estrita de palavra (sem falsos positivos por substring).
  */
 export function isStateItEntity(entityName?: string): boolean {
   if (!entityName) return false;
   const upper = entityName.toUpperCase();
-  return STATE_IT_ENTITIES.some((itEntity) => upper.includes(itEntity));
+  return STATE_IT_REGEXES.some((rx) => rx.test(upper));
+}
+
+/**
+ * Detecta se um texto ou query possui contexto explícito de contratação pública / licitação / controle externo.
+ */
+export function hasProcurementContext(text?: string): boolean {
+  if (!text) return false;
+  return /\b(licita[çc][aã]o|licitat[óo]ri[oa]|preg[aã]o|edital|certame|dispensa\s+de\s+licita[çc][aã]o|inexigibilidade|contrato[s]?\s+administrativo[s]?|ata\s+de\s+registro\s+de\s+pre[çc]os|13\.?303|14\.?133|8\.?666|rilc|representa[çc][aã]o|unidade\s+jurisdicionada|tribunal\s+de\s+contas)\b/i.test(
+    text
+  );
 }
 
 /**
@@ -235,13 +251,20 @@ export function findStatutoryBridgesForText(text: string): StatutoryBridgeMappin
  */
 export function expandQueryWithStatutoryBridge(
   query: string,
-  regime: JurisLegalRegime = "BOTH"
+  regime: JurisLegalRegime = "AUTO"
 ): {
   expandedTerms: string[];
   appliedBridgeIds: string[];
   appliedBridgeDescriptions: string[];
 } {
   const matches = findStatutoryBridgesForText(query);
+  if (matches.length === 0) {
+    return {
+      expandedTerms: [],
+      appliedBridgeIds: [],
+      appliedBridgeDescriptions: [],
+    };
+  }
   const terms = new Set<string>();
   const ids: string[] = [];
   const descriptions: string[] = [];
