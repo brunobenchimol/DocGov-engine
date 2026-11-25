@@ -224,7 +224,9 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
         const hasAntiHallucination = dossieContent.includes("[ANTI_HALLUCINATION_BLOCK]");
 
         const fetchOrigin =
-          fetchRes.source === "CURATED_CATALOG" || CURATED_ID_REGEX.test(targetId)
+          fetchRes.source === "LIVE"
+            ? "API Live Direta"
+            : fetchRes.source === "CURATED_CATALOG" || CURATED_ID_REGEX.test(targetId)
             ? "Catálogo Normativo Curado"
             : "API Live Direta";
 

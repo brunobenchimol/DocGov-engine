@@ -4,7 +4,7 @@
 // ============================================================================
 
 import type { RawJurisSearchResult, SearchJurisSyntheticResult } from "./types.ts";
-import { getTstCatalogItemById } from "./providers/tst_catalog.ts";
+import { matchesTstNormativeAlias } from "./providers/tst_catalog.ts";
 
 export type TstTriageMode = "triaged" | "raw" | "compare";
 export type TstPrecedentBucket =
@@ -200,12 +200,7 @@ function isCuratedExactMatch(hit: RawJurisSearchResult, query: string): boolean 
   const hitId = asCleanText(hit.id);
   if (hitId && normQuery.includes(normalizeText(hitId))) return true;
   if (!hitId) return false;
-  const catItem = getTstCatalogItemById(hitId);
-  if (!catItem) return false;
-  if (hit.origin === "CURATED_CATALOG" || hit.rawPayload?.curated === true) {
-    return catItem.keywords.some((rx) => rx.test(query)) || normQuery.includes(normalizeText(catItem.numero));
-  }
-  return catItem.keywords.some((rx) => rx.test(query));
+  return matchesTstNormativeAlias(hitId, query);
 }
 
 const LEXICAL_EQUIVALENCES: Record<string, string[]> = {

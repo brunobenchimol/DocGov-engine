@@ -251,14 +251,40 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     }
   });
 
-  it("TstProvider — Resiliência Dupla, HTTP 503, force_live e Trava Anti-Alucinação", async () => {
+  it("TstProvider — Cache TTL 24h Live-Backed, HTTP 503 sem fallback estático, force_live e Trava Anti-Alucinação", async () => {
+    const { mkdtempSync, rmSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const cacheRoot = mkdtempSync(join(tmpdir(), "docgov-tst-fed-"));
+    const prevCacheEnv = process.env.DOCGOV_JURIS_CACHE_DIR;
+    process.env.DOCGOV_JURIS_CACHE_DIR = cacheRoot;
+
     let return503 = true;
     const server = Bun.serve({
       port: 0,
-      fetch(req) {
+      async fetch(req) {
         const url = new URL(req.url);
         if (url.pathname.startsWith("/rest/pesquisa-textual")) {
           if (return503) return new Response("Service Unavailable", { status: 503 });
+          const body: any = await req.json();
+          if (Array.isArray(body?.tipos) && body.tipos.includes("SUM")) {
+            return Response.json({
+              registros: [
+                {
+                  registro: {
+                    id: 570,
+                    numero: 331,
+                    tipo: { codigoTipoJurisprudencia: "SUM", nome: "Súmula" },
+                    titulo: "CONTRATO DE PRESTAÇÃO DE SERVIÇOS. LEGALIDADE.",
+                    tese: "Súmula 331 atualizada ao vivo.",
+                    situacao: { codigo: 2, descricao: "ALTERADA" },
+                    observacao: "Item I cancelado pela Res. 225/2025.",
+                    dtaPublicacao: "2025-07-02",
+                  },
+                },
+              ],
+            });
+          }
           return Response.json({
             registros: [
               {
@@ -274,7 +300,7 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
         if (url.pathname.startsWith("/search")) {
           if (return503) return new Response("Service Unavailable", { status: 503 });
           return Response.json({
-            items: [{ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock TST Live" }],
+            items: [{ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock TST Live Terceirização" }],
           });
         }
         if (url.pathname.startsWith("/fetch")) {
@@ -290,50 +316,47 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
 
     try {
       const tst = defaultJurisdictionRegistry.get("TST")!;
-      // 1. Modo Produção simulando 503 em DOCGOV_TST_BASE_URL -> degrada p/ catálogo
+      // 1. Modo Produção simulando 503 em DOCGOV_TST_BASE_URL -> LIVE_FAILED sem catálogo estático
       process.env.DOCGOV_TST_BASE_URL = `http://127.0.0.1:${server.port}`;
       const deg = await tst.searchWithDiagnostic!("terceirização administração pública", { limit: 3 });
-      expect(deg.diagnostic.status).toBe("ok");
-      expect(deg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
+      expect(deg.diagnostic.status).toBe("error");
+      expect(deg.diagnostic.source_mode).toBe("LIVE_FAILED");
       expect(deg.diagnostic.live_error).toContain("HTTP 503");
-      expect(deg.hits.some((h) => h.id === "SUMULA-TST-331")).toBe(true);
-      expect(deg.hits[0]?.origin).toBe("CURATED_CATALOG");
+      expect(deg.hits).toEqual([]);
 
-      // 2. force_live sob 503 persistente -> LIVE_FAILED sem fallback silencioso
-      const flErr = await tst.searchWithDiagnostic!("terceirização", { force_live: true });
-      expect(flErr.diagnostic.status).toBe("error");
-      expect(flErr.diagnostic.source_mode).toBe("LIVE_FAILED");
-
-      // 3. Recuperação com force_live (Live-First)
+      // 2. Recuperação com force_live (Live-First) + Súmula 331 ao vivo
       return503 = false;
       const flOk = await tst.searchWithDiagnostic!("terceirização", { force_live: true });
       expect(flOk.diagnostic.status).toBe("ok");
       expect(flOk.hits[0]?.id).toBe("TST-AIRR-0000590-72.2025.5.10.0009");
       expect(flOk.hits[0]?.origin).toBe("LIVE");
 
-      // 4. fetch curado e trava anti-alucinação
       const sum331 = await tst.fetch("SUMULA-TST-331");
       expect(sum331?.exists).toBe(true);
-      expect(sum331?.source).toBe("CURATED_CATALOG");
+      expect(sum331?.source).toBe("LIVE");
+      expect(sum331?.rawTextOrJson.tese).toContain("Súmula 331 atualizada ao vivo");
 
       const fakeProd = await tst.fetch("TST-AIRR-9999999-99.2099.5.01.0001");
       expect(fakeProd).toBeNull();
 
-      // 5. Modo Mock (DOCGOV_JURIS_BASE_URL) -> 503 degrada p/ SUMULA-TST-331 e 404 bloqueia TST-999999
+      // 3. Modo Mock (DOCGOV_JURIS_BASE_URL) -> 503 sem cache válido retorna LIVE_FAILED / [LIVE_UNAVAILABLE] e 404 retorna null
       delete process.env.DOCGOV_TST_BASE_URL;
       process.env.DOCGOV_JURIS_BASE_URL = `http://127.0.0.1:${server.port}`;
       return503 = true;
-      const mock503 = await tst.searchWithDiagnostic!("terceirização súmula 331");
-      expect(mock503.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(mock503.hits[0]?.id).toBe("SUMULA-TST-331");
+      const mock503 = await tst.searchWithDiagnostic!("terceirização nova consulta");
+      expect(mock503.diagnostic.status).toBe("error");
+      expect(mock503.diagnostic.source_mode).toBe("LIVE_FAILED");
+      expect(mock503.hits).toEqual([]);
 
-      const mockFetch503 = await tst.fetch("SUMULA-TST-331");
-      expect(mockFetch503?.source).toBe("CURATED_CATALOG");
+      await expect(tst.fetch("SUMULA-TST-363")).rejects.toThrow(/\[LIVE_UNAVAILABLE\]/);
 
       const mock404 = await tst.fetch("TST-999999");
       expect(mock404).toBeNull();
     } finally {
       server.stop(true);
+      if (prevCacheEnv === undefined) delete process.env.DOCGOV_JURIS_CACHE_DIR;
+      else process.env.DOCGOV_JURIS_CACHE_DIR = prevCacheEnv;
+      rmSync(cacheRoot, { recursive: true, force: true });
     }
   });
 
