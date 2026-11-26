@@ -3,12 +3,19 @@
 // docgov-engine v1.5.0 — test/contracts/tripartite_and_readjustment.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { matchTripartiteExecution } from "../../src/contracts/tripartite_matcher.ts";
 import { auditReadjustmentsAndRepactuations } from "../../src/contracts/readjustment_auditor.ts";
 import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 
 describe("Fiscalização Contratual — Batimento Tripartite e Reajustes (Marcos 8.2 e 8.3)", () => {
+  const tempOutDir = mkdtempSync(join(tmpdir(), "docgov_test_tripartite_"));
+  afterAll(() => {
+    rmSync(tempOutDir, { recursive: true, force: true });
+  });
   it("deve aprovar execução com conformidade plena entre TR, Proposta, ARP e Fatura", () => {
     const res = matchTripartiteExecution({
       tripartite_items: [
@@ -118,26 +125,29 @@ describe("Fiscalização Contratual — Batimento Tripartite e Reajustes (Marcos
   });
 
   it("deve consolidar múltiplas anomalias em auditContractExecution com payload < 900 bytes", async () => {
-    const { report, synthetic } = await auditContractExecution({
-      contract_id: "CT-MULTI-09",
-      legal_regime: "LEI_14133",
-      object_type: "SERVICE",
-      initial_value: 500000,
-      tripartite_items: [
-        {
-          item_id: "ITEM-A",
-          winning_proposal: { quantity: 10, unit_price: 100 },
-          contract_or_invoice: { quantity: 10, unit_price: 120 },
-        },
-      ],
-      readjustments: [
-        {
-          id: "REAJ-A",
-          type: "REAJUSTE_INDICE",
-          months_elapsed: 6,
-        },
-      ],
-    });
+    const { report, synthetic } = await auditContractExecution(
+      {
+        contract_id: "CT-MULTI-09",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICE",
+        initial_value: 500000,
+        tripartite_items: [
+          {
+            item_id: "ITEM-A",
+            winning_proposal: { quantity: 10, unit_price: 100 },
+            contract_or_invoice: { quantity: 10, unit_price: 120 },
+          },
+        ],
+        readjustments: [
+          {
+            id: "REAJ-A",
+            type: "REAJUSTE_INDICE",
+            months_elapsed: 6,
+          },
+        ],
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
 
     expect(report.status).toBe("blocked");
     expect(synthetic.blocking_tags).toContain("[TRIPARTITE_OVERPRICING_DETECTED]");

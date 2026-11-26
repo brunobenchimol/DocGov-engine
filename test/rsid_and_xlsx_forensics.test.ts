@@ -1,7 +1,7 @@
 import { describe, expect, test, afterAll } from "bun:test";
 import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
 import JSZip from "jszip";
 import { extractDocxForensicMetaFromBuffer } from "../src/utils/pdf/docx_forensic_meta.ts";
 import { extractXlsxForensicMetaFromBuffer } from "../src/utils/pdf/xlsx_forensic_meta.ts";
@@ -111,13 +111,16 @@ describe("Pilar 5.2 & 5.3 (v1.7.0) — Clones w:rsid em DOCX & forensic_meta em 
     writeFileSync(docA, await buildSyntheticDocx({ rsidRoot: "00af1234", rsidRs: ["00AF1234", "00AF1235"] }));
     writeFileSync(docB, await buildSyntheticDocx({ rsidRoot: "00AF1234", rsidRs: ["00AF1234", "00AF9999"] }));
 
-    const evalRes = await evaluateBiddingProposals({
-      process_id: "PROC-RSID-CLONE",
-      competing_proposals_meta: [
-        { bidder_name: "EMPRESA_A", proposal_pdf_path: docA },
-        { bidder_name: "EMPRESA_B", proposal_pdf_path: docB },
-      ],
-    });
+    const evalRes = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-RSID-CLONE",
+        competing_proposals_meta: [
+          { bidder_name: "EMPRESA_A", proposal_pdf_path: docA },
+          { bidder_name: "EMPRESA_B", proposal_pdf_path: docB },
+        ],
+      },
+      { outputDir: dir, compilationMode: "NONE" }
+    );
     expect(evalRes.dossier.decision).toBe("REJECTED");
     expect(evalRes.dossier.blocking_tags).toContain("[FORENSIC_DOCX_RSID_CLONE_COLLUSION_BLOCK]");
   });
@@ -165,23 +168,26 @@ describe("Pilar 5.2 & 5.3 (v1.7.0) — Clones w:rsid em DOCX & forensic_meta em 
     writeFileSync(q1, await buildSyntheticXlsx({ author: "Operador Unico" }));
     writeFileSync(q2, await buildSyntheticXlsx({ author: "Operador Unico" }));
 
-    const directRes = await auditDirectContracting({
-      process_id: "PROC-XLSX-DIR",
-      contracting_modality: "INEXIGIBILIDADE",
-      quotations_forensic_meta: [
-        { quotation_id: "Q1", file_name: "cotacao_fornecedor_1.xlsx", pdf_path: q1 },
-        { quotation_id: "Q2", file_name: "cotacao_fornecedor_2.xlsx", pdf_path: q2 },
-      ],
-      inexigibility_details: {
-        competition_infeasibility_proven: true,
-        exclusivity_certificate: { provided: true, sumula_255_tcu_verified: true },
-        supplier_market_price_proofs: [
-          { identifier: "NF-1", unit_price: 100 },
-          { identifier: "NF-2", unit_price: 100 },
-          { identifier: "NF-3", unit_price: 100 },
+    const directRes = await auditDirectContracting(
+      {
+        process_id: "PROC-XLSX-DIR",
+        contracting_modality: "INEXIGIBILIDADE",
+        quotations_forensic_meta: [
+          { quotation_id: "Q1", file_name: "cotacao_fornecedor_1.xlsx", pdf_path: q1 },
+          { quotation_id: "Q2", file_name: "cotacao_fornecedor_2.xlsx", pdf_path: q2 },
         ],
+        inexigibility_details: {
+          competition_infeasibility_proven: true,
+          exclusivity_certificate: { provided: true, sumula_255_tcu_verified: true },
+          supplier_market_price_proofs: [
+            { identifier: "NF-1", unit_price: 100 },
+            { identifier: "NF-2", unit_price: 100 },
+            { identifier: "NF-3", unit_price: 100 },
+          ],
+        },
       },
-    });
+      { outputDir: dir, compilationMode: "NONE" }
+    );
     expect(directRes.dossier.blocking_tags).toContain("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]");
 
     const xlsxMeta = await extractXlsxForensicMetaFromBuffer(readFileSync(q1));
@@ -197,12 +203,14 @@ describe("Pilar 5.2 & 5.3 (v1.7.0) — Clones w:rsid em DOCX & forensic_meta em 
     writeFileSync(docxPath, await buildSyntheticDocx({ rsidRoot: "1234ABCD", rsidRs: ["1234ABCD", "AABB1122"], author: "Perito DOCX R4" }));
 
     const xlsxRes = await inspectDocx(xlsxPath, undefined, true);
+    if (xlsxRes.audit_view_path) tempDirs.push(dirname(xlsxRes.audit_view_path));
     const xlsxMd = readFileSync(xlsxRes.audit_view_path!, "utf-8");
     expect(xlsxMd).toContain("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
     expect(xlsxMd).toContain("`.xlsx`");
     expect(xlsxMd).toContain("**Author:** Perito XLSX R4");
 
     const docxRes = await inspectDocx(docxPath, undefined, true);
+    if (docxRes.audit_view_path) tempDirs.push(dirname(docxRes.audit_view_path));
     const docxMd = readFileSync(docxRes.audit_view_path!, "utf-8");
     expect(docxMd).toContain("## 🔍 Resumo Forense de Metadados (`forensic_meta`)");
     expect(docxMd).toContain("`.docx`");

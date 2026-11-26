@@ -3,11 +3,18 @@
 // docgov-engine v1.5.0 — test/arp/arp_ledger_limits.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { computeArpLedger } from "../../src/arp/ledger_engine.ts";
 import { governArpExecution } from "../../src/arp/govern_arp.ts";
 
 describe("Governança de ARP — Livro-Razão e Travas 50% / 200% (Marco 8.4)", () => {
+  const tempOutDir = mkdtempSync(join(tmpdir(), "docgov_test_arp_ledger_"));
+  afterAll(() => {
+    rmSync(tempOutDir, { recursive: true, force: true });
+  });
   it("deve aprovar pedido de carona dentro das travas individual (<= 50%) e global (<= 200%)", () => {
     const res = computeArpLedger({
       arp_number: "ARP-01/2024",
@@ -101,12 +108,15 @@ describe("Governança de ARP — Livro-Razão e Travas 50% / 200% (Marco 8.4)", 
   });
 
   it("deve orquestrar governArpExecution com status blocked e payload < 900 bytes", async () => {
-    const { dossier, synthetic } = await governArpExecution({
-      arp_number: "ARP-ORQ-01",
-      registered_qty: 100,
-      prior_adhesions_qty: 170,
-      requested_adhesion_qty: 45, // 170 + 45 = 215% > 200%
-    });
+    const { dossier, synthetic } = await governArpExecution(
+      {
+        arp_number: "ARP-ORQ-01",
+        registered_qty: 100,
+        prior_adhesions_qty: 170,
+        requested_adhesion_qty: 45, // 170 + 45 = 215% > 200%
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
 
     expect(dossier.status).toBe("blocked");
     expect(dossier.decision).toBe("REJECTED");

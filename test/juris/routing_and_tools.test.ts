@@ -1,7 +1,7 @@
-import { describe, it, expect } from "bun:test";
-import { existsSync, rmSync } from "node:fs";
+import { describe, it, expect, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
 import {
   defaultJurisdictionRegistry,
   JurisdictionProviderRegistry,
@@ -16,6 +16,11 @@ import {
 } from "../../src/tools/juris/index.ts";
 import { parseCanonicalAcordaoRef } from "../../src/tools/juris/providers/http_client.ts";
 import type { JurisdictionProvider } from "../../src/tools/juris/types.ts";
+
+const routingTempRoot = mkdtempSync(join(tmpdir(), "docgov_test_juris_routing_"));
+afterAll(() => {
+  rmSync(routingTempRoot, { recursive: true, force: true });
+});
 
 describe("Jurisprudência v1.4.0 — Roteamento Jurisdicional e Graceful Fallback", () => {
   it("deve selecionar a camada federal completa (TCU, STJ, STF) quando courts e uf forem omitidos", () => {
@@ -123,15 +128,13 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     const customRegistry = new JurisdictionProviderRegistry();
     customRegistry.register(mockTcu);
 
-    const ephJson = join(getEphemeralInspectDir(), "juris_search_results.json");
-    if (existsSync(ephJson)) rmSync(ephJson, { force: true });
-
     const res = await searchJuris(
       {
         query: "lote único indivisível | adjudicação por preço global",
         courts: ["TCU"],
         stance: "DEFENSE",
         regime: "13303",
+        caseDir: join(routingTempRoot, "cases", "routing_search_1"),
       },
       customRegistry
     );
@@ -191,6 +194,7 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       const res = await fetchJuris({
         acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário",
         shortname: "acordao_teste_gen4",
+        caseDir: join(routingTempRoot, "cases", "routing_fetch"),
       });
 
       expect(res.canonicalId).toContain("1234");
@@ -245,11 +249,13 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       });
     }
 
-    const ephJson = join(getEphemeralInspectDir(), "juris_search_results.json");
-    if (existsSync(ephJson)) rmSync(ephJson, { force: true });
-
     const res = await searchJuris(
-      { query: "lote único", uf: "AM", limit: 5 },
+      {
+        query: "lote único",
+        uf: "AM",
+        limit: 5,
+        caseDir: join(routingTempRoot, "cases", "routing_search_2"),
+      },
       customReg
     );
 

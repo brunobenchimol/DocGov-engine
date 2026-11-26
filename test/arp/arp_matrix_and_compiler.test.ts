@@ -3,14 +3,18 @@
 // docgov-engine v1.5.0 — test/arp/arp_matrix_and_compiler.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
-import { readFileSync, existsSync } from "node:fs";
+import { describe, it, expect, afterAll } from "bun:test";
+import { readFileSync, existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { evaluateArpCompatibility } from "../../src/arp/compatibility_matrix.ts";
 import { governArpExecution } from "../../src/arp/govern_arp.ts";
-import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
 import { join } from "node:path";
 
 describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/PDF (Marco 8.4)", () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), "docgov_test_arp_matrix_"));
+  afterAll(() => {
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
   it("deve bloquear adesão cruzada com assimetria de regime jurídico (Lei 14.133 vs Lei 13.303)", () => {
     const resAsym = evaluateArpCompatibility({
       manager_regime: "LEI_14133",
@@ -110,7 +114,7 @@ describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/P
   });
 
   it("deve compilar nativamente Nota Técnica de Adesão (ARP_ADHESION_GRANT_NOTE) em DOCX e PDF reais (> 1KB)", async () => {
-    const testOutDir = join(getEphemeralInspectDir(), `test_arp_grant_${Date.now()}`);
+    const testOutDir = join(tempRoot, `test_arp_grant_${Date.now()}`);
     const { dossier, synthetic } = await governArpExecution(
       {
         arp_number: "ARP-GRANT-01",
@@ -146,7 +150,7 @@ describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/P
   }, 15000);
 
   it("deve compilar nativamente Estudo Técnico de Vantajosidade (ARP_ADVANTAGE_STUDY) em DOCX e PDF reais (> 1KB)", async () => {
-    const testOutDir = join(getEphemeralInspectDir(), `test_arp_study_${Date.now()}`);
+    const testOutDir = join(tempRoot, `test_arp_study_${Date.now()}`);
     const { dossier, synthetic } = await governArpExecution(
       {
         arp_number: "ARP-STUDY-02",

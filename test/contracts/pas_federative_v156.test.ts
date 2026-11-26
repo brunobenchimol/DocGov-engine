@@ -4,16 +4,19 @@
 // Sub-Asserts 30.13 a 30.16 (Marco 8.6)
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { describe, it, expect, afterAll } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
 import { auditPasSanctionsAndGuarantees } from "../../src/contracts/pas_sanction_auditor.ts";
 import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 import { resolveCompetentAuditCourt } from "../../src/contracts/pas_federative_dosimetry.ts";
 import { handleCallTool } from "../../src/mcp/server.ts";
-import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
 import { extractPdfPages } from "../../src/utils/pdf.ts";
+
+const gen56TempRoot = mkdtempSync(join(tmpdir(), "docgov_test_gen56_"));
+afterAll(() => { rmSync(gen56TempRoot, { recursive: true, force: true }); });
 
 async function readDocxMainXml(docxPath: string): Promise<string> {
   const zip = await JSZip.loadAsync(readFileSync(docxPath));
@@ -193,7 +196,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   });
 
   it("Sub-Assert 30.16: deve compilar DOCX/PDF com quadros federativo/LINDB e respeitar MCP < 900B", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen56_mcp_${Date.now()}`);
+    const outDir = join(gen56TempRoot, `test_gen56_mcp_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "contrato_30_16.json");
     writeFileSync(
@@ -289,7 +292,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   }, 20000);
 
   it("Estresse Combinado 12 Tags (6 da v1.5.5 + 6 da v1.5.6): mantém payload MCP stdio < 900 bytes sem truncar tags nem JSON em disco", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen56_stress12_${Date.now()}`);
+    const outDir = join(gen56TempRoot, `test_gen56_stress12_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "stress_12_tags.json");
     writeFileSync(
@@ -347,7 +350,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   });
 
   it("Gen5.6+ Humanização Jurídica (Lei 13.303) & Dosimetria Não Calibrada (>=20% sem agravantes): prosa vernácula e zero falso PROPORCIONAL", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen56_humanized_${Date.now()}`);
+    const outDir = join(gen56TempRoot, `test_gen56_humanized_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "contrato_estatal_uncalibrated.json");
     writeFileSync(
@@ -424,7 +427,7 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
   }, 20000);
 
   it("Aliases Naturais dos Agentes (price_basket objeto, precedent_fines_pct, sla_glosa_misclassified, defense_business_days, register_pncp, garantia e reequilibrio): todas as tags disparam de primeira", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_natural_aliases_${Date.now()}`);
+    const outDir = join(gen56TempRoot, `test_natural_aliases_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const { report, synthetic } = await auditContractExecution(
       {

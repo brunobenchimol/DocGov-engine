@@ -1,5 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
 import { createHash } from "node:crypto";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { extractPdfForensicMeta } from "../src/utils/pdf/forensic_meta.ts";
 import {
   auditPdfPadesSignatures,
@@ -268,23 +271,31 @@ describe("Pilar 1 (v1.7.0) — Perícia Pure-JS PKCS#7/PAdES, ASN.1/BER e /ByteR
     const sigs = auditPdfPadesSignatures(pdf);
     expect(comparePadesSignerIdentity(sigs, { expectedSignerCpfCnpj: "12345678000195" })).toEqual([]);
 
-    const res = await evaluateBiddingProposals({
-      process_id: "PROC-PADES-01",
-      bidder_name: "EMPRESA_GENERICA",
-      bidder_cnpj: "11.222.333/0001-81",
-      act_forensic_items: [
+    const padesOutDir = mkdtempSync(join(tmpdir(), "docgov_test_pades_"));
+    try {
+      const res = await evaluateBiddingProposals(
         {
-          certificate_id: "ACT-01",
-          issuer_name: "ORGAO_CONTRATANTE",
-          issuer_cnpj: "99.888.777/0001-66",
-          expected_signer_name: "SERVIDOR DESIGNADO",
-          expected_signer_cpf_cnpj: "99988877766",
-          pades_signatures: sigs,
+          process_id: "PROC-PADES-01",
+          bidder_name: "EMPRESA_GENERICA",
+          bidder_cnpj: "11.222.333/0001-81",
+          act_forensic_items: [
+            {
+              certificate_id: "ACT-01",
+              issuer_name: "ORGAO_CONTRATANTE",
+              issuer_cnpj: "99.888.777/0001-66",
+              expected_signer_name: "SERVIDOR DESIGNADO",
+              expected_signer_cpf_cnpj: "99988877766",
+              pades_signatures: sigs,
+            },
+          ],
         },
-      ],
-    });
-    expect(res.dossier.decision).toBe("REJECTED");
-    expect(res.dossier.blocking_tags).toContain("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]");
+        { outputDir: padesOutDir, compilationMode: "NONE" }
+      );
+      expect(res.dossier.decision).toBe("REJECTED");
+      expect(res.dossier.blocking_tags).toContain("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]");
+    } finally {
+      rmSync(padesOutDir, { recursive: true, force: true });
+    }
   });
 
   test("6. Hierarquia oficial Gov.br (AC Final do Governo Federal do Brasil v1) é aceita como confiável", () => {

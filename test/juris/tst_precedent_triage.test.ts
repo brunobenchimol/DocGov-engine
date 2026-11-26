@@ -1,4 +1,7 @@
-import { describe, it, expect, spyOn } from "bun:test";
+import { describe, it, expect, spyOn, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   asCleanText,
   classifyTstHit,
@@ -361,10 +364,11 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
 
     const reg = new JurisdictionProviderRegistry();
     reg.register(tst);
-
-    for (const mode of ["raw", "triaged", "compare"] as const) {
-      spy.mockClear();
-      const res = await searchJuris({ query: "terceirização responsabilidade subsidiária", courts: ["TST"], triage_mode: mode }, reg);
+    const tmpCase = join(mkdtempSync(join(tmpdir(), "docgov_test_tst_triage_")), "cases", "tst_7");
+    try {
+      for (const mode of ["raw", "triaged", "compare"] as const) {
+        spy.mockClear();
+        const res = await searchJuris({ query: "terceirização responsabilidade subsidiária", courts: ["TST"], triage_mode: mode, caseDir: join(tmpCase, mode) }, reg);
       expect(spy).toHaveBeenCalledTimes(1);
       const synth = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath);
       const jsonStr = JSON.stringify(synth);
@@ -382,6 +386,9 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
         if (mode === "triaged") expect(synth.tst_triage?.raw_diff).toBeUndefined();
         if (mode === "compare") expect(synth.tst_triage?.raw_diff?.raw_total).toBe(4);
       }
+      }
+    } finally {
+      rmSync(join(tmpCase, "..", ".."), { recursive: true, force: true });
     }
     spy.mockRestore();
   });
@@ -409,19 +416,24 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
     reg.register(tst);
     reg.register(mockTcu);
 
-    const res = await searchJuris(
-      { query: "terceirização responsabilidade | motoboy periculosidade", courts: ["TST", "TCU"], triage_mode: "compare" },
-      reg
-    );
-    expect(spy).toHaveBeenCalledTimes(2); // 1x por sub-query
-    const t = res.fileResult.tst_triage!;
-    expect(t.counts.erga_omnes).toBe(1);
-    expect(t.counts.orientativas).toBe(1);
-    expect(t.counts.inter_partes).toBe(2); // RR + AIRR aceito na 2a sub-query
-    expect(t.counts.filtered_out).toBe(0);
-    // TCU não contamina os baldes do TST
-    const allIds = [...t.buckets.erga_omnes, ...t.buckets.orientativas, ...t.buckets.inter_partes, ...t.buckets.unclassified].map((i) => i.id);
-    expect(allIds).not.toContain("ACORDAO-TCU-1234-2024");
+    const tmpCase = join(mkdtempSync(join(tmpdir(), "docgov_test_tst_8_")), "cases", "tst_8");
+    try {
+      const res = await searchJuris(
+        { query: "terceirização responsabilidade | motoboy periculosidade", courts: ["TST", "TCU"], triage_mode: "compare", caseDir: tmpCase },
+        reg
+      );
+      expect(spy).toHaveBeenCalledTimes(2); // 1x por sub-query
+      const t = res.fileResult.tst_triage!;
+      expect(t.counts.erga_omnes).toBe(1);
+      expect(t.counts.orientativas).toBe(1);
+      expect(t.counts.inter_partes).toBe(2); // RR + AIRR aceito na 2a sub-query
+      expect(t.counts.filtered_out).toBe(0);
+      // TCU não contamina os baldes do TST
+      const allIds = [...t.buckets.erga_omnes, ...t.buckets.orientativas, ...t.buckets.inter_partes, ...t.buckets.unclassified].map((i) => i.id);
+      expect(allIds).not.toContain("ACORDAO-TCU-1234-2024");
+    } finally {
+      rmSync(join(tmpCase, "..", ".."), { recursive: true, force: true });
+    }
     spy.mockRestore();
   });
 
@@ -443,13 +455,18 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
       });
     }
 
-    for (const court of otherCourts) {
-      const baseRes = await searchJuris({ query: "licitação contrato", courts: [court] }, reg);
-      const cmpRes = await searchJuris({ query: "licitação contrato", courts: [court], triage_mode: "compare" }, reg);
-      expect(cmpRes.fileResult.tst_triage).toBeUndefined();
-      const s1 = JSON.stringify(formatSearchJurisSyntheticResult(baseRes.fileResult, baseRes.mdPath));
-      const s2 = JSON.stringify(formatSearchJurisSyntheticResult(cmpRes.fileResult, cmpRes.mdPath));
-      expect(s2).toBe(s1);
+    const tmpCase = join(mkdtempSync(join(tmpdir(), "docgov_test_tst_9_")), "cases", "tst_9");
+    try {
+      for (const court of otherCourts) {
+        const baseRes = await searchJuris({ query: "licitação contrato", courts: [court], caseDir: join(tmpCase, court) }, reg);
+        const cmpRes = await searchJuris({ query: "licitação contrato", courts: [court], triage_mode: "compare", caseDir: join(tmpCase, court) }, reg);
+        expect(cmpRes.fileResult.tst_triage).toBeUndefined();
+        const s1 = JSON.stringify(formatSearchJurisSyntheticResult(baseRes.fileResult, baseRes.mdPath));
+        const s2 = JSON.stringify(formatSearchJurisSyntheticResult(cmpRes.fileResult, cmpRes.mdPath));
+        expect(s2).toBe(s1);
+      }
+    } finally {
+      rmSync(join(tmpCase, "..", ".."), { recursive: true, force: true });
     }
   });
 

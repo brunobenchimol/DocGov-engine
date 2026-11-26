@@ -3,13 +3,18 @@
 // docgov-engine v1.5.0 — test/contracts_arp_mcp_cli.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterAll } from "bun:test";
 import { handleCallTool } from "../src/mcp/server.ts";
 import { getMcpToolsDefinition } from "../src/mcp/tools_definition.ts";
 import { handleContractsCli } from "../src/cli/contracts_cli.ts";
-import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
+import { writeFileSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getEphemeralInspectDir } from "../src/utils/paths.ts";
+
+const contractsCliTempRoot = mkdtempSync(join(tmpdir(), "docgov_test_contracts_cli_"));
+afterAll(() => {
+  rmSync(contractsCliTempRoot, { recursive: true, force: true });
+});
 
 describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
   it("deve conter docgov_audit_contract_execution e docgov_govern_arp em getMcpToolsDefinition()", () => {
@@ -20,7 +25,7 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
   });
 
   it("docgov_audit_contract_execution deve retornar payload sintético estritamente < 900 bytes", async () => {
-    const testDir = join(getEphemeralInspectDir(), `test_mcp_audit_${Date.now()}`);
+    const testDir = join(contractsCliTempRoot, `test_mcp_audit_${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
     const jsonPath = join(testDir, "contrato_teste.json");
     writeFileSync(
@@ -71,7 +76,7 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
   });
 
   it("docgov_govern_arp deve retornar payload sintético estritamente < 900 bytes", async () => {
-    const testDir = join(getEphemeralInspectDir(), `test_mcp_arp_${Date.now()}`);
+    const testDir = join(contractsCliTempRoot, `test_mcp_arp_${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
     const jsonPath = join(testDir, "arp_teste.json");
     writeFileSync(
@@ -114,7 +119,7 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
   });
 
   it("CLI handleContractsCli deve processar audit-contract e govern-arp com sucesso", async () => {
-    const testDir = join(getEphemeralInspectDir(), `test_cli_${Date.now()}`);
+    const testDir = join(contractsCliTempRoot, `test_cli_${Date.now()}`);
     mkdirSync(testDir, { recursive: true });
     const contractPath = join(testDir, "contrato_cli.json");
     writeFileSync(
@@ -163,7 +168,7 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
 
   it("Estresse máximo MCP (< 900B): docgov_audit_contract_execution com 18 tags e docgov_govern_arp REJECTED com 6 tags + DOCX/PDF", async () => {
     const longTestDir = join(
-      getEphemeralInspectDir(),
+      contractsCliTempRoot,
       `estresse_maximo_mcp_payload_ceiling_v164_${Date.now()}`
     );
     mkdirSync(longTestDir, { recursive: true });

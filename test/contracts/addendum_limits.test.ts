@@ -3,11 +3,18 @@
 // docgov-engine v1.5.0 — test/contracts/addendum_limits.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
+import { describe, it, expect, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { auditContractAddendums } from "../../src/contracts/addendum_auditor.ts";
 import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 
 describe("Fiscalização Contratual — Limites de Aditamento e Vedações (Marco 8.1)", () => {
+  const tempOutDir = mkdtempSync(join(tmpdir(), "docgov_test_addendum_"));
+  afterAll(() => {
+    rmSync(tempOutDir, { recursive: true, force: true });
+  });
   it("deve aprovar aditivo de compras/serviços dentro do limite geral de 25%", () => {
     const res = auditContractAddendums({
       contract_id: "CT-SERV-01",
@@ -127,15 +134,18 @@ describe("Fiscalização Contratual — Limites de Aditamento e Vedações (Marc
   });
 
   it("deve integrar a orquestração completa em auditContractExecution gerando relatórios em disco", async () => {
-    const { report, synthetic } = await auditContractExecution({
-      contract_id: "CT-INTEGRADO-08",
-      legal_regime: "LEI_14133",
-      object_type: "SERVICE",
-      initial_value: 1000000,
-      addendums: [
-        { id: "TA-01", value_increase: 300000, value_decrease: 80000 },
-      ],
-    });
+    const { report, synthetic } = await auditContractExecution(
+      {
+        contract_id: "CT-INTEGRADO-08",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICE",
+        initial_value: 1000000,
+        addendums: [
+          { id: "TA-01", value_increase: 300000, value_decrease: 80000 },
+        ],
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
 
     expect(report.status).toBe("blocked");
     expect(synthetic.status).toBe("blocked");

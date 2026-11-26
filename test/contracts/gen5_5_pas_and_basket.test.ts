@@ -3,8 +3,9 @@
 // docgov-engine v1.5.5 — test/contracts/gen5_5_pas_and_basket.test.ts
 // ============================================================================
 
-import { describe, it, expect } from "bun:test";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { describe, it, expect, afterAll } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import JSZip from "jszip";
 import { auditPasSanctionsAndGuarantees } from "../../src/contracts/pas_sanction_auditor.ts";
@@ -12,7 +13,11 @@ import { auditPriceBasketAndRebalance } from "../../src/contracts/price_basket_a
 import { auditContractExecution } from "../../src/contracts/audit_contract_execution.ts";
 import { handleContractsCli } from "../../src/cli/contracts_cli.ts";
 import { handleCallTool } from "../../src/mcp/server.ts";
-import { getEphemeralInspectDir } from "../../src/utils/paths.ts";
+
+const gen55TempRoot = mkdtempSync(join(tmpdir(), "docgov_test_gen55_"));
+afterAll(() => {
+  rmSync(gen55TempRoot, { recursive: true, force: true });
+});
 
 async function assertValidOpcDocxPackage(docxPath: string): Promise<void> {
   const zip = await JSZip.loadAsync(readFileSync(docxPath));
@@ -149,7 +154,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
   });
 
   it("Sub-Assert 30.11a: deve compilar Notificacao PAS (PAS_NOTIFICATION) em DOCX e PDF", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen55_notif_${Date.now()}`);
+    const outDir = join(gen55TempRoot, `test_gen55_notif_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "contrato_30_11a.json");
     writeFileSync(
@@ -195,7 +200,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
   }, 15000);
 
   it("Sub-Assert 30.11b: deve compilar Parecer de Dosimetria (DOSIMETRY_OPINION) em DOCX e PDF", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen55_opinion_${Date.now()}`);
+    const outDir = join(gen55TempRoot, `test_gen55_opinion_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "contrato_30_11b.json");
     writeFileSync(
@@ -244,7 +249,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
   }, 15000);
 
   it("Sub-Assert 30.12: deve respeitar < 900B no MCP/CLI e propagar todas as tags para JSON e MD", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_gen55_mcp_${Date.now()}`);
+    const outDir = join(gen55TempRoot, `test_gen55_mcp_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
     const jsonPath = join(outDir, "contrato_30_12.json");
     writeFileSync(

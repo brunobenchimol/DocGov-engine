@@ -8,7 +8,7 @@ import {
   mkdirSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join, resolve } from "node:path";
+import { join, resolve, dirname } from "node:path";
 import JSZip from "jszip";
 import { extractPdfPages } from "../src/utils/pdf.ts";
 import { classifyPdfPage } from "../src/utils/pdf/page_inspector.ts";
@@ -330,6 +330,7 @@ describe("unpdf@2.1.0+ Multimodal Assets, 5 Page Classes & Dual PDF/DOCX Forensi
       ])
     );
     const extRes = await inspectDoc(extPdf, undefined, true);
+    if (extRes.audit_view_path) tempDirs.push(dirname(extRes.audit_view_path));
     expect(existsSync(extRes.extracted_images_manifest?.[0]?.saved_path!)).toBe(true);
   });
 

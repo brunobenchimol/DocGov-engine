@@ -1,4 +1,7 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test, afterAll } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import {
   computeNfeMod11CheckDigit,
   parseAndValidateNfeAccessKey,
@@ -30,6 +33,10 @@ function makeNfeKey(uf: string, aamm: string, cnpj: string, modelo = "55"): stri
 describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guarda unknown_keys Gen6", () => {
   const bidderCnpj = "11222333000181";
   const tomadorCnpj = "99888777000166";
+  const tempOutDir = mkdtempSync(join(tmpdir(), "docgov_test_nfe_"));
+  afterAll(() => {
+    rmSync(tempOutDir, { recursive: true, force: true });
+  });
 
   test("1. Decomposição posicional exata, Módulo 11 e formatos de data YYYY-MM-DD / DD/MM/YYYY / YYYY-MM", () => {
     const validKey = makeNfeKey("35", "2605", bidderCnpj, "55");
@@ -76,39 +83,45 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
 
   test("3. ACT Via B usa bidder_cnpj (e não issuer_cnpj do tomador) sem gerar falso-positivo", async () => {
     const validKey = makeNfeKey("53", "2604", bidderCnpj);
-    const okRes = await evaluateBiddingProposals({
-      process_id: "PROC-NFE-ACT-OK",
-      bidder_name: "PRESTADORA_TI_GENERICA",
-      bidder_cnpj: "11.222.333/0001-81",
-      act_forensic_items: [
-        {
-          certificate_id: "ACT-VIA-B",
-          issuer_name: "ORGAO_CONTRATANTE",
-          issuer_cnpj: tomadorCnpj,
-          diligence_nfe_keys: [
-            { access_key: validKey, declared_issue_date: "2026-04-10" },
-          ],
-        },
-      ],
-    });
+    const okRes = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-NFE-ACT-OK",
+        bidder_name: "PRESTADORA_TI_GENERICA",
+        bidder_cnpj: "11.222.333/0001-81",
+        act_forensic_items: [
+          {
+            certificate_id: "ACT-VIA-B",
+            issuer_name: "ORGAO_CONTRATANTE",
+            issuer_cnpj: tomadorCnpj,
+            diligence_nfe_keys: [
+              { access_key: validKey, declared_issue_date: "2026-04-10" },
+            ],
+          },
+        ],
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
     expect(okRes.dossier.blocking_tags).not.toContain("[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]");
     expect(okRes.dossier.blocking_tags).not.toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
 
     const badKey = makeNfeKey("53", "2604", "44555666000177");
-    const badRes = await evaluateBiddingProposals({
-      process_id: "PROC-NFE-ACT-BAD",
-      bidder_name: "PRESTADORA_TI_GENERICA",
-      bidder_cnpj: "11.222.333/0001-81",
-      act_forensic_items: [
-        {
-          certificate_id: "ACT-VIA-B",
-          issuer_name: "ORGAO_CONTRATANTE",
-          issuer_cnpj: tomadorCnpj,
-          nfe_access_key: badKey,
-          nfe_declared_issue_date: "2026-04",
-        },
-      ],
-    });
+    const badRes = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-NFE-ACT-BAD",
+        bidder_name: "PRESTADORA_TI_GENERICA",
+        bidder_cnpj: "11.222.333/0001-81",
+        act_forensic_items: [
+          {
+            certificate_id: "ACT-VIA-B",
+            issuer_name: "ORGAO_CONTRATANTE",
+            issuer_cnpj: tomadorCnpj,
+            nfe_access_key: badKey,
+            nfe_declared_issue_date: "2026-04",
+          },
+        ],
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
     expect(badRes.dossier.decision).toBe("REJECTED");
     expect(badRes.dossier.blocking_tags).toContain("[FORENSIC_NFE_KEY_CNPJ_OR_DATE_MISMATCH_BLOCK]");
   });
@@ -116,21 +129,24 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
   test("4. Contratação Direta valida NF-e de supplier_market_price_proofs[]", async () => {
     const validKey = makeNfeKey("35", "2602", bidderCnpj);
     const badDvKey = `${validKey.slice(0, 43)}${(Number(validKey[43]) + 3) % 10}`;
-    const res = await auditDirectContracting({
-      process_id: "PROC-INEX-NFE-01",
-      contracting_modality: "INEXIGIBILIDADE",
-      supplier_cnpj: "11.222.333/0001-81",
-      offered_unit_price: 1000,
-      inexigibility_details: {
-        competition_infeasibility_proven: true,
-        exclusivity_certificate: { provided: true, sumula_255_tcu_verified: true },
-        supplier_market_price_proofs: [
-          { type: "NF", identifier: "NF-1", unit_price: 1000, issue_date: "2026-02-01", nfe_access_key: validKey },
-          { type: "NF", identifier: "NF-2", unit_price: 1000, issue_date: "2026-02-10", nfe_access_key: badDvKey },
-          { type: "NF", identifier: "NF-3", unit_price: 1000, issue_date: "2026-02-20" },
-        ],
+    const res = await auditDirectContracting(
+      {
+        process_id: "PROC-INEX-NFE-01",
+        contracting_modality: "INEXIGIBILIDADE",
+        supplier_cnpj: "11.222.333/0001-81",
+        offered_unit_price: 1000,
+        inexigibility_details: {
+          competition_infeasibility_proven: true,
+          exclusivity_certificate: { provided: true, sumula_255_tcu_verified: true },
+          supplier_market_price_proofs: [
+            { type: "NF", identifier: "NF-1", unit_price: 1000, issue_date: "2026-02-01", nfe_access_key: validKey },
+            { type: "NF", identifier: "NF-2", unit_price: 1000, issue_date: "2026-02-10", nfe_access_key: badDvKey },
+            { type: "NF", identifier: "NF-3", unit_price: 1000, issue_date: "2026-02-20" },
+          ],
+        },
       },
-    });
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
     expect(res.dossier.decision).toBe("REJECTED");
     expect(res.dossier.blocking_tags).toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
   });
@@ -163,23 +179,29 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
       })
     ).toEqual([]);
 
-    const bidRes = await evaluateBiddingProposals({
-      process_id: "PROC-UNK-BID",
-      invented_root_alias: true,
-      act_forensic_items: [{ certificate_id: "A1", fake_nfe_field: "123" }],
-    });
+    const bidRes = await evaluateBiddingProposals(
+      {
+        process_id: "PROC-UNK-BID",
+        invented_root_alias: true,
+        act_forensic_items: [{ certificate_id: "A1", fake_nfe_field: "123" }],
+      },
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
     expect(bidRes.dossier.unknown_keys).toEqual(["invented_root_alias", "act_forensic_items[0].fake_nfe_field"]);
     expect(bidRes.synthetic.unknown_keys).toEqual(["invented_root_alias", "act_forensic_items[0].fake_nfe_field"]);
     expect(Buffer.byteLength(serializeBiddingSyntheticResult(bidRes.synthetic), "utf-8")).toBeLessThanOrEqual(880);
 
-    const dirRes = await auditDirectContracting({
-      process_id: "PROC-UNK-DIR",
-      contracting_modality: "INEXIGIBILIDADE",
-      unknown_top_alias: 123,
-      inexigibility_details: {
-        supplier_market_price_proofs: [{ identifier: "NF-1", unit_price: 100, chave_nfe_alias: "abc" }],
+    const dirRes = await auditDirectContracting(
+      {
+        process_id: "PROC-UNK-DIR",
+        contracting_modality: "INEXIGIBILIDADE",
+        unknown_top_alias: 123,
+        inexigibility_details: {
+          supplier_market_price_proofs: [{ identifier: "NF-1", unit_price: 100, chave_nfe_alias: "abc" }],
+        },
       },
-    });
+      { outputDir: tempOutDir, compilationMode: "NONE" }
+    );
     expect(dirRes.dossier.unknown_keys).toEqual([
       "unknown_top_alias",
       "inexigibility_details.supplier_market_price_proofs[0].chave_nfe_alias",

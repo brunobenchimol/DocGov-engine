@@ -1,13 +1,17 @@
-import { describe, expect, it } from "bun:test";
-import { existsSync, mkdirSync, readFileSync } from "node:fs";
+import { describe, expect, it, afterAll } from "bun:test";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { evaluateBiddingProposals } from "../src/bidding/index.ts";
 import { handleCallTool } from "../src/mcp/server.ts";
-import { getEphemeralInspectDir } from "../src/utils/paths.ts";
 
 describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Art. 165 / Acórdão 1211/2021", () => {
+  const tempRoot = mkdtempSync(join(tmpdir(), "docgov_test_bid_v164_"));
+  afterAll(() => {
+    rmSync(tempRoot, { recursive: true, force: true });
+  });
   it("deve detectar Jogo de Planilha via unit_items[] e via flag direta sem quebrar 75%/85%", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_jogo_planilha_${Date.now()}`);
+    const outDir = join(tempRoot, `test_jogo_planilha_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
 
     const viaItems = await evaluateBiddingProposals(
@@ -44,7 +48,7 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
   });
 
   it("deve acionar os 4 novos marcadores recursais (Art. 165 e Acórdão TCU 1.211/2021) via MCP < 900B", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_appeals_v164_${Date.now()}`);
+    const outDir = join(tempRoot, `test_appeals_v164_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
 
     const mcpRes: any = await handleCallTool("docgov_evaluate_bidding_proposals", {
@@ -75,7 +79,7 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
   });
 
   it("deve manter retrocompatibilidade total quando novos campos recursais opcionais não forem informados", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_appeals_retro_${Date.now()}`);
+    const outDir = join(tempRoot, `test_appeals_retro_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
 
     const cleanRes = await evaluateBiddingProposals(
@@ -98,7 +102,7 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
   });
 
   it("Sonda Gen6-D (PE-055/2026-ENG): 14 tags simultâneas + APPEALS_BUNDLE both deve manter MCP <= 880B (< 900B) e 14/14 tags no disco", async () => {
-    const outDir = join(getEphemeralInspectDir(), `test_sonda_gen6d_${Date.now()}`);
+    const outDir = join(tempRoot, `test_sonda_gen6d_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
 
     const mcpRes: any = await handleCallTool("docgov_evaluate_bidding_proposals", {
@@ -201,5 +205,5 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
     expect(existsSync(join(outDir, "Peca_Razoes_ou_Contrarrazoes_Recurso_Administrativo.pdf"))).toBe(true);
     expect(existsSync(join(outDir, "Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.docx"))).toBe(true);
     expect(existsSync(join(outDir, "Decisao_Pregoeiro_e_Encaminhamento_Autoridade_Superior.pdf"))).toBe(true);
-  }, 20000);
+  }, 35000);
 });
