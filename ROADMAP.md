@@ -4,7 +4,7 @@
 > **Propósito deste Documento:** Fonte única da verdade sobre o planejamento arquitetural, evoluções funcionais e marcos estratégicos futuros do motor (`v1.5.x+`).
 > **Natureza Standalone & Desacoplada:** O `docgov-engine` é um motor autônomo e determinístico. Embora sirva como fundação para a camada de agentes do ecossistema `docgov`, ele possui ciclo próprio de evolução e pode ser utilizado de forma independente via CLI ou MCP por qualquer cliente, agente de IA ou pipeline automatizado.
 > **Política de Versionamento Pareado (Lockstep `Major.Minor` com o repositório `DocGov`) & Janelas de Amortecimento (*Buffered Releases*):**
-> O par `Major.Minor` (`1.2.x` a `1.8.x`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. A partir da série `v1.7.x`, adotamos a engenharia de **Releases Amortecidas** (`v1.7.0 -> v1.7.3 -> v1.7.5 -> v1.7.8 -> v1.7.10` e `v1.8.0 -> v1.8.3 -> v1.8.5 -> v1.8.8`), onde os saltos deliberados de versão reservam números de *patch* intermediários (`v1.7.1`/`1.7.2`, `v1.7.4`, `v1.8.1`/`1.8.2`, etc.) para absorver *hotfixes* de *smoke tests* e *dogfooding* real, mantendo cada ciclo de codificação e sua suíte de testes pequenos, coesos e à prova de regressões.
+> O par `Major.Minor` (`1.2.x` a `1.11.x+`) caminha em estrita sincronia funcional com o repositório irmão `DocGov`, agrupando conjuntos densos de funcionalidades por geração. A partir da série `v1.7.x`, adotamos a engenharia de **Releases Amortecidas** (`v1.7.0 -> v1.7.3 -> v1.7.6 -> v1.7.8`, `v1.8.0 -> v1.8.3 -> v1.8.6`, `v1.9.0 -> v1.9.3 -> v1.9.6`, `v1.10.0 -> v1.10.3` e `v1.11.x+`), onde os saltos deliberados de versão reservam números de *patch* intermediários (`v1.7.1`/`1.7.2`, `v1.7.4`–`1.7.5`, `v1.7.7`, `v1.8.1`–`1.8.2`, etc.) para absorver *hotfixes* de *smoke tests* e *dogfooding* real, mantendo a linha de base de **16 tools MCP** na `v1.7.3` e mantendo cada ciclo de codificação e sua suíte de testes pequenos, coesos e à prova de regressões.
 > **Regra para Agentes IA:** Sempre consulte e atualize os checkboxes (`[x]` / `[ ]`) deste `ROADMAP.md` ao planejar ou concluir cada marco evolutivo.
 
 ---
@@ -24,14 +24,17 @@
 | **Geração 6.5** | `v1.6.5` / `v1.6.6` / `v1.6.7` | **Eixo 1 (`[CONCLUÍDO]` na `v1.6.5`):** Regime de Dedicação Exclusiva de Mão de Obra (`DEMO` — Módulos 1–6, Anexo VI-B, Dec. 12.174/2024, Conta Vinculada vs. Fato Gerador, Expurgo APT & Repactuação via `docgov_audit_demo_regime`)<br>**Eixo 2 (`[CONCLUÍDO]` na `v1.6.6` / `v1.6.7`):** Obras e Serviços de Engenharia (BDI Acórdão TCU 2.622/2013, Súmulas 253/254, Desoneração CPRB Lei 14.973/2024, Curva ABC `SINAPI`/`SICRO`, *Front-Loading*, Contratação Integrada, Inexequibilidade 75%/85% & Hardening Black-Box via `docgov_audit_engineering_works`) | `[CONCLUÍDO]` |
 | **Geração 7.0** | `v1.7.0` / `v1.7.1` / `v1.7.2` | 2ª Perna Anti-Fraude (Parte 1): Perícia Criptográfica `PKCS#7/CMS/PAdES` (`ICP-Brasil`/`Gov.br` & `/ByteRange`), Validador Algorítmico NF-e 44 Dígitos, Clones `w:rsid` `.docx`, Metadados `.xlsx`, Guarda `unknown_keys` Gen6, Smoke Real, Resiliência Unificada JURIS, Triagem A/B Estruturada do TST (4 Baldes), Refatoração Modular 100% Lei 9 & Polimentos R4 | `[CONCLUÍDO]` |
 | **Geração 7.3** | `v1.7.3` *(hotfix `1.7.4`–`1.7.5`)* | Higienização Estrutural JURIS, Acumulação com Lock (`juris_search_store`), Neutralidade Estrita (`NEUTRAL`/`AUTO` + Rebalanceamento `0..100`), Cache Dinâmico TTL 24h TST (`SUM`/`OJ`/`ACORDAO`) & Migração do Inteiro Teor para `state/` | `[CONCLUÍDO]` |
-| **Geração 7.6** | `v1.7.6` *(hotfix `1.7.7`)* | 2ª Perna Anti-Fraude (Parte 2): Grafo Multi-CNPJ de Conluio Societário (`QSA`/Endereço/Contato) & Detector de Empresa Sucessora/Fantasma em Fraude à Sanção (Art. 160 / Acórdão TCU 2.218/2011) | `[PLANEJADO]` |
-| **Geração 7.8** | `v1.7.8` *(hotfix `1.7.9`)* | 2ª Perna Anti-Fraude (Parte 3) & **17ª Tool MCP**: Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP (LC 123/2006 / R$ 4,8M), Subcontratação Ilícita (Art. 122) & `docgov_audit_antifraud_and_integrity` | `[PLANEJADO]` |
-| **Geração 7.10** | `v1.7.10` *(hotfix `1.7.11`)* | Fechamento do Ciclo Contratual & **18ª Tool MCP**: Mutabilidade Econômica (Reajuste/Repactuação/Fato do Príncipe vs. Revisão Art. 124, II, "d"), PCA Multi-Caso & Regime SICX (Art. 75, § 7º), Emissor Oficial de ACT (Art. 88, §§ 3º–4º), Encerramento/TRD & `docgov_audit_rebalance_and_closeout` | `[PLANEJADO]` |
-| **Geração 7.12** | `v1.7.12` *(hotfix `1.7.13+`)* | Modalidades Avançadas de TIC & **19ª Tool MCP**: Governança de Prova de Conceito (`PoC`), Licenciamento Enterprise & FinOps de Nuvem (`USN`) via `docgov_evaluate_poc_and_cloud_finops` | `[PLANEJADO]` |
-| **Geração 8.0** | `v1.8.0` *(hotfix `1.8.1–1.8.2`)* | **[Fase 1 — Oficial]** Conectores de Dados Abertos (Parte 1): Shared Open-Data Kernel & Índices Econômicos Oficiais (`Banco Central SGS/Olinda + IBGE SIDRA` — IPCA, INPC, IGP-M, ICTI, IST, INCC, PTAX) via `fetch_official_economic_indices` | `[PLANEJADO]` |
-| **Geração 8.3** | `v1.8.3` *(hotfix `1.8.4`)* | **[Fase 1 — Oficial]** Conectores de Dados Abertos (Parte 2): Integridade e Sanções ao Vivo (`TCU Certidão Consolidada zero-key [TCU + CEIS + CNEP + CNJ/CNCIAI]` & `CGU` opcional Env/Disco) via `fetch_supplier_integrity` | `[PLANEJADO]` |
-| **Geração 8.5** | `v1.8.5` *(hotfix `1.8.6–1.8.7`)* | **[Fase 2 — Opt-In]** Conectores de Dados Abertos (Parte 3): Hidratação Cadastral RFB/CNPJ (`fetch_cnpj_profile` — `BrasilAPI → MinhaReceita → ReceitaWS`) & ME/EPP *Sniper* Opt-In (`PNCP Contratos`) | `[PLANEJADO]` |
-| **Geração 8.8** | `v1.8.8` *(hotfix `1.8.9+`)* | **[Fase 2 — Opt-In]** Conectores de Dados Abertos (Parte 4): Catálogo `CATMAT/CATSER` Híbrido (*Loose Matching* `WARNING` + Top-3 Sugestões) & Painel de Preços Homologados 12m (`API Dados Abertos Compras.gov.br`) via `search_comprasgov_prices` | `[PLANEJADO]` |
+| **Geração 7.6** | `v1.7.6` *(hotfix `1.7.7` \| `Assert 38`)* | Fechamento Gen 7 (16 tools MCP mantidas) — Travas Legais Binárias do Pregoeiro (Sessão & Habilitação) na Rota E: Art. 14/38, ME/EPP R$ 4,8M (Art. 4º §§ 1º–2º / LC 123), Balanço Art. 69 (`BigInt` + ECD/Junta), Subcontratação Art. 122 & `audit_coverage` em `state/` | `[PLANEJADO]` |
+| **Geração 7.8** | `v1.7.8` *(hotfix `1.7.9` \| `Assert 39`)* | Fechamento Gen 7 (16 tools MCP mantidas) — Governança & Auditoria de Prova de Conceito (`PoC`) Dual-Mode: Edital (visão Órgão + Inteligência Competitiva/Defesa) & Fase Externa (`Roteiro_e_Laudo_Pericial_PoC.docx/.pdf`, travas TCU `POC_ALL_BIDDERS_BURDEN_BLOCK` e `POC_SUBJECTIVE_CRITERIA_BLOCK`) | `[PLANEJADO]` |
+| **Geração 8.0** | `v1.8.0` *(hotfix `1.8.1`–`1.8.2` \| `Assert 40`)* | Ciclo Contratual & **17ª Tool MCP** (`docgov_audit_contract_lifecycle`): Emissor Oficial de ACT (Art. 88, §§ 3º–4º), Livro-Razão PCA Cross-Caso (Art. 12, VII), Regime `SICX` (Art. 75, § 7º) & Encerramento/TRD | `[PLANEJADO]` |
+| **Geração 8.3** | `v1.8.3` *(hotfix `1.8.4`–`1.8.5` \| `Assert 41`)* | Expansão da **17ª Tool MCP** — Mutabilidade Contratual Documental: Repactuação DEMO (Art. 135), Fato do Príncipe Tributário Objetivo (Art. 134) & Revisão/Reequilíbrio Híbrido (Art. 124, II, "d" / Art. 81, VI Lei 13.303) | `[PLANEJADO]` |
+| **Geração 8.6** | `v1.8.6` *(hotfix `1.8.7`–`1.8.9` \| `Assert 42`)* | Reajuste em Sentido Estrito + Abertura Open-Data & **18ª Tool MCP** (`fetch_official_economic_indices`): Kernel Open-Data + `BACEN SGS/Olinda` & `IBGE SIDRA` (`IPCA`, `INPC`, `ICTI`, `IST`, `INCC`) plugados no motor `BigInt` de Reajuste | `[PLANEJADO]` |
+| **Geração 9.0** | `v1.9.0` *(hotfix `1.9.1`–`1.9.2` \| `Assert 43`)* | Expansão Open Data & **19ª Tool MCP** (`fetch_supplier_integrity`): Certidão Consolidada TCU (*zero-key*) + APIs CGU (`CEIS/CNEP/CEPIM`) opcionais | `[PLANEJADO]` |
+| **Geração 9.3** | `v1.9.3` *(hotfix `1.9.4`–`1.9.5` \| `Assert 44`)* | Expansão Open Data & **20ª Tool MCP** (`fetch_cnpj_profile`): Cascata resiliente `BrasilAPI -> MinhaReceita -> ReceitaWS` (QSA, abertura, endereço, CNAE, porte, situação cadastral) | `[PLANEJADO]` |
+| **Geração 9.6** | `v1.9.6` *(hotfix `1.9.7`–`1.9.9` \| `Assert 45`)* | Expansão Open Data & **21ª Tool MCP** (`search_comprasgov_prices`): Catálogo `CATMAT/CATSER` flexível + Preços Homologados 12m (Compras.gov.br / PNCP + histórico multi-certame) | `[PLANEJADO]` |
+| **Geração 10.0** | `v1.10.0` *(hotfix `1.10.1`–`1.10.2` \| `Assert 46`)* | Pilar Antifraude Dedicado (`ALERT-ONLY`) & **22ª Tool MCP** (`docgov_audit_antifraud_and_integrity`): Radar Antifraude v1 (Background Check, zero `REJECTED` automático, somente `ATTENTION_SIGNAL`: Grafo QSA/contato, Art. 160 sucessora, alinhamento de propostas, "coelho", fusão Gen7.0 & `audit_coverage`) | `[PLANEJADO]` |
+| **Geração 10.3** | `v1.10.3` *(hotfix `1.10.4+` \| `Assert 47`)* | Expansão da **22ª Tool MCP** — Radar Antifraude v2 (`ALERT-ONLY` — Modo Auditoria / Controle Interno): grafo expandido opcional, sinais contábeis avançados, *screening* multi-certame (CADE/OCDE) & `Relatorio_Sinais_Integridade_e_Antifraude.docx/.pdf` | `[PLANEJADO]` |
+| **Geração 11+** | `v1.11.x+` *(23ª Tool+ \| `Assert 48+`)* | Verticais Setoriais Profundas — iniciando por **Cloud FinOps & Licenciamento Enterprise de TIC** (`USN`, reservas plurianuais vs. sob demanda, travas *upfront*, *True-Up* e *egress fees*) | `[PLANEJADO]` |
 | **Major** | `v2.0.0` | Breaking Changes Reais em contratos públicos ou arquitetura de ferramentas MCP | `[RESERVADO]` |
 
 ---
@@ -149,7 +152,7 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 
 ---
 
-## 🕵️♂️ SÉRIE `v1.7.x` (GERAÇÃO 7): 2ª PERNA DE BLINDAGEM ANTI-FRAUDE, FECHAMENTO DO CICLO CONTRATUAL & MODALIDADES AVANÇADAS DE TIC (Eixos 1, 2 e 5)
+## 🕵️♂️ SÉRIE `v1.7.x` (GERAÇÃO 7): PERÍCIA FORENSE GEN7.0, HIGIENIZAÇÃO JURIS, TRAVAS LEGAIS BINÁRIAS DO PREGOEIRO & PROVA DE CONCEITO DUAL-MODE (16 TOOLS MCP MANTIDAS)
 
 > **Diretriz Transversal de Higiene de Tokens MCP & Blindagem de Contratos Gen5 (Eixo 5 — `[CONCLUÍDO NA v1.6.10 / v1.6.11]` | Trava Ativa para `v1.7.x`/`v1.8.x`):** Padronização de descrições enxutas em `getMcpToolsDefinition()` (`src/mcp/tools_definition.ts`, `src/demo_costs/audit_runner.ts`, `src/engineering/tool_definition.ts`) com teto estrito de `<= 600` caracteres (~150 tokens) por tool no `tools/list`, guarda determinística anti-regressão em `test/mcp_spec.test.ts`, smoke test determinístico via `StdioClientTransport` real (`test/mcp_stdio_smoke.test.ts`), *Exact Copy-Paste Error* e detector determinístico de `unknown_keys` em `docgov_audit_contract_execution` e `docgov_govern_arp` (`v1.6.11`), mantendo o detalhamento exaustivo de contratos no `--dump-spec` (`docs/especificacao_motor.md`) e o envelope de retorno MCP estritamente `< 900 bytes` (Lei 2).
 
@@ -164,90 +167,103 @@ As capacidades fundamentais do motor foram consolidadas e testadas com 100% de a
 - [x] **10.1B.3. Cache Dinâmico Live-Backed TTL 24h TST (`tst_ttl_cache.ts`):** Fim do catálogo estático congelado, suporte ao vivo a `SUM`/`OJ`/`ACORDAO` com `DOCGOV_JURIS_CACHE_DIR` (inclusive Mock Mode) e falha explícita `LIVE_FAILED` / `[LIVE_UNAVAILABLE]` sem cache `< 24h`.
 - [x] **10.1B.4. Integridade do Dossiê & Migração `inputs/` -> `state/` (`anatomical_markdown.ts`):** Inteiro teor gravado em `state/juris_<shortname>/inteiro_teor_anatomico.md`, ordenação `1->6`, `truncateCleanBoundary` e links diretos.
 
-### MARCO 10.2 — `v1.7.6` (Geração 7.6 — Rede de Conluio Societário QSA, Cartel Familiar & Sucessão Fraudulenta em Sanções) *(Reserva de Hotfix: `v1.7.7`)*
+### MARCO 10.2 — `v1.7.6` (Geração 7.6 — Fechamento Gen 7: Travas Legais Binárias do Pregoeiro em Sessão & Habilitação — 16 Tools MCP Mantidas) *(Reserva de Hotfix: `v1.7.7` | `Assert 38`)*
 
-- [ ] **10.2.1. Pilar Anti-Fraude 2 (`collusion_graph_auditor.ts`):**
-  - Grafo multi-CNPJ cruzando quadro societário (`QSA`), sobrenomes familiares combinados com mesmo endereço/CEP, telefone, domínio de e-mail ou contador entre concorrentes de licitação ou fornecedores de cotações preliminares (`[BID_RIGGING_SHARED_QSA_OR_ADDRESS_NETWORK_BLOCK]`).
-- [ ] **10.2.2. Detector de Empresa Sucessora / Fantasma em Fraude à Sanção (Art. 160 da Lei 14.133/2021 e Acórdão TCU 2.218/2011-Plenário):**
-  - Cruzamento de sócios, ex-sócios, cônjuges/parentes, endereço e CNAE da licitante contra empresas sancionadas no `CEIS / CNEP / TCU Inidôneos` para detectar abuso da personalidade jurídica (`[SANCTION_EVASION_SUCCESSOR_COMPANY_ALERT]`).
+- [ ] **10.2.1. Integração Determinística à Rota E (`docgov_evaluate_bidding_proposals` e, no que couber, `docgov_audit_direct_contracting`) — Sem Heurística Especulativa de Cartel:**
+  - **Impedimentos Objetivos (Art. 14 da Lei nº 14.133/2021 e Art. 38 da Lei nº 13.303/2016):** Verificação objetiva de sanção vigente informada nos autos no CNPJ ou sócio majoritário, autoria de projeto (básico/executivo/TR) e vínculo funcional impeditivo;
+  - **Travas Aritméticas ME/EPP (Art. 4º, §§ 1º–2º da Lei nº 14.133/2021 e LC nº 123/2006):** Bloqueio automático de usufruto indevido dos benefícios diferenciados quando o valor estimado do lote exceder `R$ 4.800.000,00` ou quando a soma de contratos declarados no ano-calendário ultrapassar `R$ 4.800.000,00`;
+  - **Consistência Básica do Balanço Patrimonial (Art. 69 da Lei nº 14.133/2021):** Verificação da equação fundamental da contabilidade em `BigInt` em centavos (`Ativo == Passivo + Patrimônio Líquido`) somada à checagem condicional de autenticação documental sem falso positivo tributário (aceitando recibo/hash `ECD` ou registro na Junta Comercial conforme porte e regime tributário aplicável);
+  - **Subcontratação Ilícita (Art. 122 da Lei nº 14.133/2021):** Bloqueio de subcontratação sobre parcela principal habilitatória e impedimento objetivo do Art. 122, § 3º (vínculo/impedimento do subcontratado);
+  - **Transparência de Escopo (`audit_coverage` em `state/`):** Emissão de relatório detalhado de `audit_coverage` em disco (`state/`) explicitando regras verificadas, dados ausentes e cobertura efetiva sem inflar o retorno sintético MCP `< 900B` (Lei 2).
 
-### MARCO 10.3 — `v1.7.8` (Geração 7.8 — Perícia Contábil Anti-Maquiagem de Balanço, Fraude ME/EPP LC 123/2006, Subcontratação Ilícita & 17ª Tool MCP) *(Reserva de Hotfix: `v1.7.9`)*
+### MARCO 10.3 — `v1.7.8` (Geração 7.8 — Fechamento Gen 7: Governança & Auditoria de Prova de Conceito `PoC` — Dual-Mode — 16 Tools MCP Mantidas) *(Reserva de Hotfix: `v1.7.9` | `Assert 39`)*
 
-- [ ] **10.3.1. Pilar Anti-Fraude 3 (Auditoria Forense de Balanço Patrimonial):**
-  - Verificação da equação fundamental da contabilidade (`Ativo != Passivo + PL` -> `[FINANCIAL_BALANCE_SHEET_EQUATION_FRAUD_BLOCK]`);
-  - Expurgo de liquidez artificial inflada por créditos com partes relacionadas/empréstimos a sócios (`[FINANCIAL_ARTIFICIAL_LIQUIDITY_RELATED_PARTIES_ALERT]`);
-  - Detecção de aumento relâmpago de capital social às vésperas do certame sem integralização (`[FINANCIAL_UNINTEGRALIZED_CAPITAL_SPIKE_ALERT]`);
-  - Exigência de recibo/hash do SPED Contábil `ECD` ou registro na Junta Comercial (`[FINANCIAL_MISSING_SPED_ECD_HASH_BLOCK]`).
-- [ ] **10.3.2. Pilar Anti-Fraude 4 (Fraude ao Enquadramento ME/EPP & Subcontratação Irregular Art. 122):**
-  - Auditoria do somatório de receitas brutas/contratos públicos e empresas coligadas contra o teto da LC 123/2006 (`[ME_EPP_REVENUE_CAP_FRAUD_BLOCK]`);
-  - Aplicação da trava do Art. 4º, § 1º da Lei 14.133/2021 quando o lote excede R$ 4,8M (`[ME_EPP_LOT_EXCEEDS_4_8M_BENEFIT_FORBIDDEN_BLOCK]`);
-  - Bloqueio de subcontratação de parcela principal habilitatória (`[ILLEGAL_CORE_PARCEL_SUBCONTRACTING_BLOCK]`) e vedação de subcontratação com vínculo/impedimento do Art. 122, § 3º (`[SUBCONTRACTING_CONFLICT_OF_INTEREST_ART122_BLOCK]`).
-- [ ] **10.3.3. 17ª Ferramenta MCP `docgov_audit_antifraud_and_integrity` (CLI `audit-antifraud`):**
-  - Consolida os 5 pilares da 2ª Perna Anti-Fraude e compila em `.docx`/`.pdf` o `Laudo_Pericial_Forense_Integridade_e_Antifraude.docx/.pdf`.
-
-### MARCO 10.4 — `v1.7.10` (Geração 7.10 — Mutabilidade Econômica Art. 124/134/135, PCA & Regime SICX, Emissor Oficial de ACT & Encerramento Contratual) *(Reserva de Hotfix: `v1.7.11`)*
-
-- [ ] **10.4.1. 18ª Ferramenta MCP `docgov_audit_rebalance_and_closeout` (CLI `audit-rebalance-closeout`):**
-  - **Dogmática Jurídica da Mutabilidade Econômica — Separação Estrita Determinístico (Motor) vs. Subjetivo (Agente Tier 2 / Pro) (Art. 37, XXI da CF/88 e Lei nº 14.133/2021):**
-    - *100% Determinístico no Motor (`BigInt` em centavos):* (1) **Reajuste em Sentido Estrito** (Art. 6º, LVIII e Art. 92, § 3º — Álea Ordinária Inflacionária: interregno de 12 meses da data do orçamento estimado do Art. 25, § 7º e fator acumulado do índice contratual `IPCA`, `INPC`, `ICTI`, `IST`, `INCC`); (2) **Repactuação** (Art. 6º, LIX e Art. 135 — Álea Ordinária Mão de Obra `DEMO`: variação dos Módulos 1 a 6 por nova CCT/ACT com expurgo de itens não renováveis); e (3) **Fato do Príncipe Tributário Objetivo** (Art. 134: reflexo aritmético direto de criação/alteração de alíquota legal de `ISS`, `PIS/COFINS` ou `CPRB` pós-proposta);
-    - *Híbrido na Revisão / Reequilíbrio Stricto Sensu (Art. 124, II, "d" / Art. 81, VI da Lei nº 13.303/2016 — Álea Extraordinária e Extracontratual):* o **mérito fático probatório** (caso fortuito, força maior, desastres naturais ou choques imprevistos) é exclusivo do Agente Cognitivo Tier 2 / Pro (nunca parametrizado por índice arbitrário no motor), cabendo ao `docgov-engine` exclusivamente as travas objetivas de admissibilidade: (a) não alocação do evento à contratada na Matriz de Riscos (`[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]`), (b) exatidão aritmética em centavos da planilha de custos comprovados (`NF-e época da proposta vs. NF-e atual`) e (c) bloqueio de majoração oportunista da margem de lucro original (`[REBALANCE_OPPORTUNISTIC_PROFIT_MARGIN_INCREASE_BLOCK]`);
-  - **Governança de PCA Multi-Caso & Regime `SICX` (Sistema de Compras Expressas / E-Commerce Público — Art. 75, § 7º):**
-    - Livro-razão anual persistente por `UG/PDM/CATMAT/CATSER` para governança do PCA (Art. 12, VII) e anti-fracionamento *cross-caso*;
-    - Validação de enquadramento estrito do `SICX` em bens e serviços comuns padronizados de pronta entrega (bloqueando objetos complexos ou customizados de TIC/engenharia -> `[SICX_COMPLEX_OR_CUSTOM_OBJECT_MISUSE_BLOCK]`), controle automático de teto anual e anti-fracionamento por Unidade Gestora e classe `PDM/CATMAT/CATSER`, além de verificação de vantajosidade eletrônica em marketplace governamental;
-  - **Emissor Oficial de Atestado de Capacidade Técnica (ACT) pelo Órgão Contratante (Art. 88, §§ 3º e 4º da Lei nº 14.133/2021) & Encerramento Contratual:**
-    - Cruzamento determinístico entre Edital/TR/Contrato e Medições/OS/NFs/TRD sem glosas impeditivas, consolidando métricas conversíveis (`UST`, `PF`, `Postos`, `Horas`, `Itens`, `SLAs/IMR`) e bloqueando emissão sobre parcelas não executadas ou com saldo pendente (`[ACT_ISSUANCE_UNEXECUTED_BALANCE_BLOCK]`);
-    - Compilação de `Atestado_Capacidade_Tecnica_Oficial_Orgao.docx/.pdf` (quadro analítico de parcelas executadas, ID canônico do Contrato no PNCP e histórico de ANS), além da auditoria de quitação para liberação de Conta Vinculada/Seguro-Garantia, Plano de Transição de TI e compilação de `Termo_Recebimento_Definitivo_e_Encerramento.docx/.pdf` e `Parecer_Reequilibrio_Economico_Financeiro.docx/.pdf`.
-
-### MARCO 10.5 — `v1.7.12` (Geração 7.12 — Governança de Prova de Conceito PoC, Procedimentos Auxiliares & FinOps de Nuvem / Licenciamento Enterprise) *(Reserva de Hotfix: `v1.7.13+`)*
-
-- [ ] **10.5.1. 19ª Ferramenta MCP `docgov_evaluate_poc_and_cloud_finops` (CLI `evaluate-poc-cloud`):**
-  - Motor determinístico de Prova de Conceito (bloqueando exigência de PoC na fase de habilitação ou de todos os licitantes `[POC_ALL_BIDDERS_BURDEN_BLOCK]`, exigindo roteiro binário objetivo `[POC_SUBJECTIVE_CRITERIA_BLOCK]` e compilando `Roteiro_e_Laudo_Pericial_PoC.docx/.pdf`);
-  - Auditoria de Licenciamento de Software e FinOps de Nuvem (métricas de Unidades de Serviço em Nuvem `USN`, comparação reserva plurianual vs. sob demanda, bloqueio de pagamento 100% *upfront* sem desconto/salvaguarda e riscos de *True-Up* / *egress fees*).
+- [ ] **10.3.1. Governança & Auditoria de Prova de Conceito (`PoC`) Dual-Mode (Análise de Edital + Fase Externa):**
+  - **Modo Análise de Edital (Dual-View):** Acoplamento à trilha de análise de edital contemplando tanto a **visão do Órgão** (adequação e segurança jurídica do rito) quanto a **visão de Inteligência Competitiva / Defesa para Impugnação** contra exigência de PoC direcionada ou restritiva;
+  - **Modo Fase Externa & Laudo Pericial:** Seleção exclusiva do **1º colocado provisório** para realização da PoC e compilação padronizada em `.docx`/`.pdf` de `Roteiro_e_Laudo_Pericial_PoC.docx/.pdf`;
+  - **Travas Jurisprudenciais TCU Obrigatórias:** Vedação absoluta de exigência de PoC na fase de habilitação ou imposta a todos os licitantes (`[POC_ALL_BIDDERS_BURDEN_BLOCK]`), obrigatoriedade de roteiro objetivo com critérios binários `PASS/FAIL` (`[POC_SUBJECTIVE_CRITERIA_BLOCK]`) e validação de proporcionalidade de prazo e escopo amostral.
 
 ---
 
-## 🌐 SÉRIE `v1.8.x` (GERAÇÃO 8): CONECTORES DE DADOS ABERTOS GOVERNAMENTAIS COM RESILIÊNCIA DUPLA (Eixo 3)
+## ⚙️ SÉRIE `v1.8.x` (GERAÇÃO 8): CICLO CONTRATUAL COMPLETO & PONTE OPEN-DATA (TOTALMENTE DESACOPLADA DE FRAUDE)
 
-> **Padrão Arquitetural Obrigatório:** Todos os conectores da Geração 8 operam estritamente sob o padrão **Live API Primary + Curated/Deterministic Fallback**, garantindo zero dependência de internet na suíte `bun test` hermética e validação real contra as APIs públicas via `bun run test:live` com seletor `--connector=<ID>`.
+> **Diretriz Estrutural da Geração 8:** A Geração 8 conclui integralmente a governança contratual determinística (ACT oficial, PCA cross-caso, regime `SICX`, encerramento/TRD, mutabilidade econômica e reajuste em sentido estrito plugado em dados oficiais `BACEN`/`IBGE`) de forma totalmente desacoplada do pilar antifraude (Geração 10). Mantém estritamente `description <= 600` chars e envelope `< 900B`.
 
-- **Estruturação em 2 Fases:**
-  - **Fase 1 — Conectores Oficiais Sólidos (`v1.8.0` e `v1.8.3`):** APIs institucionais de alta estabilidade para índices econômicos oficiais (`BACEN`/`IBGE`) e integridade sancionatória (`TCU` *zero-key* + enriquecimento `CGU`);
-  - **Fase 2 — Conectores Sensíveis / Opt-In Sob Demanda (`v1.8.5` e `v1.8.8`):** Hidratação cadastral RFB/CNPJ, teto de faturamento ME/EPP *Sniper* e catálogo/preços homologados `Compras.gov.br`.
-- **Fronteira Determinístico vs. Cognitivo:** O motor **nunca** dispara chamadas de rede em cascata por conta própria; cada conector retorna envelope sintético MCP `< 900B` (Lei 2) com `artifact_path` + campo consultivo `enrichment_available`, cabendo aos motores analíticos (Gen 5/6/7) consumir os JSONs completos direto do disco via `open_data_refs`.
-- **Whitelist `ENG-10` & Cache Dual:** Aplicação obrigatória de whitelist `ENG-10` nas 4 tools combinada ao **Cache Dual**:
-  - *Camada 1 (Global):* TTL `365d+` para histórico imutável com janela `24h` nos últimos `45d`; `30d` para perfis CNPJ/preços; `90d` para catálogo `CATMAT/CATSER`; e `24h` para sanções/ME-EPP;
-  - *Camada 2 (Por Caso):* Snapshot imutável persistido em `<caseDir>/state/open_data/`.
-- **Credencial CGU *Non-Blocking*:** Resolução em cadeia `DOCGOV_CGU_API_KEY` (Env) $\rightarrow$ `~/.docgov/credentials.json` (ou `DOCGOV_CREDENTIALS_FILE`, fora do Git) $\rightarrow$ *skip* gracioso (tanto em produção quanto na suíte `tests_live/`).
-- **Exclusões Explícitas (`v1.8.x`):** Zero scraping de certidões (`CND`, `FGTS`, `CNDT`, `SICAF`, `SEFAZ`); zero API live para tabelas `SINAPI` (mensal) e `SICRO` (trimestral) — ingestão local via `.xlsx` em `inputs/`; e zero ingestão de Diários Oficiais na `v1.8.x`.
-- **Nota de Revisão Pré-Execução:** Revalidar disponibilidade, limites de taxa e contratos das APIs em novo brainstorm ao concluir a `v1.7.x`.
+### MARCO 11.1 — `v1.8.0` (Geração 8.0 — 17ª Tool MCP `docgov_audit_contract_lifecycle`: ACT Oficial, PCA Cross-Caso, `SICX` & Encerramento/TRD) *(Reserva de Hotfix: `v1.8.1`–`v1.8.2` | `Assert 40`)*
 
-### MARCO 11.1 — `v1.8.0` (Geração 8.0 — Fase 1 [Oficial]: Shared Open-Data Kernel & Índices Econômicos Oficiais: `Banco Central SGS/Olinda + IBGE SIDRA`) *(Reserva de Hotfix: `v1.8.1`–`v1.8.2`)*
+- [ ] **11.1.1. 17ª Ferramenta MCP `docgov_audit_contract_lifecycle` (CLI `audit-contract-lifecycle`):**
+  - **Emissor Oficial de Atestado de Capacidade Técnica (ACT) pelo Órgão Contratante (Art. 88, §§ 3º e 4º da Lei nº 14.133/2021):** Cruzamento determinístico entre Edital/TR/Contrato e Medições/OS/NFs/TRD sem glosas impeditivas, consolidando métricas conversíveis (`UST`, `PF`, `Postos`, `Horas`, `Itens`, `SLAs/IMR`), bloqueando emissão sobre parcelas não executadas (`[ACT_ISSUANCE_UNEXECUTED_BALANCE_BLOCK]`) e compilando `Atestado_Capacidade_Tecnica_Oficial_Orgao.docx/.pdf`;
+  - **Livro-Razão PCA Cross-Caso (Art. 12, VII) & Regime `SICX` (Art. 75, § 7º):** Livro-razão anual persistente por `UG/PDM/CATMAT/CATSER` para governança do Plano de Contratações Anual e anti-fracionamento *cross-caso*; validação estrita do Sistema de Compras Expressas (`SICX`) em bens e serviços comuns padronizados de pronta entrega, vedando objetos complexos ou customizados (`[SICX_COMPLEX_OR_CUSTOM_OBJECT_MISUSE_BLOCK]`);
+  - **Encerramento Contratual & Termo de Recebimento Definitivo (TRD):** Auditoria de quitação para liberação de Conta-Depósito Vinculada/Seguro-Garantia, verificação de Plano de Transição contratual e compilação de `Termo_Recebimento_Definitivo_e_Encerramento.docx/.pdf`.
 
-- [ ] **11.1.1. Shared Open-Data Kernel (`src/tools/open_data/`):**
-  - Cliente HTTP padronizado com *timeout*, *backoff* e isolamento offline, implementando o Cache Dual (Camada 1 Global + Camada 2 `<caseDir>/state/open_data/`), guarda `ENG-10`, referências `open_data_refs` em disco e sinalização consultiva `enrichment_available` no envelope `< 900B` (Lei 2).
-- [ ] **11.1.2. Ferramenta `fetch_official_economic_indices` (CLI `--fetch-indices`):**
-  - Consulta as APIs oficiais do `BACEN` (`bcdata.sgs` e **BCB Olinda** para `PTAX`) e `IBGE` (`SIDRA` operando sobre **números-índice** para exatidão decimal) para calcular ao centavo o fator acumulado exato no interregno contratual de **IPCA, INPC, IGP-M, ICTI (Ipea), IST (Anatel), INCC e PTAX**;
-  - Suporte nativo a **tabelas históricas curadas embutidas + sync live opcional** para `ICTI (Ipea)` e `IST (Anatel)`, barrando pleitos de reajuste ou reequilíbrio com índices divergentes da série oficial (`[OFFICIAL_INDEX_ACCUMULATED_FACTOR_MISMATCH_BLOCK]`).
+### MARCO 11.2 — `v1.8.3` (Geração 8.3 — Expansão da 17ª Tool: Mutabilidade Contratual Documental — Repactuação, Fato do Príncipe & Revisão Híbrida) *(Reserva de Hotfix: `v1.8.4`–`v1.8.5` | `Assert 41`)*
 
-### MARCO 11.2 — `v1.8.3` (Geração 8.3 — Fase 1 [Oficial]: Conector de Integridade e Sanções: `TCU Certidão Consolidada + CEIS + CNEP + CEPIM + TCU Inidôneos/Inabilitados`) *(Reserva de Hotfix: `v1.8.4`)*
+- [ ] **11.2.1. Mutabilidade Contratual Documental na `docgov_audit_contract_lifecycle`:**
+  - **Repactuação DEMO (Art. 6º, LIX e Art. 135 da Lei nº 14.133/2021):** Variação aritmética determinística dos Módulos 1 a 6 em `BigInt` por nova CCT/ACT com expurgo obrigatório de itens não renováveis;
+  - **Fato do Príncipe Tributário Objetivo (Art. 134 da Lei nº 14.133/2021):** Reflexo aritmético direto da criação ou alteração legal de alíquotas de `ISS`, `PIS`, `COFINS` ou `CPRB` pós-apresentação da proposta;
+  - **Revisão / Reequilíbrio Econômico-Financeiro Híbrido (Art. 124, II, "d" da Lei nº 14.133/2021 / Art. 81, VI da Lei nº 13.303/2016):** O **mérito fático probatório** da álea extraordinária e extracontratual é exclusivo do Agente Cognitivo Tier 2 Pro (nunca parametrizado por índice arbitrário no motor), cabendo ao motor exclusivamente as travas objetivas: (a) Matriz de Riscos (`[EXTRAORDINARY_RISK_ALLOCATED_TO_CONTRACTOR_BLOCK]`), (b) delta documental de `NF-e` (`época da proposta vs. época do pleito`) em `BigInt` e (c) vedação de majoração oportunista da margem de lucro original (`[REBALANCE_OPPORTUNISTIC_PROFIT_MARGIN_INCREASE_BLOCK]`);
+  - **Compilação Executiva:** Geração de `Parecer_Reequilibrio_Economico_Financeiro.docx/.pdf`.
 
-- [ ] **11.2.1. Ferramenta `fetch_supplier_integrity` (CLI `--check-integrity`):**
-  - **Camada *Zero-Key* (`TCU Certidão Consolidada`) + Enriquecimento Opcional `CGU`:** Consulta a Certidão Consolidada do `TCU` (*zero-key*, que já traz agregados `CEIS + CNEP` para Pessoa Jurídica, além de `TCU Inidôneos/Inabilitados` e `CNJ/CNCIAI` Improbidade) e, mediante credencial *non-blocking* (`DOCGOV_CGU_API_KEY` $\rightarrow$ `~/.docgov/credentials.json` / `DOCGOV_CREDENTIALS_FILE` $\rightarrow$ *skip* gracioso), complementa via API do Portal da Transparência (`CGU` — `CEIS + CNEP + CEPIM`) por CNPJ da licitante e CPF/CNPJ de seus sócios (`QSA`); na ausência de chave CGU, prossegue normalmente emitindo alerta consultivo `[INTEGRITY_PARTIAL_COVERAGE_NO_CGU_KEY_WARNING]` sem bloquear o fluxo;
-  - Verifica sanções vigentes e alcance federativo (`[LIVE_CEIS_IMPEDIMENT_ACTIVE_IN_SPHERE_BLOCK]` / `[LIVE_TCU_CNEP_NATIONAL_DEBARMENT_BLOCK]`), alimentando automaticamente o detector de sucessão fraudulenta da `v1.7.6` via `open_data_refs`.
+### MARCO 11.3 — `v1.8.6` (Geração 8.6 — Última Dedicada da Gen 8: Reajuste em Sentido Estrito + Abertura do Open-Data & 18ª Tool MCP `fetch_official_economic_indices`) *(Reserva de Hotfix: `v1.8.7`–`v1.8.9` | `Assert 42`)*
 
-### MARCO 11.3 — `v1.8.5` (Geração 8.5 — Fase 2 [Opt-In]: Conector Cadastral Receita Federal / CNPJ Público & ME/EPP *Sniper* Opt-In) *(Reserva de Hotfix: `v1.8.6`–`v1.8.7`)*
+- [ ] **11.3.1. Shared Open-Data Kernel (`src/tools/open_data/`) & 18ª Tool MCP `fetch_official_economic_indices`:**
+  - **Kernel Open-Data:** Cliente HTTP padronizado com *timeout*, *backoff*, Cache Dual (Camada 1 Global com TTL estratificado + Camada 2 imutável em `<caseDir>/state/open_data/`), sinalização consultiva `live_degraded`, guarda `ENG-10`, referências `open_data_refs` em disco e envelope MCP `< 900B` (Lei 2);
+  - **Coleta Oficial `BACEN SGS/Olinda` & `IBGE SIDRA`:** Coleta ao vivo + fallback curado para séries oficiais (`IPCA`, `INPC`, `ICTI`, `IST`, `INCC`, além de suporte complementar `IGP-M`/`PTAX`) operando sobre números-índice para exatidão decimal;
+  - **Plugagem 100% no Motor `BigInt` de Reajuste em Sentido Estrito (Art. 6º, LVIII; Art. 25, § 7º; Art. 92, § 3º):** Validação automática do interregno mínimo de 12 meses da data do orçamento estimado e cálculo em `BigInt` do fator acumulado oficial (`[OFFICIAL_INDEX_ACCUMULATED_FACTOR_MISMATCH_BLOCK]`), abrindo a esteira natural da Geração 9.
 
-- [ ] **11.3.1. Ferramenta `fetch_cnpj_profile` (CLI `--fetch-cnpj`) — Cascata Mono-Usuário `BrasilAPI → MinhaReceita → ReceitaWS`:**
-  - Hidratação automática ao vivo de dados societários e cadastrais em cascata (`BrasilAPI → MinhaReceita → ReceitaWS`, como 3º fallback de emergência) a partir apenas do CNPJ, cobrindo 100% dos dados do Cartão CNPJ (situação cadastral, data de abertura, capital social, porte ME/EPP, Simples/MEI, CNAE principal/secundários, QSA completo com `data_entrada_sociedade`/CPF mascarado e endereço/CEP/e-mail na RFB), alimentando sem fricção os 7 Vetores de ACT (Geração 6) e o Grafo de Conluio Societário (Geração 7.6) via `open_data_refs` (`[LIVE_CNPJ_INACTIVE_OR_SUSPENDED_RFB_BLOCK]` e `[LIVE_QSA_AUTO_HYDRATED_COLLUSION_MATCH]`).
-- [ ] **11.3.2. Teto de Faturamento ME/EPP *Sniper* Opt-In (`PNCP Contratos` + `Despesas CGU`):**
-  - Opera exclusivamente sob disparo explícito (`check_public_revenue_cap: false` por padrão $\rightarrow$ sinalização consultiva via `enrichment_available`), consultando o acumulado contratual no `PNCP Contratos` e em despesas públicas `CGU` somente quando acionado para confrontar o teto da LC nº 123/2006 (`v1.7.8`).
+---
 
-### MARCO 11.4 — `v1.8.8` (Geração 8.8 — Fase 2 [Opt-In]: Conector Catálogo `CATMAT/CATSER` Híbrido & Painel de Preços Homologados 12m: `API Dados Abertos Compras.gov.br`) *(Reserva de Hotfix: `v1.8.9+`)*
+## 🌐 SÉRIE `v1.9.x` (GERAÇÃO 9): EXPANSÃO OPEN DATA & OPEN CONECTORES GOVERNAMENTAIS
 
-- [ ] **11.4.1. Ferramenta `search_comprasgov_prices` (CLI `--search-comprasgov`):**
-  - **Fluxo Híbrido Anti-Lentidão & Janela Estrita de 12 Meses (`IN SEGES 65/2021`):** Recebe códigos candidatos já levantados do TR ou via `search_web` pelo agente para consulta cirúrgica nos módulos `/modulo-material`, `/modulo-servico` e `/modulo-pesquisa-preco` de `dadosabertos.compras.gov.br` e extrai séries de preços praticados nos **últimos 12 meses** em licitações homologadas para alimentar diretamente o cálculo estatístico da `IN SEGES 65/2021` (`price_basket_auditor.ts`);
-  - **Matching Flexível (*Loose Semantic & Lexical Range*) com Severidade Estritamente Consultiva (`WARNING`, Nunca `BLOCK`):** avalia aderência por faixa (*range*) de classe/família/PDM (reconhecendo que itens compostos ou de TIC nem sempre possuem encaixe 1:1 perfeito no catálogo federal), emitindo exclusivamente alertas consultivos em caso de baixa aderência semântica ou uso de código abrangente (`[CATMAT_CATSER_LOOSE_ALIGNMENT_WARNING]` e `[CATMAT_GENERIC_UMBRELLA_CODE_WARNING]`), jamais bloqueando a minuta ou reprovando a contratação;
-  - **Motor Recomendador (`Top-3 Suggested Codes`):** sempre que identificar código sub-ótimo ou com baixa aderência, retorna automaticamente os **Top 3 códigos PDM/CATMAT/CATSER mais aderentes** do catálogo oficial (código, descrição oficial, PDM e unidade de fornecimento) para apoiar a decisão do gestor.
+> **Padrão Arquitetural Obrigatório:** Todos os conectores da Geração 9 operam sob o padrão **Live API Primary + Curated/Deterministic Fallback** (zero dependência de internet na suíte `bun test` hermética e validação real via `bun run test:live` com seletor `--connector=<ID>`), reutilizando o **Shared Open-Data Kernel** inaugurado na `v1.8.6` (Cache Dual, `state/open_data/`, `open_data_refs`, `enrichment_available`, Whitelist `ENG-10` e envelope MCP `< 900B`).
+> **Credencial CGU *Non-Blocking*:** Resolução em cadeia `DOCGOV_CGU_API_KEY` (Env) $\rightarrow$ `~/.docgov/credentials.json` (ou `DOCGOV_CREDENTIALS_FILE`, fora do Git) $\rightarrow$ *skip* gracioso com `[INTEGRITY_PARTIAL_COVERAGE_NO_CGU_KEY_WARNING]`.
+> **Exclusões Explícitas:** Zero scraping de certidões (`CND`, `FGTS`, `CNDT`, `SICAF`, `SEFAZ`); zero API live para tabelas `SINAPI`/`SICRO` (ingestão local via `.xlsx` em `inputs/`); e zero ingestão de Diários Oficiais na `v1.9.x`.
+
+### MARCO 12.1 — `v1.9.0` (Geração 9.0 — 19ª Tool MCP `fetch_supplier_integrity`: Certidão Consolidada TCU *Zero-Key* + APIs CGU Opcionais) *(Reserva de Hotfix: `v1.9.1`–`v1.9.2` | `Assert 43`)*
+
+- [ ] **12.1.1. 19ª Ferramenta MCP `fetch_supplier_integrity` (CLI `--check-integrity`):**
+  - Consulta primária *zero-key* à **Certidão Consolidada do `TCU`** (agregando `TCU Inidôneos`, `CNJ/CNCIAI` Improbidade e `CEIS/CNEP` para Pessoa Jurídica) somada ao enriquecimento opcional nas APIs do Portal da Transparência (`CGU` — `CEIS`, `CNEP` e `CEPIM`) por CNPJ e CPF/CNPJ de sócios quando houver credencial configurada;
+  - Verificação automática de sanções vigentes e alcance federativo (`[LIVE_CEIS_IMPEDIMENT_ACTIVE_IN_SPHERE_BLOCK]` / `[LIVE_TCU_CNEP_NATIONAL_DEBARMENT_BLOCK]`) com persistência em `state/open_data/`.
+
+### MARCO 12.2 — `v1.9.3` (Geração 9.3 — 20ª Tool MCP `fetch_cnpj_profile`: Cascata Resiliente `BrasilAPI -> MinhaReceita -> ReceitaWS`) *(Reserva de Hotfix: `v1.9.4`–`v1.9.5` | `Assert 44`)*
+
+- [ ] **12.2.1. 20ª Ferramenta MCP `fetch_cnpj_profile` (CLI `--fetch-cnpj`):**
+  - Hidratação automática cadastral e societária em cascata resiliente **`BrasilAPI` $\rightarrow$ `MinhaReceita` $\rightarrow$ `ReceitaWS`** a partir do CNPJ: `QSA` atual com data de entrada, data de abertura, endereço normalizado/CEP, `CNAE` principal e secundários, porte (`ME/EPP/Demais`), capital social e situação cadastral na RFB (`[LIVE_CNPJ_INACTIVE_OR_SUSPENDED_RFB_BLOCK]`).
+
+### MARCO 12.3 — `v1.9.6` (Geração 9.6 — 21ª Tool MCP `search_comprasgov_prices`: Catálogo `CATMAT/CATSER` Flexível & Preços Homologados 12m) *(Reserva de Hotfix: `v1.9.7`–`v1.9.9` | `Assert 45`)*
+
+- [ ] **12.3.1. 21ª Ferramenta MCP `search_comprasgov_prices` (CLI `--search-comprasgov`):**
+  - **Catálogo `CATMAT/CATSER` Flexível (`WARNING`, Nunca `BLOCK`):** Consulta cirúrgica aos módulos de Compras.gov.br com *Loose Semantic & Lexical Matching*, alertas estritamente consultivos (`[CATMAT_CATSER_LOOSE_ALIGNMENT_WARNING]`, `[CATMAT_GENERIC_UMBRELLA_CODE_WARNING]`) e recomendador **Top-3 códigos PDM/CATMAT/CATSER** aderentes;
+  - **Preços Homologados 12m (Compras.gov.br / PNCP + Histórico Multi-Certame):** Extração da série dos últimos 12 meses para alimentar a cesta estatística da `IN SEGES 65/2021` (`price_basket_auditor.ts`) e fornecer histórico multi-certame estruturado em `state/open_data/`.
+
+---
+
+## 🛡️ SÉRIE `v1.10.x` (GERAÇÃO 10): PILAR ANTIFRAUDE DEDICADO — OPCIONAL, TRANSVERSAL & `ALERT-ONLY`
+
+> **Diretriz Inegociável da Geração 10 (`ALERT-ONLY`):** Nenhuma heurística relacional ou estatística da Geração 10 emite `REJECTED` automático nem bloqueia habilitação/adjudicação por presunção. Todos os achados operam estritamente em modo **`ATTENTION_SIGNAL` ("Luz Amarela")** para diligência apuratória e decisão humana/cognitiva fundamentada.
+
+### MARCO 13.1 — `v1.10.0` (Geração 10.0 — 22ª Tool MCP `docgov_audit_antifraud_and_integrity`: Radar Antifraude v1 — *Background Check* & `ALERT-ONLY`) *(Reserva de Hotfix: `v1.10.1`–`v1.10.2` | `Assert 46`)*
+
+- [ ] **13.1.1. 22ª Ferramenta MCP `docgov_audit_antifraud_and_integrity` (CLI `audit-antifraud`):**
+  - **Grafo Societário QSA/Contato Auto-Hidratado (`v1.9.3`):** Cruzamento de sócios, endereços, telefones e domínios de e-mail entre concorrentes ou fornecedores de cotações emitindo exclusivamente `ATTENTION_SIGNAL`;
+  - **Indício de Empresa Sucessora / Fantasma (Art. 160 da Lei nº 14.133/2021 — `v1.9.0` + `v1.9.3`):** Correlação de vínculos e endereço/CNAE contra sancionadas (`TCU/CEIS/CNEP`) para sinalização preventiva de abuso da personalidade jurídica;
+  - **Padrões de Propostas & Fusão Gen7.0:** Alinhamento matemático de propostas, desistência estratégica "coelho" qualificada, fusão estruturada com os achados forenses da Gen7.0 (`PAdES`, `NF-e`, `w:rsidRoot`, metadados `.xlsx`) e registro transparente de `audit_coverage` em `state/`.
+
+### MARCO 13.2 — `v1.10.3` (Geração 10.3 — Expansão da 22ª Tool: Radar Antifraude v2 — Modo Auditoria / Controle Interno & `ALERT-ONLY`) *(Reserva de Hotfix: `v1.10.4+` | `Assert 47`)*
+
+- [ ] **13.2.1. Radar Antifraude v2 (Modo Auditoria / Controle Interno):**
+  - **Grafo Expandido Opcional:** Análise facultativa de ex-sócios, parentesco composto com *blocklist* anti-homônimo e compartilhamento de contador/`CRC`;
+  - **Sinais Contábeis Avançados:** Liquidez artificial com partes relacionadas/empréstimos a sócios, aumento relâmpago de capital social sem integralização e somatório de coligadas no enquadramento `ME/EPP`;
+  - ***Screening* Estatístico Multi-Certame (CADE/OCDE via `v1.9.6`) & Relatório Executivo:** Triagem estatística longitudinal entre certames com compilação de `Relatorio_Sinais_Integridade_e_Antifraude.docx/.pdf` (sempre sob taxonomia `ATTENTION_SIGNAL` / `ALERT-ONLY`).
+
+---
+
+## 🧩 SÉRIE `v1.11.x+` (GERAÇÃO 11+): VERTICAIS SETORIAIS PROFUNDAS (ORDEM FUTURA)
+
+### MARCO 14.1 — `v1.11.x+` (23ª Tool+ — Especialidades Setoriais Dedicadas no Patamar de Obras e DEMO) *(`Assert 48+`)*
+
+- [ ] **14.1.1. Vertical Inicial — Cloud FinOps & Licenciamento Enterprise de TIC:**
+  - Motor setorial dedicado equivalente em profundidade aos motores de Obras e DEMO, auditando métricas de Unidades de Serviço em Nuvem (`USN`), comparação econômica entre instâncias reservadas plurianuais vs. sob demanda, travas contra pagamento `100% upfront` sem desconto/salvaguarda contratual, riscos de *True-Up* em licenciamento corporativo e modelagem de taxas de transferência (*egress fees*).
 
 ---
 
