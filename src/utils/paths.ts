@@ -1,5 +1,5 @@
-import { existsSync, readdirSync, mkdirSync } from "node:fs";
-import { resolve, dirname, basename, normalize, isAbsolute, join } from "node:path";
+import { existsSync, readdirSync, mkdirSync, realpathSync } from "node:fs";
+import { resolve, dirname, basename, normalize, isAbsolute, join, relative } from "node:path";
 import { tmpdir } from "node:os";
 
 let cachedWorkspaceRoot: string | null = null;
@@ -199,17 +199,96 @@ export function resolveWorkspacePath(inputPath: string, customRoot?: string): st
   return resolveExistingPathNfc(resolve(root, inputPath));
 }
 
+const DOCGOV_SCOPE_REGEX =
+  /(^|[\\/])(cases|work|tests|evals|inputs|state|output|templates|fixtures|smoke_test|DocGov\.EngineTests|case_assert|docgov_test_[^\\/]*|docgov-real-smoke-[^\\/]*)([\\/]|$)/i;
+
+function resolveDeepestExistingRealPath(resolvedPath: string): string {
+  const missingTail: string[] = [];
+  let cursor = resolvedPath;
+
+  while (!existsSync(cursor)) {
+    const parent = dirname(cursor);
+    if (parent === cursor) break;
+    missingTail.unshift(basename(cursor));
+    cursor = parent;
+  }
+
+  let realBase = cursor;
+  if (existsSync(cursor)) {
+    try {
+      realBase = realpathSync(cursor);
+    } catch {
+      realBase = cursor;
+    }
+  }
+  return missingTail.length > 0 ? join(realBase, ...missingTail) : realBase;
+}
+
+function isInsideEphemeralInspectRoot(candidatePath: string): boolean {
+  const norm = (p: string) => {
+    const clean = p.replace(/\\/g, "/").replace(/\/+$/, "");
+    return process.platform === "win32" ? clean.toLowerCase() : clean;
+  };
+  const rootRaw = resolve(tmpdir(), "docgov_ephemeral_inspect");
+  const candRaw = resolve(candidatePath);
+  const rootCmp = norm(rootRaw);
+  const candCmp = norm(candRaw);
+  if (candCmp === rootCmp || candCmp.startsWith(`${rootCmp}/`)) {
+    return true;
+  }
+  if (existsSync(rootRaw)) {
+    try {
+      const rootReal = norm(realpathSync(rootRaw));
+      const candReal = norm(resolveDeepestExistingRealPath(candRaw));
+      if (candReal === rootReal || candReal.startsWith(`${rootReal}/`)) {
+        return true;
+      }
+    } catch {}
+  }
+  return false;
+}
+
 /**
  * Validador canônico de escopo do ecossistema DocGov (ENG-10).
  * Considera válido apenas caminhos pertencentes a casos ('cases/<slug>')
  * ou diretórios estruturais/harnesses de certificação e teste.
+ * Bloqueia path traversal ('..'), symlinks para fora de escopo e docgov_ephemeral_inspect.
  */
 export function isValidDocGovCaseScope(targetPath: string): boolean {
-  if (!targetPath) return false;
-  const normalized = targetPath.replace(/\\/g, "/");
-  return /(^|[\\/])(cases|work|evals|inputs|state|output|templates|fixtures|smoke_test|DocGov\.EngineTests|case_assert|docgov_test_[^\\/]*)([\\/]|$)/i.test(
-    normalized
-  );
+  if (!targetPath || typeof targetPath !== "string") return false;
+
+  const isWin = process.platform === "win32";
+  const resolved = resolve(targetPath);
+
+  if (isInsideEphemeralInspectRoot(resolved)) {
+    return false;
+  }
+
+  const normResolved = (isWin ? resolved.toLowerCase() : resolved).replace(/\\/g, "/");
+  if (!DOCGOV_SCOPE_REGEX.test(normResolved)) {
+    return false;
+  }
+
+  // Se o caminho possui segmentos '..', garante que o primeiro segmento permitido
+  // no caminho resolvido ainda pertence ao escopo (bloqueia escape para fora de raiz).
+  const realResolved = resolveDeepestExistingRealPath(resolved);
+  if (isInsideEphemeralInspectRoot(realResolved)) {
+    return false;
+  }
+  const normReal = (isWin ? realResolved.toLowerCase() : realResolved).replace(/\\/g, "/");
+  if (!DOCGOV_SCOPE_REGEX.test(normReal)) {
+    return false;
+  }
+
+  // Bloqueia falso positivo se CWD estiver dentro de algo permitido e targetPath usar '../..' para escapar
+  if (/(^|[\\/])\.\.([\\/]|$)/.test(targetPath) && !isPathAbsolute(targetPath)) {
+    const relFromCwd = relative(resolve(process.cwd()), resolved).replace(/\\/g, "/");
+    if (relFromCwd.startsWith("..") && !DOCGOV_SCOPE_REGEX.test(relFromCwd)) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 /**

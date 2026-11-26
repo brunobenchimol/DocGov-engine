@@ -3,11 +3,8 @@ import { resolve, join, basename } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { withDirectoryLock, writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import { createPncpSearchContractError } from "../../contracts/errors.ts";
-import {
-  resolveWorkspacePath,
-  isValidDocGovCaseScope,
-  getEphemeralInspectDir,
-} from "../../utils/paths.ts";
+import { resolveWorkspacePath } from "../../utils/paths.ts";
+import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
 import { toShortDocPath } from "../inspect.ts";
 import {
   parsePncpIdentifier,
@@ -36,10 +33,12 @@ export async function searchPncpContracts(
   }
 
   const resolvedCaseDir = resolveWorkspacePath(caseDir);
-  const inScope = isValidDocGovCaseScope(resolvedCaseDir);
-  const stateDir = inScope
-    ? resolve(resolvedCaseDir, "state")
-    : getEphemeralInspectDir();
+  const { targetDir: stateDir } = resolveEphemeralTargetDir({
+    caseDir: resolvedCaseDir,
+    prefix: "pncp_search",
+    appendStateIfCase: true,
+    appendStateIfNamedEphemeral: false,
+  });
   mkdirSync(stateDir, { recursive: true });
 
   // 1. Normalização de queries (suporta array ou string com separador '|')

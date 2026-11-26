@@ -28,8 +28,8 @@ import {
 import {
   resolveExistingPathNfc,
   isValidDocGovCaseScope,
-  getEphemeralInspectDir,
 } from "../utils/paths.ts";
+import { resolveInspectOutputDir } from "../utils/ephemeral_scope.ts";
 import type {
   DocxInspectionResult,
   TemplateMatchResult,
@@ -87,6 +87,7 @@ import { extractDocxXmlParts } from "./inspect/docx_xml_extractor.ts";
 async function applyStructuralDiffIfRequested(
   currentResult: DocxInspectionResult,
   currentPath: string,
+  outDir: string,
   outputPath?: string,
   compareWithPath?: string
 ): Promise<void> {
@@ -95,7 +96,9 @@ async function applyStructuralDiffIfRequested(
   if (!existsSync(resolvedOld)) {
     throw new Error(`Arquivo de comparação não encontrado: ${resolvedOld}`);
   }
-  const oldInspection = await inspectDocx(resolvedOld, undefined, true);
+  const oldInspection = await inspectDocx(resolvedOld, undefined, true, {
+    skipAuditArtifacts: true,
+  });
   const diff = computeStructuralDiff(
     oldInspection,
     currentResult,
@@ -103,15 +106,13 @@ async function applyStructuralDiffIfRequested(
     currentPath
   );
 
-  const diffOutDir = outputPath
-    ? dirname(resolve(outputPath))
-    : dirname(currentPath);
+  const diffOutDir = outDir;
   const diffBase = outputPath
     ? basename(resolve(outputPath), ".json").replace(
         /^(?:estrutura_|inspecao_)/,
         ""
       )
-    : basename(currentPath).replace(/\.(?:docx|pdf)$/i, "");
+    : basename(currentPath).replace(/\.(?:docx|pdf|md|markdown|txt|text|log)$/i, "");
   const diffMdPath = resolve(diffOutDir, `diff_documental_${diffBase}.md`);
   const diffJsonPath = resolve(diffOutDir, `diff_documental_${diffBase}.json`);
   if (!existsSync(diffOutDir)) {
@@ -168,14 +169,54 @@ export async function inspectDocx(
   }
 
   if (isPdfBuffer(buffer) || lowerPath.endsWith(".pdf")) {
-    const res = await inspectPdfDocument(resolvedDocx, buffer, outputPath, inScope, options);
-    await applyStructuralDiffIfRequested(res, resolvedDocx, outputPath, options.compareWithPath);
+    const pdfStem = outputPath
+      ? basename(resolve(outputPath), ".json").replace(/^(?:estrutura_|inspecao_)/, "")
+      : basename(resolvedDocx).replace(/\.pdf$/i, "");
+    const pdfScope = resolveInspectOutputDir({
+      resolvedSource: resolvedDocx,
+      outputPath,
+      inScope,
+      baseStem: pdfStem,
+      prefix: "inspect",
+    });
+    const res = await inspectPdfDocument(resolvedDocx, buffer, outputPath, inScope, {
+      ...options,
+      resolvedOutDir: pdfScope.outDir,
+      resolvedTargetOutputPath: pdfScope.targetOutputPath,
+    });
+    await applyStructuralDiffIfRequested(
+      res,
+      resolvedDocx,
+      pdfScope.outDir,
+      outputPath,
+      options.compareWithPath
+    );
     return res;
   }
 
   if (isTextOrMarkdownFile(resolvedDocx, buffer)) {
-    const res = await inspectTextOrMarkdownDocument(resolvedDocx, buffer, outputPath, compact, inScope, options);
-    await applyStructuralDiffIfRequested(res, resolvedDocx, outputPath, options.compareWithPath);
+    const txtStem = outputPath
+      ? basename(resolve(outputPath), ".json").replace(/^(?:estrutura_|inspecao_)/, "")
+      : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
+    const txtScope = resolveInspectOutputDir({
+      resolvedSource: resolvedDocx,
+      outputPath,
+      inScope,
+      baseStem: txtStem,
+      prefix: "inspect",
+    });
+    const res = await inspectTextOrMarkdownDocument(resolvedDocx, buffer, outputPath, compact, inScope, {
+      ...options,
+      resolvedOutDir: txtScope.outDir,
+      resolvedTargetOutputPath: txtScope.targetOutputPath,
+    });
+    await applyStructuralDiffIfRequested(
+      res,
+      resolvedDocx,
+      txtScope.outDir,
+      outputPath,
+      options.compareWithPath
+    );
     return res;
   }
 
@@ -214,16 +255,13 @@ export async function inspectDocx(
       )
     : basename(resolvedDocx, ".docx");
 
-  const outDir = inScope
-    ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
-    : getEphemeralInspectDir();
-
-  const targetOutputPath = inScope
-    ? (outputPath ? resolve(outputPath) : undefined)
-    : resolve(
-        outDir,
-        outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
-      );
+  const { outDir, targetOutputPath } = resolveInspectOutputDir({
+    resolvedSource: resolvedDocx,
+    outputPath,
+    inScope,
+    baseStem,
+    prefix: "inspect",
+  });
 
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
@@ -308,7 +346,8 @@ export async function inspectDocx(
         structure_fingerprint,
         rawResult
       );
-      const adaptedPath = resolve(outDir, "adapted_slots_manifest.json");
+      const adaptedFileName = `adapted_slots_manifest_${baseStem.normalize("NFC")}.json`;
+      const adaptedPath = resolve(outDir, adaptedFileName);
       writeFileSync(adaptedPath, JSON.stringify(adapted, null, 2), "utf-8");
 
       template_match = {
@@ -330,7 +369,7 @@ export async function inspectDocx(
           match.entry.template_id
         }' compatível com drift (${Math.round(
           match.similarity * 100
-        )}%). Manifesto adaptado gerado em state/adapted_slots_manifest.json.`,
+        )}%). Manifesto adaptado gerado em state/${adaptedFileName}.`,
       };
     } else {
       template_match = {
@@ -373,6 +412,7 @@ export async function inspectDocx(
   await applyStructuralDiffIfRequested(
     rawResult,
     resolvedDocx,
+    outDir,
     outputPath,
     options.compareWithPath
   );

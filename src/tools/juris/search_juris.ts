@@ -7,11 +7,7 @@ import { existsSync, mkdirSync } from "node:fs";
 import { join, relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { createJurisSearchContractError } from "../../contracts/errors.ts";
-import {
-  resolveWorkspacePath,
-  isValidDocGovCaseScope,
-  getEphemeralInspectDir,
-} from "../../utils/paths.ts";
+import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
 import {
   defaultJurisdictionRegistry,
   JurisdictionProviderRegistry,
@@ -242,22 +238,13 @@ export async function searchJuris(
     (a, b) => b.relevance_score - a.relevance_score
   );
 
-  // 5. Determinação de Destino no Disco (com Whitelist ENG-10)
-  let targetDir: string;
-  let isEphemeral = false;
-
-  if (options.caseDir) {
-    const resolvedCase = resolveWorkspacePath(options.caseDir);
-    if (isValidDocGovCaseScope(resolvedCase)) {
-      targetDir = join(resolvedCase, "state");
-    } else {
-      targetDir = getEphemeralInspectDir();
-      isEphemeral = true;
-    }
-  } else {
-    targetDir = getEphemeralInspectDir();
-    isEphemeral = true;
-  }
+  // 5. Determinação de Destino no Disco (com Whitelist ENG-10 e Preservação Efêmera Nomeada)
+  const { targetDir, isEphemeral } = resolveEphemeralTargetDir({
+    caseDir: options.caseDir,
+    prefix: "juris_search",
+    appendStateIfCase: true,
+    appendStateIfNamedEphemeral: false,
+  });
 
   if (!existsSync(targetDir)) {
     mkdirSync(targetDir, { recursive: true });

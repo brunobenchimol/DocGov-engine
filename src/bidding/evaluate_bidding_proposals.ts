@@ -13,7 +13,11 @@ import {
   serializeCompactSyntheticResult,
   toCompactWorkspacePath,
 } from "../utils/json.ts";
-import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  createIsolatedEphemeralDir,
+  redirectInputsDirToSiblingState,
+} from "../utils/ephemeral_scope.ts";
 import { evaluateIctExecutionAndExequibility } from "./ict_execution_models.ts";
 import { evaluateQualification } from "./qualification_evaluator.ts";
 import {
@@ -219,9 +223,9 @@ export async function evaluateBiddingProposals(
   } else if (options.caseDir || raw.caseDir || raw.case_dir) {
     outDir = resolveWorkspacePath(join(options.caseDir || raw.caseDir || raw.case_dir!, "state"));
   } else if (sourceFilePath) {
-    outDir = dirname(sourceFilePath);
+    outDir = redirectInputsDirToSiblingState(sourceFilePath) ?? dirname(sourceFilePath);
   } else {
-    outDir = join(getEphemeralInspectDir(), `bidding_gen6_${Date.now()}`);
+    outDir = createIsolatedEphemeralDir("bidding_gen6");
   }
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 

@@ -1,5 +1,4 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
 import { basename, dirname, relative, resolve } from "node:path";
 import type {
   DocumentForensicMeta,
@@ -40,7 +39,7 @@ export function resolveAssetsDirForDoc(params: {
   }
 
   return {
-    assetsDir: resolve(tmpdir(), "docgov_ephemeral_inspect", "assets", baseStem),
+    assetsDir: resolve(resolvedOut, "assets", baseStem),
     useRelativePath: false,
     caseOrOutRoot: resolvedOut,
   };

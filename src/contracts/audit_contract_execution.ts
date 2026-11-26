@@ -13,7 +13,11 @@ import {
   serializeCompactSyntheticResult,
   toCompactWorkspacePath,
 } from "../utils/json.ts";
-import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  createIsolatedEphemeralDir,
+  redirectInputsDirToSiblingState,
+} from "../utils/ephemeral_scope.ts";
 import { auditContractAddendums } from "./addendum_auditor.ts";
 import { matchTripartiteExecution } from "./tripartite_matcher.ts";
 import { auditReadjustmentsAndRepactuations } from "./readjustment_auditor.ts";
@@ -189,9 +193,9 @@ export async function auditContractExecution(
   } else if (options.caseDir) {
     outDir = resolveWorkspacePath(join(options.caseDir, "state"));
   } else if (sourceFilePath) {
-    outDir = dirname(sourceFilePath);
+    outDir = redirectInputsDirToSiblingState(sourceFilePath) ?? dirname(sourceFilePath);
   } else {
-    outDir = join(getEphemeralInspectDir(), `contract_audit_${Date.now()}`);
+    outDir = createIsolatedEphemeralDir("contract_audit");
   }
 
   if (!existsSync(outDir)) {

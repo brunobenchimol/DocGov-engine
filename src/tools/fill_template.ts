@@ -137,12 +137,8 @@ export async function processDocument(
   const resolvedState = resolve(statePath);
   const resolvedOutput = resolve(outputPath);
 
-  const inScope =
-    isValidDocGovCaseScope(resolvedTemplate) ||
-    isValidDocGovCaseScope(resolvedOutput) ||
-    isValidDocGovCaseScope(resolvedState);
-  if (!inScope) {
-    assertDocGovCaseScope(resolvedTemplate, "fill_docx_template");
+  if (!isValidDocGovCaseScope(resolvedOutput)) {
+    assertDocGovCaseScope(resolvedOutput, "fill_docx_template");
   }
 
   if (!existsSync(resolvedTemplate)) {

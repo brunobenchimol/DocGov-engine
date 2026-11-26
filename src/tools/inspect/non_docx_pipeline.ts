@@ -20,7 +20,7 @@ import {
   generateSpreadsheetLinearAuditViewMarkdown,
   generateSpreadsheetHotspotsDossierMarkdown,
 } from "../../parsers/spreadsheet.ts";
-import { getEphemeralInspectDir } from "../../utils/paths.ts";
+import { resolveInspectOutputDir } from "../../utils/ephemeral_scope.ts";
 import type {
   BodyParagraphInfo,
   DocxTocMap,
@@ -38,7 +38,11 @@ export async function inspectSpreadsheetDocument(
   buffer: Buffer,
   outputPath?: string,
   inScope?: boolean,
-  options: { skipAuditArtifacts?: boolean } = {}
+  options: {
+    skipAuditArtifacts?: boolean;
+    resolvedOutDir?: string;
+    resolvedTargetOutputPath?: string;
+  } = {}
 ): Promise<DocxInspectionResult> {
   const isCsv = resolvedDocx.toLowerCase().endsWith(".csv");
   const extraction = isCsv
@@ -61,16 +65,20 @@ export async function inspectSpreadsheetDocument(
       )
     : basename(resolvedDocx).replace(/\.(?:xlsx|xls|csv)$/i, "");
 
-  const outDir = inScope
-    ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
-    : getEphemeralInspectDir();
-
-  const targetOutputPath = inScope
-    ? (outputPath ? resolve(outputPath) : undefined)
-    : resolve(
-        outDir,
-        outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
-      );
+  const scopeOut = options.resolvedOutDir
+    ? {
+        outDir: options.resolvedOutDir,
+        targetOutputPath: options.resolvedTargetOutputPath,
+      }
+    : resolveInspectOutputDir({
+        resolvedSource: resolvedDocx,
+        outputPath,
+        inScope: Boolean(inScope),
+        baseStem,
+        prefix: "inspect",
+      });
+  const outDir = scopeOut.outDir;
+  const targetOutputPath = scopeOut.targetOutputPath;
 
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
@@ -150,7 +158,12 @@ export async function inspectPdfDocument(
   buffer: Buffer,
   outputPath?: string,
   inScope?: boolean,
-  options: { compareWithPath?: string; skipAuditArtifacts?: boolean } = {}
+  options: {
+    compareWithPath?: string;
+    skipAuditArtifacts?: boolean;
+    resolvedOutDir?: string;
+    resolvedTargetOutputPath?: string;
+  } = {}
 ): Promise<DocxInspectionResult> {
   if (!isPdfBuffer(buffer)) {
     throw new Error(
@@ -167,16 +180,20 @@ export async function inspectPdfDocument(
       )
     : basename(resolvedDocx).replace(/\.pdf$/i, "");
 
-  const outDir = inScope
-    ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
-    : getEphemeralInspectDir();
-
-  const targetOutputPath = inScope
-    ? (outputPath ? resolve(outputPath) : undefined)
-    : resolve(
-        outDir,
-        outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
-      );
+  const scopeOut = options.resolvedOutDir
+    ? {
+        outDir: options.resolvedOutDir,
+        targetOutputPath: options.resolvedTargetOutputPath,
+      }
+    : resolveInspectOutputDir({
+        resolvedSource: resolvedDocx,
+        outputPath,
+        inScope: Boolean(inScope),
+        baseStem,
+        prefix: "inspect",
+      });
+  const outDir = scopeOut.outDir;
+  const targetOutputPath = scopeOut.targetOutputPath;
 
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
@@ -308,7 +325,12 @@ export async function inspectTextOrMarkdownDocument(
   outputPath?: string,
   compact: boolean = false,
   inScope?: boolean,
-  options: { compareWithPath?: string; skipAuditArtifacts?: boolean } = {}
+  options: {
+    compareWithPath?: string;
+    skipAuditArtifacts?: boolean;
+    resolvedOutDir?: string;
+    resolvedTargetOutputPath?: string;
+  } = {}
 ): Promise<DocxInspectionResult> {
   const isMd =
     resolvedDocx.toLowerCase().endsWith(".md") ||
@@ -355,16 +377,20 @@ export async function inspectTextOrMarkdownDocument(
       )
     : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
 
-  const outDir = inScope
-    ? (outputPath ? dirname(resolve(outputPath)) : dirname(resolvedDocx))
-    : getEphemeralInspectDir();
-
-  const targetOutputPath = inScope
-    ? (outputPath ? resolve(outputPath) : undefined)
-    : resolve(
-        outDir,
-        outputPath ? basename(outputPath) : `estrutura_${baseStem}.json`
-      );
+  const scopeOut = options.resolvedOutDir
+    ? {
+        outDir: options.resolvedOutDir,
+        targetOutputPath: options.resolvedTargetOutputPath,
+      }
+    : resolveInspectOutputDir({
+        resolvedSource: resolvedDocx,
+        outputPath,
+        inScope: Boolean(inScope),
+        baseStem,
+        prefix: "inspect",
+      });
+  const outDir = scopeOut.outDir;
+  const targetOutputPath = scopeOut.targetOutputPath;
 
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });

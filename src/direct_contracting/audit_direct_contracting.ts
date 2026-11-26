@@ -17,7 +17,11 @@ import { extractPdfPages } from "../utils/pdf.ts";
 import { extractDocxForensicMetaFromBuffer } from "../utils/pdf/docx_forensic_meta.ts";
 import { extractXlsxForensicMetaFromBuffer } from "../utils/pdf/xlsx_forensic_meta.ts";
 import type { DocumentForensicMeta } from "../types/index.ts";
-import { resolveWorkspacePath, getEphemeralInspectDir } from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  createIsolatedEphemeralDir,
+  redirectInputsDirToSiblingState,
+} from "../utils/ephemeral_scope.ts";
 import { evaluateDirectContractingRules } from "./direct_contracting_auditor.ts";
 import { compileDirectContractingOpinion } from "./direct_contracting_compiler.ts";
 import {
@@ -188,9 +192,9 @@ export async function auditDirectContracting(
   } else if (options.caseDir || raw.caseDir || raw.case_dir) {
     outDir = resolveWorkspacePath(join(options.caseDir || raw.caseDir || raw.case_dir!, "state"));
   } else if (sourceFilePath) {
-    outDir = dirname(sourceFilePath);
+    outDir = redirectInputsDirToSiblingState(sourceFilePath) ?? dirname(sourceFilePath);
   } else {
-    outDir = join(getEphemeralInspectDir(), `direct_contracting_${Date.now()}`);
+    outDir = createIsolatedEphemeralDir("direct_contracting");
   }
   if (!existsSync(outDir)) mkdirSync(outDir, { recursive: true });
 

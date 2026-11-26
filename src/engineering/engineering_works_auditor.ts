@@ -16,7 +16,11 @@ import {
   serializeCompactSyntheticResult,
   toCompactWorkspacePath,
 } from "../utils/json.ts";
-import { getEphemeralInspectDir, resolveWorkspacePath } from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  createIsolatedEphemeralDir,
+  redirectInputsDirToSiblingState,
+} from "../utils/ephemeral_scope.ts";
 import { evaluateBdiAcordao2622 } from "./bdi_acordao_2622_evaluator.ts";
 import { evaluateSinapiSicroAndSchedule } from "./sinapi_sicro_schedule_evaluator.ts";
 import {
@@ -138,9 +142,9 @@ export async function auditEngineeringWorks(
   if (options.workspaceDir || raw.workspace_dir) {
     outDir = resolveWorkspacePath(options.workspaceDir || raw.workspace_dir);
   } else if (sourceFilePath) {
-    outDir = dirname(sourceFilePath);
+    outDir = redirectInputsDirToSiblingState(sourceFilePath) ?? dirname(sourceFilePath);
   } else {
-    outDir = join(getEphemeralInspectDir(), `engineering_works_${Date.now()}`);
+    outDir = createIsolatedEphemeralDir("engineering_works");
   }
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });

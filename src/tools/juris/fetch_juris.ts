@@ -7,11 +7,7 @@ import { writeFileSync, mkdirSync, existsSync } from "node:fs";
 import { resolve, join, relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { createJurisFetchContractError } from "../../contracts/errors.ts";
-import {
-  resolveWorkspacePath,
-  isValidDocGovCaseScope,
-  getEphemeralInspectDir,
-} from "../../utils/paths.ts";
+import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
 import { defaultJurisdictionRegistry } from "./provider_registry.ts";
 import {
   assertAuthenticAcordao,
@@ -86,17 +82,12 @@ export async function fetchJuris(
   });
 
   // 4. Determinação de Destinos em Disco (Estágio 2 e Estágio 3 integralmente em state/)
-  let baseCaseDir: string;
-  if (options.caseDir) {
-    const resolved = resolveWorkspacePath(options.caseDir);
-    if (isValidDocGovCaseScope(resolved)) {
-      baseCaseDir = resolved;
-    } else {
-      baseCaseDir = getEphemeralInspectDir();
-    }
-  } else {
-    baseCaseDir = getEphemeralInspectDir();
-  }
+  const { targetDir: baseCaseDir } = resolveEphemeralTargetDir({
+    caseDir: options.caseDir,
+    prefix: "juris_fetch",
+    appendStateIfCase: false,
+    appendStateIfNamedEphemeral: false,
+  });
 
   const stateDir = join(baseCaseDir, "state");
   const stateJurisDir = join(stateDir, `juris_${cleanShortname}`);

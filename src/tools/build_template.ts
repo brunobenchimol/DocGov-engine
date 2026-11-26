@@ -54,12 +54,8 @@ export async function buildDocxTemplate(
   const resolvedManifest = resolve(manifestPath);
   const resolvedOutput = resolve(outputPath);
 
-  const inScope =
-    isValidDocGovCaseScope(resolvedSource) ||
-    isValidDocGovCaseScope(resolvedOutput) ||
-    isValidDocGovCaseScope(resolvedManifest);
-  if (!inScope) {
-    assertDocGovCaseScope(resolvedSource, "build_docx_template");
+  if (!isValidDocGovCaseScope(resolvedOutput)) {
+    assertDocGovCaseScope(resolvedOutput, "build_docx_template");
   }
 
   if (!existsSync(resolvedSource)) {

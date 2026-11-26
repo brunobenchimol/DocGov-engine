@@ -44,11 +44,7 @@ export async function generateTechnicalNoteDocx(
   let noteData: TechnicalNoteData;
 
   const resolvedOutput = resolve(outputPath);
-  const inScope =
-    isValidDocGovCaseScope(resolvedOutput) ||
-    (typeof noteDataOrPath === "string" &&
-      isValidDocGovCaseScope(resolve(noteDataOrPath)));
-  if (!inScope) {
+  if (!isValidDocGovCaseScope(resolvedOutput)) {
     assertDocGovCaseScope(resolvedOutput, "generate_technical_note_docx");
   }
 

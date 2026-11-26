@@ -54,11 +54,8 @@ export async function generateAuditDocx(
   const resolvedAuditJson = resolve(auditJsonPath);
   const resolvedOutput = resolve(outputPath);
 
-  const inScope =
-    isValidDocGovCaseScope(resolvedAuditJson) ||
-    isValidDocGovCaseScope(resolvedOutput);
-  if (!inScope) {
-    assertDocGovCaseScope(resolvedAuditJson, "generate_audit_docx");
+  if (!isValidDocGovCaseScope(resolvedOutput)) {
+    assertDocGovCaseScope(resolvedOutput, "generate_audit_docx");
   }
 
   const outputFormat = options?.outputFormat || "docx";

@@ -13,7 +13,11 @@ import {
   serializeCompactSyntheticResult,
   toCompactWorkspacePath,
 } from "../utils/json.ts";
-import { getEphemeralInspectDir, resolveWorkspacePath } from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import {
+  createIsolatedEphemeralDir,
+  redirectInputsDirToSiblingState,
+} from "../utils/ephemeral_scope.ts";
 import { calculateDemoCostSheet } from "./sheet_calculator.ts";
 import { evaluateDemoExecutionGovernance } from "./execution_governance.ts";
 import {
@@ -214,9 +218,9 @@ export async function auditDemoRegime(
   if (options.workspaceDir || raw.workspace_dir) {
     outDir = resolveWorkspacePath(options.workspaceDir || raw.workspace_dir);
   } else if (sourceFilePath) {
-    outDir = dirname(sourceFilePath);
+    outDir = redirectInputsDirToSiblingState(sourceFilePath) ?? dirname(sourceFilePath);
   } else {
-    outDir = join(getEphemeralInspectDir(), `demo_regime_${Date.now()}`);
+    outDir = createIsolatedEphemeralDir("demo_regime");
   }
   if (!existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
