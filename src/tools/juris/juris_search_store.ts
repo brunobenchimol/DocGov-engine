@@ -2,18 +2,9 @@
 // Persistência Concorrente, Lock e Acumulação de search_juris (docgov-engine)
 // ============================================================================
 
-import {
-  closeSync,
-  existsSync,
-  mkdirSync,
-  openSync,
-  readFileSync,
-  renameSync,
-  statSync,
-  unlinkSync,
-  writeFileSync,
-} from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import { withDirectoryLock, writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import type {
   CourtDiagnostic,
   JurisQueryHistoryEntry,
@@ -22,102 +13,7 @@ import type {
   TstTriageResult,
 } from "./types.ts";
 
-const LOCK_STALE_MS = 5_000;
-const LOCK_RETRY_MS = 25;
-const LOCK_MAX_WAIT_MS = 10_000;
-
-const dirMutexQueues = new Map<string, Promise<void>>();
-
-async function withInProcessDirMutex<T>(
-  targetDir: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  const prev = dirMutexQueues.get(targetDir) || Promise.resolve();
-  let release!: () => void;
-  const current = new Promise<void>((resolve) => {
-    release = resolve;
-  });
-  const chained = prev.then(() => current);
-  dirMutexQueues.set(targetDir, chained);
-
-  await prev;
-  try {
-    return await fn();
-  } finally {
-    release();
-    if (dirMutexQueues.get(targetDir) === chained) {
-      dirMutexQueues.delete(targetDir);
-    }
-  }
-}
-
-async function withCrossProcessLock<T>(
-  targetDir: string,
-  fn: () => Promise<T>
-): Promise<T> {
-  if (!existsSync(targetDir)) {
-    mkdirSync(targetDir, { recursive: true });
-  }
-  const lockPath = join(targetDir, "juris_search.lock");
-  const startWait = Date.now();
-  let acquired = false;
-
-  while (!acquired) {
-    try {
-      const fd = openSync(lockPath, "wx");
-      closeSync(fd);
-      acquired = true;
-    } catch (err: any) {
-      if (err?.code !== "EEXIST") throw err;
-
-      try {
-        const st = statSync(lockPath);
-        if (Date.now() - st.mtimeMs > LOCK_STALE_MS) {
-          try {
-            unlinkSync(lockPath);
-          } catch {}
-          continue;
-        }
-      } catch {
-        continue;
-      }
-
-      if (Date.now() - startWait >= LOCK_MAX_WAIT_MS) {
-        try {
-          unlinkSync(lockPath);
-        } catch {}
-        throw new Error(
-          `Timeout ao aguardar lock de escrita em '${lockPath}' após ${LOCK_MAX_WAIT_MS}ms.`
-        );
-      }
-
-      await new Promise((resolve) => setTimeout(resolve, LOCK_RETRY_MS));
-    }
-  }
-
-  try {
-    return await fn();
-  } finally {
-    try {
-      unlinkSync(lockPath);
-    } catch {}
-  }
-}
-
-export function writeFileAtomicSync(filePath: string, content: string): void {
-  const tmpPath = `${filePath}.tmp.${process.pid}.${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
-  try {
-    writeFileSync(tmpPath, content, "utf-8");
-    renameSync(tmpPath, filePath);
-  } catch (err) {
-    try {
-      if (existsSync(tmpPath)) unlinkSync(tmpPath);
-    } catch {}
-    throw err;
-  }
-}
+export { writeFileSafeSync as writeFileAtomicSync };
 
 function mergeUniqueStrings(a: string[], b: string[]): string[] {
   const out: string[] = [];
@@ -147,10 +43,9 @@ export async function persistAccumulatedJurisSearch(params: {
 }> {
   const { targetDir, isEphemeral, currentRound, currentHits } = params;
 
-  return withInProcessDirMutex(targetDir, () =>
-    withCrossProcessLock(targetDir, async () => {
-      const jsonPath = join(targetDir, "juris_search_results.json");
-      const mdPath = join(targetDir, "juris_search_results.md");
+  return withDirectoryLock(targetDir, "juris_search", async () => {
+    const jsonPath = join(targetDir, "juris_search_results.json");
+    const mdPath = join(targetDir, "juris_search_results.md");
 
       let prevResults: JurisSearchResultItem[] = [];
       let prevQueriesExecuted: string[] = [];
@@ -258,13 +153,12 @@ export async function persistAccumulatedJurisSearch(params: {
         results: consolidatedResults,
       };
 
-      writeFileAtomicSync(jsonPath, JSON.stringify(fileResult, null, 2));
+      writeFileSafeSync(jsonPath, JSON.stringify(fileResult, null, 2));
       const mdContent = generateJurisSearchMarkdown(fileResult, isEphemeral);
-      writeFileAtomicSync(mdPath, mdContent);
+      writeFileSafeSync(mdPath, mdContent);
 
       return { fileResult, jsonPath, mdPath };
-    })
-  );
+  });
 }
 
 export function buildLiveDegradedNotices(

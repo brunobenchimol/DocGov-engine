@@ -1,5 +1,6 @@
-import { readFileSync, writeFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync } from "node:fs";
 import { relative, resolve } from "node:path";
+import { writeFileSafeSync } from "./fs_safe_io.ts";
 
 // ============================================================================
 // Utilitários Resilientes de JSON (safeReadJsonFile, unflattenDotKeys)
@@ -152,7 +153,7 @@ export function safeReadJsonFile<T = any>(filePath: string): T {
         const parsed = JSON.parse(sanitized) as T;
         // Se reparou com sucesso, regravar arquivo limpo no disco
         try {
-          writeFileSync(resolved, sanitized, "utf-8");
+          writeFileSafeSync(resolved, sanitized);
         } catch {
           // Ignora se for read-only
         }

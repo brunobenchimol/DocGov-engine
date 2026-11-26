@@ -1,6 +1,5 @@
 import {
   readFileSync,
-  writeFileSync,
   existsSync,
   copyFileSync,
   readdirSync,
@@ -9,6 +8,7 @@ import {
   statSync,
 } from "node:fs";
 import { resolve, extname } from "node:path";
+import { writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import {
   detectFileExtensionFromBuffer,
   resolveTargetFileName,
@@ -130,7 +130,7 @@ export async function executeBackgroundCopyTask(
         startedAt,
         updatedAt: new Date().toISOString(),
       };
-      writeFileSync(statusFilePath, JSON.stringify(data, null, 2), "utf-8");
+      writeFileSafeSync(statusFilePath, JSON.stringify(data, null, 2));
     } catch {
       // Ignora erro de gravação de status para não interromper I/O
     }

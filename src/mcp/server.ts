@@ -56,11 +56,28 @@ import {
 import { dispatchModularTool } from "./tool_dispatchers.ts";
 import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
-import {
-  resolveWorkspacePath,
-  isValidDocGovCaseScope,
-  getEphemeralInspectDir,
-} from "../utils/paths.ts";
+import { resolveWorkspacePath } from "../utils/paths.ts";
+import { flushPendingWrites } from "../utils/fs_safe_io.ts";
+
+let shutdownHooksRegistered = false;
+
+function registerGracefulShutdownHooks(): void {
+  if (shutdownHooksRegistered) return;
+  shutdownHooksRegistered = true;
+
+  process.stdin.once("end", () => {
+    void flushPendingWrites();
+  });
+  process.stdin.once("close", () => {
+    void flushPendingWrites();
+  });
+  process.once("SIGTERM", () => {
+    void flushPendingWrites().finally(() => process.exit(0));
+  });
+  process.once("SIGINT", () => {
+    void flushPendingWrites().finally(() => process.exit(0));
+  });
+}
 
 export { getMcpPromptsDefinition, getMcpToolsDefinition } from "./tools_definition.ts";
 
@@ -110,6 +127,8 @@ export async function runMcpServer() {
   server.setRequestHandler(CallToolRequestSchema, async (request) => {
     return await handleCallToolRequest(request as any);
   });
+
+  registerGracefulShutdownHooks();
 
   const transport = new StdioServerTransport();
   await server.connect(transport);

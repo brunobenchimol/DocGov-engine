@@ -1,11 +1,7 @@
-import {
-  writeFileSync,
-  existsSync,
-  mkdirSync,
-  readFileSync,
-} from "node:fs";
+import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { resolve, join, basename } from "node:path";
 import { VERSION } from "../../constants/index.ts";
+import { withDirectoryLock, writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import { createPncpSearchContractError } from "../../contracts/errors.ts";
 import {
   resolveWorkspacePath,
@@ -300,71 +296,79 @@ export async function searchPncpContracts(
     }
   }
 
-  // 3. Acumulação e Mesclagem com Buscas Anteriores no Caso
+  // 3. Acumulação e Mesclagem Concorrente Protegida por Lock
   const resultsJsonPath = resolve(stateDir, "pncp_search_results.json");
   const resultsMdPath = resolve(stateDir, "pncp_search_results.md");
 
-  let accumulatedCandidates: PncpSearchCandidate[] = [];
-  if (existsSync(resultsJsonPath)) {
-    try {
-      const existing = JSON.parse(readFileSync(resultsJsonPath, "utf-8"));
-      if (Array.isArray(existing.candidates)) {
-        accumulatedCandidates = existing.candidates;
+  const allConsolidated = await withDirectoryLock(
+    stateDir,
+    "pncp_search",
+    async () => {
+      let accumulatedCandidates: PncpSearchCandidate[] = [];
+      if (existsSync(resultsJsonPath)) {
+        try {
+          const existing = JSON.parse(readFileSync(resultsJsonPath, "utf-8"));
+          if (Array.isArray(existing.candidates)) {
+            accumulatedCandidates = existing.candidates;
+          }
+        } catch {}
       }
-    } catch {}
-  }
 
-  const mergedMap = new Map<string, PncpSearchCandidate>();
-  for (const c of currentCandidates) {
-    mergedMap.set(c.pncp_id, c);
-  }
-  for (const c of accumulatedCandidates) {
-    if (!mergedMap.has(c.pncp_id)) {
-      mergedMap.set(c.pncp_id, c);
+      const mergedMap = new Map<string, PncpSearchCandidate>();
+      for (const c of currentCandidates) {
+        mergedMap.set(c.pncp_id, c);
+      }
+      for (const c of accumulatedCandidates) {
+        if (!mergedMap.has(c.pncp_id)) {
+          mergedMap.set(c.pncp_id, c);
+        }
+      }
+
+      const consolidated = Array.from(mergedMap.values());
+
+      // 4. Gravação de state/pncp_search_results.json
+      const jsonOutput = {
+        updated_at: new Date().toISOString(),
+        last_queries: rawQueries,
+        total_candidates: consolidated.length,
+        new_candidates_count: currentCandidates.length,
+        candidates: consolidated,
+      };
+      writeFileSafeSync(resultsJsonPath, JSON.stringify(jsonOutput, null, 2));
+
+      // 5. Gravação de state/pncp_search_results.md (Tabela Completa com Objeto Integral)
+      let mdContent = `# Resultados da Busca PNCP — Painel de Oportunidades & Referências\n\n`;
+      mdContent += `> Consolidação de editais e contratações públicas para pesquisa de mercado e benchmarking técnico (IN SEGES/ME nº 65/2021).\n`;
+      mdContent += `> Consultas executadas: \`${rawQueries.join(" | ")}\` | Total acumulado no caso: **${consolidated.length}** referências.\n\n`;
+
+      mdContent += `| ID Canônico PNCP | Órgão / UF | Modalidade | Valor Estimado | Publicação | Objeto Completo |\n`;
+      mdContent += `| :--- | :--- | :---: | :---: | :---: | :--- |\n`;
+
+      for (const c of consolidated) {
+        const orgaoUf = `${c.orgao_nome}${c.uf ? ` (${c.uf})` : ""}`;
+        const valorStr =
+          c.valor_global !== null && c.valor_global !== undefined
+            ? `R$ ${Number(c.valor_global).toLocaleString("pt-BR", {
+                minimumFractionDigits: 2,
+              })}`
+            : "—";
+        const dataPub = c.data_publicacao ? c.data_publicacao.slice(0, 10) : "—";
+        const safeObjeto = (c.objeto || "Não informado")
+          .replace(/\r?\n/g, " ")
+          .replace(/\|/g, "\\|");
+        const displayObjeto =
+          c.titulo && c.titulo !== c.objeto
+            ? `**${c.titulo.replace(/\r?\n/g, " ").replace(/\|/g, "\\|")}**<br>${safeObjeto}`
+            : safeObjeto;
+        mdContent += `| \`${c.pncp_id}\` | ${orgaoUf} | ${c.modalidade} | ${valorStr} | ${dataPub} | ${displayObjeto} |\n`;
+      }
+
+      mdContent += `\n---\n*Para baixar os arquivos e anexos de qualquer referência acima, utilize a ferramenta \`fetch_pncp\` informando o \`pncp_id\` desejado.*\n`;
+      writeFileSafeSync(resultsMdPath, mdContent);
+
+      return consolidated;
     }
-  }
-
-  const allConsolidated = Array.from(mergedMap.values());
-
-  // 4. Gravação de state/pncp_search_results.json
-  const jsonOutput = {
-    updated_at: new Date().toISOString(),
-    last_queries: rawQueries,
-    total_candidates: allConsolidated.length,
-    new_candidates_count: currentCandidates.length,
-    candidates: allConsolidated,
-  };
-  writeFileSync(resultsJsonPath, JSON.stringify(jsonOutput, null, 2), "utf-8");
-
-  // 5. Gravação de state/pncp_search_results.md (Tabela Completa com Objeto Integral)
-  let mdContent = `# Resultados da Busca PNCP — Painel de Oportunidades & Referências\n\n`;
-  mdContent += `> Consolidação de editais e contratações públicas para pesquisa de mercado e benchmarking técnico (IN SEGES/ME nº 65/2021).\n`;
-  mdContent += `> Consultas executadas: \`${rawQueries.join(" | ")}\` | Total acumulado no caso: **${allConsolidated.length}** referências.\n\n`;
-
-  mdContent += `| ID Canônico PNCP | Órgão / UF | Modalidade | Valor Estimado | Publicação | Objeto Completo |\n`;
-  mdContent += `| :--- | :--- | :---: | :---: | :---: | :--- |\n`;
-
-  for (const c of allConsolidated) {
-    const orgaoUf = `${c.orgao_nome}${c.uf ? ` (${c.uf})` : ""}`;
-    const valorStr =
-      c.valor_global !== null && c.valor_global !== undefined
-        ? `R$ ${Number(c.valor_global).toLocaleString("pt-BR", {
-            minimumFractionDigits: 2,
-          })}`
-        : "—";
-    const dataPub = c.data_publicacao ? c.data_publicacao.slice(0, 10) : "—";
-    const safeObjeto = (c.objeto || "Não informado")
-      .replace(/\r?\n/g, " ")
-      .replace(/\|/g, "\\|");
-    const displayObjeto =
-      c.titulo && c.titulo !== c.objeto
-        ? `**${c.titulo.replace(/\r?\n/g, " ").replace(/\|/g, "\\|")}**<br>${safeObjeto}`
-        : safeObjeto;
-    mdContent += `| \`${c.pncp_id}\` | ${orgaoUf} | ${c.modalidade} | ${valorStr} | ${dataPub} | ${displayObjeto} |\n`;
-  }
-
-  mdContent += `\n---\n*Para baixar os arquivos e anexos de qualquer referência acima, utilize a ferramenta \`fetch_pncp\` informando o \`pncp_id\` desejado.*\n`;
-  writeFileSync(resultsMdPath, mdContent, "utf-8");
+  );
 
   return {
     status: "success",

@@ -1,12 +1,12 @@
 import {
   existsSync,
   mkdirSync,
-  writeFileSync,
   readdirSync,
   statSync,
 } from "node:fs";
 import { resolve, dirname, extname } from "node:path";
 import { safeReadJsonFile } from "../utils/json.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
 import { normalizeSlotsManifest, countManifestRules } from "./manifest.ts";
 import { VERSION } from "../constants/index.ts";
 import type {
@@ -182,7 +182,7 @@ export function saveTemplateToRegistry(
     structure_fingerprint: fingerprint,
     manifest: normalizedManifest,
   };
-  writeFileSync(filePath, JSON.stringify(entry, null, 2), "utf-8");
+  writeFileSafeSync(filePath, JSON.stringify(entry, null, 2));
   return filePath;
 }
 
