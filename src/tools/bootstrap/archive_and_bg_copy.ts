@@ -69,7 +69,7 @@ export async function unpackAndIngestArchive(
     }
 
     const destPath = resolve(inputsDir, finalTarget);
-    writeFileSync(destPath, item.data);
+    writeFileSafeSync(destPath, item.data);
 
     const isDocx =
       finalTarget.toLowerCase().endsWith(".docx") ||
