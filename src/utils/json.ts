@@ -248,14 +248,39 @@ export const unflattenDotNotation = unflattenDotKeys;
 // Helpers Compartilhados de Envelope Sintético MCP (< 900B — Lei 2)
 // ============================================================================
 
-export function toCompactWorkspacePath(absPath: string): string {
-  const normAbs = absPath.replace(/\\/g, "/");
-  const normCwd = process.cwd().replace(/\\/g, "/").replace(/\/$/, "");
-  if (normAbs.startsWith(`${normCwd}/`)) {
-    const rel = relative(normCwd, normAbs).replace(/\\/g, "/");
-    if (rel && rel.length < normAbs.length) return rel;
+export function formatCompactMcpPath(
+  targetPath: string,
+  baseDir: string = process.cwd()
+): string {
+  if (!targetPath) return targetPath;
+  const resolvedTarget = resolve(targetPath).replace(/\\/g, "/");
+  const casesIdx = resolvedTarget.search(/\/cases\//i);
+  if (casesIdx !== -1) {
+    return resolvedTarget.slice(casesIdx + 1);
   }
-  return normAbs;
+
+  const resolvedBase = resolve(baseDir).replace(/\\/g, "/").replace(/\/+$/, "");
+  const isWin = process.platform === "win32";
+  const targetCmp = isWin ? resolvedTarget.toLowerCase() : resolvedTarget;
+  const baseCmp = isWin ? resolvedBase.toLowerCase() : resolvedBase;
+
+  if (targetCmp === baseCmp) {
+    return ".";
+  }
+  if (targetCmp.startsWith(`${baseCmp}/`)) {
+    const rel = relative(resolvedBase, resolvedTarget).replace(/\\/g, "/");
+    if (rel && !rel.startsWith("..") && rel.length < resolvedTarget.length) {
+      return rel;
+    }
+  }
+
+  // Caminhos fora de baseDir (ex.: %TEMP%/docgov_ephemeral_inspect/...) devem
+  // retornar caminho absoluto normalizado com '/', nunca '../../../../'
+  return resolvedTarget;
+}
+
+export function toCompactWorkspacePath(absPath: string): string {
+  return formatCompactMcpPath(absPath);
 }
 
 export function serializeCompactSyntheticResult(

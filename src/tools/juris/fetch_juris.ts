@@ -4,10 +4,11 @@
 // ============================================================================
 
 import { writeFileSync, mkdirSync, existsSync } from "node:fs";
-import { resolve, join, relative } from "node:path";
+import { join } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { createJurisFetchContractError } from "../../contracts/errors.ts";
 import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
+import { formatCompactMcpPath } from "../../utils/json.ts";
 import { defaultJurisdictionRegistry } from "./provider_registry.ts";
 import {
   assertAuthenticAcordao,
@@ -132,8 +133,8 @@ export function formatFetchJurisSyntheticResult(
   },
   baseDir: string = process.cwd()
 ): FetchJurisSyntheticResult {
-  const relDossie = relative(baseDir, result.dossiePath).replace(/\\/g, "/") || result.dossiePath;
-  const relFull = relative(baseDir, result.fullPath).replace(/\\/g, "/") || result.fullPath;
+  const relDossie = formatCompactMcpPath(result.dossiePath, baseDir);
+  const relFull = formatCompactMcpPath(result.fullPath, baseDir);
   const l = result.slicedResult.layers;
   const source: JurisOrigin = result.source || "LIVE";
 

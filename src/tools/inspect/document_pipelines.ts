@@ -1,6 +1,6 @@
-import { relative } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { formatCentsToCurrency } from "../../core/budget_auditor.ts";
+import { formatCompactMcpPath } from "../../utils/json.ts";
 import type {
   DocxInspectionResult,
   InspectResult,
@@ -185,10 +185,9 @@ export function formatInspectDocSyntheticResult(
 
   if (inspection.diff_result) {
     const diff = inspection.diff_result;
-    nextHint = `Diff concluído (+${diff.total_added} / -${diff.total_removed} / ~${diff.total_modified}). Relatório: ${relative(
-      process.cwd(),
-      diff.diff_report_path || ""
-    ).replace(/\\/g, "/")}.`;
+    nextHint = `Diff concluído (+${diff.total_added} / -${diff.total_removed} / ~${diff.total_modified}). Relatório: ${
+      diff.diff_report_path ? formatCompactMcpPath(diff.diff_report_path) : ""
+    }.`;
   }
 
   const buildPayload = (
@@ -237,10 +236,7 @@ export function formatInspectDocSyntheticResult(
             removed: inspection.diff_result.total_removed,
             modified: inspection.diff_result.total_modified,
             report: inspection.diff_result.diff_report_path
-              ? relative(
-                  process.cwd(),
-                  inspection.diff_result.diff_report_path
-                ).replace(/\\/g, "/")
+              ? formatCompactMcpPath(inspection.diff_result.diff_report_path)
               : undefined,
           },
         }

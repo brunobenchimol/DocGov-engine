@@ -1,4 +1,4 @@
-import { relative } from "node:path";
+import { formatCompactMcpPath } from "../../utils/json.ts";
 import type {
   BodyParagraphInfo,
   TableInfo,
@@ -236,18 +236,5 @@ export function compactInspectionResult(
 }
 
 export function toShortDocPath(p: string): string {
-  if (!p) return p;
-  const idx = p.search(/[\\/]cases[\\/]/i);
-  if (idx !== -1) {
-    return p.slice(idx + 1).replace(/\\/g, "/");
-  }
-  try {
-    const rel = relative(process.cwd(), p).replace(/\\/g, "/");
-    if (!rel.startsWith("../..") && !rel.includes(":/") && !rel.includes(":\\")) {
-      return rel;
-    }
-  } catch {
-    // Mantém caminho original formatado
-  }
-  return p.replace(/\\/g, "/");
+  return formatCompactMcpPath(p);
 }

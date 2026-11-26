@@ -4,10 +4,11 @@
 // ============================================================================
 
 import { existsSync, mkdirSync } from "node:fs";
-import { join, relative } from "node:path";
+import { join } from "node:path";
 import { VERSION } from "../../constants/index.ts";
 import { createJurisSearchContractError } from "../../contracts/errors.ts";
 import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
+import { formatCompactMcpPath } from "../../utils/json.ts";
 import {
   defaultJurisdictionRegistry,
   JurisdictionProviderRegistry,
@@ -288,7 +289,7 @@ export function formatSearchJurisSyntheticResult(
   baseDir: string = process.cwd(),
   currentHits?: JurisSearchResultItem[]
 ): SearchJurisSyntheticResult {
-  const relMd = relative(baseDir, mdPath).replace(/\\/g, "/") || mdPath;
+  const relMd = formatCompactMcpPath(mdPath, baseDir);
   const roundSource = currentHits ?? fileResult.results;
 
   const topHits = roundSource.slice(0, 3).map((h) => ({

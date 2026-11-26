@@ -1,6 +1,6 @@
 import { describe, test, expect, afterAll, beforeAll } from "bun:test";
 import { existsSync, writeFileSync, mkdirSync, rmSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, dirname } from "node:path";
 import os from "node:os";
 import {
   isValidDocGovCaseScope,
@@ -111,25 +111,35 @@ describe("Testes Unitários v1.3.8: Guardrail de Escopo DocGov e Isolamento Efê
   // --------------------------------------------------------------------------
   // 3. Exceções Autorizadas: Isolamento Efêmero em %TEMP% (inspect_doc e search_pncp)
   // --------------------------------------------------------------------------
-  test("10. inspect_doc: deve redirecionar artefatos para %TEMP%/docgov_ephemeral_inspect/ sem poluir pasta externa", async () => {
+  test("10. inspect_doc: deve redirecionar artefatos para subpasta efêmera isolada em %TEMP%/docgov_ephemeral_inspect/ sem poluir pasta externa", async () => {
     const ephemeralDir = getEphemeralInspectDir();
     expect(existsSync(ephemeralDir)).toBe(true);
 
     const result = await inspectDocx(outsideDocx);
-    expect(result.doc_type).toBe("docx");
-    expect(result.paragraphs.length).toBeGreaterThan(0);
+    try {
+      expect(result.doc_type).toBe("docx");
+      expect(result.paragraphs.length).toBeGreaterThan(0);
 
-    // Garante que não criou state/ ou arquivos markdown dentro da pasta outsideDir
-    expect(existsSync(resolve(outsideDir, "state"))).toBe(false);
-    expect(existsSync(resolve(outsideDir, "visao_auditoria_anexo_externo.md"))).toBe(false);
+      // Garante que não criou state/ ou arquivos markdown dentro da pasta outsideDir
+      expect(existsSync(resolve(outsideDir, "state"))).toBe(false);
+      expect(existsSync(resolve(outsideDir, "visao_auditoria_anexo_externo.md"))).toBe(false);
 
-    // Garante que os artefatos foram gravados na pasta efêmera
-    expect(result.audit_view_path).toBeDefined();
-    expect(result.audit_view_path!.startsWith(ephemeralDir)).toBe(true);
-    expect(existsSync(result.audit_view_path!)).toBe(true);
+      // Garante que os artefatos foram gravados em subpasta isolada dentro da pasta efêmera
+      expect(result.audit_view_path).toBeDefined();
+      expect(result.audit_view_path!.startsWith(ephemeralDir)).toBe(true);
+      expect(dirname(result.audit_view_path!)).not.toBe(resolve(ephemeralDir));
+      expect(existsSync(result.audit_view_path!)).toBe(true);
+    } finally {
+      if (result.audit_view_path) {
+        const sessionDir = dirname(result.audit_view_path);
+        if (sessionDir.startsWith(resolve(ephemeralDir)) && sessionDir !== resolve(ephemeralDir)) {
+          rmSync(sessionDir, { recursive: true, force: true });
+        }
+      }
+    }
   });
 
-  test("11. search_pncp: deve acumular resultados em %TEMP%/docgov_ephemeral_inspect/ quando caseDir for fora de escopo", async () => {
+  test("11. search_pncp: deve acumular resultados em subpasta efêmera isolada de %TEMP%/docgov_ephemeral_inspect/ quando caseDir for fora de escopo", async () => {
     const server = Bun.serve({
       port: 0,
       fetch() {
@@ -156,8 +166,9 @@ describe("Testes Unitários v1.3.8: Guardrail de Escopo DocGov e Isolamento Efê
     });
 
     const ephemeralDir = getEphemeralInspectDir();
+    let result: Awaited<ReturnType<typeof searchPncpContracts>> | undefined;
     try {
-      const result = await searchPncpContracts(outsideDir, "tic", {
+      result = await searchPncpContracts(outsideDir, "tic", {
         limit: 1,
         baseUrl: `http://127.0.0.1:${server.port}`,
       });
@@ -165,11 +176,19 @@ describe("Testes Unitários v1.3.8: Guardrail de Escopo DocGov e Isolamento Efê
       expect(result.status).toBe("success");
       // Garante que não criou state/ na pasta externa
       expect(existsSync(resolve(outsideDir, "state"))).toBe(false);
-      // Garante que gravou em %TEMP%/docgov_ephemeral_inspect/
-      expect(existsSync(resolve(ephemeralDir, "pncp_search_results.md"))).toBe(true);
-      expect(existsSync(resolve(ephemeralDir, "pncp_search_results.json"))).toBe(true);
+      // Garante que gravou em subpasta isolada de %TEMP%/docgov_ephemeral_inspect/
+      expect(result.resultsMdPath.startsWith(resolve(ephemeralDir))).toBe(true);
+      expect(dirname(result.resultsMdPath)).not.toBe(resolve(ephemeralDir));
+      expect(existsSync(result.resultsMdPath)).toBe(true);
+      expect(existsSync(result.resultsJsonPath)).toBe(true);
     } finally {
       server.stop(true);
+      if (result?.resultsMdPath) {
+        const sessionDir = dirname(result.resultsMdPath);
+        if (sessionDir.startsWith(resolve(ephemeralDir)) && sessionDir !== resolve(ephemeralDir)) {
+          rmSync(sessionDir, { recursive: true, force: true });
+        }
+      }
     }
   });
 });
