@@ -6,6 +6,18 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [Unreleased]
+
+### Added
+- **Auto-Highlight de Placeholders e Sintaxe Inline `==texto==` (`src/tools/openxml/rich_text_highlight.ts`, `fill_docx_template`):**
+  - Parâmetro opcional `highlightPlaceholders` (padrão `true`) que detecta `` `?\[(?:A DEFINIR|INSERIR)[^\]]*\]`? `` em `word/document.xml` e cabeçalhos/rodapés, remove backticks externos literais antes de gravar `<w:t xml:space="preserve">` e aplica `<w:highlight w:val="yellow"/>` preservando fonte, tamanho e estilo herdados;
+  - Suporte à marcação inline `==texto==` e `==[cor]texto==` validada estritamente contra as 16 cores oficiais de `ST_HighlightColor` (com fallback seguro para `yellow`) e inserção na posição canônica `CT_RPr` (ISO/IEC 29500-1, após `rStyle..szCs` e antes de `u`, `bdr`, `shd`, `vertAlign`).
+- **Injetor Nativo de Comentários Word (`src/tools/openxml/docx_comments_injector.ts`, `word/comments.xml`):**
+  - Suporte a `comments` na tool `fill_docx_template` e/ou chave reservada `_comments` no `estado_caso.json` (`{ slot_key?, anchor_text, author?, initials?, text }`), com strip de chaves iniciadas por `_` antes da compilação e concatenação ordenada quando ambos forem informados;
+  - Ancoragem segura dentro do mesmo `<w:p>` (suportando `anchor_text` fragmentado entre múltiplos `<w:r>` e escopo por `slot_key` com strip prévio de marcações Markdown), preservação de comentários pré-existentes do doador (`maxId + 1`), criação/atualização idempotente de `word/comments.xml`, `[Content_Types].xml` e `word/_rels/document.xml.rels`, e reporte *fail-safe* de `comments_unmatched` no cabeçalho de `visao_auditoria_*.md` e no envelope `SUMMARY < 1024 B` (com truncamento seguro do preview JSON quando necessário).
+
+---
+
 ## [1.7.6] - 2026-11-27 — Corte Limpo Global JURIS, Cache TTL 24h Universal & Desarme de Vieses
 
 ### Added
