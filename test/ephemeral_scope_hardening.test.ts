@@ -51,6 +51,21 @@ describe("Blindagem ENG-10, Escopos Efêmeros, inputs/ e Sweep >= 72h (v1.7.4)",
   test("1. A-01: bloqueia path traversal '..' e symlinks apontando para fora do escopo DocGov", () => {
     expect(isValidDocGovCaseScope("cases/x/../../../Windows/System32")).toBe(false);
     expect(isValidDocGovCaseScope("cases/x/../../etc/passwd")).toBe(false);
+    expect(isValidDocGovCaseScope("C:/Users/bruno/Downloads/edital.pdf")).toBe(false);
+
+    // Simula CWD contendo '/work/' (como runner GitHub Actions /home/runner/work/...)
+    const workCwd = join(makeTempRoot("ci_work"), "work", "DocGov-engine");
+    mkdirSync(workCwd, { recursive: true });
+    const prevCwd = process.cwd();
+    try {
+      process.chdir(workCwd);
+      expect(isValidDocGovCaseScope("C:/Users/bruno/Downloads/edital.pdf")).toBe(false);
+      expect(isValidDocGovCaseScope("cases/x/../../etc/passwd")).toBe(false);
+      expect(isValidDocGovCaseScope("cases/x/../../../Windows/System32")).toBe(false);
+      expect(isValidDocGovCaseScope("cases/caso_ok/inputs/doc.pdf")).toBe(true);
+    } finally {
+      process.chdir(prevCwd);
+    }
 
     const ephRoot = getEphemeralRootDir();
     expect(isValidDocGovCaseScope(ephRoot)).toBe(false);

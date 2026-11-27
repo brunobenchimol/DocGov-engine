@@ -1,5 +1,14 @@
 import { existsSync, readdirSync, mkdirSync, realpathSync } from "node:fs";
-import { resolve, dirname, basename, normalize, isAbsolute, join, relative } from "node:path";
+import {
+  resolve,
+  dirname,
+  basename,
+  normalize,
+  isAbsolute,
+  join,
+  posix,
+  win32,
+} from "node:path";
 import { tmpdir } from "node:os";
 
 let cachedWorkspaceRoot: string | null = null;
@@ -258,6 +267,26 @@ export function isValidDocGovCaseScope(targetPath: string): boolean {
   if (!targetPath || typeof targetPath !== "string") return false;
 
   const isWin = process.platform === "win32";
+  const isForeignAbsolute = isPathAbsolute(targetPath) && !isAbsolute(targetPath);
+
+  if (isForeignAbsolute) {
+    const lexicalWin = win32.normalize(targetPath).replace(/\\/g, "/");
+    if (/(^|[\\/])docgov_ephemeral_inspect([\\/]|$)/i.test(lexicalWin)) {
+      return false;
+    }
+    return DOCGOV_SCOPE_REGEX.test(lexicalWin);
+  }
+
+  if (!isPathAbsolute(targetPath)) {
+    const lexicalRel = posix.normalize(targetPath.replace(/\\/g, "/"));
+    if (/(^|\/)docgov_ephemeral_inspect(\/|$)/i.test(lexicalRel)) {
+      return false;
+    }
+    if (!DOCGOV_SCOPE_REGEX.test(lexicalRel)) {
+      return false;
+    }
+  }
+
   const resolved = resolve(targetPath);
 
   if (isInsideEphemeralInspectRoot(resolved)) {
@@ -269,8 +298,6 @@ export function isValidDocGovCaseScope(targetPath: string): boolean {
     return false;
   }
 
-  // Se o caminho possui segmentos '..', garante que o primeiro segmento permitido
-  // no caminho resolvido ainda pertence ao escopo (bloqueia escape para fora de raiz).
   const realResolved = resolveDeepestExistingRealPath(resolved);
   if (isInsideEphemeralInspectRoot(realResolved)) {
     return false;
@@ -278,14 +305,6 @@ export function isValidDocGovCaseScope(targetPath: string): boolean {
   const normReal = (isWin ? realResolved.toLowerCase() : realResolved).replace(/\\/g, "/");
   if (!DOCGOV_SCOPE_REGEX.test(normReal)) {
     return false;
-  }
-
-  // Bloqueia falso positivo se CWD estiver dentro de algo permitido e targetPath usar '../..' para escapar
-  if (/(^|[\\/])\.\.([\\/]|$)/.test(targetPath) && !isPathAbsolute(targetPath)) {
-    const relFromCwd = relative(resolve(process.cwd()), resolved).replace(/\\/g, "/");
-    if (relFromCwd.startsWith("..") && !DOCGOV_SCOPE_REGEX.test(relFromCwd)) {
-      return false;
-    }
   }
 
   return true;
