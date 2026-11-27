@@ -169,17 +169,15 @@ export function buildLiveDegradedNotices(
   const notices: string[] = [];
   for (const d of diagnostics) {
     const mode = d.source_mode;
-    if (mode === "CURATED_FALLBACK") {
+    if (mode === "CACHE_TTL_FALLBACK") {
       const reason = /timeout|timed out/i.test(d.live_error || "")
         ? "timeout"
         : d.live_error
         ? d.live_error.slice(0, 18).replace(/\s+/g, " ")
         : "fallback";
-      notices.push(`${d.court}(${reason}->curated; retry com force_live=true)`);
+      notices.push(`${d.court}(${reason}->ttl_cache; retry com force_live=true)`);
     } else if (mode === "CIRCUIT_OPEN_FALLBACK") {
-      notices.push(`${d.court}(circuit_open->curated; retry com force_live=true)`);
-    } else if (mode === "CURATED_SHORT_CIRCUIT") {
-      notices.push(`${d.court}(short_circuit->curated; force_live=true p/ live)`);
+      notices.push(`${d.court}(circuit_open->ttl_cache; retry com force_live=true)`);
     } else if (mode === "LIVE_FAILED") {
       const errShort = (d.live_error || d.error || "err").slice(0, 22);
       notices.push(`${d.court}(live_failed:${errShort})`);
@@ -198,7 +196,7 @@ function generateJurisSearchMarkdown(
 
   const degradedNotices = buildLiveDegradedNotices(res.court_diagnostics);
   if (degradedNotices.length > 0) {
-    md += `> ⚠️ **Aviso de Origem Curada / Degradação Live:** \`${degradedNotices.join(" | ")}\`\n`;
+    md += `> ⚠️ **Aviso de Cache TTL / Degradação Live:** \`${degradedNotices.join(" | ")}\`\n`;
   }
   if (res.jurisdiction_routing.fallback_notice) {
     md += `> ⚠️ **Aviso de Graceful Fallback:** ${res.jurisdiction_routing.fallback_notice}\n`;

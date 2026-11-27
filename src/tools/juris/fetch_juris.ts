@@ -69,12 +69,14 @@ export async function fetchJuris(
   });
 
   const l1a = prelimSlice.layers.layer_1A_metadata;
-  const canonicalId = `ACORDAO-${court}-${l1a.numero}-${l1a.ano}-${l1a.colegiado
+  const anoSuffix = l1a.ano !== undefined ? `-${l1a.ano}` : "";
+  const canonicalId = `ACORDAO-${court}-${l1a.numero}${anoSuffix}-${l1a.colegiado
     .toUpperCase()
     .replace(/\s+/g, "_")}`;
 
   const cleanShortname = (
-    options.shortname || `${court.toLowerCase()}_${l1a.numero}_${l1a.ano}`
+    options.shortname ||
+    `${court.toLowerCase()}_${l1a.numero}${l1a.ano !== undefined ? `_${l1a.ano}` : ""}`
   ).replace(/[^a-zA-Z0-9_-]/g, "_");
 
   const fullRelLink = `juris_${cleanShortname}/inteiro_teor_anatomico.md`;
@@ -102,12 +104,9 @@ export async function fetchJuris(
   const dossiePath = join(stateDir, `dossie_juris_${cleanShortname}.md`);
   const fullPath = join(stateJurisDir, "inteiro_teor_anatomico.md");
 
-  const sourceBanner =
-    source === "CURATED_CATALOG"
-      ? `> **Fonte de Autenticação:** \`CURATED_CATALOG\` *(Dado normativo curado local; use \`force_live=true\` / \`--force-live\` para consulta ao vivo)*\n\n`
-      : rawFetch?.cache_hit
-      ? `> **Fonte de Autenticação:** \`LIVE\` *(cache TTL 24h${rawFetch.fetched_at ? `, coletado em ${rawFetch.fetched_at}` : ""})*\n\n`
-      : `> **Fonte de Autenticação:** \`LIVE\`\n\n`;
+  const sourceBanner = rawFetch?.cache_hit
+    ? `> **Fonte de Autenticação:** \`LIVE\` *(cache TTL 24h${rawFetch.fetched_at ? `, coletado em ${rawFetch.fetched_at}` : ""})*\n\n`
+    : `> **Fonte de Autenticação:** \`LIVE\`\n\n`;
 
   const dossieMarkdown = sourceBanner + slicedResult.dossieMarkdown;
   const fullMarkdown = sourceBanner + slicedResult.fullMarkdown;
@@ -163,18 +162,12 @@ export function formatFetchJurisSyntheticResult(
     topics_matched: result.slicedResult.topicsMatched,
     dossie_sliced_md: relDossie,
     inteiro_teor_full_md: relFull,
-    next_step_hint:
-      source === "CURATED_CATALOG"
-        ? `Dado curado local (use force_live=true p/ live). Consulte ${relDossie}`
-        : `Consulte ${relDossie} para citação e ${relFull} para leitura integral.`,
+    next_step_hint: `Consulte ${relDossie} para citação e ${relFull} para leitura integral.`,
   };
 
   // Garante teto de 900 bytes (Lei 2)
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {
-    payload.next_step_hint =
-      source === "CURATED_CATALOG"
-        ? `CURATED (force_live=true). Veja ${relDossie}`
-        : `Consulte ${relDossie}`;
+    payload.next_step_hint = `Consulte ${relDossie}`;
   }
 
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880) {

@@ -31,13 +31,11 @@ export interface JurisdictionRoutingInfo {
   fallback_notice: string | null;
 }
 
-export type JurisOrigin = "LIVE" | "CURATED_CATALOG";
+export type JurisOrigin = "LIVE";
 export type JurisSourceMode =
   | "LIVE"
-  | "MIXED"
-  | "CURATED_FALLBACK"
+  | "CACHE_TTL_FALLBACK"
   | "CIRCUIT_OPEN_FALLBACK"
-  | "CURATED_SHORT_CIRCUIT"
   | "LIVE_FAILED";
 
 export interface CourtDiagnostic {
@@ -162,7 +160,7 @@ export interface Layer1A_Metadata {
   tribunal: string;
   colegiado: string;
   numero: string;
-  ano: number;
+  ano?: number;
   processo?: string;
   relator?: string;
   dataSessao?: string;
@@ -282,7 +280,6 @@ export interface JurisdictionProvider {
   readonly envOverrideKey?: string;
   readonly liveSmokeQuery?: string;
   readonly idPatterns?: RegExp[];
-  readonly autoTriggerKeywords?: RegExp;
   search(query: string, options?: Partial<SearchJurisOptions>): Promise<RawJurisSearchResult[]>;
   searchWithDiagnostic?(query: string, options?: Partial<SearchJurisOptions>): Promise<{
     hits: RawJurisSearchResult[];

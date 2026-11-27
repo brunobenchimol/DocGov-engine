@@ -127,7 +127,7 @@ export async function searchJuris(
           if (res.diagnostic.source_mode) {
             if (
               !provSourceMode ||
-              res.diagnostic.source_mode === "CURATED_FALLBACK" ||
+              res.diagnostic.source_mode === "CACHE_TTL_FALLBACK" ||
               res.diagnostic.source_mode === "CIRCUIT_OPEN_FALLBACK" ||
               res.diagnostic.source_mode === "LIVE_FAILED"
             ) {
@@ -348,7 +348,7 @@ export function formatSearchJurisSyntheticResult(
 
   if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 880 && payload.live_degraded) {
     const courts = payload.live_degraded.map((s) => s.split("(")[0]).join(",");
-    payload.live_degraded = [`${courts}(curated;force_live=true)`];
+    payload.live_degraded = [`${courts}(ttl_cache;force_live=true)`];
     if (payload.top_hits[0]) {
       payload.top_hits[0].tese_short = payload.top_hits[0].tese_short.slice(0, 30);
     }

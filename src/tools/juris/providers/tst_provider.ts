@@ -1,11 +1,10 @@
 // ============================================================================
 // Conector Oficial do Tribunal Superior do Trabalho (TST Provider)
-// docgov-engine v1.7.3 — providers/tst_provider.ts (Cache Dinâmico TTL 24h)
+// docgov-engine v1.7.6 — providers/tst_provider.ts (Cache Global TTL 24h via Base)
 // ============================================================================
 
 import type {
   CourtDiagnostic,
-  FetchProviderOptions,
   RawJurisFetchResult,
   RawJurisSearchResult,
   SearchJurisOptions,
@@ -20,7 +19,6 @@ import {
 import { sanitizeQueryForCourt } from "./http_client.ts";
 import { triageTstPrecedents } from "../tst_precedent_triage.ts";
 import { parseTstNormativeRef } from "./tst_catalog.ts";
-import { readTstTtlCache, writeTstTtlCache } from "./tst_ttl_cache.ts";
 import {
   buildTstFetchResultFromHtml,
   buildTstNormativeFetchResult,
@@ -49,84 +47,16 @@ export class TstProvider extends BaseJurisdictionProvider {
     /\b\d{1,7}-\d{2}\.\d{4}\.5\.\d{2}\.\d{4}\b/,
     /\b\d{7}\d{2}(?:19|20)\d{2}5\d{2}\d{4}\b/,
   ];
-  public readonly autoTriggerKeywords =
-    /\b(terceiriza[çc][aã]o|s[úu]mula\s*331|oj\s*191|dono\s+da\s+obra|responsabilidade\s+subsidi[áa]ria|encargos\s+trabalhistas|posto[s]?\s+de\s+trabalho|dedica[çc][aã]o\s+exclusiva|m[aã]o\s+de\s+obra|culpa\s+in\s+vigilando|tema\s*(?:246|1\.?118)|pejotiza[çc][aã]o|aloca[çc][aã]o\s+de\s+profissionais)\b/i;
 
   protected getDefaultBaseUrl(): string {
     return "https://jurisprudencia-backend.tst.jus.br";
-  }
-
-  private shouldUseTtlCache(): boolean {
-    return !this.isMockMode() || Boolean(process.env.DOCGOV_JURIS_CACHE_DIR?.trim());
   }
 
   protected async fetchTstLegacy(
     query: string,
     options?: Partial<SearchJurisOptions>
   ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
-    const limit = Math.min(options?.limit || 10, 20);
-    const forceLive = options?.force_live === true;
-    const startMs = Date.now();
-    const useCache = this.shouldUseTtlCache();
-    const cacheKey = `${query}|${limit}`;
-
-    if (useCache && !forceLive) {
-      const cached = readTstTtlCache<RawJurisSearchResult[]>("search", cacheKey);
-      if (cached) {
-        const hits = cached.payload.map((h) => ({ ...h, origin: "LIVE" as const }));
-        return {
-          hits,
-          diagnostic: {
-            court: "TST",
-            status: "ok",
-            hits: hits.length,
-            latency_ms: Math.max(0, Date.now() - startMs),
-            error: null,
-            source_mode: "LIVE",
-            live_error: null,
-            cache_hit: true,
-            fetched_at: new Date(cached.fetched_at).toISOString(),
-          },
-        };
-      }
-    }
-
-    const timeoutMs = forceLive ? this.forceLiveTimeoutMs : this.defaultLiveTimeoutMs;
-    try {
-      const rawHits = this.isMockMode()
-        ? await this.executeMockSearchOnly(query, limit, timeoutMs)
-        : await this.executeLiveSearch(query, limit, { timeoutMs, options });
-      const hits = rawHits.map((h) => ({ ...h, origin: "LIVE" as const }));
-      if (useCache) {
-        writeTstTtlCache("search", cacheKey, hits);
-      }
-      return {
-        hits,
-        diagnostic: {
-          court: "TST",
-          status: "ok",
-          hits: hits.length,
-          latency_ms: Math.max(0, Date.now() - startMs),
-          error: null,
-          source_mode: "LIVE",
-          live_error: null,
-        },
-      };
-    } catch (err: any) {
-      const liveError = err?.message || String(err);
-      return {
-        hits: [],
-        diagnostic: {
-          court: "TST",
-          status: "error",
-          hits: 0,
-          latency_ms: Math.max(0, Date.now() - startMs),
-          error: liveError,
-          source_mode: "LIVE_FAILED",
-          live_error: liveError,
-        },
-      };
-    }
+    return super.searchWithDiagnostic(query, options);
   }
 
   public override async searchWithDiagnostic(
@@ -149,96 +79,6 @@ export class TstProvider extends BaseJurisdictionProvider {
       hits: keptHits,
       diagnostic: { ...legacy.diagnostic, hits: keptHits.length },
       tst_triage: triage,
-    };
-  }
-
-  public override async fetch(
-    idOrRef: string,
-    options?: FetchProviderOptions
-  ): Promise<RawJurisFetchResult | null> {
-    const forceLive = options?.force_live === true;
-    const useCache = this.shouldUseTtlCache();
-
-    if (useCache && !forceLive) {
-      const cached = readTstTtlCache<RawJurisFetchResult>("fetch", idOrRef);
-      if (cached) {
-        return {
-          ...cached.payload,
-          source: "LIVE",
-          cache_hit: true,
-          fetched_at: new Date(cached.fetched_at).toISOString(),
-        };
-      }
-    }
-
-    const timeoutMs = forceLive ? this.forceLiveTimeoutMs : this.defaultFetchTimeoutMs;
-    try {
-      const res = this.isMockMode()
-        ? await this.executeMockFetchOnly(idOrRef, timeoutMs)
-        : await this.executeLiveFetch(idOrRef, { timeoutMs, forceLive });
-
-      if (!res || !res.exists) return null;
-      const normalized: RawJurisFetchResult = { ...res, source: "LIVE" };
-      if (useCache) {
-        writeTstTtlCache("fetch", idOrRef, normalized);
-      }
-      return normalized;
-    } catch (err: any) {
-      const liveError = err?.message || String(err);
-      throw new Error(
-        `[LIVE_UNAVAILABLE] Falha ao consultar '${idOrRef}' no TST sem cache TTL 24h válido: ${liveError}`
-      );
-    }
-  }
-
-  private async executeMockSearchOnly(
-    query: string,
-    limit: number,
-    timeoutMs: number
-  ): Promise<RawJurisSearchResult[]> {
-    const baseUrl = this.getBaseUrl();
-    const url = `${baseUrl}/search?court=TST&q=${encodeURIComponent(query)}&limit=${limit}`;
-    const res = await this.executeHttp(url, { timeoutMs });
-    this.assertHttpOk(res);
-    const data = res.data;
-    const rawHits = Array.isArray(data)
-      ? data
-      : Array.isArray(data?.items)
-      ? data.items
-      : Array.isArray(data?.results)
-      ? data.results
-      : Array.isArray(data?.registros)
-      ? data.registros.map((r: any) => r.registro || r)
-      : [];
-    return rawHits.slice(0, limit).map((h: any) => this.mapMockHitToResult(h));
-  }
-
-  private async executeMockFetchOnly(
-    idOrRef: string,
-    timeoutMs: number
-  ): Promise<RawJurisFetchResult | null> {
-    const baseUrl = this.getBaseUrl();
-    const url = `${baseUrl}/fetch/${encodeURIComponent(idOrRef)}?court=TST`;
-    const res = await this.executeHttp(url, { timeoutMs });
-    if (res.status === 404 || res.status === 400) return null;
-    this.assertHttpOk(res);
-    const data = res.data;
-    if (!data || (typeof data === "object" && data.exists === false)) return null;
-    const item =
-      typeof data === "object" && data.exists === true && data.rawTextOrJson
-        ? data.rawTextOrJson
-        : Array.isArray(data)
-        ? data[0]
-        : Array.isArray(data?.items)
-        ? data.items[0]
-        : data;
-    if (!item) return null;
-    return {
-      id: (typeof data === "object" && data.id) || idOrRef,
-      court: "TST",
-      exists: true,
-      source: "LIVE",
-      rawTextOrJson: item,
     };
   }
 
@@ -344,18 +184,47 @@ export class TstProvider extends BaseJurisdictionProvider {
       tstUuid = idOrRef.trim();
     } else {
       const cnj = parseCnjLaborRef(idOrRef);
-      const cleanRef = normRef?.kind === "ACORDAO" ? normRef.queryTerm : idOrRef.replace(/^TST-/i, "").trim();
+      const cleanRef =
+        normRef?.kind === "ACORDAO"
+          ? normRef.queryTerm
+          : idOrRef.replace(/^TST-/i, "").trim();
       const searchEndpoint = `${baseUrl}/rest/pesquisa-textual/1/5?a=${Math.random().toFixed(4)}`;
       const searchBody = cnj
         ? {
-            ou: "", e: "", termoExato: "", naoContem: "", ementa: "", dispositivo: "",
-            numeracaoUnica: { numero: cnj.numero, digito: cnj.digito, ano: cnj.ano, orgao: "5", tribunal: cnj.tribunal, vara: cnj.vara },
-            tipos: ["ACORDAO"], orgao: "TST",
+            ou: "",
+            e: "",
+            termoExato: "",
+            naoContem: "",
+            ementa: "",
+            dispositivo: "",
+            numeracaoUnica: {
+              numero: cnj.numero,
+              digito: cnj.digito,
+              ano: cnj.ano,
+              orgao: "5",
+              tribunal: cnj.tribunal,
+              vara: cnj.vara,
+            },
+            tipos: ["ACORDAO"],
+            orgao: "TST",
           }
         : {
-            ou: "", e: cleanRef, termoExato: "", naoContem: "", ementa: "", dispositivo: "",
-            numeracaoUnica: { numero: "", ano: "", digito: "", orgao: "5", tribunal: "", vara: "" },
-            tipos: ["ACORDAO"], orgao: "TST",
+            ou: "",
+            e: cleanRef,
+            termoExato: "",
+            naoContem: "",
+            ementa: "",
+            dispositivo: "",
+            numeracaoUnica: {
+              numero: "",
+              ano: "",
+              digito: "",
+              orgao: "5",
+              tribunal: "",
+              vara: "",
+            },
+            tipos: ["ACORDAO"],
+            orgao: "TST",
           };
 
       const searchRes = await this.executeHttp(searchEndpoint, {
@@ -367,7 +236,8 @@ export class TstProvider extends BaseJurisdictionProvider {
 
       if (searchRes.status === 404) return null;
       this.assertHttpOk(searchRes);
-      const firstRec = searchRes.data?.registros?.[0]?.registro || searchRes.data?.registros?.[0];
+      const firstRec =
+        searchRes.data?.registros?.[0]?.registro || searchRes.data?.registros?.[0];
       if (firstRec && firstRec.id) {
         tstUuid = String(firstRec.id);
         initialRecord = firstRec;

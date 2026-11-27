@@ -270,18 +270,9 @@ export class JurisdictionProviderRegistry {
         }
       }
     } else {
-      // 2. Sem cortes explícitas -> Camada federal padrão
+      // 2. Sem cortes explícitas -> Camada federal padrão (escolha adicional pertence ao cognitivo)
       const federalProviders = this.getDefaultFederalProviders();
       federalProviders.forEach(addSelected);
-
-      // Auto-Trigger Contextual Plug-and-Play (ex.: TST, TCE-SP, TCM-PA)
-      if (queryContext) {
-        for (const prov of this.providers.values()) {
-          if (prov.autoTriggerKeywords && prov.autoTriggerKeywords.test(queryContext)) {
-            addSelected(prov);
-          }
-        }
-      }
 
       if (upperUf) {
         const ufProvs = resolveUfOrDirectCourt(upperUf);

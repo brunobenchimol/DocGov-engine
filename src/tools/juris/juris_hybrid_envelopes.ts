@@ -85,7 +85,7 @@ export async function buildSearchJurisHybridEnvelope(args: {
         payload.statutory_bridge_applied = [];
         if (payload.live_degraded?.length) {
           const courts = payload.live_degraded.map((s) => s.split("(")[0]).join(",");
-          payload.live_degraded = [`${courts}(curated)`];
+          payload.live_degraded = [`${courts}(ttl_cache)`];
         }
       }
       if (byteSize() > targetBytes && payload.jurisdiction_routing.fallback_notice) {

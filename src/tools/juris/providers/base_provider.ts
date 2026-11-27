@@ -1,7 +1,6 @@
 // ============================================================================
-// Classe Base Abstrata de Conectores Jurisdicionais (Template Method)
-// Centraliza timeouts rigorosos (retries: 0), Circuit Breaker seguro,
-// Modo Mock retrocompatível, merge Live-First e transparência cognitiva.
+// Classe Base Abstrata de Conectores Jurisdicionais (Template Method — Corte Limpo v1.7.6)
+// Ciclo Global: Live-First -> Grava TTL 24h -> Fallback TTL 24h (!forceLive) -> LIVE_FAILED
 // ============================================================================
 
 import type {
@@ -19,6 +18,7 @@ import {
   type JurisHttpOptions,
   type JurisHttpResponse,
 } from "./http_client.ts";
+import { readJurisTtlCache, writeJurisTtlCache } from "./juris_ttl_cache.ts";
 
 export interface LiveSearchContext {
   timeoutMs: number;
@@ -38,7 +38,6 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
   public readonly envOverrideKey?: string;
   public readonly liveSmokeQuery?: string;
   public readonly idPatterns?: RegExp[];
-  public readonly autoTriggerKeywords?: RegExp;
 
   protected readonly mockEnvKeys: string[] = [];
   protected readonly baseUrlEnvKeys: string[] = [];
@@ -63,18 +62,6 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     ctx: LiveFetchContext
   ): Promise<RawJurisFetchResult | null>;
   protected abstract mapMockHitToResult(raw: any): RawJurisSearchResult;
-
-  protected searchCatalog(_query: string, _limit: number): RawJurisSearchResult[] {
-    return [];
-  }
-
-  protected shouldShortCircuitCatalog(_query: string): boolean {
-    return false;
-  }
-
-  protected findCatalogItemById(_idOrRef: string): RawJurisFetchResult | null {
-    return null;
-  }
 
   public resetCircuit(): void {
     this.circuitOpenedUntil = 0;
@@ -154,31 +141,28 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     const limit = Math.min(options?.limit || 10, 20);
     const forceLive = options?.force_live === true;
     const startMs = Date.now();
+    const cacheKey = `${query}|${limit}`;
 
-    // 1. Modo Mock Server (.NET Cross-Check / Testes Unitários)
     if (this.isMockMode()) {
-      return this.executeMockSearch(query, limit, forceLive, startMs);
-    }
-
-    // 2. Modo Produção com Resiliência Dupla
-    const catalogHits = this.searchCatalog(query, limit).map((item) => ({
-      ...item,
-      origin: "CURATED_CATALOG" as const,
-    }));
-
-    if (!forceLive && this.shouldShortCircuitCatalog(query) && catalogHits.length > 0) {
-      return {
-        hits: catalogHits.slice(0, limit),
-        diagnostic: this.buildDiagnostic("ok", catalogHits.slice(0, limit).length, startMs, null, "CURATED_SHORT_CIRCUIT", null),
-      };
+      return this.executeMockSearch(query, limit, forceLive, startMs, cacheKey);
     }
 
     if (!forceLive && this.isCircuitOpen()) {
-      if (catalogHits.length > 0) {
-        const sliced = catalogHits.slice(0, limit);
+      const cached = readJurisTtlCache<RawJurisSearchResult[]>(this.courtId, "search", cacheKey);
+      if (cached) {
+        const hits = cached.payload.slice(0, limit).map((h) => ({ ...h, origin: "LIVE" as const }));
         return {
-          hits: sliced,
-          diagnostic: this.buildDiagnostic("ok", sliced.length, startMs, null, "CIRCUIT_OPEN_FALLBACK", "circuit_open"),
+          hits,
+          diagnostic: this.buildDiagnostic(
+            "ok",
+            hits.length,
+            startMs,
+            null,
+            "CIRCUIT_OPEN_FALLBACK",
+            "circuit_open",
+            true,
+            new Date(cached.fetched_at).toISOString()
+          ),
         };
       }
       return {
@@ -190,48 +174,37 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     const timeoutMs = forceLive ? this.forceLiveTimeoutMs : this.defaultLiveTimeoutMs;
     try {
       const rawLive = await this.executeLiveSearch(query, limit, { timeoutMs, options });
-      const liveHits = rawLive.map((item) => ({ ...item, origin: "LIVE" as const }));
+      const liveHits = rawLive.slice(0, limit).map((item) => ({ ...item, origin: "LIVE" as const }));
       if (forceLive) this.resetCircuit();
 
-      if (liveHits.length > 0) {
-        const merged = this.mergeLiveFirst(liveHits, catalogHits, limit);
-        const hasCurated = merged.some((h) => h.origin === "CURATED_CATALOG");
-        const mode: JurisSourceMode = hasCurated ? "MIXED" : "LIVE";
-        return {
-          hits: merged,
-          diagnostic: this.buildDiagnostic("ok", merged.length, startMs, null, mode, null),
-        };
-      }
-
-      if (!forceLive && catalogHits.length > 0) {
-        const sliced = catalogHits.slice(0, limit);
-        return {
-          hits: sliced,
-          diagnostic: this.buildDiagnostic("ok", sliced.length, startMs, null, "CURATED_FALLBACK", null),
-        };
-      }
+      await writeJurisTtlCache(this.courtId, "search", cacheKey, liveHits);
 
       return {
-        hits: [],
-        diagnostic: this.buildDiagnostic("ok", 0, startMs, null, "LIVE", null),
+        hits: liveHits,
+        diagnostic: this.buildDiagnostic("ok", liveHits.length, startMs, null, "LIVE", null),
       };
     } catch (err: any) {
       const liveError = err?.message || String(err);
       this.openCircuit();
 
-      if (forceLive) {
-        return {
-          hits: [],
-          diagnostic: this.buildDiagnostic("error", 0, startMs, liveError, "LIVE_FAILED", liveError),
-        };
-      }
-
-      if (catalogHits.length > 0) {
-        const sliced = catalogHits.slice(0, limit);
-        return {
-          hits: sliced,
-          diagnostic: this.buildDiagnostic("ok", sliced.length, startMs, null, "CURATED_FALLBACK", liveError),
-        };
+      if (!forceLive) {
+        const cached = readJurisTtlCache<RawJurisSearchResult[]>(this.courtId, "search", cacheKey);
+        if (cached) {
+          const hits = cached.payload.slice(0, limit).map((h) => ({ ...h, origin: "LIVE" as const }));
+          return {
+            hits,
+            diagnostic: this.buildDiagnostic(
+              "ok",
+              hits.length,
+              startMs,
+              null,
+              "CACHE_TTL_FALLBACK",
+              liveError,
+              true,
+              new Date(cached.fetched_at).toISOString()
+            ),
+          };
+        }
       }
 
       return {
@@ -247,21 +220,23 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
   ): Promise<RawJurisFetchResult | null> {
     const forceLive = options?.force_live === true;
 
-    // 1. Modo Mock Server
     if (this.isMockMode()) {
       return this.executeMockFetch(idOrRef, forceLive);
     }
 
-    // 2. Modo Produção: Catálogo primeiro quando !forceLive
-    if (!forceLive) {
-      const catItem = this.findCatalogItemById(idOrRef);
-      if (catItem) {
-        return { ...catItem, source: "CURATED_CATALOG" };
-      }
-    }
-
     if (!forceLive && this.isCircuitOpen()) {
-      return this.notFoundFetchResult(idOrRef);
+      const cached = readJurisTtlCache<RawJurisFetchResult>(this.courtId, "fetch", idOrRef);
+      if (cached) {
+        return {
+          ...cached.payload,
+          source: "LIVE",
+          cache_hit: true,
+          fetched_at: new Date(cached.fetched_at).toISOString(),
+        };
+      }
+      throw new Error(
+        `[LIVE_UNAVAILABLE] Circuito aberto e sem cache TTL 24h válido para '${idOrRef}' em ${this.courtId}`
+      );
     }
 
     const timeoutMs = forceLive ? this.forceLiveTimeoutMs : this.defaultFetchTimeoutMs;
@@ -269,22 +244,30 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
       const liveRes = await this.executeLiveFetch(idOrRef, { timeoutMs, forceLive });
       if (forceLive) this.resetCircuit();
       if (liveRes && liveRes.exists) {
-        return { ...liveRes, source: liveRes.source || "LIVE" };
+        const normalized: RawJurisFetchResult = { ...liveRes, source: "LIVE" };
+        await writeJurisTtlCache(this.courtId, "fetch", idOrRef, normalized);
+        return normalized;
       }
       return this.notFoundFetchResult(idOrRef);
     } catch (err: any) {
       const liveError = err?.message || String(err);
       this.openCircuit();
-      if (forceLive) {
-        throw new Error(
-          `[LIVE_UNAVAILABLE] Falha ao consultar '${idOrRef}' em ${this.courtId} com force_live=true: ${liveError}`
-        );
+      if (!forceLive) {
+        const cached = readJurisTtlCache<RawJurisFetchResult>(this.courtId, "fetch", idOrRef);
+        if (cached) {
+          return {
+            ...cached.payload,
+            source: "LIVE",
+            cache_hit: true,
+            fetched_at: new Date(cached.fetched_at).toISOString(),
+          };
+        }
       }
-      const catItem = this.findCatalogItemById(idOrRef);
-      if (catItem) {
-        return { ...catItem, source: "CURATED_CATALOG" };
-      }
-      return this.notFoundFetchResult(idOrRef);
+      throw new Error(
+        `[LIVE_UNAVAILABLE] Falha ao consultar '${idOrRef}' em ${this.courtId}${
+          forceLive ? " com force_live=true" : " sem cache TTL 24h válido"
+        }: ${liveError}`
+      );
     }
   }
 
@@ -292,7 +275,8 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     query: string,
     limit: number,
     forceLive: boolean,
-    startMs: number
+    startMs: number,
+    cacheKey: string
   ): Promise<{ hits: RawJurisSearchResult[]; diagnostic: CourtDiagnostic }> {
     const baseUrl = this.getBaseUrl();
     const url = `${baseUrl}/search?court=${encodeURIComponent(this.courtId)}&q=${encodeURIComponent(query)}&limit=${limit}`;
@@ -304,14 +288,21 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
       const liveError = res.error || `HTTP ${res.status || 0}`;
       const isTransientFailure = res.status === 0 || res.status >= 500;
       if (!forceLive && isTransientFailure) {
-        const catalogHits = this.searchCatalog(query, limit).map((item) => ({
-          ...item,
-          origin: "CURATED_CATALOG" as const,
-        }));
-        if (catalogHits.length > 0) {
+        const cached = readJurisTtlCache<RawJurisSearchResult[]>(this.courtId, "search", cacheKey);
+        if (cached) {
+          const hits = cached.payload.slice(0, limit).map((h) => ({ ...h, origin: "LIVE" as const }));
           return {
-            hits: catalogHits.slice(0, limit),
-            diagnostic: this.buildDiagnostic("ok", catalogHits.slice(0, limit).length, startMs, null, "CURATED_FALLBACK", liveError),
+            hits,
+            diagnostic: this.buildDiagnostic(
+              "ok",
+              hits.length,
+              startMs,
+              null,
+              "CACHE_TTL_FALLBACK",
+              liveError,
+              true,
+              new Date(cached.fetched_at).toISOString()
+            ),
           };
         }
       }
@@ -335,6 +326,8 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     const hits = rawHits
       .slice(0, limit)
       .map((h: any) => ({ ...this.mapMockHitToResult(h), origin: "LIVE" as const }));
+
+    await writeJurisTtlCache(this.courtId, "search", cacheKey, hits);
 
     return {
       hits,
@@ -370,13 +363,15 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
           ? data.items[0]
           : data;
       if (!item) return this.notFoundFetchResult(idOrRef);
-      return {
+      const result: RawJurisFetchResult = {
         id: (typeof data === "object" && data.id) || idOrRef,
         court: this.courtId,
         exists: true,
         source: "LIVE",
         rawTextOrJson: item,
       };
+      await writeJurisTtlCache(this.courtId, "fetch", idOrRef, result);
+      return result;
     }
 
     if (res.status === 404 || res.status === 400) {
@@ -384,35 +379,23 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     }
 
     const liveError = res.error || `HTTP ${res.status || 0}`;
-    if (forceLive) {
-      throw new Error(
-        `[LIVE_UNAVAILABLE] Falha ao consultar '${idOrRef}' no mock ${this.courtId} com force_live=true: ${liveError}`
-      );
-    }
-
-    const catItem = this.findCatalogItemById(idOrRef);
-    if (catItem) {
-      return { ...catItem, source: "CURATED_CATALOG" };
-    }
-    return this.notFoundFetchResult(idOrRef);
-  }
-
-  private mergeLiveFirst(
-    liveHits: RawJurisSearchResult[],
-    catalogHits: RawJurisSearchResult[],
-    limit: number
-  ): RawJurisSearchResult[] {
-    const merged: RawJurisSearchResult[] = [];
-    const seen = new Set<string>();
-    for (const item of [...liveHits, ...catalogHits]) {
-      const key = item.id.trim().toUpperCase();
-      if (!seen.has(key)) {
-        seen.add(key);
-        merged.push(item);
+    if (!forceLive) {
+      const cached = readJurisTtlCache<RawJurisFetchResult>(this.courtId, "fetch", idOrRef);
+      if (cached) {
+        return {
+          ...cached.payload,
+          source: "LIVE",
+          cache_hit: true,
+          fetched_at: new Date(cached.fetched_at).toISOString(),
+        };
       }
-      if (merged.length >= limit) break;
     }
-    return merged;
+
+    throw new Error(
+      `[LIVE_UNAVAILABLE] Falha ao consultar '${idOrRef}' no mock ${this.courtId}${
+        forceLive ? " com force_live=true" : " sem cache TTL 24h válido"
+      }: ${liveError}`
+    );
   }
 
   private buildDiagnostic(
@@ -421,7 +404,9 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
     startMs: number,
     error: string | null,
     sourceMode: JurisSourceMode,
-    liveError: string | null
+    liveError: string | null,
+    cacheHit?: boolean,
+    fetchedAt?: string
   ): CourtDiagnostic {
     return {
       court: this.courtId,
@@ -431,6 +416,7 @@ export abstract class BaseJurisdictionProvider implements JurisdictionProvider {
       error,
       source_mode: sourceMode,
       live_error: liveError,
+      ...(cacheHit ? { cache_hit: true, ...(fetchedAt ? { fetched_at: fetchedAt } : {}) } : {}),
     };
   }
 }
