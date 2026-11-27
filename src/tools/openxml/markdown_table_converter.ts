@@ -12,6 +12,11 @@ import {
   setTableCellSingleParagraphText,
 } from "../../utils/xml.ts";
 
+import {
+  appendStyledRichTextRuns,
+  type RichTextOptions,
+} from "./rich_text_highlight.ts";
+
 // ============================================================================
 // Conversor Nativo de Tabelas Markdown para OpenXML <w:tbl> (ENG-06 — v1.3.7)
 // ============================================================================
@@ -20,31 +25,10 @@ export function appendRichTextRunsToParagraph(
   xmlDoc: Document,
   targetP: Element,
   textWithMarkdownBold: string,
-  normalRPr: Element | null
+  normalRPr: Element | null,
+  options?: RichTextOptions
 ): void {
-  const segments = textWithMarkdownBold.split(/(\*\*[^*]+\*\*)/g);
-  for (const seg of segments) {
-    if (!seg) continue;
-    const isBoldSeg =
-      seg.startsWith("**") && seg.endsWith("**") && seg.length > 4;
-    const cleanText = isBoldSeg ? seg.slice(2, -2) : seg;
-
-    const r = xmlDoc.createElement("w:r");
-    const rPrToUse = isBoldSeg
-      ? addBoldToRPr(xmlDoc, normalRPr)
-      : normalRPr
-        ? (normalRPr.cloneNode(true) as Element)
-        : null;
-    if (rPrToUse) {
-      r.appendChild(rPrToUse);
-    }
-
-    const t = xmlDoc.createElement("w:t");
-    t.setAttribute("xml:space", "preserve");
-    t.textContent = cleanText;
-    r.appendChild(t);
-    targetP.appendChild(r);
-  }
+  appendStyledRichTextRuns(xmlDoc, targetP, textWithMarkdownBold, normalRPr, options);
 }
 
 export function parseMarkdownTableRowCells(line: string): string[] {
@@ -121,7 +105,8 @@ export function segmentLinesWithMarkdownTables(
 export function buildOpenXmlTableFromMarkdown(
   xmlDoc: Document,
   tableLines: string[],
-  normalRPr: Element | null
+  normalRPr: Element | null,
+  options?: RichTextOptions
 ): Element {
   const headerCells = parseMarkdownTableRowCells(tableLines[0]);
   const alignments = parseMarkdownTableAlignments(tableLines[1]);
@@ -218,7 +203,7 @@ export function buildOpenXmlTableFromMarkdown(
       rawHdr.startsWith("**") && rawHdr.endsWith("**") && rawHdr.length > 4
         ? rawHdr.slice(2, -2)
         : rawHdr;
-    appendRichTextRunsToParagraph(xmlDoc, p, cleanHdr, headerBoldRPr);
+    appendRichTextRunsToParagraph(xmlDoc, p, cleanHdr, headerBoldRPr, options);
     tc.appendChild(p);
     headerTr.appendChild(tc);
   }
@@ -244,7 +229,7 @@ export function buildOpenXmlTableFromMarkdown(
       p.appendChild(pPr);
 
       const cellText = (rowCells[c] ?? "").trim();
-      appendRichTextRunsToParagraph(xmlDoc, p, cellText, normalRPr);
+      appendRichTextRunsToParagraph(xmlDoc, p, cellText, normalRPr, options);
       tc.appendChild(p);
       tr.appendChild(tc);
     }
@@ -265,7 +250,10 @@ export function ensureTableCellEndsWithParagraph(xmlDoc: Document, tc: Node): vo
   }
 }
 
-export function convertSiblingParagraphMarkdownTables(xmlDoc: Document): boolean {
+export function convertSiblingParagraphMarkdownTables(
+  xmlDoc: Document,
+  options?: RichTextOptions
+): boolean {
   let modified = false;
   const containers: Element[] = [
     ...getAllElements(xmlDoc, "w:body"),
@@ -312,7 +300,8 @@ export function convertSiblingParagraphMarkdownTables(xmlDoc: Document): boolean
           const tblEl = buildOpenXmlTableFromMarkdown(
             xmlDoc,
             tableLines,
-            normalRPr
+            normalRPr,
+            options
           );
 
           container.insertBefore(tblEl, child);

@@ -28,6 +28,11 @@ import {
   reanchorMultilevelItem,
 } from "./multilevel_reanchoring.ts";
 
+import {
+  hasRichTextDirectives,
+  type RichTextOptions,
+} from "./rich_text_highlight.ts";
+
 export {
   type HierarchicalListItemInfo,
   splitMarkerFromLine,
@@ -42,8 +47,11 @@ export {
 export function postProcessRichTextAndLineBreaksInXmlDoc(
   xmlDoc: Document,
   numberingManager?: NumberingManager,
-  existingNumberingXml?: string | null
+  existingNumberingXml?: string | null,
+  options?: RichTextOptions
 ): boolean {
+  const highlightPlaceholders = options?.highlightPlaceholders !== false;
+  const richTextOpts: RichTextOptions = { highlightPlaceholders };
   let modified = false;
   const paragraphs = getAllElements(xmlDoc, "w:p");
 
@@ -117,6 +125,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
       getAllElements(p, "w:cr").length > 0;
     const hasLineBreaks = hasBrElements || /\r?\n/.test(fullText);
     const hasMarkdownBold = /\*\*[^*]+\*\*/.test(fullText);
+    const hasRichText = hasRichTextDirectives(fullText, highlightPlaceholders);
     const singleLineListInfo = detectHierarchicalListItem(fullText);
     const hasListItem = !hasHeadingStyle && singleLineListInfo.isListItem;
     const hasNumberingConflict =
@@ -126,7 +135,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
 
     if (
       !hasLineBreaks &&
-      !hasMarkdownBold &&
+      !hasRichText &&
       !hasListItem &&
       !hasNumberingConflict
     ) {
@@ -189,7 +198,12 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
     for (const seg of segments) {
       if (seg.type === "table") {
         const tblRPr = detectedRPr ? stripBoldFromRPr(detectedRPr) : null;
-        const tblEl = buildOpenXmlTableFromMarkdown(xmlDoc, seg.lines, tblRPr);
+        const tblEl = buildOpenXmlTableFromMarkdown(
+          xmlDoc,
+          seg.lines,
+          tblRPr,
+          richTextOpts
+        );
         parent.insertBefore(tblEl, p);
         insertedCount++;
         continue;
@@ -223,7 +237,8 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             xmlDoc,
             newP,
             lineListInfo.cleanRemainder,
-            normalRPr
+            normalRPr,
+            richTextOpts
           );
         } else if (
           lineListInfo.isListItem &&
@@ -243,7 +258,8 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             xmlDoc,
             newP,
             lineListInfo.cleanRemainder,
-            normalRPr
+            normalRPr,
+            richTextOpts
           );
         } else {
           if (basePPr) {
@@ -253,7 +269,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             }
             newP.appendChild(cleanPPr);
           }
-          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
+          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr, richTextOpts);
         }
       } else {
         if (lineListInfo.isListItem && lineListInfo.kind === "multi_decimal") {
@@ -340,7 +356,8 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             xmlDoc,
             newP,
             lineListInfo.cleanRemainder,
-            normalRPr
+            normalRPr,
+            richTextOpts
           );
         } else if (lineListInfo.isListItem) {
           activeSingleDecimalNumber = null;
@@ -379,7 +396,8 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             xmlDoc,
             newP,
             lineListInfo.cleanRemainder,
-            normalRPr
+            normalRPr,
+            richTextOpts
           );
         } else {
           activeBodyNumId = null;
@@ -402,7 +420,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
             }
             newP.appendChild(cleanPPr);
           }
-          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr);
+          appendRichTextRunsToParagraph(xmlDoc, newP, line, normalRPr, richTextOpts);
         }
       }
 
@@ -429,7 +447,7 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
     modified = true;
   }
 
-  if (convertSiblingParagraphMarkdownTables(xmlDoc)) {
+  if (convertSiblingParagraphMarkdownTables(xmlDoc, richTextOpts)) {
     modified = true;
   }
 
