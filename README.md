@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.3)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.4)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,10 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.3` (Geração 7.3 — Higienização Estrutural JURIS, Acumulação com Lock, Neutralidade, Cache TTL 24h TST & Migração para `state/`)
+## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.4` (Geração 7.3 / Trilha A — Blindagem `ENG-10`, Escopos Efêmeros Isolados, Proteção de `inputs/` & Camada Universal de I/O)
 
-A série **`v1.7.0`–`v1.7.3`** consolida os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS e a **Higienização Estrutural do domínio JURIS (`v1.7.3`)**, mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+A série **`v1.7.0`–`v1.7.4`** consolida os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS, a **Higienização Estrutural do domínio JURIS (`v1.7.3`)** e a **Blindagem `ENG-10` + Camada Universal de I/O (`v1.7.4`)**, mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+- **Camada Universal de I/O, Blindagem `ENG-10` & Escopos Efêmeros (`v1.7.4` — `src/utils/fs_safe_io.ts`, `ephemeral_scope.ts`, `paths.ts`, `json.ts`):** Locks externos exclusivos em `%TEMP%/docgov_locks/` (zero `.lock` na pasta do usuário), escrita segura adaptativa (direta + retry `3x` no Windows fora de `%TEMP%` para Google Drive/OneDrive e atômica `.tmp + rename` com fallback em POSIX/`%TEMP%`), `enqueueWrite`/`flushPendingWrites` no graceful shutdown MCP, validação `ENG-10` anti-traversal/anti-*symlink* via `realpathSync()` fechada nos 4 compiladores e `inspect_doc --compare`, sessões efêmeras isoladas `<prefix>_<ts>_<rand4hex>` com preservação de subpastas nomeadas, redirecionamento cirúrgico `inputs/` -> `state/`, sweep lazy `>= 72h` e `formatCompactMcpPath()` sem `../../../../`.
 - **Acumulação Concorrente & Neutralidade Estrita em `search_juris` (`v1.7.3` — `src/tools/juris/juris_search_store.ts`, `relevance_scorer.ts`, `statutory_bridge.ts`):** Acumulação sem sobrescrita em `state/juris_search_results.json`/`.md` com mutex em memória + lockfile `juris_search.lock` (stale 5s) + escrita atômica, defaults neutros (`NEUTRAL`/`AUTO`) com rebalanceamento `0..100` em consulta livre, fim de `"ATI"`/`"CAIXA"`/`"ORGAO_CONTRATANTE"` forçado e `outcome` judicial neutro.
 - **Cache Dinâmico Live-Backed TTL 24h no TST (`v1.7.3` — `src/tools/juris/providers/tst_ttl_cache.ts`, `tst_mapper.ts`, `tst_provider.ts`):** Fim da mutação de query e do catálogo estático congelado no TST; consultas ao vivo para `SUM`, `OJ` e `ACORDAO` com cache de 24h (`DOCGOV_JURIS_CACHE_DIR`), falha explícita `LIVE_FAILED` / `[LIVE_UNAVAILABLE]` sem cache válido e migração do inteiro teor em `fetch_juris` para `state/juris_<shortname>/inteiro_teor_anatomico.md` com ordenação `1->6` e corte limpo.
 - **Triagem A/B Estruturada Exclusiva do Conector TST (`v1.7.2` — `src/tools/juris/tst_precedent_triage.ts`, `tst_provider.ts`, `search_juris.ts`):** Parâmetro opcional `triage_mode` (`"triaged"` | `"raw"` | `"compare"`, `--triage-mode`) com 1 única coleta base (`fetchTstLegacy`), classificação estrita por metadados estruturados em 4 baldes (`erga_omnes`, `orientativas`, `inter_partes`, `unclassified`), extração confiável de `year`, piso mínimo de pertinência (`filtered_out` com bypass normativo) e compactação `< 900B` com **0 bytes** de impacto nos outros 11 conectores.
@@ -204,7 +205,7 @@ A série **`v1.7.0`–`v1.7.3`** consolida os **Pilares Anti-Fraude 1 e 5** 100%
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.3`):** Inclusão mandatória do campo `"engine_version": "1.7.3"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.4`):** Inclusão mandatória do campo `"engine_version": "1.7.4"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
 2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**

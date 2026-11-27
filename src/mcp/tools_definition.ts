@@ -81,7 +81,7 @@ export function getMcpToolsDefinition() {
           manifestPath: {
             type: "string",
             description:
-              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'state/slots_manifest.json' ou 'state/adapted_slots_manifest.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline. Validação estrita: proíbe propriedades inventadas.",
+              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'state/slots_manifest.json' ou 'state/adapted_slots_manifest_<stem>.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline. Validação estrita: proíbe propriedades inventadas.",
           },
           outputPath: { type: "string", description: "Caminho do novo template .docx parametrizado." },
           saveToRegistry: { type: "boolean", description: "Se true, salva no cache global." },

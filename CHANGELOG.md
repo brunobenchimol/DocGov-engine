@@ -6,6 +6,25 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.7.4] - 2026-11-26 — Blindagem ENG-10, Escopos Efêmeros Isolados, Proteção de `inputs/` e Camada Universal de I/O
+
+### Added
+- **Camada Universal de I/O Seguro (`src/utils/fs_safe_io.ts`, `test/fs_safe_io.test.ts`):**
+  - `withDirectoryLock()` com mutex in-process normalizado (*case-insensitive* em `win32`) e lockfile cross-process `wx` gravado exclusivamente em `%TEMP%/docgov_locks/` (recuperação de *stale lock* `> 5s`), eliminando criação de arquivos `.lock` dentro das pastas do usuário;
+  - `writeFileSafeSync()` / `writeFileSafeAsync()` com remoção de BOM UTF-8, normalização `\n`, `Bun.sleepSync()` e estratégia adaptativa (escrita direta + retry `3x` `50/150/300ms` em `win32` fora de `%TEMP%` para compatibilidade com Google Drive/OneDrive; `.tmp + renameSync` com fallback automático em Linux/macOS e `%TEMP%`);
+  - Fila serializada `enqueueWrite()` + `flushPendingWrites()` conectada ao *graceful shutdown* do servidor MCP (`src/mcp/server.ts`) sem `process.exit()` abrupto em `stdin` `end`/`close`.
+- **Escopos Efêmeros Isolados, Preservação de Subpastas Nomeadas, Proteção de `inputs/` e Sweep `>= 72h` (`src/utils/ephemeral_scope.ts`, `test/ephemeral_scope_hardening.test.ts`):**
+  - Isolamento automático em `%TEMP%/docgov_ephemeral_inspect/<prefix>_<ts>_<rand4hex>` eliminando colisões de 1ms, preservação intacta de subpastas efêmeras nomeadas `<slug>` em `search_juris`, `fetch_juris`, `search_pncp`, `inspect_doc`, `non_docx_pipeline.ts` e `forensic_cross_audit.ts`;
+  - Redirecionamento cirúrgico de derivados de `inputs/` para `cases/<slug>/state/` quando `outputPath`/`outputDir` for omitido (`inspect.ts`, `non_docx_pipeline.ts` e as 6 tools Gen5/Gen6), preservando `templates/` sem `--out` e `--out` explícito;
+  - Faxina lazy `maybeCleanupStaleEphemeralDirs()` (`1x/processo`, `.last_sweep >= 12h`, expurgo `>= 72h` restrito a filhos diretos de `docgov_ephemeral_inspect/`, nunca tocando `docgov_locks/` ou `docgov_juris_cache/`).
+- **Caminhos Compactos MCP (`formatCompactMcpPath` em `src/utils/json.ts`):** Eliminação de prefixos `../../../../` para destinos em `%TEMP%`, retornando caminho absoluto normalizado com `/` fora de `baseDir` e mantendo `< 900B` (Lei 2).
+
+### Changed
+- **Blindagem Real `ENG-10` (`src/utils/paths.ts`, 4 compiladores e `inspect.ts`):** `isValidDocGovCaseScope()` endurecida com `resolve()`, bloqueio real de *path traversal* (`..`), validação de *symlinks* via `realpathSync()`, fechamento estrito para `docgov_ephemeral_inspect`, remoção do `OR` com `sourcePath` nos 4 compiladores (`build_template.ts`, `fill_template.ts`, `audit.ts`, `technical_note.ts`), isolamento de `diff_documental_*` em `inspect.ts` e nomeação `adapted_slots_manifest_<stem>.json`.
+- **Reuso Obrigatório de I/O & Higiene de Testes:** Migração de `juris_search_store.ts`, `search_contracts.ts` (agora sob `withDirectoryLock`), `registry.ts`, `json.ts` e `archive_and_bg_copy.ts` para `fs_safe_io.ts`; remoção de imports mortos em `server.ts`; e saneamento de 15 arquivos de teste em `test/` garantindo zero vazamentos residuais em `%TEMP%/docgov_ephemeral_inspect`.
+
+---
+
 ## [1.7.3] - 2026-11-25 — Higienização Estrutural JURIS, Acumulação com Lock, Neutralidade, Cache TTL 24h TST e Migração para state/
 
 ### Added

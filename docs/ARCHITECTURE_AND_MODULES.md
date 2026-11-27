@@ -1,4 +1,4 @@
-# Arquitetura e Índice de Módulos — docgov-engine (v1.7.3)
+# Arquitetura e Índice de Módulos — docgov-engine (v1.7.4)
 
 Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolvedores**. Consulte-o antes de buscar arquivos no repositório para localizar exatamente os módulos de implementação (`src/`), scripts (`scripts/`) e suítes de validação (`test/`, `tests_live/`) de cada domínio.
 
@@ -58,8 +58,8 @@ Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolve
   - `src/utils/pdf.ts` (reconstrução espacial `[PAG_XXX | LYYYY]`, fallback e orquestração), `src/utils/pdf/stream_fallback.ts`, `src/utils/pdf/page_inspector.ts` (5 classes de página via `inspectPages`), `src/utils/pdf/image_extractor.ts` (`extractImages` + filtro anti-brasão SHA-256), `src/utils/pdf/asn1_der_parser.ts`, `src/utils/pdf/pades_signature_auditor.ts` (Pure-JS `ASN.1/DER/BER`, `SignerInfo.sid`, ICP-Brasil e `/ByteRange`), `src/utils/pdf/forensic_meta.ts`, `src/utils/pdf/docx_forensic_meta.ts` (`w:rsidRoot` / `w:rsidR`), `src/utils/pdf/xlsx_forensic_meta.ts`, `src/utils/pdf/forensic_cross_audit.ts`, `src/utils/forensics/nfe_key_validator.ts` (NF-e 44 dígitos Módulo 11) e `src/utils/forensics/gen6_contract_guard.ts` (`unknown_keys` Gen6).
   - Validação: `test/ocr.test.ts`, `test/pdf_unpdf_v2_multimodal_forensics.test.ts`, `test/pades_signature_auditor.test.ts`, `test/nfe_key_validator.test.ts`, `test/rsid_and_xlsx_forensics.test.ts`.
 - **Utilitários, Core & Auto-Atualização:**
-  - `src/core/ocr.ts`, `src/core/updater.ts`, `src/utils/json.ts`, `src/utils/paths.ts`, `src/utils/xml.ts`, `src/utils/pdf_exporter.ts`.
-  - Testes transversais: `test/utils.test.ts`, `test/updater.test.ts`, `test/engine_resilience.test.ts`, `test/scope_guardrail.test.ts`, `test/mcp_dispatch.test.ts`, `test/mcp_spec.test.ts`, `test/mcp_stdio_smoke.test.ts`, `test/version.test.ts`, `test/distribution.test.ts`.
+  - `src/core/ocr.ts`, `src/core/updater.ts`, `src/utils/fs_safe_io.ts` (lock externo em `%TEMP%/docgov_locks/`, escrita direta/atômica segura e `flushPendingWrites()`), `src/utils/ephemeral_scope.ts` (sessões efêmeras isoladas, preservação de subpastas nomeadas, proteção `inputs/` -> `state/` e sweep `>= 72h`), `src/utils/json.ts` (`formatCompactMcpPath`), `src/utils/paths.ts` (`ENG-10` com anti-traversal e anti-symlink), `src/utils/xml.ts`, `src/utils/pdf_exporter.ts`.
+  - Testes transversais: `test/utils.test.ts`, `test/fs_safe_io.test.ts`, `test/ephemeral_scope_hardening.test.ts`, `test/updater.test.ts`, `test/engine_resilience.test.ts`, `test/scope_guardrail.test.ts`, `test/mcp_dispatch.test.ts`, `test/mcp_spec.test.ts`, `test/mcp_stdio_smoke.test.ts`, `test/version.test.ts`, `test/distribution.test.ts`.
   - Live Test do Updater: `tests_live/github_updater.live.ts`.
 - **Scripts de Build, Auditoria & Distribuição (`scripts/`):**
   - `scripts/check_lines.ts`: auditoria física da Lei 9 (`<= 500` linhas).
