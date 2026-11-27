@@ -365,20 +365,26 @@ export async function searchPncpContracts(
       mdContent += `\n---\n*Para baixar os arquivos e anexos de qualquer referência acima, utilize a ferramenta \`fetch_pncp\` informando o \`pncp_id\` desejado.*\n`;
       writeFileSafeSync(resultsMdPath, mdContent);
 
-      return consolidated;
+      return { consolidated, mdContent };
     }
   );
 
-  return {
+  const searchResult: SearchPncpResult = {
     status: "success",
     caseDir: resolvedCaseDir,
     queriesExecuted: rawQueries,
     resultsCount: currentCandidates.length,
-    totalAccumulatedCount: allConsolidated.length,
+    totalAccumulatedCount: allConsolidated.consolidated.length,
     candidates: currentCandidates,
     resultsJsonPath,
     resultsMdPath,
   };
+  Object.defineProperty(searchResult, "_resultsMarkdown", {
+    value: allConsolidated.mdContent,
+    enumerable: false,
+    configurable: true,
+  });
+  return searchResult;
 }
 
 /**

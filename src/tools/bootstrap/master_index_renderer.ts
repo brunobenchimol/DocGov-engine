@@ -1,7 +1,13 @@
 import { relative, basename } from "node:path";
+import { existsSync, readFileSync } from "node:fs";
 import { renderForensicInventorySectionMarkdown } from "../../utils/pdf/forensic_cross_audit.ts";
 import { ALL_IMPUGNATION_ZONE_IDS } from "../../core/cartography.ts";
 import { VERSION } from "../../constants/index.ts";
+import {
+  buildHybridMcpEnvelope,
+  buildSummaryMcpEnvelope,
+  type BuiltMcpEnvelope,
+} from "../../utils/mcp_hybrid_output.ts";
 import type {
   BootstrapCaseResult,
   BootstrapCaseSyntheticResult,
@@ -329,4 +335,64 @@ export function formatBootstrapCaseSyntheticResult(
   }
 
   return result;
+}
+
+export async function buildBootstrapCaseHybridEnvelope(
+  res: BootstrapCaseResult,
+  userCaseDir?: string
+): Promise<BuiltMcpEnvelope<BootstrapCaseSyntheticResult>> {
+  const synthetic = formatBootstrapCaseSyntheticResult(res, userCaseDir);
+  const masterMd: string | undefined =
+    (res as any).indice_mestre_markdown ??
+    (res.indice_mestre_path && existsSync(res.indice_mestre_path)
+      ? readFileSync(res.indice_mestre_path, "utf8")
+      : undefined);
+
+  if (!res.indice_mestre_path || masterMd === undefined) {
+    return buildSummaryMcpEnvelope(synthetic);
+  }
+
+  const relMaster =
+    synthetic.master_index_path ||
+    relative(res.caseDir, res.indice_mestre_path).replace(/\\/g, "/");
+
+  return await buildHybridMcpEnvelope({
+    basePayload: synthetic,
+    artifactPath: res.indice_mestre_path,
+    displayArtifactPath: relMaster,
+    markdownContent: masterMd,
+    writeMode: "sync",
+    compactForPointer: (payload, targetBytes) => {
+      const sizeOf = () => Buffer.byteLength(JSON.stringify(payload), "utf8");
+      if (sizeOf() > targetBytes && Array.isArray(payload.docx_inspected) && payload.docx_inspected.length > 0) {
+        payload.docx_inspected = [];
+      }
+      if (sizeOf() > targetBytes && payload.pdf_inspected) {
+        delete payload.pdf_inspected;
+      }
+      if (sizeOf() > targetBytes && Array.isArray(payload.ingested_files)) {
+        payload.ingested_files = payload.ingested_files.map((item) => {
+          const copy = { ...item };
+          delete copy.structure;
+          return copy;
+        });
+      }
+      while (
+        Array.isArray(payload.ingested_files) &&
+        payload.ingested_files.length > 1 &&
+        sizeOf() > targetBytes
+      ) {
+        payload.ingested_files.pop();
+      }
+      if (sizeOf() > targetBytes && Array.isArray(payload.ingested_files)) {
+        delete payload.ingested_files;
+      }
+      if (sizeOf() > targetBytes && payload.background_copy) {
+        payload.background_copy = {
+          status: payload.background_copy.status,
+          message: payload.background_copy.status === "idle" ? "OK" : "Ativo",
+        };
+      }
+    },
+  });
 }

@@ -4,16 +4,28 @@ import { VERSION } from "../constants/index.ts";
 import {
   bootstrapCase,
   formatBootstrapCaseSyntheticResult,
+  buildBootstrapCaseHybridEnvelope,
 } from "../tools/bootstrap.ts";
 import {
   inspectDoc,
   inspectDocx,
   formatInspectDocSyntheticResult,
   formatInspectDocxSyntheticResult,
+  buildInspectHybridEnvelope,
 } from "../tools/inspect.ts";
-import { buildDocxTemplate } from "../tools/build_template.ts";
-import { generateAuditDocx } from "../tools/audit.ts";
-import { processDocument } from "../tools/fill_template.ts";
+import {
+  buildDocxTemplate,
+  formatBuildDocxTemplateSyntheticResult,
+} from "../tools/build_template.ts";
+import {
+  generateAuditDocx,
+  formatGenerateAuditDocxSyntheticResult,
+} from "../tools/audit.ts";
+import {
+  processDocument,
+  formatFillDocxTemplateSyntheticResult,
+} from "../tools/fill_template.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   generateTechnicalNoteDocx,
   formatTechnicalNoteSyntheticResult,
@@ -128,8 +140,8 @@ Uso:
         detachedCli: !wait,
         fileRenameMap,
       });
-      const synthetic = formatBootstrapCaseSyntheticResult(res, caseDir);
-      console.log(JSON.stringify(synthetic, null, 2));
+      const envelope = await buildBootstrapCaseHybridEnvelope(res, caseDir);
+      console.log(envelope.json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -176,18 +188,21 @@ Uso:
     }
 
     try {
+      const emitBimodal = Boolean(outPath || compact);
       const res = await inspectDoc(filePath, outPath, compact, {
         compareWithPath,
+        deferMarkdownWrite: emitBimodal,
       });
-      if (outPath) {
-        const synthetic = formatInspectDocSyntheticResult(
+      if (emitBimodal) {
+        const envelope = await buildInspectHybridEnvelope({
           filePath,
-          resolve(outPath),
-          res
-        );
-        console.log(JSON.stringify(synthetic, null, 2));
+          outputPath: outPath ? resolve(outPath) : undefined,
+          inspection: res,
+          deferWrite: true,
+        });
+        console.log(envelope.json);
       } else {
-        console.log(JSON.stringify(res, null, 2));
+        console.log(JSON.stringify(res));
       }
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
@@ -221,7 +236,8 @@ Uso:
         args[outIdx + 1],
         { saveToRegistry, templateId }
       );
-      console.log(res.message);
+      const synthetic = formatBuildDocxTemplateSyntheticResult(args[outIdx + 1], res);
+      console.log(buildSummaryMcpEnvelope(synthetic).json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -278,17 +294,23 @@ Uso:
       const rawAudit = safeReadJsonFile(resolve(auditJsonPath));
       if (rawAudit?.document_type === "BID_CHALLENGE_REPRESENTATION") {
         const res = await compileAttackChallengeDocx(rawAudit, outPath, { outputFormat });
-        console.log(res.message);
-        if (res.pdf_path) console.log(`Documento PDF gerado: ${res.pdf_path}`);
+        console.log(
+          buildSummaryMcpEnvelope({
+            status: "success",
+            engine_version: VERSION,
+            document_type: "BID_CHALLENGE_REPRESENTATION",
+            outputPath: res.outputPath,
+            ...(res.pdf_path ? { pdf_path: res.pdf_path } : {}),
+            message: res.message,
+            next_step_hint: "Peca de impugnacao compilada em output/.",
+          }).json
+        );
         return;
       }
       const res = await generateAuditDocx(auditJsonPath, outPath, {
         outputFormat,
       });
-      console.log(res.message);
-      if (res.pdf_path) {
-        console.log(`Documento PDF gerado: ${res.pdf_path}`);
-      }
+      console.log(buildSummaryMcpEnvelope(formatGenerateAuditDocxSyntheticResult(res)).json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -359,10 +381,7 @@ Uso:
       const res = await generateTechnicalNoteDocx(noteData, outPath, {
         outputFormat,
       });
-      console.log(res.message);
-      if (res.pdf_path) {
-        console.log(`Documento PDF gerado: ${res.pdf_path}`);
-      }
+      console.log(buildSummaryMcpEnvelope(formatTechnicalNoteSyntheticResult(res)).json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -414,17 +433,23 @@ Uso:
       const rawNote = safeReadJsonFile(resolve(noteJsonPath));
       if (rawNote?.document_type === "LEGAL_COUNTER_REASONING") {
         const res = await compileDefenseCounterReasoningDocx(rawNote, outPath, { outputFormat });
-        console.log(res.message);
-        if (res.pdf_path) console.log(`Documento PDF gerado: ${res.pdf_path}`);
+        console.log(
+          buildSummaryMcpEnvelope({
+            status: "success",
+            engine_version: VERSION,
+            document_type: "LEGAL_COUNTER_REASONING",
+            outputPath: res.outputPath,
+            ...(res.pdf_path ? { pdf_path: res.pdf_path } : {}),
+            message: res.message,
+            next_step_hint: "Contrarrazoes compiladas em output/.",
+          }).json
+        );
         return;
       }
       const res = await generateTechnicalNoteDocx(noteJsonPath, outPath, {
         outputFormat,
       });
-      console.log(res.message);
-      if (res.pdf_path) {
-        console.log(`Documento PDF gerado: ${res.pdf_path}`);
-      }
+      console.log(buildSummaryMcpEnvelope(formatTechnicalNoteSyntheticResult(res)).json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -464,13 +489,7 @@ Uso:
       args[outIdx + 1],
       { autoInspect: !noAutoInspect, outputFormat }
     );
-    console.log(res.message);
-    if (res.pdf_path) {
-      console.log(`Documento PDF gerado: ${res.pdf_path}`);
-    }
-    if (res.visao_auditoria_path) {
-      console.log(`Visão linear de auditoria: ${res.visao_auditoria_path}`);
-    }
+    console.log(buildSummaryMcpEnvelope(formatFillDocxTemplateSyntheticResult(res)).json);
   } catch (err: any) {
     console.error(`Erro: ${err.message}`);
     process.exit(1);

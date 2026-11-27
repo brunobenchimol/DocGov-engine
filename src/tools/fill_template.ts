@@ -12,6 +12,7 @@ import {
   safeUnlink,
 } from "../utils/pdf_exporter.ts";
 import { VERSION } from "../constants/index.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   assertDocGovCaseScope,
   isValidDocGovCaseScope,
@@ -334,9 +335,10 @@ export function formatFillDocxTemplateSyntheticResult(
     next_step_hint: nextHint,
   };
 
-  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 1000) {
-    payload.message = "Documento compilado com sucesso.";
+  const summary = buildSummaryMcpEnvelope(payload).payload;
+  if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 1000) {
+    summary.message = "Documento compilado com sucesso.";
   }
 
-  return payload;
+  return summary;
 }

@@ -16,6 +16,7 @@ import { isPdfBuffer } from "../utils/pdf.ts";
 import { detectFileType } from "../utils/archives.ts";
 import { resolveSelfBinaryPath } from "../core/updater.ts";
 import { assertDocGovCaseScope } from "../utils/paths.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
 import type {
   BackgroundCopyFileItem,
   BackgroundCopyInfo,
@@ -45,6 +46,7 @@ export {
   type MasterIndexEntry,
   generateCaseMasterIndexMarkdown,
   formatBootstrapCaseSyntheticResult,
+  buildBootstrapCaseHybridEnvelope,
 } from "./bootstrap/master_index_renderer.ts";
 export async function bootstrapCase(
   caseDir: string,
@@ -391,17 +393,18 @@ export async function bootstrapCase(
   }
 
   let masterIndexPath: string | undefined;
+  let masterIndexMarkdown: string | undefined;
   if (masterIndexEntries.length > 0 || unpackedArchives.length > 0) {
     masterIndexPath = resolve(stateDir, "indice_mestre_caso.md");
-    const masterMd = generateCaseMasterIndexMarkdown(
+    masterIndexMarkdown = generateCaseMasterIndexMarkdown(
       resolvedCaseDir,
       masterIndexEntries,
       unpackedArchives
     );
-    writeFileSync(masterIndexPath, masterMd, "utf-8");
+    writeFileSafeSync(masterIndexPath, masterIndexMarkdown);
   }
 
-  return {
+  const bootstrapRes: BootstrapCaseResult = {
     status: "success",
     caseDir: resolvedCaseDir,
     copiedFiles,
@@ -415,4 +418,12 @@ export async function bootstrapCase(
     ...(otherFiles.length > 0 ? { other_files: otherFiles } : {}),
     ...(masterIndexPath ? { indice_mestre_path: masterIndexPath } : {}),
   };
+  if (masterIndexMarkdown !== undefined) {
+    Object.defineProperty(bootstrapRes, "indice_mestre_markdown", {
+      value: masterIndexMarkdown,
+      enumerable: false,
+      configurable: true,
+    });
+  }
+  return bootstrapRes;
 }

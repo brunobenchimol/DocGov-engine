@@ -19,12 +19,14 @@ import {
 import {
   bootstrapCase,
   formatBootstrapCaseSyntheticResult,
+  buildBootstrapCaseHybridEnvelope,
 } from "../tools/bootstrap.ts";
 import {
   inspectDoc,
   inspectDocx,
   formatInspectDocSyntheticResult,
   formatInspectDocxSyntheticResult,
+  buildInspectHybridEnvelope,
 } from "../tools/inspect.ts";
 import {
   buildDocxTemplate,
@@ -46,8 +48,10 @@ import {
 import {
   fetchPncpContract,
   formatFetchPncpSyntheticResult,
+  buildFetchPncpHybridEnvelope,
   searchPncpContracts,
   formatSearchPncpSyntheticResult,
+  buildSearchPncpHybridEnvelope,
 } from "../tools/pncp.ts";
 import {
   compileDefenseCounterReasoningDocx,
@@ -58,6 +62,18 @@ import { computeStructuralDiff } from "../core/structural_diff.ts";
 import { safeReadJsonFile } from "../utils/json.ts";
 import { resolveWorkspacePath } from "../utils/paths.ts";
 import { flushPendingWrites } from "../utils/fs_safe_io.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
+
+function mcpTextResponse(text: string) {
+  return {
+    content: [
+      {
+        type: "text" as const,
+        text,
+      },
+    ],
+  };
+}
 
 let shutdownHooksRegistered = false;
 
@@ -131,6 +147,11 @@ export async function runMcpServer() {
   registerGracefulShutdownHooks();
 
   const transport = new StdioServerTransport();
+  const prevOnClose = transport.onclose;
+  transport.onclose = () => {
+    void flushPendingWrites();
+    if (prevOnClose) prevOnClose();
+  };
   await server.connect(transport);
 }
 
@@ -150,15 +171,8 @@ export async function handleCallToolRequest(request: {
       const resolvedCaseDir = resolveWorkspacePath(caseDir);
       const resolvedUploadsDir = uploadsDir ? resolveWorkspacePath(uploadsDir) : undefined;
       const res = await bootstrapCase(resolvedCaseDir, resolvedUploadsDir, { fileRenameMap });
-      const synthetic = formatBootstrapCaseSyntheticResult(res, resolvedCaseDir);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(synthetic, null, 2),
-          },
-        ],
-      };
+      const envelope = await buildBootstrapCaseHybridEnvelope(res, resolvedCaseDir);
+      return mcpTextResponse(envelope.json);
     }
 
     if (toolName === "inspect_doc" || toolName === "inspect_docx") {
@@ -178,16 +192,15 @@ export async function handleCallToolRequest(request: {
       const resolvedCompare = args.compareWithPath ? resolveWorkspacePath(args.compareWithPath) : undefined;
       const res = await inspectDoc(resolvedPath, resolvedOutput, args.compact ?? true, {
         compareWithPath: resolvedCompare,
+        deferMarkdownWrite: true,
       });
-      const synthetic = formatInspectDocSyntheticResult(resolvedPath, resolvedOutput, res);
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify(synthetic, null, 2),
-          },
-        ],
-      };
+      const envelope = await buildInspectHybridEnvelope({
+        filePath: resolvedPath,
+        outputPath: resolvedOutput,
+        inspection: res,
+        deferWrite: true,
+      });
+      return mcpTextResponse(envelope.json);
     }
 
       if (toolName === "build_docx_template") {
@@ -207,14 +220,7 @@ export async function handleCallToolRequest(request: {
           templateId,
         });
         const synthetic = formatBuildDocxTemplateSyntheticResult(resolvedOutput, res);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        return mcpTextResponse(buildSummaryMcpEnvelope(synthetic).json);
       }
 
       if (toolName === "fill_docx_template") {
@@ -236,14 +242,7 @@ export async function handleCallToolRequest(request: {
           { autoInspect, outputFormat }
         );
         const synthetic = formatFillDocxTemplateSyntheticResult(result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        return mcpTextResponse(buildSummaryMcpEnvelope(synthetic).json);
       }
 
       if (toolName === "generate_audit_docx") {
@@ -259,23 +258,24 @@ export async function handleCallToolRequest(request: {
         const rawData = safeReadJsonFile(resolvedAuditJson);
         if (rawData?.document_type === "BID_CHALLENGE_REPRESENTATION") {
           const res = await compileAttackChallengeDocx(rawData, resolvedOutput, { outputFormat });
-          return {
-            content: [{ type: "text", text: JSON.stringify({ status: "success", outputPath: res.outputPath, pdf_path: res.pdf_path, message: res.message }, null, 2) }],
-          };
+          return mcpTextResponse(
+            buildSummaryMcpEnvelope({
+              status: "success",
+              engine_version: VERSION,
+              document_type: "BID_CHALLENGE_REPRESENTATION",
+              outputPath: res.outputPath,
+              ...(res.pdf_path ? { pdf_path: res.pdf_path } : {}),
+              message: res.message,
+              next_step_hint: "Peca de impugnacao compilada em output/.",
+            }).json
+          );
         }
 
         const result = await generateAuditDocx(resolvedAuditJson, resolvedOutput, {
           outputFormat,
         });
         const synthetic = formatGenerateAuditDocxSyntheticResult(result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        return mcpTextResponse(buildSummaryMcpEnvelope(synthetic).json);
       }
 
       if (toolName === "generate_technical_note_docx") {
@@ -337,9 +337,17 @@ export async function handleCallToolRequest(request: {
           const rawNoteData = safeReadJsonFile(resolveWorkspacePath(noteJsonPath));
           if (rawNoteData?.document_type === "LEGAL_COUNTER_REASONING") {
             const res = await compileDefenseCounterReasoningDocx(rawNoteData, resolvedOutput, { outputFormat });
-            return {
-              content: [{ type: "text", text: JSON.stringify({ status: "success", outputPath: res.outputPath, pdf_path: res.pdf_path, message: res.message }, null, 2) }],
-            };
+            return mcpTextResponse(
+              buildSummaryMcpEnvelope({
+                status: "success",
+                engine_version: VERSION,
+                document_type: "LEGAL_COUNTER_REASONING",
+                outputPath: res.outputPath,
+                ...(res.pdf_path ? { pdf_path: res.pdf_path } : {}),
+                message: res.message,
+                next_step_hint: "Contrarrazoes compiladas em output/.",
+              }).json
+            );
           }
 
           result = await generateTechnicalNoteDocx(
@@ -354,14 +362,7 @@ export async function handleCallToolRequest(request: {
         }
 
         const synthetic = formatTechnicalNoteSyntheticResult(result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        return mcpTextResponse(buildSummaryMcpEnvelope(synthetic).json);
       }
 
       if (toolName === "fetch_pncp") {
@@ -387,15 +388,8 @@ export async function handleCallToolRequest(request: {
         const result = await fetchPncpContract(resolvedCaseDir, pncpIdOrUrl, {
           shortname,
         });
-        const synthetic = formatFetchPncpSyntheticResult(result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        const envelope = await buildFetchPncpHybridEnvelope(result);
+        return mcpTextResponse(envelope.json);
       }
 
       if (toolName === "search_pncp") {
@@ -427,15 +421,8 @@ export async function handleCallToolRequest(request: {
           modalidade,
           limit,
         });
-        const synthetic = formatSearchPncpSyntheticResult(result);
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(synthetic, null, 2),
-            },
-          ],
-        };
+        const envelope = await buildSearchPncpHybridEnvelope(result);
+        return mcpTextResponse(envelope.json);
       }
 
       const modularRes = await dispatchModularTool(toolName, request.params.arguments || {});

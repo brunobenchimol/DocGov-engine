@@ -2,8 +2,9 @@
 // docgov-engine — Facade Principal & Entrypoint
 // ============================================================================
 
-// 1. Constantes de Governança e Autodescoberta
+// 1. Constantes e Limites de Governança
 export * from "./constants/index.ts";
+export * from "./config/mcp_limits.ts";
 
 // 2. Tipos e Modelos Estruturais
 export * from "./types/index.ts";
@@ -19,6 +20,8 @@ export * from "./utils/pdf.ts";
 export * from "./utils/pdf_exporter.ts";
 export * from "./utils/paths.ts";
 export * from "./utils/archives.ts";
+export * from "./utils/fs_safe_io.ts";
+export * from "./utils/mcp_hybrid_output.ts";
 
 // 5. Motor Central (Cartografia Sem IA, Manifesto, Registro Global e Auto-Atualizador)
 export * from "./core/cartography.ts";
@@ -70,6 +73,7 @@ export * from "./cli/index.ts";
 import { cleanupOldBinaryBackup } from "./core/updater.ts";
 import { runCli } from "./cli/index.ts";
 import { runMcpServer } from "./mcp/server.ts";
+import { flushPendingWrites } from "./utils/fs_safe_io.ts";
 
 if (import.meta.main) {
   cleanupOldBinaryBackup();
@@ -121,7 +125,7 @@ if (import.meta.main) {
     args.includes("--version") ||
     args.includes("-v")
   ) {
-    runCli(args);
+    void runCli(args).finally(() => flushPendingWrites());
   } else {
     runMcpServer();
   }

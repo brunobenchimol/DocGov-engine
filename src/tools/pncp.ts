@@ -12,3 +12,7 @@ export {
   searchPncpContracts,
   formatSearchPncpSyntheticResult,
 } from "./pncp/search_contracts.ts";
+export {
+  buildFetchPncpHybridEnvelope,
+  buildSearchPncpHybridEnvelope,
+} from "./pncp/pncp_hybrid_envelopes.ts";

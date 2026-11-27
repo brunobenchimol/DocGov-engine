@@ -5,8 +5,10 @@
 import {
   fetchPncpContract,
   formatFetchPncpSyntheticResult,
+  buildFetchPncpHybridEnvelope,
   searchPncpContracts,
   formatSearchPncpSyntheticResult,
+  buildSearchPncpHybridEnvelope,
 } from "../tools/pncp.ts";
 import {
   searchJuris,
@@ -130,8 +132,8 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
 
     try {
       const res = await fetchPncpContract(caseDir, pncpIdOrUrl, { shortname });
-      const synthetic = formatFetchPncpSyntheticResult(res);
-      console.log(JSON.stringify(synthetic, null, 2));
+      const envelope = await buildFetchPncpHybridEnvelope(res);
+      console.log(envelope.json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -185,8 +187,8 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
 
     try {
       const res = await searchPncpContracts(caseDir, query, { status, uf, modalidade, limit });
-      const synthetic = formatSearchPncpSyntheticResult(res);
-      console.log(JSON.stringify(synthetic, null, 2));
+      const envelope = await buildSearchPncpHybridEnvelope(res);
+      console.log(envelope.json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);

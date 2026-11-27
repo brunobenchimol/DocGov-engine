@@ -13,6 +13,7 @@ import {
 } from "../utils/pdf_exporter.ts";
 import { generateTechnicalNoteDocx } from "./technical_note.ts";
 import { VERSION } from "../constants/index.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   assertDocGovCaseScope,
   isValidDocGovCaseScope,
@@ -418,11 +419,12 @@ export function formatGenerateAuditDocxSyntheticResult(
     next_step_hint: nextHint,
   };
 
-  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 900) {
-    payload.message = "Documento gerado com sucesso.";
+  const summary = buildSummaryMcpEnvelope(payload).payload;
+  if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 900) {
+    summary.message = "Documento gerado com sucesso.";
   }
 
-  return payload;
+  return summary;
 }
 
 export const formatAuditDocxSyntheticResult =

@@ -79,6 +79,11 @@ import {
   inspectTextOrMarkdownDocument,
 } from "./inspect/non_docx_pipeline.ts";
 import { extractDocxXmlParts } from "./inspect/docx_xml_extractor.ts";
+import {
+  attachTransientInspectMarkdown,
+  writeOrDeferMarkdownArtifact,
+} from "./inspect/markdown_artifacts.ts";
+export { buildInspectHybridEnvelope } from "./inspect/markdown_artifacts.ts";
 
 // ============================================================================
 // Utilitários Internos de Diff Estrutural
@@ -139,6 +144,7 @@ export async function inspectDocx(
     compareWithPath?: string;
     skipAuditArtifacts?: boolean;
     skipOutputWrite?: boolean;
+    deferMarkdownWrite?: boolean;
   } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolveExistingPathNfc(resolve(docxPath));
@@ -402,6 +408,7 @@ export async function inspectDocx(
   }
   rawResult.template_match = template_match;
 
+  let transientAuditMd: string | undefined;
   if (!options.skipAuditArtifacts) {
     const auditViewPath = resolve(
       outDir,
@@ -415,8 +422,9 @@ export async function inspectDocx(
     if (budgetAudit.has_budget_table) {
       auditMd += "\n\n" + formatBudgetAuditMarkdownBlock(budgetAudit);
     }
-    writeFileSync(auditViewPath, auditMd, "utf-8");
+    writeOrDeferMarkdownArtifact(auditViewPath, auditMd, options.deferMarkdownWrite);
     rawResult.audit_view_path = auditViewPath;
+    transientAuditMd = auditMd;
   }
 
   await applyStructuralDiffIfRequested(
@@ -428,6 +436,9 @@ export async function inspectDocx(
   );
 
   const finalResult = compact ? compactInspectionResult(rawResult) : rawResult;
+  if (transientAuditMd !== undefined) {
+    attachTransientInspectMarkdown(finalResult, transientAuditMd);
+  }
 
   if (targetOutputPath) {
     const nfcOutPath = resolve(

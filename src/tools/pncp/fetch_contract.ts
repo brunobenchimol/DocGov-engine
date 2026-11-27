@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { resolve, join, basename, extname } from "node:path";
 import { VERSION } from "../../constants/index.ts";
+import { writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import {
   resolveWorkspacePath,
   assertDocGovCaseScope,
@@ -408,9 +409,9 @@ export async function fetchPncpContract(
   }
 
   mdContent += `\n---\n*Catálogo gerado deterministicamente por docgov-engine v${VERSION}.*\n`;
-  writeFileSync(indexPath, mdContent, "utf-8");
+  writeFileSafeSync(indexPath, mdContent);
 
-  return {
+  const fetchResult: FetchPncpResult = {
     status: "success",
     pncpRef: id.canonicalRef,
     shortname,
@@ -425,6 +426,12 @@ export async function fetchPncpContract(
     inspectedCount,
     failedInspections,
   };
+  Object.defineProperty(fetchResult, "_indexMarkdown", {
+    value: mdContent,
+    enumerable: false,
+    configurable: true,
+  });
+  return fetchResult;
 }
 
 /**

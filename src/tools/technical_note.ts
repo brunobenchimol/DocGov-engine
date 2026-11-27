@@ -11,6 +11,7 @@ import {
 } from "../utils/pdf_exporter.ts";
 import { sanitizeXmlString } from "../utils/xml.ts";
 import { VERSION } from "../constants/index.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   assertDocGovCaseScope,
   isValidDocGovCaseScope,
@@ -337,12 +338,13 @@ export function formatTechnicalNoteSyntheticResult(
     next_step_hint: nextHint,
   };
 
+  const summary = buildSummaryMcpEnvelope(payload).payload;
   // Garante cumprimento rigoroso da Lei 2 (< 1024 bytes UTF-8 com folga segura < 900 bytes)
-  if (Buffer.byteLength(JSON.stringify(payload), "utf-8") >= 900) {
-    payload.message = "Nota Técnica gerada com sucesso.";
+  if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 900) {
+    summary.message = "Nota Técnica gerada com sucesso.";
   }
 
-  return payload;
+  return summary;
 }
 
 export function createTechnicalNoteDataFromDiff(

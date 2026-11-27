@@ -24,6 +24,7 @@ import {
   saveTemplateToRegistry,
 } from "../core/registry.ts";
 import { VERSION } from "../constants/index.ts";
+import { buildSummaryMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   assertDocGovCaseScope,
   isValidDocGovCaseScope,
@@ -354,7 +355,7 @@ export function formatBuildDocxTemplateSyntheticResult(
   outputPath: string,
   result: BuildDocxTemplateResult
 ): BuildDocxTemplateSyntheticResult {
-  return {
+  return buildSummaryMcpEnvelope<BuildDocxTemplateSyntheticResult>({
     status: "success",
     engine_version: VERSION,
     outputPath: resolve(outputPath),
@@ -364,5 +365,5 @@ export function formatBuildDocxTemplateSyntheticResult(
     message: result.message,
     next_step_hint:
       "Próximo passo recomendado: elabore ou atualize o arquivo de estado (ex.: state/estado_caso.json) e chame 'fill_docx_template' para injetar os dados e gerar a minuta final.",
-  };
+  }).payload;
 }
