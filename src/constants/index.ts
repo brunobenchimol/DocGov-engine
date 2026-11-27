@@ -1,4 +1,4 @@
-export const VERSION = "1.7.5";
+export const VERSION = "1.7.6";
 export const GITHUB_REPO = "brunobenchimol/DocGov-engine";
 
 // ============================================================================
@@ -216,13 +216,13 @@ Este guia orienta agentes de IA e clientes MCP no ciclo completo de tratamento e
 - **Chamada:** \`search_juris({ caseDir: "cases/<nome_caso>", query: "orçamento sigiloso | padronização", courts: ["TCU", "TST", "AGU", "TCE-PA", "TCM-PA", "TCE-PR"], stance: "NEUTRAL", regime: "AUTO", limit: 10, force_live?: false })\`
 - **Características:**
   - Busca multi-query paralela em cortes de controle externo, tribunais superiores e órgãos consultivos federais (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR), com acumulação/desduplicação concorrente (mutex em memória + lockfile externo em \`%TEMP%/docgov_locks/\` + escrita segura) em \`state/juris_search_results.json\` e \`.md\`, \`total_hits\` (rodada) + \`total_accumulated\` + \`queries_history\`.
-  - Defaults neutros (\`stance: "NEUTRAL"\`, \`regime: "AUTO"\`) com rebalanceamento \`0..100\` (\`lexical 0..65\`, \`quorum 0..20\`, \`recency 0..15\`) e \`Statutory Bridge\` condicional em consultas livres; \`TST\` com cache dinâmico live-backed TTL 24h (\`DOCGOV_JURIS_CACHE_DIR\`), suporte ao vivo a \`SUM\`/\`OJ\`/\`ACORDAO\` e sem texto estático congelado.
+  - Defaults neutros (\`stance: "NEUTRAL"\`, \`regime: "AUTO"\`) com rebalanceamento \`0..100\` (\`lexical 0..65\`, \`quorum 0..20\`, \`recency 0..15\`) e \`Statutory Bridge\` condicional em consultas livres; ciclo global Live-First -> grava Cache TTL 24h (\`DOCGOV_JURIS_CACHE_DIR\`, \`juris_ttl_cache.ts\`) -> \`CACHE_TTL_FALLBACK\` (em falha live/\`5xx\`) -> \`LIVE_FAILED\`, sem catálogos estáticos congelados e sem \`autoTriggerKeywords\`.
   - Retorno bimodal MCP/CLI (\`INLINE <= 8192 B\` ou \`POINTER <= 1024 B\`) com top precedentes da rodada atual, \`artifact_path\` e \`next_step_hint\`.
 
 ### Passo 10: Trava Anti-Alucinação e Fatiamento Anatômico (fetch_juris)
 - **Chamada:** \`fetch_juris({ caseDir: "cases/<nome_caso>", acordaoIdOrUrl: "Acórdão 1234/2024-TCU-Plenário", stance: "NEUTRAL", topicFilter: "lote único", force_live?: false })\`
 - **Características:**
-  - Trava anti-alucinação estrita: valida existência real do julgado no tribunal ou mock server e barra precedentes fabricados com \`[ANTI_HALLUCINATION_BLOCK]\`, declarando sempre \`source: "LIVE" | "CURATED_CATALOG"\` (no TST sempre \`"LIVE"\` com cache dinâmico TTL 24h).
+  - Trava anti-alucinação estrita: valida existência real do julgado no tribunal ou mock server e barra precedentes fabricados com \`[ANTI_HALLUCINATION_BLOCK]\`, declarando \`source: "LIVE"\` (com \`cache_hit: true\` quando servido do cache TTL 24h sob indisponibilidade live).
   - Fatiamento anatômico em 6 Macro-Partes / 10 Sub-Camadas em ordem sequencial estrita (\`1 -> 2 -> 3 -> 4 -> 5 -> 6\`), corte em fronteira limpa (\`truncateCleanBoundary\`) e links diretos ao inteiro teor.
   - Geração exclusiva em \`state/\`: \`state/dossie_juris_<shortname>.md\` e \`state/juris_<shortname>/inteiro_teor_anatomico.md\` (sem tocar em \`inputs/\`).
   - Retorno bimodal MCP/CLI (Lei 2: \`INLINE <= 8192 B\` com \`write-behind\` ou \`POINTER <= 1024 B\` com \`await\` síncrono inclusive no inteiro teor).

@@ -185,7 +185,7 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM) com acumulação/lock em state/, defaults neutros (NEUTRAL/AUTO), Statutory Bridge condicional, cache TTL 24h TST (SUM/OJ/ACORDAO) e triagem A/B TST (triaged|raw|compare). Retorno bimodal <=8KB/<=1KB.\n" +
+        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM) com acumulação/lock em state/, defaults neutros (NEUTRAL/AUTO), Statutory Bridge condicional, cache global TTL 24h Live-First e triagem A/B TST (triaged|raw|compare). Retorno bimodal <=8KB/<=1KB.\n" +
         "- Quando usar: Pesquisa jurídica neutra ou tática (DEFENSE/ATTACK) em consultas livres ou licitatórias.\n" +
         "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris nos precedentes escolhidos.",
       inputSchema: {
@@ -244,7 +244,7 @@ export function getMcpToolsDefinition() {
           force_live: {
             type: "boolean",
             description:
-              "Se true, ignora circuit breaker, cache TTL 24h do TST e short-circuit de catálogo curado, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
+              "Se true, ignora circuit breaker e fallback em cache TTL 24h, concedendo janela estendida única (9s, retries: 0) para consulta ao vivo e falhando explicitamente se indisponível.",
           },
           triage_mode: {
             type: "string",
@@ -259,7 +259,7 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_juris",
       description:
-        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes (1->6 com corte limpo), autenticando na fonte oficial (cache TTL 24h TST) e gravando dossie_juris_<shortname>.md e inteiro_teor_anatomico.md. Retorno bimodal <=8KB/<=1KB.\n" +
+        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes (1->6 com corte limpo), autenticando na fonte oficial (cache global TTL 24h) e gravando dossie_juris_<shortname>.md e inteiro_teor_anatomico.md. Retorno bimodal <=8KB/<=1KB.\n" +
         "- Quando usar: Após search_juris para autenticar e fatiar julgado antes de citá-lo.\n" +
         "- Próximo Passo: Leia o dossiê fatiado em state/ com links diretos ao inteiro teor.",
       inputSchema: {
@@ -295,7 +295,7 @@ export function getMcpToolsDefinition() {
           force_live: {
             type: "boolean",
             description:
-              "Se true, ignora atalho de catálogo curado, cache TTL 24h do TST e circuit breaker, tentando captura ao vivo com janela estendida única (9s, retries: 0).",
+              "Se true, ignora fallback em cache TTL 24h e circuit breaker, tentando captura ao vivo com janela estendida única (9s, retries: 0).",
           },
         },
       },

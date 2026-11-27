@@ -6,6 +6,32 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.7.6] - 2026-11-27 — Corte Limpo Global JURIS, Cache TTL 24h Universal & Desarme de Vieses
+
+### Added
+- **Cache Global TTL 24h (`src/tools/juris/providers/juris_ttl_cache.ts`, `test/juris/base_provider.test.ts`):**
+  - Promoção de `tst_ttl_cache.ts` para módulo global parametrizado por `courtId` (`<DOCGOV_JURIS_CACHE_DIR|%TEMP%/docgov_juris_cache>/<court_lower>/`), gravando exclusivamente via `fs_safe_io.ts` (`withDirectoryLock` + `writeFileSafeAsync`);
+  - Suíte dedicada validando o ciclo Live-First (`200` grava cache) -> `CACHE_TTL_FALLBACK` (`503` com cache `< 24h`, `cache_hit: true`, `fetched_at`) -> `LIVE_FAILED` / `[LIVE_UNAVAILABLE]` (cache frio, expirado `>= 24h` ou `force_live=true`), tanto em produção quanto em Mock Server (`executeMockSearch` e `executeMockFetch`).
+- **Núcleo Puro de Triagem (`src/tools/juris/precedent_triage_core.ts`):**
+  - Extração de utilitários puros (`0 I/O`): `asCleanText`, `normalizeText`, `tokenizeNormalized`, `parseReliableYearValue`, `extractReliableYear`, `filterHitsByPertinence`, `buildShortTitle`, `pushUniqueIds`, `limitBucketsGeneric` e `limitBucketsByPriorityGeneric`, reduzindo `tst_precedent_triage.ts` para `< 260` linhas mantendo 100% dos 4 baldes do TST e orçamento `<= 880 B`.
+
+### Changed
+- **Corte Limpo em `BaseJurisdictionProvider` (`src/tools/juris/providers/base_provider.ts`, `types.ts`, `provider_registry.ts`):**
+  - Remoção de `searchCatalog`, `shouldShortCircuitCatalog`, `findCatalogItemById`, `mergeLiveFirst` e `autoTriggerKeywords` (da superclasse, de `JurisdictionProvider`, do dispatcher `resolveRouting` e de todos os 12 conectores);
+  - Alinhamento de `JurisOrigin` (`"LIVE"`) e `JurisSourceMode` (`"LIVE" | "CACHE_TTL_FALLBACK" | "CIRCUIT_OPEN_FALLBACK" | "LIVE_FAILED"`);
+  - `Layer1A_Metadata.ano` alterado para `ano?: number` com formatação segura sem serializar `"undefined"` em `canonicalId`, `shortName` ou Markdown (`anatomical_slicer.ts`, `anatomical_markdown.ts`, `fetch_juris.ts`).
+- **Desarme Global de Vieses, Mutações e Falsificação Temporal (`stf_provider.ts`, `tce_sp_provider.ts`, `agu_provider.ts`, `anatomical_slicer.ts` e demais conectores):**
+  - `stf_provider.ts`: remoção da injeção `bool.must` licitatória e `must_not: "(ICMS AND ISS) OR bitributação"`;
+  - `tce_sp_provider.ts`: remoção da fabricação sintética de 5 linhas de `inteiroTeorTexto` no HTML parser;
+  - `agu_provider.ts`: suporte a `AGU-PARECER-*` (ex.: `AGU-PARECER-V176-NEUTRO`) em `idPatterns`;
+  - `anatomical_slicer.ts`: nota neutra *fail-safe* para AGU (`"Eficácia condicionada à esfera federal e ao regime de direito público (não presumida)"`, sem `Art. 40` hardcoded), `entidade` default `"NAO_INFORMADA"` e `quorum`/`votos` default `"NAO_INFORMADO"` (em vez de `"Por Maioria"` cego);
+  - Eliminação de `ano || 2024`, `new Date().getFullYear()` e `"ORGAO_CONTRATANTE"` hardcoded nos conectores JURIS; `tce_sp_catalog.ts` e `tcm_pa_catalog.ts` enxugados para normalizadores puros de IDs (`normalizeTceSpId` / `normalizeTcmPaId`).
+
+### Removed
+- Expurgo integral das 77 entradas congeladas e de `src/tools/juris/providers/catalog_helper.ts`, `tst_ttl_cache.ts` e 9 catálogos estáticos (`agu_catalog.ts`, `stf_catalog.ts`, `stj_catalog.ts`, `tcdf_catalog.ts`, `tce_ce_catalog.ts`, `tce_mg_catalog.ts`, `tce_pa_catalog.ts`, `tce_pr_catalog.ts`, `tcu_catalog.ts`).
+
+---
+
 ## [1.7.5] - 2026-11-26 — Otimização MCP Híbrido `8 KB`, Lei 2 Bimodal & Paridade CLI/MCP
 
 ### Added
