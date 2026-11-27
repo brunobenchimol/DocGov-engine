@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector TCE-PA (Tribunal de Contas do Estado do Pará)
-// docgov-engine — providers/tce_pa_provider.ts (extends BaseJurisdictionProvider)
-// Integração via HTTP/1.1 Resiliente (insecureHTTPParser) com Catálogo Curado
+// docgov-engine v1.7.6 — providers/tce_pa_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -18,11 +17,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getTcePaCatalogItemById,
-  mapTcePaCatalogItemToFetch,
-  searchTcePaCatalog,
-} from "./tce_pa_catalog.ts";
 
 export class TcePaProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-PA";
@@ -38,28 +32,9 @@ export class TcePaProvider extends BaseJurisdictionProvider {
 
   public readonly liveSmokeQuery = "licitação";
   public readonly idPatterns = [/\bTCE[-_\s]?PA\b/i, /\bTCEPA\b/i];
-  // Auto-trigger estrito exclusivo do TCE-PA (sem 'pará' ou 'pa' isolados para evitar colisão com TCM-PA)
-  public readonly autoTriggerKeywords =
-    /\b(tce[- ]pa|tce\/pa|tcepa|tribunal\s+de\s+contas\s+do\s+estado\s+do\s+par[aá]|tribunal\s+de\s+contas\s+do\s+par[aá])\b/i;
 
   protected getDefaultBaseUrl(): string {
     return "https://www.tcepa.tc.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTcePaCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return (
-      /\bresolu[çc][aã]o\s*(?:n[º°o]\s*)?19\.?669\b/i.test(query) ||
-      /\bprejulgado\s*(?:n[º°o]\s*)?21\b/i.test(query)
-    );
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getTcePaCatalogItemById(idOrRef);
-    return entry ? mapTcePaCatalogItemToFetch(entry) : null;
   }
 
   protected async executeLiveSearch(
@@ -137,16 +112,18 @@ export class TcePaProvider extends BaseJurisdictionProvider {
   }
 
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    const rawAno = hit.ano !== undefined && hit.ano !== null ? Number(hit.ano) : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
     return {
-      id: hit.id || `TCE-PA-${hit.numero || "SN"}-${hit.ano || 2024}`,
+      id: hit.id || `TCE-PA-${hit.numero || "SN"}${ano !== undefined ? `-${ano}` : ""}`,
       court: "TCE-PA",
       colegiado: hit.colegiado || "Plenário",
       numero: String(hit.numero || "S/N"),
-      ano: Number(hit.ano || 2024),
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.processo,
       relator: hit.relator || "Conselheiro Relator",
       dataSessao: hit.dataSessao || hit.data,
-      entidade: hit.entidade || hit.orgao || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || hit.orgao || "NAO_INFORMADA",
       indexacao: hit.indexacao,
       tese: hit.tese || hit.ementa,
       dispositivo: hit.dispositivo,
@@ -173,18 +150,18 @@ export class TcePaProvider extends BaseJurisdictionProvider {
 
       const numMatch = rawTitle.match(/acórdão\s*(?:n[º°]?\s*)?(\d+)(?:\/(\d{4}))?/i);
       const numero = numMatch ? numMatch[1] : String(idx);
-      const ano = numMatch && numMatch[2] ? Number(numMatch[2]) : 2024;
-      const id = `TCE-PA-${numero}-${ano}`;
+      const ano = numMatch && numMatch[2] ? Number(numMatch[2]) : undefined;
+      const id = `TCE-PA-${numero}${ano !== undefined ? `-${ano}` : ""}`;
 
       results.push({
         id,
         court: "TCE-PA",
         colegiado: "Plenário",
         numero,
-        ano,
+        ...(ano !== undefined ? { ano } : {}),
         processo: fullUrl,
         relator: "Conselheiro Relator",
-        entidade: "ESTADO_DO_PARA",
+        entidade: "NAO_INFORMADA",
         indexacao: rawTitle,
         tese: rawSnippet || rawTitle,
         dispositivo: rawTitle,

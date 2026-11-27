@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector TCDF (Tribunal de Contas do Distrito Federal)
-// docgov-engine — providers/tcdf_provider.ts (extends BaseJurisdictionProvider)
-// Integração via API REST Busca Pública (api-busca-publica.tc.df.gov.br)
+// docgov-engine v1.7.6 — providers/tcdf_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -18,11 +17,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getTcdfCatalogItemById,
-  mapTcdfCatalogItemToFetch,
-  searchTcdfCatalog,
-} from "./tcdf_catalog.ts";
 
 export class TcdfProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCDF";
@@ -44,19 +38,6 @@ export class TcdfProvider extends BaseJurisdictionProvider {
 
   protected getDefaultBaseUrl(): string {
     return "https://api-busca-publica.tc.df.gov.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTcdfCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return /\bs[úu]mula\s*(?:n[º°o]\s*)?(?:13|68|69|70|109)\b/i.test(query);
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getTcdfCatalogItemById(idOrRef);
-    return entry ? mapTcdfCatalogItemToFetch(entry) : null;
   }
 
   protected async executeLiveSearch(
@@ -129,16 +110,18 @@ export class TcdfProvider extends BaseJurisdictionProvider {
   }
 
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    const rawAno = hit.ano !== undefined && hit.ano !== null ? Number(hit.ano) : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
     return {
-      id: hit.id || `TCDF-${hit.numero || "SN"}-${hit.ano || 2024}`,
+      id: hit.id || `TCDF-${hit.numero || "SN"}${ano !== undefined ? `-${ano}` : ""}`,
       court: "TCDF",
       colegiado: hit.colegiado || "Plenário",
       numero: String(hit.numero || "S/N"),
-      ano: Number(hit.ano || 2024),
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.processo,
       relator: hit.relator || "Conselheiro Relator",
       dataSessao: hit.dataSessao || hit.data,
-      entidade: hit.entidade || hit.orgao || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || hit.orgao || "NAO_INFORMADA",
       indexacao: hit.indexacao,
       tese: hit.tese || hit.ementa,
       dispositivo: hit.dispositivo,
@@ -148,8 +131,12 @@ export class TcdfProvider extends BaseJurisdictionProvider {
 
   private mapTcdfSource(src: any): RawJurisSearchResult {
     const numero = String(src.documento_numero || "S/N");
-    const ano = Number(src.documento_ano || 2024);
-    const id = `TCDF-Decisão-${numero}-${ano}`;
+    const rawAno =
+      src.documento_ano !== undefined && src.documento_ano !== null
+        ? Number(src.documento_ano)
+        : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
+    const id = `TCDF-Decisão-${numero}${ano !== undefined ? `-${ano}` : ""}`;
     const tese =
       src.jurisprudencia_ementa ||
       src.jurisprudencia_excerto ||
@@ -162,11 +149,11 @@ export class TcdfProvider extends BaseJurisdictionProvider {
       court: "TCDF",
       colegiado: src.sessao_tipo || "Plenário",
       numero,
-      ano,
+      ...(ano !== undefined ? { ano } : {}),
       processo: src.processo_numero_completo || src.processo_numero,
       relator: src.processo_relator || "Conselheiro Relator",
       dataSessao: src.sessao_data,
-      entidade: "DISTRITO_FEDERAL",
+      entidade: src.orgao || src.entidade || "NAO_INFORMADA",
       indexacao: src.jurisprudencia_assunto || src.jurisprudencia_tipo_descricao,
       tese,
       dispositivo,

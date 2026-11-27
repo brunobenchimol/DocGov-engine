@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector Oficial do Tribunal de Contas do Estado do Paraná (TCE-PR)
-// docgov-engine — providers/tce_pr_provider.ts (extends BaseJurisdictionProvider)
-// Prejulgados, Súmulas e Consultas Normativas do Tribunal Pleno / ViaJuris
+// docgov-engine v1.7.6 — providers/tce_pr_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -15,11 +14,6 @@ import {
 } from "./base_provider.ts";
 import { sanitizeQueryForCourt } from "./http_client.ts";
 import { cleanHtmlAndNormalize } from "../anatomical_slicer.ts";
-import {
-  getTcePrCatalogItemById,
-  searchTcePrCatalog,
-  type TcePrNormativeItem,
-} from "./tce_pr_catalog.ts";
 
 export class TcePrProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-PR";
@@ -57,57 +51,8 @@ export class TcePrProvider extends BaseJurisdictionProvider {
     /\bTCEPR\b/i,
   ];
 
-  public readonly autoTriggerKeywords =
-    /\b(tce[- ]pr|tce\/pr|tcepr|tribunal\s+de\s+contas\s+do\s+estado\s+do\s+paran[aá]|tribunal\s+de\s+contas\s+do\s+paran[aá]|viajuris|prejulgado\s*(?:n[º°o]\s*)?\d{1,3}\s*(?:do\s*)?(?:tce[- ]pr|tcepr)|s[úu]mula(?:s)?\s*(?:n[º°o]\s*)?\d{1,3}\s*(?:do\s*)?(?:tce[- ]pr|tcepr)|curitiba|celepar|sanepar|copel|lei\s+(?:estadual\s+)?15\.?608|decreto\s+(?:estadual\s+)?10\.?086)\b/i;
-
   protected getDefaultBaseUrl(): string {
     return "https://viajuris.tce.pr.gov.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTcePrCatalog(query, limit).map((c) => this.mapCatalogItemToResult(c));
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return (
-      /\bprejulgado\b/i.test(query) ||
-      /\bs[úu]mula\s*(?:n[º°o]\s*)?\d{1,3}\b/i.test(query)
-    );
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const catItem = getTcePrCatalogItemById(idOrRef);
-    if (!catItem) return null;
-    return {
-      id: catItem.id,
-      court: "TCE-PR",
-      exists: true,
-      source: "CURATED_CATALOG",
-      rawTextOrJson: {
-        tribunal: "TCE-PR",
-        colegiado: catItem.colegiado,
-        numero: catItem.numero,
-        ano: catItem.ano,
-        relator: catItem.relator,
-        dataSessao: catItem.dataSessao,
-        entidade: catItem.entidade,
-        regimeLegal: catItem.regimeLegal,
-        indexacao: catItem.indexacao,
-        tese: catItem.enunciado,
-        dispositivo: catItem.dispositivo,
-        historico: catItem.historico,
-        fundamentacao: catItem.fundamentacao,
-        fonteOficialUrl: catItem.fonteOficialUrl,
-        inteiroTeorTexto: catItem.inteiroTeorTexto,
-        outcome:
-          catItem.dispositivo.toLowerCase().includes("vedad") ||
-          catItem.dispositivo.toLowerCase().includes("ilegal") ||
-          catItem.dispositivo.toLowerCase().includes("proíbe") ||
-          catItem.dispositivo.toLowerCase().includes("infração")
-            ? "PROCEDENTE_ANULACAO_DETERMINACAO"
-            : "IMPROCEDENTE_MANUTENCAO_CERTAME",
-      },
-    };
   }
 
   protected async executeLiveSearch(
@@ -192,13 +137,11 @@ export class TcePrProvider extends BaseJurisdictionProvider {
             processo: parsed.processo,
             relator: parsed.relator || "Tribunal Pleno",
             dataSessao: parsed.dataSessao,
-            entidade: "ORGAO_CONTRATANTE",
-            regimeLegal: "LEI_14133_ADM_DIRETA",
+            entidade: "NAO_INFORMADA",
             indexacao: [parsed.indexacao || "JURISPRUDÊNCIA TCE-PR"],
             tese: parsed.tese,
             dispositivo: parsed.dispositivo,
             inteiroTeorTexto: `${parsed.tese}\n\n${parsed.dispositivo}`,
-            outcome: "IMPROCEDENTE_MANUTENCAO_CERTAME",
           },
         };
       }
@@ -206,33 +149,19 @@ export class TcePrProvider extends BaseJurisdictionProvider {
     return null;
   }
 
-  private mapCatalogItemToResult(item: TcePrNormativeItem): RawJurisSearchResult {
-    return {
-      id: item.id,
-      court: "TCE-PR",
-      colegiado: item.colegiado,
-      numero: item.numero,
-      ano: item.ano,
-      relator: item.relator,
-      dataSessao: item.dataSessao,
-      entidade: item.entidade,
-      indexacao: item.indexacao.join("; "),
-      tese: item.enunciado,
-      dispositivo: item.dispositivo,
-    };
-  }
-
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    const rawAno = hit.ano !== undefined && hit.ano !== null ? Number(hit.ano) : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
     return {
       id: hit.id || `TCE-PR-${hit.numero || "DECISAO"}`,
       court: "TCE-PR",
       colegiado: hit.colegiado || "Tribunal Pleno",
       numero: hit.numero ? String(hit.numero) : undefined,
-      ano: hit.ano ? Number(hit.ano) : undefined,
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.processo,
       relator: hit.relator,
       dataSessao: hit.dataSessao,
-      entidade: hit.entidade || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || "NAO_INFORMADA",
       indexacao: Array.isArray(hit.indexacao) ? hit.indexacao.join("; ") : hit.indexacao,
       tese: hit.tese || hit.enunciado || hit.sumario,
       dispositivo: hit.dispositivo,
@@ -264,7 +193,7 @@ export class TcePrProvider extends BaseJurisdictionProvider {
       const ementa = ementaMatch ? ementaMatch[1].trim() : cleanBlock.slice(0, 300);
 
       const id =
-        numAto && anoAto
+        numAto && anoAto !== undefined
           ? `TCE-PR-ACORDAO-${numAto}-${anoAto}`
           : `TCE-PR-ATO-${results.length + 1}`;
 
@@ -277,10 +206,11 @@ export class TcePrProvider extends BaseJurisdictionProvider {
           ? "2ª Câmara"
           : "Tribunal Pleno",
         numero: numAto,
-        ano: anoAto,
+        ...(anoAto !== undefined ? { ano: anoAto } : {}),
         processo: procMatch ? procMatch[1] : undefined,
         relator: relatorMatch ? relatorMatch[1].trim() : "Tribunal Pleno",
         dataSessao: dataMatch ? dataMatch[1] : undefined,
+        entidade: "NAO_INFORMADA",
         indexacao: "JURISPRUDÊNCIA TCE-PR; DELIBERAÇÃO PLENÁRIA",
         tese: ementa,
         dispositivo: ementa.slice(0, 300),

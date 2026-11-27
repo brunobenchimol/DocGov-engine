@@ -1,6 +1,6 @@
 // ============================================================================
 // Conector Oficial do Tribunal de Contas da União (TCU Provider)
-// docgov-engine — providers/tcu_provider.ts (extends BaseJurisdictionProvider)
+// docgov-engine v1.7.6 — providers/tcu_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -16,11 +16,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getTcuCatalogItemById,
-  mapTcuCatalogItemToFetch,
-  searchTcuCatalog,
-} from "./tcu_catalog.ts";
 
 export class TcuProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCU";
@@ -43,19 +38,6 @@ export class TcuProvider extends BaseJurisdictionProvider {
 
   protected getDefaultBaseUrl(): string {
     return "https://pesquisa.apps.tcu.gov.br/rest/publico/base";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTcuCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return /\bs[úu]mula\s*(?:n[º°o]\s*)?(?:177|222|247|250|253|254|263|269|272)\b/i.test(query);
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getTcuCatalogItemById(idOrRef);
-    return entry ? mapTcuCatalogItemToFetch(entry) : null;
   }
 
   protected async executeLiveSearch(
@@ -153,7 +135,6 @@ export class TcuProvider extends BaseJurisdictionProvider {
       return null;
     };
 
-    // 1. Lookup direto por KEY se prefixado
     if (idOrRef.toUpperCase().startsWith("JURISPRUDENCIA-SELECIONADA-")) {
       const docs = await queryTcu(
         `${baseUrl}/jurisprudencia-selecionada/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
@@ -166,7 +147,6 @@ export class TcuProvider extends BaseJurisdictionProvider {
       if (docs && docs.length > 0) exactDoc = docs[0];
     }
 
-    // 2. Consulta direta por número/ano
     if (!exactDoc && parsed.numero && parsed.ano) {
       const docs = await queryTcu(
         `${baseUrl}/acordao-completo/documento?termo=${parsed.numero}/${parsed.ano}&quantidade=20`
@@ -189,7 +169,6 @@ export class TcuProvider extends BaseJurisdictionProvider {
       }
     }
 
-    // 3. Fallback por filtro KEY e termo livre respeitando o orçamento único
     if (!exactDoc && !lastTransientError) {
       const docsKeyAc = await queryTcu(
         `${baseUrl}/acordao-completo/documento?filtro=KEY:${encodeURIComponent(idOrRef)}`
@@ -232,14 +211,19 @@ export class TcuProvider extends BaseJurisdictionProvider {
 
   private mapTcuDocToResult(doc: any): RawJurisSearchResult {
     const num = doc.NUMACORDAO || doc.numeroAcordao || doc.numero;
-    const ano = doc.ANOACORDAO || doc.anoAcordao || doc.ano;
+    const rawAno = doc.ANOACORDAO ?? doc.anoAcordao ?? doc.ano;
+    const parsedAno =
+      rawAno !== undefined && rawAno !== null && rawAno !== ""
+        ? Number(rawAno)
+        : undefined;
+    const ano = parsedAno !== undefined && Number.isFinite(parsedAno) ? parsedAno : undefined;
     const col = doc.COLEGIADO || doc.colegiado || "Plenário";
     const id =
-      num && ano && num !== "S/N"
+      num && ano !== undefined && num !== "S/N"
         ? `Acórdão ${num}/${ano}-TCU-${col}`
         : doc.KEY ||
           doc.id ||
-          `ACORDAO-TCU-${num || "SN"}-${ano || 2024}-${String(col)
+          `ACORDAO-TCU-${num || "SN"}${ano !== undefined ? `-${ano}` : ""}-${String(col)
             .toUpperCase()
             .replace(/\s+/g, "_")}`;
 
@@ -267,12 +251,12 @@ export class TcuProvider extends BaseJurisdictionProvider {
       id,
       court: "TCU",
       colegiado: col,
-      numero: String(num),
-      ano: Number(ano),
+      numero: num !== undefined && num !== null ? String(num) : undefined,
+      ...(ano !== undefined ? { ano } : {}),
       processo: procClean,
       relator: doc.RELATOR || doc.relator || doc.AUTORTESE,
       dataSessao: doc.DATASESSAO || doc.dataSessao || doc.DATASESSAOFORMATADA || doc.data,
-      entidade: rawEntidade,
+      entidade: rawEntidade || "NAO_INFORMADA",
       indexacao,
       tese: typeof tese === "string" ? tese.replace(/<[^>]+>/g, "").trim() : tese,
       dispositivo: doc.ACORDAO || doc.acordao || doc.dispositivo,

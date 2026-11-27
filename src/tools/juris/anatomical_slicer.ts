@@ -127,11 +127,15 @@ export function sliceAcordaoAnatomically(
     obj.numeroAcordao ||
     obj.NUMACORDAO ||
     (numeroMatch ? numeroMatch[1] : "S/N");
+  const rawAnoCandidate =
+    obj.ano ??
+    obj.anoAcordao ??
+    (obj.ANOACORDAO ? parseInt(String(obj.ANOACORDAO), 10) : undefined) ??
+    (numeroMatch ? parseInt(numeroMatch[2], 10) : undefined);
   const ano =
-    obj.ano ||
-    obj.anoAcordao ||
-    (obj.ANOACORDAO ? parseInt(String(obj.ANOACORDAO), 10) : undefined) ||
-    (numeroMatch ? parseInt(numeroMatch[2], 10) : new Date().getFullYear());
+    rawAnoCandidate !== undefined && Number.isFinite(Number(rawAnoCandidate))
+      ? Number(rawAnoCandidate)
+      : undefined;
   const colegiado =
     obj.colegiado ||
     obj.COLEGIADO ||
@@ -168,7 +172,7 @@ export function sliceAcordaoAnatomically(
     obj.entidade ||
     rawEntidade ||
     rawText.match(/Unidade\s+Jurisdicionada\s*[:\s]*([^\n\r]+)/i)?.[1] ||
-    (court === "AGU" ? "ADMINISTRAÇÃO_PÚBLICA_FEDERAL" : "NAO_INFORMADA");
+    "NAO_INFORMADA";
   const fullContent = `${rawText} ${obj.relatorio || obj.RELATORIO || ""} ${
     obj.voto || obj.VOTO || ""
   } ${obj.sumario || obj.SUMARIO || ""} ${
@@ -277,19 +281,23 @@ export function sliceAcordaoAnatomically(
   // 6A. Quórum de Fecho
   const isAgu = court === "AGU" || /AGU/i.test(court);
   const isUnanime = /\b(unânime|unanimidade)\b/i.test(acordaoRaw);
+  const aguFailSafeNote =
+    "Eficácia condicionada à esfera federal e ao regime de direito público (não presumida)";
   const quorum = isAgu
-    ? "Vinculante para a Administração Pública Federal (Art. 40 da LC 73/1993)"
+    ? aguFailSafeNote
     : obj.QUORUM
     ? cleanHtmlAndNormalize(obj.QUORUM)
-    : (isUnanime ? "Unânime" : "Por Maioria");
+    : isUnanime
+    ? "Unânime"
+    : "NAO_INFORMADO";
   const closingQuorum = {
     quorum,
     votos: isAgu
-      ? "Eficácia vinculante para os órgãos jurídicos e entidades federais"
+      ? aguFailSafeNote
       : isUnanime
       ? "Votação unânime dos membros do colegiado"
-      : "Decisão por maioria",
-    data: dataSessao || String(ano),
+      : "NAO_INFORMADO",
+    data: dataSessao || (ano !== undefined ? String(ano) : undefined),
   };
 
   const layers: AnatomicalLayers = {
@@ -297,7 +305,7 @@ export function sliceAcordaoAnatomically(
       tribunal: court,
       colegiado,
       numero: String(numero),
-      ano: Number(ano),
+      ...(ano !== undefined ? { ano } : {}),
       processo,
       relator,
       dataSessao,
@@ -339,7 +347,8 @@ export function sliceAcordaoAnatomically(
   }
 
   // Gera Markdown de Estágio 2 (Dossiê Fatiado)
-  const canonicalId = `ACORDAO-${court}-${numero}-${ano}-${colegiado.toUpperCase().replace(/\s+/g, "_")}`;
+  const anoPart = ano !== undefined ? `-${ano}` : "";
+  const canonicalId = `ACORDAO-${court}-${numero}${anoPart}-${colegiado.toUpperCase().replace(/\s+/g, "_")}`;
   const dossieMarkdown = generateSlicedDossierMarkdown(
     canonicalId,
     layers,

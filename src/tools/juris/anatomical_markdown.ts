@@ -91,7 +91,7 @@ export function generateSlicedDossierMarkdown(
 
   md += `## 1. Cabeçalho & Perfil da Jurisdição\n`;
   md += `- **Tribunal / Colegiado:** ${l1a.tribunal} — ${l1a.colegiado}\n`;
-  md += `- **Número / Ano:** ${l1a.numero}/${l1a.ano}\n`;
+  md += `- **Número / Ano:** ${l1a.ano !== undefined ? `${l1a.numero}/${l1a.ano}` : l1a.numero}\n`;
   md += `- **Processo:** ${l1a.processo || "N/A"}\n`;
   md += `- **Relator:** ${l1a.relator || "N/A"}\n`;
   md += `- **Unidade Jurisdicionada:** ${entidadeDisplay}\n`;
@@ -172,7 +172,7 @@ export function generateFullAnatomicalMarkdown(
   md += `## 1. Identificação Processual e Metadados\n`;
   md += `- **Tribunal:** ${l1a.tribunal}\n`;
   md += `- **Colegiado:** ${l1a.colegiado}\n`;
-  md += `- **Acórdão:** ${l1a.numero}/${l1a.ano}\n`;
+  md += `- **Acórdão:** ${l1a.ano !== undefined ? `${l1a.numero}/${l1a.ano}` : l1a.numero}\n`;
   md += `- **Processo:** ${l1a.processo}\n`;
   md += `- **Relator:** ${l1a.relator}\n`;
   md += `- **Entidade:** ${entidadeDisplay}\n`;

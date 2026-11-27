@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector TCE-CE (Tribunal de Contas do Estado do Ceará)
-// docgov-engine — providers/tce_ce_provider.ts (extends BaseJurisdictionProvider)
-// Integração via API REST Contexto (contexto-api.tce.ce.gov.br)
+// docgov-engine v1.7.6 — providers/tce_ce_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -17,11 +16,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getTceCeCatalogItemById,
-  mapTceCeCatalogItemToFetch,
-  searchTceCeCatalog,
-} from "./tce_ce_catalog.ts";
 
 export class TceCeProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-CE";
@@ -43,19 +37,6 @@ export class TceCeProvider extends BaseJurisdictionProvider {
 
   protected getDefaultBaseUrl(): string {
     return "https://contexto-api.tce.ce.gov.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTceCeCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return /\bs[úu]mula\s*(?:n[º°o]\s*)?0?(?:2|3)\b/i.test(query);
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getTceCeCatalogItemById(idOrRef);
-    return entry ? mapTceCeCatalogItemToFetch(entry) : null;
   }
 
   protected async executeLiveSearch(
@@ -129,16 +110,18 @@ export class TceCeProvider extends BaseJurisdictionProvider {
   }
 
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    const rawAno = hit.ano !== undefined && hit.ano !== null ? Number(hit.ano) : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
     return {
-      id: hit.id || `TCE-CE-${hit.numero || "SN"}-${hit.ano || 2024}`,
+      id: hit.id || `TCE-CE-${hit.numero || "SN"}${ano !== undefined ? `-${ano}` : ""}`,
       court: "TCE-CE",
       colegiado: hit.colegiado || "Pleno",
       numero: String(hit.numero || "S/N"),
-      ano: Number(hit.ano || 2024),
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.processo,
       relator: hit.relator || "Conselheiro Relator",
       dataSessao: hit.dataSessao || hit.data,
-      entidade: hit.entidade || hit.jurisdicionado || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || hit.jurisdicionado || "NAO_INFORMADA",
       indexacao: hit.indexacao,
       tese: hit.tese || hit.ementa,
       dispositivo: hit.dispositivo,
@@ -148,8 +131,12 @@ export class TceCeProvider extends BaseJurisdictionProvider {
 
   private mapTceCeHit(hit: any): RawJurisSearchResult {
     const numero = String(hit.nrdocumento || hit.iddocumento || "S/N");
-    const ano = Number(hit.nranodocumento || 2024);
-    const id = `TCE-CE-Acórdão-${numero}-${ano}`;
+    const rawAno =
+      hit.nranodocumento !== undefined && hit.nranodocumento !== null
+        ? Number(hit.nranodocumento)
+        : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
+    const id = `TCE-CE-Acórdão-${numero}${ano !== undefined ? `-${ano}` : ""}`;
     const tese =
       hit.tesauro_ementa_documento ||
       hit.dssumula ||
@@ -161,11 +148,11 @@ export class TceCeProvider extends BaseJurisdictionProvider {
       court: "TCE-CE",
       colegiado: hit.tpespeciecategoria || "Pleno",
       numero,
-      ano,
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.nrprocesso || String(hit.idprocesso || ""),
       relator: hit.nmmembrorelator || "Conselheiro Relator",
       dataSessao: hit.dtsessao,
-      entidade: hit.dsentidade,
+      entidade: hit.dsentidade || "NAO_INFORMADA",
       indexacao: hit.dsdocumento || hit.nmtipodocumento,
       tese,
       dispositivo,

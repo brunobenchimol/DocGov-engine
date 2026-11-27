@@ -1,6 +1,6 @@
 // ============================================================================
 // Conector Oficial do Superior Tribunal de Justiça (STJ Provider)
-// docgov-engine — providers/stj_provider.ts (extends BaseJurisdictionProvider)
+// docgov-engine v1.7.6 — providers/stj_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -16,11 +16,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getStjCatalogItemById,
-  mapStjCatalogItemToFetch,
-  searchStjCatalog,
-} from "./stj_catalog.ts";
 
 export class StjProvider extends BaseJurisdictionProvider {
   public readonly courtId = "STJ";
@@ -48,19 +43,6 @@ export class StjProvider extends BaseJurisdictionProvider {
 
   protected getDefaultBaseUrl(): string {
     return "https://dadosabertos.web.stj.jus.br/api/3/action";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchStjCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return /\bs[úu]mula\s*(?:n[º°o]\s*)?(?:333|645)\b/i.test(query);
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getStjCatalogItemById(idOrRef);
-    return entry ? mapStjCatalogItemToFetch(entry) : null;
   }
 
   protected async executeLiveSearch(
@@ -169,11 +151,16 @@ export class StjProvider extends BaseJurisdictionProvider {
   private mapStjItemToResult(item: any): RawJurisSearchResult {
     const id =
       item.id ||
-      `STJ-${item.siglaClasse || "RESP"}-${item.numeroProcesso || "SN"}-${
-        item.numeroRegistro || 2024
+      `STJ-${item.siglaClasse || "RESP"}-${item.numeroProcesso || "SN"}${
+        item.numeroRegistro ? `-${item.numeroRegistro}` : ""
       }`;
     const dataDec = item.dataDecisao || item.dataPublicacao || "";
-    const ano = dataDec ? Number(String(dataDec).slice(0, 4)) : 2024;
+    const rawAno = dataDec
+      ? Number(String(dataDec).slice(0, 4))
+      : item.ano !== undefined && item.ano !== null
+      ? Number(item.ano)
+      : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) && rawAno > 1900 ? rawAno : undefined;
     const col = item.nomeOrgaoJulgador || item.colegiado || "Primeira Seção";
 
     return {
@@ -181,20 +168,20 @@ export class StjProvider extends BaseJurisdictionProvider {
       court: "STJ",
       colegiado: col,
       numero: String(item.numeroProcesso || "S/N"),
-      ano,
-      processo: `${item.siglaClasse || "Processo"} ${item.numeroProcesso || ""} (${
-        item.numeroRegistro || ""
-      })`.trim(),
+      ...(ano !== undefined ? { ano } : {}),
+      processo: `${item.siglaClasse || "Processo"} ${item.numeroProcesso || ""} ${
+        item.numeroRegistro ? `(${item.numeroRegistro})` : ""
+      }`.trim(),
       relator: item.ministroRelator || item.relator || "Ministro Relator",
-      dataSessao: dataDec,
-      entidade: item.entidade || "ORGAO_CONTRATANTE",
+      dataSessao: dataDec || undefined,
+      entidade: item.entidade || "NAO_INFORMADA",
       indexacao: Array.isArray(item.termosAuxiliares)
         ? item.termosAuxiliares.join("; ")
         : item.termosAuxiliares || item.tema,
       tese:
         item.teseJuridica ||
         item.ementa ||
-        "Tese fixada pelo Superior Tribunal de Justiça",
+        "",
       dispositivo: item.decisao || item.dispositivo,
       rawPayload: item,
     };

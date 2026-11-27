@@ -41,9 +41,12 @@ export function mapTstRecordToResult(reg: any): RawJurisSearchResult {
     reg.tipo?.codigoTipoJurisprudencia || reg.tipo || ""
   ).toUpperCase();
   const dataSessao = reg.dtaJulgamento || reg.dtaPublicacao || reg.dataPublicacao;
-  const ano = dataSessao
+  const rawAno = dataSessao
     ? parseInt(String(dataSessao).slice(0, 4), 10)
-    : reg.anoProc || new Date().getFullYear();
+    : reg.anoProc !== undefined && reg.anoProc !== null
+    ? Number(reg.anoProc)
+    : undefined;
+  const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
 
   if (tipoCode === "SUM" || tipoCode === "OJ") {
     const numStr = String(reg.numero || "").trim();
@@ -206,9 +209,12 @@ export function buildTstFetchResultFromHtml(
   const canonicalNum = numFmt.replace(/\s+/g, "");
   const dataSessao =
     initialRecord?.dtaJulgamento || initialRecord?.dtaPublicacao;
-  const ano = dataSessao
+  const rawAno = dataSessao
     ? parseInt(String(dataSessao).slice(0, 4), 10)
-    : initialRecord?.anoProc || new Date().getFullYear();
+    : initialRecord?.anoProc !== undefined && initialRecord?.anoProc !== null
+    ? Number(initialRecord.anoProc)
+    : undefined;
+  const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
   const ementaText =
     initialRecord?.ementa ||
     initialRecord?.txtEmentaHighlight ||

@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector Oficial do Tribunal de Contas do Estado de Minas Gerais (TCE-MG)
-// docgov-engine — providers/tce_mg_provider.ts (extends BaseJurisdictionProvider)
-// Súmulas, Consultas Normativas, Decisões e Deliberações Plenárias (UF: "MG")
+// docgov-engine v1.7.6 — providers/tce_mg_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -15,11 +14,6 @@ import {
 } from "./base_provider.ts";
 import { sanitizeQueryForCourt } from "./http_client.ts";
 import { cleanHtmlAndNormalize } from "../anatomical_slicer.ts";
-import {
-  getTceMgCatalogItemById,
-  searchTceMgCatalog,
-  type TceMgNormativeItem,
-} from "./tce_mg_catalog.ts";
 
 export class TceMgProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-MG";
@@ -55,56 +49,8 @@ export class TceMgProvider extends BaseJurisdictionProvider {
     /\bTCEMG\b/i,
   ];
 
-  public readonly autoTriggerKeywords =
-    /\b(tce[- ]mg|tcemg|tribunal\s+de\s+contas\s+do\s+estado\s+de\s+minas\s+gerais|tribunal\s+de\s+contas\s+de\s+minas\s+gerais|s[úu]mula(?:s)?\s*(?:n[º°o]\s*)?\d{1,3}\s*(?:do\s*)?(?:tce[- ]mg|tcemg)|s[úu]mula(?:s)?\s+(?:tce[- ]mg|tcemg)\s*(?:n[º°o]\s*)?\d{1,3}|mapjuris|tcjuris|cemig|copasa|prodemge|lei\s+(?:estadual\s+)?14\.?184|decreto\s+(?:estadual\s+)?48\.?723|belo\s+horizonte|minas\s+gerais)\b/i;
-
   protected getDefaultBaseUrl(): string {
     return "https://tcjuris.tce.mg.gov.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTceMgCatalog(query, limit).map((c) => this.mapCatalogItemToResult(c));
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return (
-      /\bs[úu]mula\s*(?:n[º°o]\s*)?\d{1,3}\b/i.test(query) ||
-      /\bconsulta\s*(?:n[º°o]\s*)?\d{4,7}\b/i.test(query)
-    );
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const catItem = getTceMgCatalogItemById(idOrRef);
-    if (!catItem) return null;
-    return {
-      id: catItem.id,
-      court: "TCE-MG",
-      exists: true,
-      source: "CURATED_CATALOG",
-      rawTextOrJson: {
-        tribunal: "TCE-MG",
-        colegiado: catItem.colegiado,
-        numero: catItem.numero,
-        ano: catItem.ano,
-        relator: catItem.relator,
-        dataSessao: catItem.dataSessao,
-        entidade: catItem.entidade,
-        regimeLegal: catItem.regimeLegal,
-        indexacao: catItem.indexacao,
-        tese: catItem.enunciado,
-        dispositivo: catItem.dispositivo,
-        historico: catItem.historico,
-        fundamentacao: catItem.fundamentacao,
-        fonteOficialUrl: catItem.fonteOficialUrl,
-        inteiroTeorTexto: catItem.inteiroTeorTexto,
-        outcome:
-          catItem.dispositivo.toLowerCase().includes("vedad") ||
-          catItem.dispositivo.toLowerCase().includes("irregular") ||
-          catItem.dispositivo.toLowerCase().includes("nulidade")
-            ? "PROCEDENTE_ANULACAO_DETERMINACAO"
-            : "IMPROCEDENTE_MANUTENCAO_CERTAME",
-      },
-    };
   }
 
   protected async executeLiveSearch(
@@ -169,33 +115,19 @@ export class TceMgProvider extends BaseJurisdictionProvider {
     return null;
   }
 
-  private mapCatalogItemToResult(item: TceMgNormativeItem): RawJurisSearchResult {
-    return {
-      id: item.id,
-      court: "TCE-MG",
-      colegiado: item.colegiado,
-      numero: item.numero,
-      ano: item.ano,
-      relator: item.relator,
-      dataSessao: item.dataSessao,
-      entidade: item.entidade,
-      indexacao: item.indexacao.join("; "),
-      tese: item.enunciado,
-      dispositivo: item.dispositivo,
-    };
-  }
-
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
+    const rawAno = hit.ano !== undefined && hit.ano !== null ? Number(hit.ano) : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) ? rawAno : undefined;
     return {
       id: hit.id || `TCE-MG-${hit.numero || "CONSULTA"}`,
       court: "TCE-MG",
       colegiado: hit.colegiado || "Tribunal Pleno",
       numero: hit.numero ? String(hit.numero) : undefined,
-      ano: hit.ano ? Number(hit.ano) : undefined,
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.processo,
       relator: hit.relator,
       dataSessao: hit.dataSessao,
-      entidade: hit.entidade || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || "NAO_INFORMADA",
       indexacao: Array.isArray(hit.indexacao) ? hit.indexacao.join("; ") : hit.indexacao,
       tese: hit.tese || hit.enunciado || hit.sumario,
       dispositivo: hit.dispositivo,
@@ -223,6 +155,7 @@ export class TceMgProvider extends BaseJurisdictionProvider {
         colegiado: "Tribunal Pleno",
         numero: procId,
         processo: procId,
+        entidade: "NAO_INFORMADA",
         indexacao: "JURISPRUDÊNCIA TCE-MG; DELIBERAÇÃO PLENÁRIA",
         tese: cleanRow.slice(0, 300),
         dispositivo: parts[1] || cleanRow.slice(0, 200),
@@ -246,15 +179,11 @@ export class TceMgProvider extends BaseJurisdictionProvider {
       processo: procNum,
       relator: relatorMatch ? relatorMatch[1].trim() : "Tribunal Pleno",
       dataSessao: dataMatch ? dataMatch[1] : undefined,
-      entidade: "ORGAO_CONTRATANTE",
-      regimeLegal: "LEI_14133_ADM_DIRETA",
+      entidade: "NAO_INFORMADA",
       indexacao: ["JURISPRUDÊNCIA TCE-MG", "CONSULTA/DELIBERAÇÃO"],
       tese: cleanText.slice(0, 500),
       dispositivo: cleanText.slice(0, 300),
       inteiroTeorTexto: cleanText,
-      outcome: cleanText.toLowerCase().includes("irregular")
-        ? "PROCEDENTE_ANULACAO_DETERMINACAO"
-        : "IMPROCEDENTE_MANUTENCAO_CERTAME",
     };
   }
 }

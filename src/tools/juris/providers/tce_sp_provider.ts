@@ -1,7 +1,6 @@
 // ============================================================================
 // Conector Oficial do Tribunal de Contas do Estado de São Paulo (TCE-SP)
-// docgov-engine — providers/tce_sp_provider.ts (extends BaseJurisdictionProvider)
-// Súmulas Vinculantes, Decisões, Acórdãos e Deliberações Plenárias (UF: "SP")
+// docgov-engine v1.7.6 — providers/tce_sp_provider.ts (Corte Limpo, Cache TTL 24h)
 // ============================================================================
 
 import type {
@@ -15,12 +14,7 @@ import {
 } from "./base_provider.ts";
 import { sanitizeQueryForCourt } from "./http_client.ts";
 import { cleanHtmlAndNormalize } from "../anatomical_slicer.ts";
-import {
-  getTceSpCatalogItemById,
-  searchTceSpCatalog,
-  normalizeTceSpId,
-  type TceSpNormativeItem,
-} from "./tce_sp_catalog.ts";
+import { normalizeTceSpId } from "./tce_sp_catalog.ts";
 
 export class TceSpProvider extends BaseJurisdictionProvider {
   public readonly courtId = "TCE-SP";
@@ -48,57 +42,13 @@ export class TceSpProvider extends BaseJurisdictionProvider {
     /\b(?:SUMULA[-_]TCESP|TCE[-_]?SP[-_]SUMULA|SUMULA[-_]TCE[-_]?SP)[-_]\d{1,3}\b/i,
     /\bS[UÚ]MULA[-_]?\s*(?:N[Oº°]\s*)?(\d{1,3})\s*(?:DO\s*)?(?:TCE[-_]?SP|TCESP)\b/i,
     /\b(?:TCE[-_]?SP|TCESP)[-_](?:ACORDAO|PROC|TC|DELIBERACAO)[-_][\w/-]+\b/i,
-    /\bTC[-_]\d{4,7}[/-]\d{3}[/-]\d{2}\b/i,
+    /\bTC[-_]\d{4,7}[./_-]\d{3}[./_-]\d{2}(?:-\d+)?\b/i,
     /\bTCE[-_]?SP\b/i,
     /\bTCESP\b/i,
   ];
 
-  public readonly autoTriggerKeywords =
-    /\b(tce[- ]sp|tcesp|tribunal\s+de\s+contas\s+do\s+estado\s+de\s+s[ãa]o\s+paulo|tribunal\s+de\s+contas\s+de\s+s[ãa]o\s+paulo|s[úu]mula(?:s)?\s*(?:n[º°o]\s*)?\d{1,3}\s*(?:do\s*)?(?:tce[- ]sp|tcesp)|s[úu]mula(?:s)?\s+(?:tce[- ]sp|tcesp)\s*(?:n[º°o]\s*)?\d{1,3})\b/i;
-
   protected getDefaultBaseUrl(): string {
     return "https://www.tce.sp.gov.br";
-  }
-
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchTceSpCatalog(query, limit).map((c) => this.mapCatalogItemToResult(c));
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return /\bs[úu]mula\s*(?:n[º°o]\s*)?\d{1,3}\s*(?:do\s*)?(?:tce[- ]?sp|tcesp)\b/i.test(
-      query
-    );
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const catItem = getTceSpCatalogItemById(idOrRef);
-    if (!catItem) return null;
-    return {
-      id: catItem.id,
-      court: "TCE-SP",
-      exists: true,
-      source: "CURATED_CATALOG",
-      rawTextOrJson: {
-        tribunal: "TCE-SP",
-        colegiado: catItem.colegiado,
-        numero: catItem.numero,
-        ano: catItem.ano,
-        relator: catItem.relator,
-        dataSessao: catItem.dataSessao,
-        entidade: catItem.entidade,
-        regimeLegal: catItem.regimeLegal,
-        indexacao: catItem.indexacao,
-        tese: catItem.enunciado,
-        dispositivo: catItem.dispositivo,
-        historico: catItem.historico,
-        fundamentacao: catItem.fundamentacao,
-        fonteOficialUrl: catItem.fonteOficialUrl,
-        inteiroTeorTexto: catItem.inteiroTeorTexto,
-        outcome: catItem.dispositivo.toLowerCase().includes("vedad")
-          ? "PROCEDENTE_ANULACAO_DETERMINACAO"
-          : "IMPROCEDENTE_MANUTENCAO_CERTAME",
-      },
-    };
   }
 
   protected async executeLiveSearch(
@@ -126,7 +76,7 @@ export class TceSpProvider extends BaseJurisdictionProvider {
     idOrRef: string,
     ctx: LiveFetchContext
   ): Promise<RawJurisFetchResult | null> {
-    const procMatch = idOrRef.match(/(\d{1,7})\s*[/_-]\s*(\d{3})\s*[/_-]\s*(\d{2})/);
+    const procMatch = idOrRef.match(/(\d{1,7})\s*[./_-]\s*(\d{3})\s*[./_-]\s*(\d{2})/);
     if (!procMatch) return null;
 
     const procNum = `${procMatch[1]}/${procMatch[2]}/${procMatch[3]}`;
@@ -154,38 +104,24 @@ export class TceSpProvider extends BaseJurisdictionProvider {
     return null;
   }
 
-  private mapCatalogItemToResult(item: TceSpNormativeItem): RawJurisSearchResult {
-    const isVeda = item.dispositivo.toLowerCase().includes("vedad");
-    return {
-      id: item.id,
-      court: "TCE-SP",
-      colegiado: item.colegiado,
-      numero: item.numero,
-      ano: item.ano,
-      relator: item.relator,
-      dataSessao: item.dataSessao,
-      entidade: item.entidade,
-      indexacao: item.indexacao.join("; "),
-      tese: item.enunciado,
-      dispositivo: item.dispositivo,
-    };
-  }
-
   protected mapMockHitToResult(hit: any): RawJurisSearchResult {
     const rawId = hit.id || hit.canonical_id || hit.numero || "TCESP-HIT";
     const cleanId = normalizeTceSpId(rawId);
+    const parsedAno =
+      hit.ano !== undefined && hit.ano !== null ? parseInt(String(hit.ano), 10) : NaN;
+    const ano = Number.isFinite(parsedAno) ? parsedAno : undefined;
     return {
       id: cleanId,
       court: "TCE-SP",
       colegiado: hit.colegiado || "Tribunal Pleno",
-      numero: hit.numero || hit.numeroAcordao || "50",
-      ano: hit.ano ? parseInt(String(hit.ano), 10) : 2019,
+      numero: hit.numero ? String(hit.numero) : hit.numeroAcordao ? String(hit.numeroAcordao) : undefined,
+      ...(ano !== undefined ? { ano } : {}),
       relator: hit.relator || "Conselheiro Relator",
       dataSessao: hit.dataSessao || hit.data,
-      entidade: hit.entidade || "ORGAO_CONTRATANTE",
+      entidade: hit.entidade || "NAO_INFORMADA",
       indexacao: Array.isArray(hit.indexacao)
         ? hit.indexacao.join("; ")
-        : hit.indexacao || "LICITAÇÃO",
+        : hit.indexacao || "TCE-SP",
       tese: hit.tese || hit.enunciado || hit.ementa || "",
       dispositivo: hit.dispositivo || hit.outcome_summary || "",
       rawPayload: hit,
@@ -210,7 +146,7 @@ export class TceSpProvider extends BaseJurisdictionProvider {
 
     while ((pMatch = procRegex.exec(cleanHtml)) !== null && results.length < limit) {
       const procNum = pMatch[1].trim();
-      const trecho = trechos[idx] || "Precedente do TCE-SP";
+      const trecho = trechos[idx] || "";
       const isSumula = trecho.toUpperCase().includes("SÚMULA");
 
       const sumNumMatch = trecho.match(/SÚMULA\s*(?:Nº|N°)?\s*(\d+)/i);
@@ -224,10 +160,9 @@ export class TceSpProvider extends BaseJurisdictionProvider {
         court: "TCE-SP",
         colegiado: "Tribunal Pleno",
         numero: isSumula && sumNumMatch ? sumNumMatch[1] : procNum,
-        ano: new Date().getFullYear(),
         relator: "Conselheiro Relator",
-        entidade: "ORGAO_CONTRATANTE",
-        indexacao: isSumula ? "SÚMULA TCE-SP; LICITAÇÃO" : "PROCESSO TCE-SP; LICITAÇÃO",
+        entidade: "NAO_INFORMADA",
+        indexacao: isSumula ? "SÚMULA TCE-SP" : "PROCESSO TCE-SP",
         tese: trecho.slice(0, 350),
         dispositivo: trecho.slice(0, 200),
       });
@@ -244,25 +179,27 @@ export class TceSpProvider extends BaseJurisdictionProvider {
     const exercicioMatch = clean.match(/Exercício:\s*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
     const objetoMatch = clean.match(/Objeto:\s*<\/td>\s*<td[^>]*>(.*?)<\/td>/i);
 
-    const relator = relatorMatch ? cleanHtmlAndNormalize(relatorMatch[1]) : "Conselheiro Relator";
-    const materia = materiaMatch ? cleanHtmlAndNormalize(materiaMatch[1]) : "LICITAÇÃO";
-    const ano = exercicioMatch ? parseInt(cleanHtmlAndNormalize(exercicioMatch[1]), 10) : 2024;
-    const objeto = objetoMatch ? cleanHtmlAndNormalize(objetoMatch[1]) : "";
+    const relator = relatorMatch ? cleanHtmlAndNormalize(relatorMatch[1]) : undefined;
+    const materia = materiaMatch ? cleanHtmlAndNormalize(materiaMatch[1]) : undefined;
+    const parsedAno = exercicioMatch
+      ? parseInt(cleanHtmlAndNormalize(exercicioMatch[1]), 10)
+      : NaN;
+    const ano = Number.isFinite(parsedAno) ? parsedAno : undefined;
+    const objeto = objetoMatch ? cleanHtmlAndNormalize(objetoMatch[1]) : undefined;
+    const realText = cleanHtmlAndNormalize(html);
 
     return {
       tribunal: "TCE-SP",
       colegiado: "Tribunal Pleno",
       numero: procNum,
-      ano: isNaN(ano) ? 2024 : ano,
+      ...(ano !== undefined ? { ano } : {}),
       processo: procNum,
-      relator,
-      entidade: "ORGAO_CONTRATANTE",
-      regimeLegal: "LEI_14133_ADM_DIRETA",
-      indexacao: [materia, "TCE-SP", "LICITAÇÃO"],
-      tese: `Processo ${procNum}: Matéria ${materia}. Objeto: ${objeto}.`,
-      dispositivo: `Decisão plenária nos autos do processo ${procNum}.`,
-      inteiroTeorTexto: `TRIBUNAL DE CONTAS DO ESTADO DE SÃO PAULO\nProcesso: ${procNum}\nRelator: ${relator}\nMatéria: ${materia}\nObjeto: ${objeto}\nInteiro teor do procedimento submetido a julgamento.`,
-      outcome: "IMPROCEDENTE_MANUTENCAO_CERTAME",
+      ...(relator ? { relator } : {}),
+      entidade: "NAO_INFORMADA",
+      indexacao: [materia, "TCE-SP"].filter(Boolean),
+      tese: objeto || realText.slice(0, 500),
+      inteiroTeorTexto: realText,
+      rawText: realText,
     };
   }
 }

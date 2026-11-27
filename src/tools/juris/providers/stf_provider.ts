@@ -1,6 +1,6 @@
 // ============================================================================
 // Conector Oficial do Supremo Tribunal Federal (STF Provider)
-// docgov-engine — providers/stf_provider.ts (extends BaseJurisdictionProvider)
+// docgov-engine v1.7.6 — providers/stf_provider.ts (Corte Limpo, Zero Viés ES)
 // ============================================================================
 
 import type {
@@ -16,11 +16,6 @@ import {
   parseCanonicalAcordaoRef,
   sanitizeQueryForCourt,
 } from "./http_client.ts";
-import {
-  getStfCatalogItemById,
-  mapStfCatalogItemToFetch,
-  searchStfCatalog,
-} from "./stf_catalog.ts";
 
 export class StfProvider extends BaseJurisdictionProvider {
   public readonly courtId = "STF";
@@ -53,22 +48,6 @@ export class StfProvider extends BaseJurisdictionProvider {
     return `${baseUrl}/api/search/search`;
   }
 
-  protected override searchCatalog(query: string, limit: number): RawJurisSearchResult[] {
-    return searchStfCatalog(query, limit);
-  }
-
-  protected override shouldShortCircuitCatalog(query: string): boolean {
-    return (
-      /\bs[úu]mula\s*(?:vinculante\s*)?(?:n[º°o]\s*)?(?:473|10|13)\b/i.test(query) ||
-      /\b(?:adc\s*16|adi\s*5\.?624|tema\s*(?:246|1\.?118))\b/i.test(query)
-    );
-  }
-
-  protected override findCatalogItemById(idOrRef: string): RawJurisFetchResult | null {
-    const entry = getStfCatalogItemById(idOrRef);
-    return entry ? mapStfCatalogItemToFetch(entry) : null;
-  }
-
   protected async executeLiveSearch(
     query: string,
     limit: number,
@@ -78,31 +57,11 @@ export class StfProvider extends BaseJurisdictionProvider {
     const { cleanQuery } = sanitizeQueryForCourt(query);
     const queryTerm = cleanQuery || query;
 
-    const isDirectProcessSearch = /\b(ADI|ADC|ADPF|RE|ARE|Rcl|MS|MI|SV)\s*[-Nº]*\s*\d+/i.test(
-      queryTerm
-    );
-    const mustClauses: any[] = [{ query_string: { query: queryTerm } }];
-    const mustNotClauses: any[] = [];
-
-    if (!isDirectProcessSearch) {
-      mustClauses.push({
-        query_string: {
-          query:
-            '(licitação OR licitações OR contratação OR edital OR pregão OR "administração pública" OR "contrato administrativo" OR estatal OR 13.303 OR 14.133 OR 8.666 OR "tribunal de contas" OR terceirização OR "serviço público")',
-        },
-      });
-      mustNotClauses.push({
-        query_string: {
-          query: "(ICMS AND ISS) OR bitributação",
-        },
-      });
-    }
-
     const endpoint = this.getSearchEndpoint(baseUrl);
-    const bodyPayload: any = {
+    const bodyPayload = {
       query: {
         bool: {
-          must: mustClauses,
+          must: [{ query_string: { query: queryTerm } }],
           filter: [{ term: { base: "acordaos" } }],
         },
       },
@@ -111,10 +70,6 @@ export class StfProvider extends BaseJurisdictionProvider {
       },
       size: limit,
     };
-
-    if (mustNotClauses.length > 0) {
-      bodyPayload.query.bool.must_not = mustNotClauses;
-    }
 
     const res = await this.executeHttp(endpoint, {
       method: "POST",
@@ -178,7 +133,12 @@ export class StfProvider extends BaseJurisdictionProvider {
     const id = hit.id || hit.dg_unique || `STF-${hit.titulo || hit.numero || "ACORDAO"}`;
     const num = hit.processo_numero || hit.numero || "S/N";
     const dataStr = hit.julgamento_data || hit.publicacao_data || hit.dataSessao;
-    const ano = dataStr ? Number(String(dataStr).slice(0, 4)) : hit.ano || 2024;
+    const rawAno = dataStr
+      ? Number(String(dataStr).slice(0, 4))
+      : hit.ano !== undefined && hit.ano !== null
+      ? Number(hit.ano)
+      : undefined;
+    const ano = rawAno !== undefined && Number.isFinite(rawAno) && rawAno > 1900 ? rawAno : undefined;
     const col = hit.orgao_julgador || hit.colegiado || "Tribunal Pleno";
 
     const tese =
@@ -186,14 +146,14 @@ export class StfProvider extends BaseJurisdictionProvider {
       hit.ementa_texto ||
       hit.tese ||
       hit.ementa ||
-      "Tese fixada pelo Supremo Tribunal Federal";
+      "";
 
     return {
       id,
       court: "STF",
       colegiado: col,
       numero: String(num),
-      ano,
+      ...(ano !== undefined ? { ano } : {}),
       processo: hit.titulo || hit.processo || `STF ${num}`,
       relator:
         hit.relator_acordao_nome ||
@@ -201,7 +161,7 @@ export class StfProvider extends BaseJurisdictionProvider {
         hit.relator ||
         "Ministro Relator",
       dataSessao: dataStr,
-      entidade: hit.partes_lista_texto || hit.entidade || hit.partes,
+      entidade: hit.partes_lista_texto || hit.entidade || hit.partes || "NAO_INFORMADA",
       indexacao:
         hit.documental_indexacao_texto ||
         hit.documental_assunto_texto ||
