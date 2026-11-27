@@ -3,6 +3,7 @@
 // docgov-engine v1.5.6 — src/contracts/types.ts
 // ============================================================================
 
+import type { McpDeliveryEnvelopeFields } from "../types/index.ts";
 import type {
   RawPasFederativeFields,
   PasFederativeAnalysisSummary,
@@ -439,7 +440,8 @@ export interface ContractAuditReport {
   schema_warnings?: string[];
 }
 
-export interface AuditContractSyntheticResult {
+export interface AuditContractSyntheticResult
+  extends McpDeliveryEnvelopeFields {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   contract_id: string;

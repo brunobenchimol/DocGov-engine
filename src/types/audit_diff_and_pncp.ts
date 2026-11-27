@@ -3,7 +3,10 @@
 // ============================================================================
 
 import type { ImpugnationZoneId } from "./document_and_inspection.ts";
-import type { UnpackedArchiveSummary } from "./template_and_bootstrap.ts";
+import type {
+  McpDeliveryEnvelopeFields,
+  UnpackedArchiveSummary,
+} from "./template_and_bootstrap.ts";
 
 export interface GenerateAuditDocxOptions {
   outputFormat?: "docx" | "pdf" | "both";
@@ -94,7 +97,8 @@ export interface GenerateTechnicalNoteOptions {
   pdfTimeoutMs?: number;
 }
 
-export interface GenerateTechnicalNoteSyntheticResult {
+export interface GenerateTechnicalNoteSyntheticResult
+  extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   document_type: "TECHNICAL_NOTE";
@@ -105,7 +109,8 @@ export interface GenerateTechnicalNoteSyntheticResult {
   next_step_hint: string;
 }
 
-export interface GenerateAuditDocxSyntheticResult {
+export interface GenerateAuditDocxSyntheticResult
+  extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   document_type?: AuditDocumentType;
@@ -319,7 +324,7 @@ export interface FetchPncpResult {
   failedInspections: Array<{ fileName: string; error: string }>;
 }
 
-export interface FetchPncpSyntheticResult {
+export interface FetchPncpSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   pncp_ref: string;
@@ -379,7 +384,7 @@ export interface SearchPncpSyntheticCandidate {
   objeto_resumo: string;
 }
 
-export interface SearchPncpSyntheticResult {
+export interface SearchPncpSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   queries_executed: string[];

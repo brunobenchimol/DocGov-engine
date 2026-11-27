@@ -4,6 +4,8 @@
 // IN SEGES 05/2017 | Decreto Federal nº 12.174/2024 | Lei nº 14.133/2021
 // ============================================================================
 
+import type { McpDeliveryEnvelopeFields } from "../types/index.ts";
+
 export const DEMO_BLOCKING_TAGS = [
   "[DEMO_MOD1_CCT_FLOOR_BELOW_NORMATIVE]",
   "[DEMO_MOD1_SUMULA448_TST_INSALUBRITY_VIOLATION]",
@@ -210,7 +212,7 @@ export interface DemoRegimeAuditOutput {
   };
 }
 
-export interface DemoRegimeSyntheticResult {
+export interface DemoRegimeSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "CONFORME" | "NAO_CONFORME";
   engine_version: string;
   case_id: string;

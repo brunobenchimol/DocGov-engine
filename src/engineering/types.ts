@@ -5,6 +5,7 @@
 // ============================================================================
 
 import type { UnitPriceItemInput } from "../bidding/types.ts";
+import type { McpDeliveryEnvelopeFields } from "../types/index.ts";
 
 export const ENGINEERING_BLOCKING_TAGS = [
   "[ENG_BDI_FORMULA_ALGEBRAIC_MISMATCH_BLOCK]",
@@ -224,7 +225,8 @@ export interface EngineeringWorksAuditOutput {
   };
 }
 
-export interface EngineeringWorksSyntheticResult {
+export interface EngineeringWorksSyntheticResult
+  extends McpDeliveryEnvelopeFields {
   status: "CONFORME" | "NAO_CONFORME";
   engine_version: string;
   case_id: string;

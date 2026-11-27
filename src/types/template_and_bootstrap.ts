@@ -264,7 +264,19 @@ export interface BootstrapCaseSyntheticDocx {
   audit_view_path?: string;
 }
 
-export interface BootstrapCaseSyntheticResult {
+export type McpDeliveryMode = "INLINE" | "POINTER" | "SUMMARY";
+
+export interface McpDeliveryEnvelopeFields {
+  delivery_mode?: McpDeliveryMode;
+  read_file_required?: boolean;
+  artifact_path?: string;
+  artifact_size_kb?: number;
+  artifact_lines?: number;
+  inline_markdown?: string;
+  next_step_hint?: string;
+}
+
+export interface BootstrapCaseSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   caseDir: string;
@@ -288,7 +300,7 @@ export interface BootstrapCaseSyntheticResult {
   next_step_hint: string;
 }
 
-export interface InspectDocSyntheticResult {
+export interface InspectDocSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   filePath: string;
@@ -331,7 +343,7 @@ export interface InspectDocSyntheticResult {
 
 export type InspectDocxSyntheticResult = InspectDocSyntheticResult;
 
-export interface BuildDocxTemplateSyntheticResult {
+export interface BuildDocxTemplateSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   outputPath: string;
@@ -361,7 +373,7 @@ export interface ProcessDocumentResult {
   next_step_hint: string;
 }
 
-export interface FillDocxTemplateSyntheticResult {
+export interface FillDocxTemplateSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   outputPath: string;

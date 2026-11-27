@@ -3,7 +3,11 @@
 // docgov-engine v1.6.0 — src/bidding/types.ts
 // ============================================================================
 
-import type { DocumentForensicMeta, PdfPadesSignatureDetail } from "../types/index.ts";
+import type {
+  DocumentForensicMeta,
+  McpDeliveryEnvelopeFields,
+  PdfPadesSignatureDetail,
+} from "../types/index.ts";
 
 export type IctMetricType =
   | "UST"
@@ -360,7 +364,7 @@ export interface BiddingProposalDossier {
   };
 }
 
-export interface BiddingSyntheticResult {
+export interface BiddingSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   process_id: string;

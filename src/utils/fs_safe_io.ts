@@ -271,11 +271,13 @@ export function enqueueWrite(
     .catch(() => undefined)
     .then(() => writeFileSafeAsync(filePath, content));
 
-  const tracked = next.finally(() => {
-    if (pendingWrites.get(key) === tracked) {
-      pendingWrites.delete(key);
-    }
-  });
+  const tracked = next
+    .catch(() => undefined)
+    .finally(() => {
+      if (pendingWrites.get(key) === tracked) {
+        pendingWrites.delete(key);
+      }
+    });
   pendingWrites.set(key, tracked);
   return next;
 }

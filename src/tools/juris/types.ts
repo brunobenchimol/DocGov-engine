@@ -2,6 +2,7 @@
 // Tipos e Modelos do Domínio de Jurisprudência (docgov-engine v1.4.0)
 // ============================================================================
 
+import type { McpDeliveryEnvelopeFields } from "../../types/index.ts";
 import type { TstTriageMode, TstTriageResult } from "./tst_precedent_triage.ts";
 export type {
   TstTriageMode,
@@ -111,7 +112,7 @@ export interface JurisQueryHistoryEntry {
   tst_triage?: TstTriageResult;
 }
 
-export interface SearchJurisSyntheticResult {
+export interface SearchJurisSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   queries_executed: number;
@@ -217,7 +218,7 @@ export interface FetchJurisOptions {
   force_live?: boolean;
 }
 
-export interface FetchJurisSyntheticResult {
+export interface FetchJurisSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success";
   engine_version: string;
   verified_authentic: true;

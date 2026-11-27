@@ -3,7 +3,10 @@
 // docgov-engine v1.6.0 — src/direct_contracting/types.ts
 // ============================================================================
 
-import type { DocumentForensicMeta } from "../types/index.ts";
+import type {
+  DocumentForensicMeta,
+  McpDeliveryEnvelopeFields,
+} from "../types/index.ts";
 
 export type DirectContractingModality =
   | "INEXIGIBILIDADE"
@@ -152,7 +155,8 @@ export interface DirectContractingAuditDossier {
   };
 }
 
-export interface DirectContractingSyntheticResult {
+export interface DirectContractingSyntheticResult
+  extends McpDeliveryEnvelopeFields {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   process_id: string;

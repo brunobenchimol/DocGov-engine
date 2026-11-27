@@ -3,6 +3,8 @@
 // docgov-engine v1.5.0 — src/arp/types.ts
 // ============================================================================
 
+import type { McpDeliveryEnvelopeFields } from "../types/index.ts";
+
 export type FederativeSphere = "FEDERAL" | "STATE" | "MUNICIPAL" | string;
 export type LegalRegime = "LEI_14133" | "LEI_13303" | "LEI_8666" | string;
 export type ArpCompilationMode = "ARP_ADHESION_GRANT_NOTE" | "ARP_ADVANTAGE_STUDY" | "NONE" | string;
@@ -191,7 +193,7 @@ export interface ArpGovernDossier {
   schema_warnings?: string[];
 }
 
-export interface ArpGovernSyntheticResult {
+export interface ArpGovernSyntheticResult extends McpDeliveryEnvelopeFields {
   status: "success" | "blocked" | "warning";
   engine_version: string;
   arp_number: string;
