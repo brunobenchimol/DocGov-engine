@@ -406,16 +406,18 @@ export function postProcessRichTextAndLineBreaksInXmlDoc(
 
           if (basePPr) {
             const cleanPPr = basePPr.cloneNode(true) as Element;
-            for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
-              cleanPPr.removeChild(oldNumPr);
-            }
-            for (const oldPStyle of getDirectChildElements(cleanPPr, "w:pStyle")) {
-              const val =
-                oldPStyle.getAttribute("w:val") ||
-                oldPStyle.getAttribute("val") ||
-                "";
-              if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
-                cleanPPr.removeChild(oldPStyle);
+            if (hasLineBreaks || lines.length > 1 || hasListItem || hasNumberingConflict) {
+              for (const oldNumPr of getDirectChildElements(cleanPPr, "w:numPr")) {
+                cleanPPr.removeChild(oldNumPr);
+              }
+              for (const oldPStyle of getDirectChildElements(cleanPPr, "w:pStyle")) {
+                const val =
+                  oldPStyle.getAttribute("w:val") ||
+                  oldPStyle.getAttribute("val") ||
+                  "";
+                if (/^(?:Heading|Titulo|Título|T[ií]tulo|Header|Se[çc][ãa]o)/i.test(val)) {
+                  cleanPPr.removeChild(oldPStyle);
+                }
               }
             }
             newP.appendChild(cleanPPr);
