@@ -5,9 +5,9 @@
 
 import {
   searchJuris,
-  formatSearchJurisSyntheticResult,
   fetchJuris,
-  formatFetchJurisSyntheticResult,
+  buildSearchJurisHybridEnvelope,
+  buildFetchJurisHybridEnvelope,
 } from "../tools/juris/index.ts";
 import {
   auditContractExecution,
@@ -46,6 +46,7 @@ export async function dispatchModularTool(
       auditType: args.auditType || args.type,
       compilationMode: args.compilationMode || args.mode,
       outputFormat: args.outputFormat || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [
@@ -65,6 +66,7 @@ export async function dispatchModularTool(
       outputDir: args.outputDir,
       compilationMode: args.compilationMode || args.mode,
       outputFormat: args.outputFormat || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [
@@ -94,17 +96,18 @@ export async function dispatchModularTool(
       force_live: args.force_live === true,
       triage_mode: args.triage_mode,
     });
-    const synthetic = formatSearchJurisSyntheticResult(
-      res.fileResult,
-      res.mdPath,
-      process.cwd(),
-      res.currentHits
-    );
+    const envelope = await buildSearchJurisHybridEnvelope({
+      fileResult: res.fileResult,
+      mdPath: res.mdPath,
+      mdContent: res.mdContent,
+      baseDir: process.cwd(),
+      currentHits: res.currentHits,
+    });
     return {
       content: [
         {
           type: "text",
-          text: serializeCompactSyntheticResult(synthetic, 850),
+          text: envelope.json,
         },
       ],
     };
@@ -122,13 +125,17 @@ export async function dispatchModularTool(
       topicFilter: args.topicFilter,
       stance: args.stance,
       force_live: args.force_live === true,
+      deferMarkdownWrite: true,
     });
-    const synthetic = formatFetchJurisSyntheticResult(res);
+    const envelope = await buildFetchJurisHybridEnvelope({
+      result: res,
+      deferWrite: true,
+    });
     return {
       content: [
         {
           type: "text",
-          text: serializeCompactSyntheticResult(synthetic, 850),
+          text: envelope.json,
         },
       ],
     };
@@ -153,6 +160,7 @@ export async function dispatchModularTool(
       evaluationStance: args.evaluationStance || args.evaluation_stance,
       compilationMode: args.compilationMode || args.compilation_mode || args.mode,
       outputFormat: args.outputFormat || args.output_format || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [
@@ -182,6 +190,7 @@ export async function dispatchModularTool(
       outputDir: args.outputDir || args.output_dir,
       compilationMode: args.compilationMode || args.compilation_mode || args.mode,
       outputFormat: args.outputFormat || args.output_format || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [
@@ -215,6 +224,7 @@ export async function dispatchModularTool(
         args.caseDir ||
         args.case_dir,
       outputFormat: args.outputFormat || args.output_format || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [
@@ -248,6 +258,7 @@ export async function dispatchModularTool(
         args.caseDir ||
         args.case_dir,
       outputFormat: args.outputFormat || args.output_format || args.format,
+      deferMarkdownWrite: true,
     });
     return {
       content: [

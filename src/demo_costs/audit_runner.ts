@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_audit_demo_regime | CLI: audit-demo-regime
 // ============================================================================
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   fitBlockingTagsToBudget,
   safeReadJsonFile,
@@ -144,10 +146,12 @@ function parseInputTarget(
   return { raw, sourceFilePath };
 }
 
-function buildCompactSyntheticResult(
-  output: DemoRegimeAuditOutput
-): DemoRegimeSyntheticResult {
-  const synthetic: DemoRegimeSyntheticResult = {
+async function buildCompactSyntheticResult(
+  output: DemoRegimeAuditOutput,
+  mdContent: string,
+  deferWrite: boolean
+): Promise<DemoRegimeSyntheticResult> {
+  const basePayload: DemoRegimeSyntheticResult = {
     status: output.status,
     engine_version: output.engine_version,
     case_id: output.case_id,
@@ -164,33 +168,38 @@ function buildCompactSyntheticResult(
         : "Planilha DEMO e governança contratual CONFORMES.",
   };
 
-  const sizeOf = (o: unknown) =>
-    Buffer.byteLength(JSON.stringify(o, null, 2), "utf-8");
-  const minSizeOf = (o: unknown) =>
-    Buffer.byteLength(JSON.stringify(o), "utf-8");
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: output.artifacts.md_path,
+    displayArtifactPath: basePayload.md_path,
+    markdownContent: mdContent,
+    writeMode: "write_behind",
+    deferWrite,
+    pointerSafeMarginBytes: 870,
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes) {
+        synthetic.json_path = basename(output.artifacts.json_path);
+        synthetic.md_path = basename(output.artifacts.md_path);
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.pdf_path;
+        delete synthetic.docx_path;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.md_path;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.total_monthly_per_post_cents;
+      }
+      if (minSizeOf() > targetBytes && synthetic.case_id.length > 16) {
+        synthetic.case_id = synthetic.case_id.slice(0, 16);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850) {
-    delete synthetic.next_step_hint;
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.json_path = basename(output.artifacts.json_path);
-    synthetic.md_path = basename(output.artifacts.md_path);
-  }
-  if (minSizeOf(synthetic) > 870) {
-    delete synthetic.pdf_path;
-    delete synthetic.docx_path;
-  }
-  if (minSizeOf(synthetic) > 870) {
-    delete synthetic.md_path;
-  }
-  if (minSizeOf(synthetic) > 870) {
-    delete synthetic.total_monthly_per_post_cents;
-  }
-  if (minSizeOf(synthetic) > 870 && synthetic.case_id.length > 16) {
-    synthetic.case_id = synthetic.case_id.slice(0, 16);
-  }
-  fitBlockingTagsToBudget(synthetic, 870);
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeDemoRegimeSyntheticResult(
@@ -288,9 +297,12 @@ export async function auditDemoRegime(
   if (compiled.pdf_path) output.artifacts.pdf_path = compiled.pdf_path;
 
   const mdContent = buildDemoAuditMarkdown(output, raw);
-  writeFileSync(mdPath, mdContent, "utf-8");
-  writeFileSync(jsonPath, JSON.stringify(output, null, 2), "utf-8");
+  writeFileSafeSync(jsonPath, JSON.stringify(output, null, 2));
 
-  const synthetic = buildCompactSyntheticResult(output);
+  const synthetic = await buildCompactSyntheticResult(
+    output,
+    mdContent,
+    Boolean(options.deferMarkdownWrite)
+  );
   return { output, synthetic };
 }

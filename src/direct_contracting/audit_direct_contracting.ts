@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_audit_direct_contracting | CLI: audit-direct-contracting
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync, readFileSync } from "node:fs";
+import { mkdirSync, existsSync, readFileSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   fitBlockingTagsToBudget,
   safeReadJsonFile,
@@ -35,12 +37,15 @@ import type {
   DirectContractingSyntheticResult,
 } from "./types.ts";
 
-function buildCompactSyntheticResult(
+async function buildCompactSyntheticResult(
   dossier: DirectContractingAuditDossier,
   jsonPath: string,
-  mdPath: string
-): DirectContractingSyntheticResult {
-  const synthetic: DirectContractingSyntheticResult = {
+  mdPath: string,
+  mdAliasPath: string,
+  mdContent: string,
+  deferWrite: boolean
+): Promise<DirectContractingSyntheticResult> {
+  const basePayload: DirectContractingSyntheticResult = {
     status: dossier.status,
     engine_version: dossier.engine_version,
     process_id: dossier.process_id,
@@ -64,35 +69,40 @@ function buildCompactSyntheticResult(
         : "Instrução de contratação direta conforme.",
   };
 
-  const sizeOf = (o: unknown) => Buffer.byteLength(JSON.stringify(o, null, 2), "utf-8");
-  const minSizeOf = (o: unknown) => Buffer.byteLength(JSON.stringify(o), "utf-8");
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: mdPath,
+    displayArtifactPath: basePayload.dossier_md_path,
+    markdownContent: mdContent,
+    writeMode: "write_behind",
+    deferWrite,
+    companionWrites: [{ filePath: mdAliasPath, content: mdContent }],
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes) {
+        synthetic.dossier_json_path = basename(jsonPath);
+        synthetic.dossier_md_path = basename(mdPath);
+      }
+      if (minSizeOf() > targetBytes && synthetic.unknown_keys) {
+        delete synthetic.unknown_keys;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.pdf_path;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.docx_path;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.modality;
+      }
+      if (minSizeOf() > targetBytes && synthetic.process_id.length > 16) {
+        synthetic.process_id = synthetic.process_id.slice(0, 16);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850) {
-    delete synthetic.next_step_hint;
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.dossier_json_path = basename(jsonPath);
-    synthetic.dossier_md_path = basename(mdPath);
-  }
-  if (sizeOf(synthetic) > 850) {
-    if (minSizeOf(synthetic) > 880 && synthetic.unknown_keys) {
-      delete synthetic.unknown_keys;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.pdf_path;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.docx_path;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.modality;
-    }
-    if (minSizeOf(synthetic) > 880 && synthetic.process_id.length > 16) {
-      synthetic.process_id = synthetic.process_id.slice(0, 16);
-    }
-    fitBlockingTagsToBudget(synthetic, 880);
-  }
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeDirectContractingSyntheticResult(
@@ -244,11 +254,16 @@ export async function auditDirectContracting(
   const mdPrimary = join(outDir, "visao_contratacao_direta.md");
   const mdAlias = join(outDir, "dossie_contratacao_direta.md");
 
-  writeFileSync(jsonPrimary, jsonContent, "utf8");
-  writeFileSync(jsonAlias, jsonContent, "utf8");
-  writeFileSync(mdPrimary, mdContent, "utf8");
-  writeFileSync(mdAlias, mdContent, "utf8");
+  writeFileSafeSync(jsonPrimary, jsonContent);
+  writeFileSafeSync(jsonAlias, jsonContent);
 
-  const synthetic = buildCompactSyntheticResult(dossier, jsonPrimary, mdPrimary);
+  const synthetic = await buildCompactSyntheticResult(
+    dossier,
+    jsonPrimary,
+    mdPrimary,
+    mdAlias,
+    mdContent,
+    Boolean(options.deferMarkdownWrite)
+  );
   return { dossier, synthetic };
 }

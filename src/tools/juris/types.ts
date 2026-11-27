@@ -216,6 +216,7 @@ export interface FetchJurisOptions {
   topicFilter?: string;
   stance?: JurisStance;
   force_live?: boolean;
+  deferMarkdownWrite?: boolean;
 }
 
 export interface FetchJurisSyntheticResult extends McpDeliveryEnvelopeFields {

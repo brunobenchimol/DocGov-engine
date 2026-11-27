@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_evaluate_bidding_proposals | CLI: evaluate-proposals
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   fitBlockingTagsToBudget,
   safeReadJsonFile,
@@ -39,16 +41,19 @@ import type {
   BiddingSyntheticResult,
 } from "./types.ts";
 
-function buildCompactSyntheticResult(
+async function buildCompactSyntheticResult(
   dossier: BiddingProposalDossier,
   jsonPath: string,
-  mdPath: string
-): BiddingSyntheticResult {
+  mdPath: string,
+  mdAliasPath: string,
+  mdContent: string,
+  deferWrite: boolean
+): Promise<BiddingSyntheticResult> {
   const compiledNames = Object.values(dossier.compiled_artifacts || {})
     .filter((v): v is string => Boolean(v))
     .map((p) => basename(p));
 
-  const synthetic: BiddingSyntheticResult = {
+  const basePayload: BiddingSyntheticResult = {
     status: dossier.status,
     engine_version: dossier.engine_version,
     process_id: dossier.process_id,
@@ -69,39 +74,43 @@ function buildCompactSyntheticResult(
         : "Seleção TIC e ACT conformes.",
   };
 
-  const sizeOf = (o: unknown) => Buffer.byteLength(JSON.stringify(o, null, 2), "utf-8");
-  const minSizeOf = (o: unknown) => Buffer.byteLength(JSON.stringify(o), "utf-8");
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: mdPath,
+    displayArtifactPath: basePayload.dossier_md_path,
+    markdownContent: mdContent,
+    writeMode: "write_behind",
+    deferWrite,
+    companionWrites: [{ filePath: mdAliasPath, content: mdContent }],
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes && synthetic.compiled_artifacts) {
+        delete synthetic.compiled_artifacts;
+      }
+      if (minSizeOf() > targetBytes) {
+        synthetic.dossier_json_path = basename(jsonPath);
+        synthetic.dossier_md_path = basename(mdPath);
+      }
+      if (minSizeOf() > targetBytes && synthetic.unknown_keys) {
+        delete synthetic.unknown_keys;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.proposal_decision;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.compiled_docs_count;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.act_forensic_alerts_count;
+      }
+      if (minSizeOf() > targetBytes && synthetic.process_id.length > 16) {
+        synthetic.process_id = synthetic.process_id.slice(0, 16);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850 && synthetic.compiled_artifacts) {
-    delete synthetic.compiled_artifacts;
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.next_step_hint = "Veja dossie_julgamento_proposta_tic.md.";
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.dossier_json_path = basename(jsonPath);
-    synthetic.dossier_md_path = basename(mdPath);
-    delete synthetic.next_step_hint;
-  }
-  if (sizeOf(synthetic) > 850) {
-    if (minSizeOf(synthetic) > 880 && synthetic.unknown_keys) {
-      delete synthetic.unknown_keys;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.proposal_decision;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.compiled_docs_count;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.act_forensic_alerts_count;
-    }
-    if (minSizeOf(synthetic) > 880 && synthetic.process_id.length > 16) {
-      synthetic.process_id = synthetic.process_id.slice(0, 16);
-    }
-    fitBlockingTagsToBudget(synthetic, 880);
-  }
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeBiddingSyntheticResult(s: BiddingSyntheticResult): string {
@@ -275,11 +284,16 @@ export async function evaluateBiddingProposals(
   const mdPrimary = join(outDir, "visao_julgamento_proposta_tic.md");
   const mdAlias = join(outDir, "dossie_julgamento_tic.md");
 
-  writeFileSync(jsonPrimary, jsonContent, "utf8");
-  writeFileSync(jsonAlias, jsonContent, "utf8");
-  writeFileSync(mdPrimary, mdContent, "utf8");
-  writeFileSync(mdAlias, mdContent, "utf8");
+  writeFileSafeSync(jsonPrimary, jsonContent);
+  writeFileSafeSync(jsonAlias, jsonContent);
 
-  const synthetic = buildCompactSyntheticResult(dossier, jsonPrimary, mdPrimary);
+  const synthetic = await buildCompactSyntheticResult(
+    dossier,
+    jsonPrimary,
+    mdPrimary,
+    mdAlias,
+    mdContent,
+    Boolean(options.deferMarkdownWrite)
+  );
   return { dossier, synthetic };
 }

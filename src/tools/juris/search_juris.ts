@@ -41,6 +41,7 @@ export async function searchJuris(
   currentHits: JurisSearchResultItem[];
   jsonPath: string;
   mdPath: string;
+  mdContent: string;
 }> {
   const qStr = options?.query || (options as any)?.queries;
   if (!options || !qStr || typeof qStr !== "string") {
@@ -277,6 +278,7 @@ export async function searchJuris(
     currentHits,
     jsonPath: persisted.jsonPath,
     mdPath: persisted.mdPath,
+    mdContent: persisted.mdContent,
   };
 }
 

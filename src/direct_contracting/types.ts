@@ -112,6 +112,7 @@ export interface AuditDirectContractingOptions {
   outputDir?: string;
   compilationMode?: string;
   outputFormat?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }
 
 export interface DirectContractingAuditDossier {

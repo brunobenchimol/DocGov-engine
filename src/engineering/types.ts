@@ -245,4 +245,5 @@ export interface EngineeringWorksSyntheticResult
 export interface AuditEngineeringWorksOptions {
   workspaceDir?: string;
   outputFormat?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }

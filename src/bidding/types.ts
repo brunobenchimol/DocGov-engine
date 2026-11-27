@@ -286,6 +286,7 @@ export interface EvaluateBiddingOptions {
   evaluationStance?: "DEFENSE" | "ATTACK";
   compilationMode?: string;
   outputFormat?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }
 
 export interface IctExecutionEvaluation {

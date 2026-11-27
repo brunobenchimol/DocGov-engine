@@ -12,9 +12,9 @@ import {
 } from "../tools/pncp.ts";
 import {
   searchJuris,
-  formatSearchJurisSyntheticResult,
   fetchJuris,
-  formatFetchJurisSyntheticResult,
+  buildSearchJurisHybridEnvelope,
+  buildFetchJurisHybridEnvelope,
 } from "../tools/juris/index.ts";
 import { generateEngineSpecMarkdown } from "../mcp/spec.ts";
 import { selfUpdate } from "../core/updater.ts";
@@ -250,8 +250,14 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
 
     try {
       const res = await searchJuris({ query, caseDir, courts, uf, sphere, stance, regime, limit, force_live, triage_mode });
-      const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath, process.cwd(), res.currentHits);
-      console.log(JSON.stringify(synthetic, null, 2));
+      const envelope = await buildSearchJurisHybridEnvelope({
+        fileResult: res.fileResult,
+        mdPath: res.mdPath,
+        mdContent: res.mdContent,
+        baseDir: process.cwd(),
+        currentHits: res.currentHits,
+      });
+      console.log(envelope.json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);
@@ -295,9 +301,20 @@ export async function handleConnectorsCli(args: string[]): Promise<boolean> {
     const force_live = args.includes("--force-live");
 
     try {
-      const res = await fetchJuris({ acordaoIdOrUrl: acordaoId, caseDir, shortname, topicFilter, stance, force_live });
-      const synthetic = formatFetchJurisSyntheticResult(res);
-      console.log(JSON.stringify(synthetic, null, 2));
+      const res = await fetchJuris({
+        acordaoIdOrUrl: acordaoId,
+        caseDir,
+        shortname,
+        topicFilter,
+        stance,
+        force_live,
+        deferMarkdownWrite: true,
+      });
+      const envelope = await buildFetchJurisHybridEnvelope({
+        result: res,
+        deferWrite: true,
+      });
+      console.log(envelope.json);
     } catch (err: any) {
       console.error(`Erro: ${err.message}`);
       process.exit(1);

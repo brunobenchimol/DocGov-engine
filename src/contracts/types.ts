@@ -301,6 +301,7 @@ export interface AuditContractOptions {
   mode?: ContractCompilationMode;
   outputFormat?: "docx" | "pdf" | "both";
   format?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }
 
 export interface PasSanctionAnalysisItem {

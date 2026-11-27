@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_audit_engineering_works | CLI: audit-engineering-works
 // ============================================================================
 
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import { createEngineeringWorksContractError } from "../contracts/errors.ts";
 import { evaluateProposalInexequibility } from "../bidding/inexequibility_evaluator.ts";
 import type { UnitPriceItemInput } from "../bidding/types.ts";
@@ -61,10 +63,12 @@ function toCents(centsVal?: number, brlVal?: number): number {
   return 0;
 }
 
-function buildCompactSyntheticResult(
-  output: EngineeringWorksAuditOutput
-): EngineeringWorksSyntheticResult {
-  const synthetic: EngineeringWorksSyntheticResult = {
+async function buildCompactSyntheticResult(
+  output: EngineeringWorksAuditOutput,
+  mdContent: string,
+  deferWrite: boolean
+): Promise<EngineeringWorksSyntheticResult> {
+  const basePayload: EngineeringWorksSyntheticResult = {
     status: output.status,
     engine_version: output.engine_version,
     case_id: output.case_id,
@@ -85,36 +89,39 @@ function buildCompactSyntheticResult(
         : "Orçamento de Engenharia, BDI e Cronograma CONFORMES.",
   };
 
-  const sizeOf = (o: unknown) =>
-    Buffer.byteLength(JSON.stringify(o, null, 2), "utf-8");
-  const minSizeOf = (o: unknown) =>
-    Buffer.byteLength(JSON.stringify(o), "utf-8");
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: output.artifacts.md_path,
+    displayArtifactPath: basePayload.md_path,
+    markdownContent: mdContent,
+    writeMode: "write_behind",
+    deferWrite,
+    pointerSafeMarginBytes: 870,
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes) {
+        synthetic.json_path = basename(output.artifacts.json_path);
+        synthetic.md_path = basename(output.artifacts.md_path);
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.pdf_path;
+        delete synthetic.docx_path;
+      }
+      if (minSizeOf() > targetBytes) delete synthetic.md_path;
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.work_typology;
+        delete synthetic.calculated_bdi_bps;
+        delete synthetic.abc_overpriced_items_count;
+        delete synthetic.additional_guarantee_cents;
+      }
+      if (minSizeOf() > targetBytes && synthetic.case_id.length > 16) {
+        synthetic.case_id = synthetic.case_id.slice(0, 16);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850) delete synthetic.next_step_hint;
-  if (sizeOf(synthetic) > 850) {
-    synthetic.json_path = basename(output.artifacts.json_path);
-    synthetic.md_path = basename(output.artifacts.md_path);
-  }
-  if (minSizeOf(synthetic) > 870) {
-    delete synthetic.pdf_path;
-    delete synthetic.docx_path;
-  }
-  if (minSizeOf(synthetic) > 870) delete synthetic.md_path;
-  if (minSizeOf(synthetic) > 870) {
-    delete synthetic.work_typology;
-    delete synthetic.calculated_bdi_bps;
-    delete synthetic.abc_overpriced_items_count;
-    delete synthetic.additional_guarantee_cents;
-  }
-  if (minSizeOf(synthetic) > 870 && synthetic.case_id.length > 16) {
-    synthetic.case_id = synthetic.case_id.slice(0, 16);
-  }
-  fitBlockingTagsToBudget(synthetic, 870);
-  if (minSizeOf(synthetic) > 880) {
-    synthetic.json_path = basename(output.artifacts.json_path);
-    fitBlockingTagsToBudget(synthetic, 870);
-  }
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeEngineeringWorksSyntheticResult(
@@ -267,9 +274,12 @@ export async function auditEngineeringWorks(
   if (compiled.pdf_path) output.artifacts.pdf_path = compiled.pdf_path;
 
   const mdContent = buildEngineeringAuditMarkdown(output, raw);
-  writeFileSync(mdPath, mdContent, "utf-8");
-  writeFileSync(jsonPath, JSON.stringify(output, null, 2), "utf-8");
+  writeFileSafeSync(jsonPath, JSON.stringify(output, null, 2));
 
-  const synthetic = buildCompactSyntheticResult(output);
+  const synthetic = await buildCompactSyntheticResult(
+    output,
+    mdContent,
+    Boolean(options.deferMarkdownWrite)
+  );
   return { output, synthetic };
 }

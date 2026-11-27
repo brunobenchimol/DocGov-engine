@@ -3,9 +3,10 @@
 // Verificador Anti-Alucinação e Fatiador Anatômico de Acórdãos
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { VERSION } from "../../constants/index.ts";
+import { writeFileSafeSync } from "../../utils/fs_safe_io.ts";
 import { createJurisFetchContractError } from "../../contracts/errors.ts";
 import { resolveEphemeralTargetDir } from "../../utils/ephemeral_scope.ts";
 import { formatCompactMcpPath } from "../../utils/json.ts";
@@ -37,6 +38,8 @@ export async function fetchJuris(
   court: string;
   canonicalId: string;
   source: JurisOrigin;
+  dossieMarkdown: string;
+  fullMarkdown: string;
 }> {
   const ref = options?.acordaoIdOrUrl || (options as any)?.id;
   if (!options || !ref || typeof ref !== "string") {
@@ -106,8 +109,13 @@ export async function fetchJuris(
       ? `> **Fonte de Autenticação:** \`LIVE\` *(cache TTL 24h${rawFetch.fetched_at ? `, coletado em ${rawFetch.fetched_at}` : ""})*\n\n`
       : `> **Fonte de Autenticação:** \`LIVE\`\n\n`;
 
-  writeFileSync(dossiePath, sourceBanner + slicedResult.dossieMarkdown, "utf-8");
-  writeFileSync(fullPath, sourceBanner + slicedResult.fullMarkdown, "utf-8");
+  const dossieMarkdown = sourceBanner + slicedResult.dossieMarkdown;
+  const fullMarkdown = sourceBanner + slicedResult.fullMarkdown;
+
+  if (!options.deferMarkdownWrite) {
+    writeFileSafeSync(dossiePath, dossieMarkdown);
+    writeFileSafeSync(fullPath, fullMarkdown);
+  }
 
   return {
     slicedResult,
@@ -116,6 +124,8 @@ export async function fetchJuris(
     court,
     canonicalId,
     source,
+    dossieMarkdown,
+    fullMarkdown,
   };
 }
 

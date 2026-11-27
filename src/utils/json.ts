@@ -291,12 +291,8 @@ export function toCompactWorkspacePath(absPath: string): string {
 
 export function serializeCompactSyntheticResult(
   obj: unknown,
-  prettyMaxBytes: number = 850
+  _prettyMaxBytes: number = 850
 ): string {
-  const pretty = JSON.stringify(obj, null, 2);
-  if (Buffer.byteLength(pretty, "utf-8") <= prettyMaxBytes) {
-    return pretty;
-  }
   return JSON.stringify(obj);
 }
 

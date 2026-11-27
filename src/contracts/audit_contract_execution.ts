@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_audit_contract_execution | CLI: audit-contract
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   fitBlockingTagsToBudget,
   safeReadJsonFile,
@@ -36,17 +38,19 @@ import type {
   AuditContractSyntheticResult,
 } from "./types.ts";
 
-function buildCompactSyntheticResult(
+async function buildCompactSyntheticResult(
   report: ContractAuditReport,
   reportJsonPath: string,
-  dossierMdPath: string
-): AuditContractSyntheticResult {
+  dossierMdPath: string,
+  dossierMd: string,
+  deferWrite: boolean
+): Promise<AuditContractSyntheticResult> {
   const compiledNames = Object.values(report.compiled_artifacts || {})
     .filter((v): v is string => Boolean(v))
     .map((p) => basename(p));
 
   const s = report.adherence_summary;
-  const synthetic: AuditContractSyntheticResult = {
+  const basePayload: AuditContractSyntheticResult = {
     status: report.status,
     engine_version: report.engine_version,
     contract_id: report.contract_id,
@@ -78,56 +82,51 @@ function buildCompactSyntheticResult(
         : "Auditoria concluída com conformidade plena.",
   };
 
-  const sizeOf = (obj: unknown) =>
-    Buffer.byteLength(JSON.stringify(obj, null, 2), "utf-8");
-  const minSizeOf = (obj: unknown) =>
-    Buffer.byteLength(JSON.stringify(obj), "utf-8");
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: dossierMdPath,
+    displayArtifactPath: basePayload.dossier_md_path,
+    markdownContent: dossierMd,
+    writeMode: "write_behind",
+    deferWrite,
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes && synthetic.compiled_artifacts) {
+        delete synthetic.compiled_artifacts;
+      }
+      if (minSizeOf() > targetBytes) {
+        synthetic.adherence_summary = {
+          gross_increase_pct: s.gross_increase_pct,
+          gross_decrease_pct: s.gross_decrease_pct,
+          legal_limit_pct: s.legal_limit_pct,
+          tripartite_overpricing_count: s.tripartite_overpricing_count,
+          readjustment_violations_count: s.readjustment_violations_count,
+        };
+      }
+      if (minSizeOf() > targetBytes) {
+        synthetic.report_json_path = basename(reportJsonPath);
+        synthetic.dossier_md_path = basename(dossierMdPath);
+      }
+      if (minSizeOf() > targetBytes) {
+        synthetic.adherence_summary = { legal_limit_pct: s.legal_limit_pct };
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.adherence_summary;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.legal_regime;
+      }
+      if (minSizeOf() > targetBytes && synthetic.unknown_keys) {
+        delete synthetic.unknown_keys;
+      }
+      if (minSizeOf() > targetBytes && synthetic.contract_id.length > 16) {
+        synthetic.contract_id = synthetic.contract_id.slice(0, 16);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850 && synthetic.compiled_artifacts) {
-    delete synthetic.compiled_artifacts;
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.next_step_hint = "Veja dossie_fiscalizacao_contratual.md.";
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.adherence_summary = {
-      gross_increase_pct: s.gross_increase_pct,
-      gross_decrease_pct: s.gross_decrease_pct,
-      legal_limit_pct: s.legal_limit_pct,
-      tripartite_overpricing_count: s.tripartite_overpricing_count,
-      readjustment_violations_count: s.readjustment_violations_count,
-    };
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.report_json_path = basename(reportJsonPath);
-    synthetic.dossier_md_path = basename(dossierMdPath);
-    synthetic.next_step_hint = "Veja dossiê.";
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.adherence_summary = {
-      legal_limit_pct: s.legal_limit_pct,
-    };
-  }
-
-  // Quando há muitas tags longas (ex.: estresse de 12+ tags), compacta em JSON minificado mantendo todas as tags
-  if (sizeOf(synthetic) > 850) {
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.next_step_hint;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.adherence_summary;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.legal_regime;
-    }
-    if (minSizeOf(synthetic) > 880 && synthetic.contract_id.length > 16) {
-      synthetic.contract_id = synthetic.contract_id.slice(0, 16);
-    }
-    // Overflow extremo (ex.: 18 tags simultâneas > 880B): preserva o máximo de tags no envelope + marcador de cauda; todas as tags seguem íntegras no JSON/MD em disco
-    fitBlockingTagsToBudget(synthetic, 880);
-  }
-
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeSyntheticAuditResult(
@@ -288,13 +287,18 @@ export async function auditContractExecution(
   }
 
   const reportJsonPath = join(outDir, "relatorio_fiscalizacao_contratual.json");
-  writeFileSync(reportJsonPath, JSON.stringify(report, null, 2), "utf8");
+  writeFileSafeSync(reportJsonPath, JSON.stringify(report, null, 2));
 
   const dossierMd = generateDossierMarkdown(report);
   const dossierMdPath = join(outDir, "dossie_fiscalizacao_contratual.md");
-  writeFileSync(dossierMdPath, dossierMd, "utf8");
 
-  const synthetic = buildCompactSyntheticResult(report, reportJsonPath, dossierMdPath);
+  const synthetic = await buildCompactSyntheticResult(
+    report,
+    reportJsonPath,
+    dossierMdPath,
+    dossierMd,
+    Boolean(options.deferMarkdownWrite)
+  );
   return { report, synthetic };
 }
 

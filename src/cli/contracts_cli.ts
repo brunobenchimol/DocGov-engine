@@ -9,7 +9,10 @@ import {
   auditContractExecution,
   serializeSyntheticAuditResult,
 } from "../contracts/audit_contract_execution.ts";
-import { governArpExecution } from "../arp/govern_arp.ts";
+import {
+  governArpExecution,
+  serializeArpSyntheticResult,
+} from "../arp/govern_arp.ts";
 import {
   evaluateBiddingProposals,
   serializeBiddingSyntheticResult,
@@ -116,6 +119,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
         auditType,
         compilationMode,
         outputFormat,
+        deferMarkdownWrite: true,
       });
       console.log(serializeSyntheticAuditResult(synthetic));
       return true;
@@ -158,8 +162,9 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
         outputDir,
         compilationMode,
         outputFormat,
+        deferMarkdownWrite: true,
       });
-      console.log(JSON.stringify(synthetic, null, 2));
+      console.log(serializeArpSyntheticResult(synthetic));
       return true;
     } catch (err: any) {
       console.error(`Erro ao executar governança de ARP: ${err.message}`);
@@ -202,6 +207,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
         evaluationStance,
         compilationMode,
         outputFormat,
+        deferMarkdownWrite: true,
       });
       console.log(serializeBiddingSyntheticResult(synthetic));
       return true;
@@ -244,6 +250,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
         outputDir,
         compilationMode,
         outputFormat,
+        deferMarkdownWrite: true,
       });
       console.log(serializeDirectContractingSyntheticResult(synthetic));
       return true;
@@ -291,6 +298,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
       const { synthetic } = await auditDemoRegime(inputArg, {
         workspaceDir,
         outputFormat,
+        deferMarkdownWrite: true,
       });
       console.log(serializeDemoRegimeSyntheticResult(synthetic));
       return true;
@@ -347,6 +355,7 @@ export async function handleContractsCli(args: string[]): Promise<boolean> {
       const { synthetic } = await auditEngineeringWorks(inputArg, {
         workspaceDir,
         outputFormat,
+        deferMarkdownWrite: true,
       });
       console.log(serializeEngineeringWorksSyntheticResult(synthetic));
       return true;

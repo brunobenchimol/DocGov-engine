@@ -4,9 +4,11 @@
 // Ferramenta MCP: docgov_govern_arp | CLI: govern-arp
 // ============================================================================
 
-import { writeFileSync, mkdirSync, existsSync } from "node:fs";
+import { mkdirSync, existsSync } from "node:fs";
 import { dirname, join, basename } from "node:path";
 import { VERSION } from "../constants/index.ts";
+import { writeFileSafeSync } from "../utils/fs_safe_io.ts";
+import { buildHybridMcpEnvelope } from "../utils/mcp_hybrid_output.ts";
 import {
   fitBlockingTagsToBudget,
   safeReadJsonFile,
@@ -131,11 +133,10 @@ export async function governArpExecution(
   };
 
   const dossierJsonPath = join(outDir, "dossie_governanca_arp.json");
-  writeFileSync(dossierJsonPath, JSON.stringify(dossier, null, 2), "utf8");
+  writeFileSafeSync(dossierJsonPath, JSON.stringify(dossier, null, 2));
 
   const visaoMd = generateArpVisionMarkdown(dossier);
   const visaoMdPath = join(outDir, "visao_governanca_arp.md");
-  writeFileSync(visaoMdPath, visaoMd, "utf8");
 
   // Compilação opcional DOCX/PDF
   let compiledDocxPath: string | undefined;
@@ -158,7 +159,7 @@ export async function governArpExecution(
     compilation.pdf_path = compiledPdfPath;
   }
 
-  const synthetic = buildCompactArpSyntheticResult(
+  const synthetic = await buildCompactArpSyntheticResult(
     {
       status,
       engine_version: VERSION,
@@ -183,6 +184,8 @@ export async function governArpExecution(
     },
     dossierJsonPath,
     visaoMdPath,
+    visaoMd,
+    Boolean(options.deferMarkdownWrite),
     compiledDocxPath,
     compiledPdfPath
   );
@@ -190,49 +193,52 @@ export async function governArpExecution(
   return { dossier, synthetic };
 }
 
-function buildCompactArpSyntheticResult(
-  synthetic: ArpGovernSyntheticResult,
+async function buildCompactArpSyntheticResult(
+  basePayload: ArpGovernSyntheticResult,
   dossierJsonPath: string,
   visaoMdPath: string,
+  visaoMd: string,
+  deferWrite: boolean,
   compiledDocxPath?: string,
   compiledPdfPath?: string
-): ArpGovernSyntheticResult {
-  const sizeOf = (obj: unknown) =>
-    Buffer.byteLength(JSON.stringify(obj, null, 2), "utf-8");
-  const minSizeOf = (obj: unknown) =>
-    Buffer.byteLength(JSON.stringify(obj), "utf-8");
+): Promise<ArpGovernSyntheticResult> {
+  const envelope = await buildHybridMcpEnvelope({
+    basePayload,
+    artifactPath: visaoMdPath,
+    displayArtifactPath: basePayload.dossier_md_path,
+    markdownContent: visaoMd,
+    writeMode: "write_behind",
+    deferWrite,
+    compactForPointer: (synthetic, targetBytes) => {
+      const minSizeOf = () => Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
+      if (minSizeOf() > targetBytes && compiledDocxPath) {
+        synthetic.compiled_document_path = basename(compiledDocxPath);
+      }
+      if (minSizeOf() > targetBytes && compiledPdfPath) {
+        synthetic.compiled_pdf_path = basename(compiledPdfPath);
+      }
+      if (minSizeOf() > targetBytes) {
+        synthetic.dossier_json_path = basename(dossierJsonPath);
+        synthetic.dossier_md_path = basename(visaoMdPath);
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.compiled_pdf_path;
+        delete synthetic.compiled_document_path;
+      }
+      if (minSizeOf() > targetBytes) {
+        delete synthetic.ledger_summary;
+      }
+      if (minSizeOf() > targetBytes && synthetic.unknown_keys) {
+        delete synthetic.unknown_keys;
+      }
+      if (minSizeOf() > targetBytes && synthetic.arp_number.length > 20) {
+        synthetic.arp_number = synthetic.arp_number.slice(0, 20);
+      }
+      fitBlockingTagsToBudget(synthetic, targetBytes);
+    },
+  });
 
-  if (sizeOf(synthetic) > 850 && compiledDocxPath) {
-    synthetic.compiled_document_path = basename(compiledDocxPath);
-  }
-  if (sizeOf(synthetic) > 850 && compiledPdfPath) {
-    synthetic.compiled_pdf_path = basename(compiledPdfPath);
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.dossier_json_path = basename(dossierJsonPath);
-    synthetic.dossier_md_path = basename(visaoMdPath);
-  }
-  if (sizeOf(synthetic) > 850) {
-    synthetic.next_step_hint = "Veja visao_governanca_arp.md.";
-  }
-  if (sizeOf(synthetic) > 850) {
-    delete synthetic.compiled_pdf_path;
-    delete synthetic.compiled_document_path;
-  }
-  if (sizeOf(synthetic) > 850) {
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.next_step_hint;
-    }
-    if (minSizeOf(synthetic) > 880) {
-      delete synthetic.ledger_summary;
-    }
-    if (minSizeOf(synthetic) > 880 && synthetic.arp_number.length > 20) {
-      synthetic.arp_number = synthetic.arp_number.slice(0, 20);
-    }
-    fitBlockingTagsToBudget(synthetic, 880);
-  }
-
-  return synthetic;
+  return envelope.payload;
 }
 
 export function serializeArpSyntheticResult(

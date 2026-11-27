@@ -228,4 +228,5 @@ export interface DemoRegimeSyntheticResult extends McpDeliveryEnvelopeFields {
 export interface AuditDemoRegimeOptions {
   workspaceDir?: string;
   outputFormat?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }

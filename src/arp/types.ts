@@ -138,6 +138,7 @@ export interface ArpGovernOptions {
   mode?: ArpCompilationMode;
   outputFormat?: "docx" | "pdf" | "both";
   format?: "docx" | "pdf" | "both";
+  deferMarkdownWrite?: boolean;
 }
 
 export interface ArpGovernDossier {

@@ -40,6 +40,7 @@ export async function persistAccumulatedJurisSearch(params: {
   fileResult: SearchJurisFileResult;
   jsonPath: string;
   mdPath: string;
+  mdContent: string;
 }> {
   const { targetDir, isEphemeral, currentRound, currentHits } = params;
 
@@ -157,7 +158,7 @@ export async function persistAccumulatedJurisSearch(params: {
       const mdContent = generateJurisSearchMarkdown(fileResult, isEphemeral);
       writeFileSafeSync(mdPath, mdContent);
 
-      return { fileResult, jsonPath, mdPath };
+      return { fileResult, jsonPath, mdPath, mdContent };
   });
 }
 
