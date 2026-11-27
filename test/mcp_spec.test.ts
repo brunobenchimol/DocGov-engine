@@ -228,7 +228,9 @@ describe("Testes Unitários: Autodescoberta MCP (--dump-spec, Prompts, Tools, Ba
     expect(spec).toContain("Pipeline Híbrido de Conversão DOCX para PDF");
     expect(spec).toContain("Diff Semântico Granular em Nível de Token");
     expect(spec).toContain("Diretrizes de Comunicação e Resiliência MCP");
-    expect(spec).toContain("Teto Estrito de Payload MCP (< 1024 bytes)");
+    expect(spec).toContain("Lei 2 Bimodal");
+    expect(spec).toContain("MCP_INLINE_MAX_BYTES");
+    expect(spec).toContain("MCP_POINTER_MAX_BYTES");
     expect(spec).toContain("Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)");
     expect(spec).toContain("Neutralidade Institucional Absoluta");
     expect(spec).toContain("Resiliência e Cache Global (core/registry/templates/)");

@@ -1,4 +1,4 @@
-# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.4)
+# docgov-engine — Motor Standalone Determinístico & Servidor MCP (v1.7.5)
 
 [![Continuous Integration](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/ci.yml)
 [![Live API Contract Smoke Tests](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml/badge.svg)](https://github.com/brunobenchimol/DocGov-engine/actions/workflows/live_api_smoke.yml)
@@ -87,9 +87,10 @@ Depois de baixado pela primeira vez, o próprio binário consegue verificar nova
 
 ---
 
-## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.4` (Geração 7.3 / Trilha A — Blindagem `ENG-10`, Escopos Efêmeros Isolados, Proteção de `inputs/` & Camada Universal de I/O)
+## 2. Destaques da Série `v1.7.x` — Versão Atual `v1.7.5` (Geração 7.5 / Trilha A+ — MCP Híbrido `8 KB`, Lei 2 Bimodal & Paridade CLI/MCP)
 
-A série **`v1.7.0`–`v1.7.4`** consolida os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS, a **Higienização Estrutural do domínio JURIS (`v1.7.3`)** e a **Blindagem `ENG-10` + Camada Universal de I/O (`v1.7.4`)**, mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description` e `< 900B` por retorno):
+A série **`v1.7.0`–`v1.7.5`** consolida os **Pilares Anti-Fraude 1 e 5** 100% Pure-JS, a **Higienização Estrutural do domínio JURIS (`v1.7.3`)**, a **Blindagem `ENG-10` + Camada Universal de I/O (`v1.7.4`)** e a **Otimização MCP Híbrido `8 KB` + Lei 2 Bimodal (`v1.7.5`)**, mantendo exatamente as **16 ferramentas MCP** sob o orçamento de tokens do Eixo 5 (`<= 600` caracteres por `description`) com contrato bimodal único em CLI e MCP (`INLINE <= 8192 B` / `POINTER <= 1024 B` / `SUMMARY < 1 KB`):
+- **MCP Híbrido `8 KB`, Lei 2 Bimodal & Paridade CLI/MCP (`v1.7.5` — `src/config/mcp_limits.ts`, `src/utils/mcp_hybrid_output.ts`):** Contrato único minificado em CLI e MCP (`delivery_mode: "INLINE" | "POINTER" | "SUMMARY"`, `read_file_required`, `artifact_path`, `artifact_size_kb`, `artifact_lines`, `next_step_hint`, `inline_markdown` 100% `\n` apenas em `INLINE` e chaves legadas preservadas). Operações `HYBRID/write_behind` (`inspect_doc`, `fetch_juris` e 6 tools Gen5/Gen6) disparam `enqueueWrite` em `INLINE` (erros isolados em `stderr`) e **`await` síncrono obrigatório** no arquivo principal e `companionWrites` em `POINTER`, mantendo `<= 880B` com `[+N_TAGS_NO_DOSSIE]` e drenando `flushPendingWrites()` no encerramento do servidor MCP e da CLI.
 - **Camada Universal de I/O, Blindagem `ENG-10` & Escopos Efêmeros (`v1.7.4` — `src/utils/fs_safe_io.ts`, `ephemeral_scope.ts`, `paths.ts`, `json.ts`):** Locks externos exclusivos em `%TEMP%/docgov_locks/` (zero `.lock` na pasta do usuário), escrita segura adaptativa (direta + retry `3x` no Windows fora de `%TEMP%` para Google Drive/OneDrive e atômica `.tmp + rename` com fallback em POSIX/`%TEMP%`), `enqueueWrite`/`flushPendingWrites` no graceful shutdown MCP, validação `ENG-10` anti-traversal/anti-*symlink* via `realpathSync()` fechada nos 4 compiladores e `inspect_doc --compare`, sessões efêmeras isoladas `<prefix>_<ts>_<rand4hex>` com preservação de subpastas nomeadas, redirecionamento cirúrgico `inputs/` -> `state/`, sweep lazy `>= 72h` e `formatCompactMcpPath()` sem `../../../../`.
 - **Acumulação Concorrente & Neutralidade Estrita em `search_juris` (`v1.7.3` — `src/tools/juris/juris_search_store.ts`, `relevance_scorer.ts`, `statutory_bridge.ts`):** Acumulação sem sobrescrita em `state/juris_search_results.json`/`.md` com mutex em memória + lockfile `juris_search.lock` (stale 5s) + escrita atômica, defaults neutros (`NEUTRAL`/`AUTO`) com rebalanceamento `0..100` em consulta livre, fim de `"ATI"`/`"CAIXA"`/`"ORGAO_CONTRATANTE"` forçado e `outcome` judicial neutro.
 - **Cache Dinâmico Live-Backed TTL 24h no TST (`v1.7.3` — `src/tools/juris/providers/tst_ttl_cache.ts`, `tst_mapper.ts`, `tst_provider.ts`):** Fim da mutação de query e do catálogo estático congelado no TST; consultas ao vivo para `SUM`, `OJ` e `ACORDAO` com cache de 24h (`DOCGOV_JURIS_CACHE_DIR`), falha explícita `LIVE_FAILED` / `[LIVE_UNAVAILABLE]` sem cache válido e migração do inteiro teor em `fetch_juris` para `state/juris_<shortname>/inteiro_teor_anatomico.md` com ordenação `1->6` e corte limpo.
@@ -143,7 +144,7 @@ A série **`v1.7.0`–`v1.7.4`** consolida os **Pilares Anti-Fraude 1 e 5** 100%
    - Busca textual sob demanda em APIs oficiais de controle externo com suporte a multi-query paralela com separador pipe `|` (`Promise.all`).
    - **Estágio 1 do Funil:** Extrai apenas a Ficha de Triagem Rápida (`Cabeçalho + Ementa + Dispositivo`) sem download antecipado de textos longos.
    - Suporte a execução dentro de casos (`state/juris_search_results.json` e `.md`) ou em modo livre isolado em pasta temporária segura (`%TEMP%/docgov_ephemeral_inspect/`).
-   - Retorno sintético MCP conciso estritamente $< 900$ bytes (Lei 2).
+   - Retorno bimodal MCP/CLI conciso (Lei 2: `INLINE <= 8192 B` ou `POINTER <= 1024 B`).
 2. **Matriz de Equivalência Normativa (`Statutory Bridge: Lei 13.303/16 + RILC <-> Lei 14.133/21`):**
    - 10 eixos normativos canônicos (`SB-01` a `SB-10`) mapeando equivalências entre a Lei das Estatais e a Lei Geral de Licitações (padronização, lote único/indivisibilidade, atestados técnicos, vigência de 5 anos, orçamento sigiloso, etc.).
    - Reconhecimento automático de empresas públicas estratégicas de TI (`Serpro`, `Dataprev`, `BB Tecnologia`, `Petrobras`, etc.) com distinguishing pró-estatais.
@@ -205,8 +206,8 @@ A série **`v1.7.0`–`v1.7.4`** consolida os **Pilares Anti-Fraude 1 e 5** 100%
 
 O servidor MCP é **100% autodescritivo, autoexplicativo e dotado de inteligência estrutural nativa**:
 
-1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.4`):** Inclusão mandatória do campo `"engine_version": "1.7.4"` na raiz do payload JSON sintético retornado por todas as **16 ferramentas MCP**.
-2. **Teto Estrito de Payload MCP ($< 1024$ bytes com margem segura $< 900$ bytes):** Todo retorno de ferramenta via stdio MCP é um JSON sintético conciso, referenciando arquivos detalhados gravados em disco (`state/`).
+1. **Rastreabilidade de Versão em Todos os Retornos (`v1.7.5`):** Inclusão mandatória do campo `"engine_version": "1.7.5"` na raiz do payload JSON retornado por todas as **16 ferramentas MCP** e comandos CLI equivalentes.
+2. **Lei 2 Bimodal — MCP Híbrido `<= 8 KB` / `POINTER <= 1024 B` / `SUMMARY < 1 KB`:** Envelopes até `MCP_INLINE_MAX_BYTES` (`8192 B` UTF-8) entregam `inline_markdown` integral (`read_file_required: false`); acima de `8192 B` persistem tudo sincronamente em disco (inclusive `companionWrites`) e retornam ponteiro compacto `<= 1024 B` (`<= 880 B` em Gen5/Gen6). Compiladores binários retornam `SUMMARY < 1 KB`.
 3. **Resiliência de Diretórios e Zero ENOENT:** Criação recursiva de pastas (`mkdirSync(..., { recursive: true })`) em todas as ferramentas que gravam arquivos (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `inspect_doc`, `bootstrap_case`, `fetch_pncp`, `fetch_juris`).
 4. **Motor Híbrido de Lista Multinível Nativa:**
    - **Fora de tabelas (`<w:body>`):** Cria ou atualiza `word/numbering.xml` com definição multinível de 9 níveis decimais escalonados (`%1.`, `%1.%2.`, `%1.%2.%3.`), insere `<w:pPr><w:numPr>` com `<w:startOverride>` sincronizado com o capítulo pai e limpa o prefixo numérico literal do `<w:t>`, com herança nativa de `<w:numPr>` da árvore do template sem reset para 1.
@@ -285,7 +286,7 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 9. **`search_juris`**
    - Busca sob demanda em APIs oficiais de jurisprudência (TCU, STJ, STF, TST, AGU, TCE-PA, TCM-PA, TCE-CE, TCDF, TCE-SP, TCE-MG, TCE-PR) com multi-query paralela (`|`), acumulação concorrente com lockfile em `state/`, defaults neutros (`NEUTRAL`/`AUTO`) com rebalanceamento `0..100`, Statutory Bridge condicional (Lei 13.303/2016 $\leftrightarrow$ Lei 14.133/2021), cache dinâmico TTL 24h ao vivo no TST, coexistência Estadual vs. Municipal via `sphere` (`STATE`/`MUNICIPAL`/`ALL`) e degradação graciosa com graceful fallback por UF.
-   - Persiste resultados acumulados em `state/juris_search_results.json` e `.md` com retorno sintético MCP conciso (< 900 bytes).
+   - Persiste resultados acumulados em `state/juris_search_results.json` e `.md` com envelope bimodal MCP/CLI (`INLINE <= 8192 B` / `POINTER <= 1024 B`).
    - Parâmetros: `query` (*obrigatório*), `caseDir`, `courts`, `uf`, `sphere`, `stance`, `regime`, `limit`, `force_live`, `triage_mode` (*opcionais*).
 
 10. **`fetch_juris`**
@@ -295,32 +296,32 @@ Ao ser executado **sem argumentos** (ou com `--mcp`), o binário inicia um servi
 
 11. **`docgov_audit_contract_execution`**
     - Auditoria determinística e fiscalização contínua de contratos administrativos: limites de aditamento (25%/50% isolados, sem compensação mútua), batimento quadripartite (`[TR <-> Proposta <-> ARP <-> Contrato/Fatura]`) com bloqueio de aditivo direto em ARP, consensualidade em estatais, reajustes/repactuações com interregno de 12 meses, PAS Federativo (`TCU`, `TCDF`, `TCE`, `TCM`, `CEIS`/`CNEP`/`PNCP`) com dosimetria LINDB Art. 22, segregação ANS/IMR vs. multa (`0,5%`–`30%`), Seguro-Garantia, cesta de preços IN 65/2021 (`CV <= 25%`) e álea extraordinária.
-    - Grava `relatorio_fiscalizacao_contratual.json`, `dossie_fiscalizacao_contratual.md` e minutas OpenXML/PDF em disco com payload sintético MCP < 900 bytes.
+    - Grava `relatorio_fiscalizacao_contratual.json`, `dossie_fiscalizacao_contratual.md` e minutas OpenXML/PDF em disco com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `contractJsonPath`, `caseDir`, `outputDir`, `auditType`, `compilationMode`, `outputFormat` (*opcionais conforme fluxo*).
 
 12. **`docgov_govern_arp`**
     - Motor determinístico de governança de Ata de Registro de Preços e gestão de caronas: livro-razão com travas de 50% individual e 200% global acumulada, matriz de compatibilidade federativa/jurídica (vedação de carona ascendente e simetria 14.133 vs 13.303), condicionantes de TIC, auditoria de vigência (12+12m) e compilação nativa OpenXML DOCX/PDF de notas técnicas de adesão e estudos de vantajosidade.
-    - Grava `dossie_governanca_arp.json`, `visao_governanca_arp.md` e minutas DOCX/PDF com payload sintético MCP < 900 bytes.
+    - Grava `dossie_governanca_arp.json`, `visao_governanca_arp.md` e minutas DOCX/PDF com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `arpJsonPath`, `caseDir`, `outputDir`, `compilationMode`, `outputFormat` (*opcionais conforme fluxo*).
 
 13. **`docgov_evaluate_bidding_proposals`**
     - Auditoria e julgamento de propostas na Fase Externa de TIC sem DEMO (`UST`, `HST`, `Hora-Técnica`, `PF`, `SQUADs`), presunção relativa de inexequibilidade `< 75%` e garantia adicional `75%..85%` (Art. 59 §§ 4º e 5º e Súmula TCU 262), Jogo de Planilha, conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (`ILG`/`ILC`/`ISG`/`EG`), conluio por metadados entre propostas concorrentes, Perícia Forense de ACT em 7 vetores e Fase Recursal administrativa (Art. 165 e Art. 168).
-    - Grava dossiês JSON/MD e compila peças OpenXML/PDF (`PROPOSAL_JUDGMENT_OPINION`, `ACT_DILIGENCE_LETTER`, `APPEAL_REASONS`, `APPEAL_COUNTER_REASONS`, `PREGOEIRO_DECISION`, `APPEALS_BUNDLE`, `BOTH`, `ALL`) com payload sintético MCP < 900 bytes.
+    - Grava dossiês JSON/MD e compila peças OpenXML/PDF (`PROPOSAL_JUDGMENT_OPINION`, `ACT_DILIGENCE_LETTER`, `APPEAL_REASONS`, `APPEAL_COUNTER_REASONS`, `PREGOEIRO_DECISION`, `APPEALS_BUNDLE`, `BOTH`, `ALL`) com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `proposalJsonPath` (aliases `biddingJsonPath`, `bidding_json_path`, `input_json_path`), `caseDir`, `outputDir`, `evaluationStance` (`DEFENSE` | `ATTACK`), `compilationMode`, `outputFormat`.
 
 14. **`docgov_audit_direct_contracting`**
     - Auditoria determinística de Contratação Direta: Inexigibilidade (Art. 74, Súmula TCU 255, exigência de 3 NFs/contratos do fornecedor e bloqueio de sobrepreço), Dispensa por Valor com controle anti-fracionamento anual por UG e PDM/CATMAT/CATSER, e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei nº 13.303/2016), com detecção de cotações simuladas por metadados compartilhados.
-    - Grava dossiês JSON/MD e compila o Parecer de Instrução Processual OpenXML/PDF (`DIRECT_CONTRACTING_OPINION`) com payload sintético MCP < 900 bytes.
+    - Grava dossiês JSON/MD e compila o Parecer de Instrução Processual OpenXML/PDF (`DIRECT_CONTRACTING_OPINION`) com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `directContractingJsonPath` (aliases `directJsonPath`, `direct_json_path`, `input_json_path`), `caseDir`, `outputDir`, `compilationMode`, `outputFormat`.
 
 15. **`docgov_audit_demo_regime`**
     - Auditoria determinística em centavos inteiros de Planilhas de Custos (`Módulos 1 a 6` do Anexo VII-D da IN SEGES nº 05/2017) e governança contratual do Regime `DEMO`: piso CCT, Súmula 448 TST, SAT/RAT × FAP, VT 6%/VA, APT `<= 1,94%`, Gross-Up, alíquota efetiva EFD no Lucro Real (Acórdão TCU 1.214/2013), vedação ao Simples Nacional Art. 17 XII LC 123/2006 (salvo Anexo IV Limpeza/Vigilância com 20% CPP), produtividade `m²` Anexo VI-B, Decreto Federal nº 12.174/2024, expurgo de 90% do APT na 1ª prorrogação (Acórdão TCU 1.586/2018), Conta-Depósito Vinculada (Anexo XII) vs. Fato Gerador e Repactuação Anual por CCT (Art. 135).
-    - Grava `demo_regime_audit.json`, `demo_regime_audit.md`, `laudo_pericial_planilha_demo.docx` e `laudo_pericial_planilha_demo.pdf` em `workspace_dir` com guarda estrita `<= 880B` no envelope sintético MCP.
+    - Grava `demo_regime_audit.json`, `demo_regime_audit.md`, `laudo_pericial_planilha_demo.docx` e `laudo_pericial_planilha_demo.pdf` em `workspace_dir` com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `demoJsonPath` (ou `inputPath` / objeto `DemoRegimeAuditInput`), `workspaceDir` (`workspace_dir`), `outputFormat`.
 
 16. **`docgov_audit_engineering_works`**
     - Auditoria determinística de Obras e Serviços de Engenharia: quartis e fórmula algébrica do BDI (Acórdão TCU nº 2.622/2013), BDI Diferenciado para materiais/equipamentos (Súmula TCU nº 253), bloqueio de *bis in idem* de Administração Local/Canteiro/Mobilização no BDI, vedação de IRPJ/CSLL (Súmula TCU nº 254), medição proporcional da Administração Local, Curva ABC contra medianas `SINAPI`/`SICRO` (Decreto nº 7.983/2013), simetria tributária Com/Sem Desoneração CPRB (Lei nº 14.973/2024), detector de *front-loading* no cronograma, Matriz de Riscos em Contratação Integrada/Semi-Integrada e inexequibilidade `75%`/`85%` + Jogo de Planilha.
-    - Grava `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `laudo_pericial_obras_engenharia.pdf` em `workspace_dir` com guarda estrita `<= 880B` no envelope sintético MCP.
+    - Grava `engineering_works_audit.json`, `engineering_works_audit.md`, `laudo_pericial_obras_engenharia.docx` e `laudo_pericial_obras_engenharia.pdf` em `workspace_dir` com envelope bimodal (`INLINE <= 8192 B` / `POINTER <= 880 B`).
     - Parâmetros: `engineeringJsonPath` (ou `inputPath` / objeto `EngineeringWorksAuditInput`), `workspaceDir` (`workspace_dir`), `outputFormat`.
 
 ---
@@ -749,7 +750,7 @@ bun run build:linux
 O desenvolvimento do motor é estritamente regido pelas **9 Leis Invioláveis de Engenharia**:
 
 1. **Runtime e Testes Padronizados via Bun:** Todos os comandos e testes utilizam Bun (`bun test`). Zero caminhos absolutos hardcoded no repositório.
-2. **Teto Estrito de Payload MCP (< 1024 bytes):** Respostas sintéticas de ferramentas via `stdio` MCP mantêm-se abaixo de 1024 bytes (margem segura $< 920$ bytes) para prevenir truncamento em IDEs consumidoras. Dossiês e mapas completos são persistidos em disco.
+2. **Teto Bimodal de Payload MCP & Paridade CLI/MCP (`INLINE <= 8192 B` / `POINTER <= 1024 B`):** Envelopes JSON minificados entregam `inline_markdown` integral até `8192 B` (*write-behind* drenado no shutdown) ou ponteiro compacto `<= 1024 B` (`<= 880 B` em Gen5/Gen6) com escrita síncrona prévia e `SUMMARY < 1 KB` nos compiladores binários.
 3. **Padrão Exact Copy-Paste Error:** Proibido retornar `success` com 0 alterações aplicadas. Detecções de violação de contrato abortam imediatamente fornecendo o snippet canônico exato pronto para substituição.
 4. **Sincronia Obrigatória de Self-Discovery:** Qualquer alteração em ferramentas ou parâmetros atualiza no mesmo commit: `--dump-spec`, `DOCX_ENGINE_INSTRUCTIONS`, `getMcpToolsDefinition()` e dicas contextuais.
 5. **Neutralidade Institucional Absoluta:** Proibido utilizar nomes ou identificadores de órgãos, entidades ou localidades específicas em código, fixtures ou testes. Apenas identificadores genéricos universais (`ORGAO_CONTRATANTE`, `TCU`, `AGU`, etc.).

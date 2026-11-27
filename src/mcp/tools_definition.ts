@@ -1,5 +1,5 @@
 // ============================================================================
-// Definições de Ferramentas e Prompts MCP (docgov-engine v1.6.11)
+// Definições de Ferramentas e Prompts MCP (docgov-engine v1.7.5)
 // ============================================================================
 
 import { DEMO_REGIME_TOOL_DEFINITION } from "../demo_costs/audit_runner.ts";
@@ -51,7 +51,7 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_doc",
       description:
-        "Engenharia reversa de .docx, .pdf (com OCR), .xlsx, .csv e .md/.txt (rejeita .zip/.tar). Gera toc_map, Cartografia Z1..Z14, auditoria orçamentária, structure_fingerprint, matching no cache global (com created_at e Auto-Offset), visao_auditoria_<nome>.md, dossie_hotspots_<nome>.md e retorno toc_summary < 920B.\n" +
+        "Engenharia reversa de .docx, .pdf (OCR), .xlsx, .csv e .md/.txt (rejeita .zip/.tar). Gera toc_map, Z1..Z14, auditoria orçamentária, structure_fingerprint, cache matching (created_at/Auto-Offset), visao_auditoria_<nome>.md, dossie_hotspots_<nome>.md e toc_summary bimodal (<=8KB/<=1KB).\n" +
         "- Quando usar: Após bootstrap_case para inspecionar documento individual ou diff (fora de cases/<slug>/, isola em %TEMP%).\n" +
         "- Próximo Passo: Em EXACT/MODIFIED, chame build_docx_template; em NEW/PDF, leia o dossiê ou a visão.",
       inputSchema: {
@@ -185,7 +185,7 @@ export function getMcpToolsDefinition() {
     {
       name: "search_juris",
       description:
-        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM) com acumulação/lock em state/, defaults neutros (NEUTRAL/AUTO), Statutory Bridge condicional, cache TTL 24h ao vivo no TST (SUM/OJ/ACORDAO) e triagem A/B TST (triaged|raw|compare). Retorno < 900B.\n" +
+        "Busca multi-query de jurisprudência (TCU, STJ, STF, TST, AGU, TCE/TCDF/TCM) com acumulação/lock em state/, defaults neutros (NEUTRAL/AUTO), Statutory Bridge condicional, cache TTL 24h TST (SUM/OJ/ACORDAO) e triagem A/B TST (triaged|raw|compare). Retorno bimodal <=8KB/<=1KB.\n" +
         "- Quando usar: Pesquisa jurídica neutra ou tática (DEFENSE/ATTACK) em consultas livres ou licitatórias.\n" +
         "- Próximo Passo: Leia state/juris_search_results.md e chame fetch_juris nos precedentes escolhidos.",
       inputSchema: {
@@ -259,7 +259,7 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_juris",
       description:
-        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes (ordenação 1->6 com corte limpo), autenticando na fonte oficial (cache TTL 24h TST) e gravando state/dossie_juris_<shortname>.md e state/juris_<shortname>/inteiro_teor_anatomico.md. Retorno < 900B.\n" +
+        "Trava anti-alucinação e fatiador anatômico de acórdãos em 6 Macro-Partes (1->6 com corte limpo), autenticando na fonte oficial (cache TTL 24h TST) e gravando dossie_juris_<shortname>.md e inteiro_teor_anatomico.md. Retorno bimodal <=8KB/<=1KB.\n" +
         "- Quando usar: Após search_juris para autenticar e fatiar julgado antes de citá-lo.\n" +
         "- Próximo Passo: Leia o dossiê fatiado em state/ com links diretos ao inteiro teor.",
       inputSchema: {
@@ -306,7 +306,7 @@ export function getMcpToolsDefinition() {
       description:
         "Auditoria determinística de execução contratual: limites de aditivos (25%/50%), batimento quadripartite (bloqueio aditivo em ARP), reajustes (12m), PAS (dosimetria LINDB Art. 22, adequação federativa, glosa ANS vs. multa, seguro-garantia), cesta de preços (IN 65/2021) e álea extraordinária (contrato JSON em --dump-spec).\n" +
         "- Quando usar: Para fiscalizar aditivos, sobrepreço, reajustes, PAS, cesta de preços ou reequilíbrio.\n" +
-        "- Próximo Passo: Leia relatorio_fiscalizacao_contratual.json/.md e minutas DOCX/PDF compiladas. Retorno < 900B.",
+        "- Próximo Passo: Consulte inline_markdown (em INLINE) ou leia relatorio/dossiê via read_file (em POINTER). Retorno <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
@@ -346,7 +346,7 @@ export function getMcpToolsDefinition() {
       description:
         "Governança determinística de ARP e adesões (caronas): livro-razão 50% individual / 200% global, compatibilidade federativa/jurídica, travas TIC, vigência (12+12m) e compilação DOCX/PDF de notas de adesão e estudos de vantajosidade (contrato JSON em --dump-spec).\n" +
         "- Quando usar: Para instruir ou auditar pedidos de adesão a ARP (Gerenciador ou Carona).\n" +
-        "- Próximo Passo: Inspecione dossie_governanca_arp.json, visao_governanca_arp.md e DOCX/PDF compilados. Retorno < 900B.",
+        "- Próximo Passo: Consulte inline_markdown (em INLINE) ou inspecione visao_governanca_arp.md/JSON (em POINTER) e DOCX/PDF. <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
@@ -379,7 +379,7 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_evaluate_bidding_proposals",
       description:
-        "Quando usar: Para auditar e julgar propostas da Fase Externa de TIC sem DEMO (UST, HST, Hora-Técnica, PF, SQUADs), inexequibilidade 75%/85% (Art. 59 §§ 4º e 5º e Súmula TCU 262), conversibilidade de ACT (Súmula TCU 263), qualificação econômico-financeira (ILG/ILC/ISG/EG), conluio por metadados entre propostas concorrentes, Motor Forense Anti-Fraude de ACT em 7 vetores e fase recursal administrativa (Art. 165 e Art. 168). Próximo Passo: Inspecione os dossiês JSON/MD e as peças compiladas em outputDir. Retorno sintético < 900 bytes.",
+        "Quando usar: Para julgar propostas TIC sem DEMO (UST/HST/PF/SQUAD), inexequibilidade 75%/85% (Art. 59 §§ 4º–5º, Súmula 262), ACT (Súmula 263), ILG/ILC/ISG/EG, conluio por metadados, Perícia ACT em 7 vetores e fase recursal (Art. 165/168). Próximo Passo: Use inline_markdown ou read_file em artifact_path; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
@@ -424,7 +424,7 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_direct_contracting",
       description:
-        "Quando usar: Para auditar Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos do fornecedor), Dispensa por Valor com controle anti-fracionamento anual por UG e ramo (PDM/CATMAT/CATSER) e Oportunidade de Negócio / Parceria Estratégica em Estatais (Art. 28, § 3º, II da Lei 13.303/2016). Próximo Passo: Inspecione o dossiê JSON/MD e o Parecer de Instrução Processual DOCX/PDF em outputDir. Retorno sintético < 900 bytes.",
+        "Quando usar: Para auditar Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos), Dispensa por Valor com controle anti-fracionamento (UG e PDM/CATMAT/CATSER) e Oportunidade de Negócio Estatal (Art. 28, § 3º, II Lei 13.303/2016). Próximo Passo: Use inline_markdown ou read_file em artifact_path e confira DOCX/PDF em outputDir; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {

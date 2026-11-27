@@ -38,7 +38,7 @@ export const DEMO_REGIME_TOOL_DEFINITION = {
   description:
     "Auditoria matemática em centavos inteiros de planilhas DEMO (Módulos 1–6 da IN SEGES 05/2017, CCT, Súmula 448 TST, RAT×FAP, APT, Gross-Up, EFD Lucro Real, Simples Anexo IV), produtividade m², Decreto 12.174/2024 e execução (expurgo APT, Conta Vinculada/Fato Gerador, Repactuação).\n" +
     "- Quando usar: Para auditar planilhas de mão de obra exclusiva e sua execução contratual.\n" +
-    "- Próximo Passo: Inspecione demo_regime_audit.json/.md e laudo_pericial_planilha_demo.docx/.pdf no workspace_dir. Retorno <= 880B.",
+    "- Próximo Passo: Use inline_markdown (INLINE) ou read_file em artifact_path (POINTER) e confira DOCX/PDF. Retorno bimodal <=8KB/<=880B.",
   inputSchema: {
     type: "object",
     properties: {

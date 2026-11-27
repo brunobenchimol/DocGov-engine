@@ -6,6 +6,29 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
+## [1.7.5] - 2026-11-26 — Otimização MCP Híbrido `8 KB`, Lei 2 Bimodal & Paridade CLI/MCP
+
+### Added
+- **Configuração Centralizada de Limites Bimodais (`src/config/mcp_limits.ts`):**
+  - `MCP_INLINE_MAX_BYTES` (env override com default `8192` bytes UTF-8 medidos sobre o JSON final serializado) e `MCP_POINTER_MAX_BYTES` (`1024` bytes, com sub-margem segura `<= 880` bytes preservando a sentinela `[+N_TAGS_NO_DOSSIE]`).
+- **Helper Único de Envelopamento Híbrido & `SUMMARY` (`src/utils/mcp_hybrid_output.ts`, `test/mcp_hybrid_output.test.ts`):**
+  - `buildHybridMcpEnvelope()` emitindo `delivery_mode` (`"INLINE" | "POINTER"`), `read_file_required`, `artifact_path`, `artifact_size_kb`, `artifact_lines`, `next_step_hint` canônico e `inline_markdown` (`\n`-normalizado) exclusivo de `INLINE`, preservando integralmente chaves legadas (`results_md`, `audit_view_path`, `dossie_path`, `index_path`, `results_md_path`, etc.);
+  - Suporte a `companionWrites` (`inteiro_teor_anatomico.md`, `dossie_hotspots_<stem>.md`, aliases `.md` Gen6) com *write-behind* em `INLINE` e **`await` síncrono obrigatório** em `POINTER`;
+  - `buildSummaryMcpEnvelope()` (`delivery_mode: "SUMMARY"`, `read_file_required: false`) para os 4 compiladores binários (`build_docx_template`, `fill_docx_template`, `generate_audit_docx`, `generate_technical_note_docx`).
+- **Envelopes Bimodais Modulares por Domínio (`src/tools/inspect/markdown_artifacts.ts`, `src/tools/inspect/text_markdown_pipeline.ts`, `src/tools/pncp/pncp_hybrid_envelopes.ts`, `src/tools/juris/juris_hybrid_envelopes.ts`):** Extração modular mantendo 100% dos arquivos `.ts <= 500` linhas (Lei 9).
+
+### Changed
+- **Paridade Estreita CLI + MCP nas 16 Ferramentas (`src/mcp/server.ts`, `src/mcp/tool_dispatchers.ts`, `src/cli/*.ts`):**
+  - Remoção de `JSON.stringify(..., null, 2)` em `src/mcp/server.ts` em favor de JSON minificado único entre CLI e MCP;
+  - Distribuição operacional: **4 `HYBRID/sync`** (`bootstrap_case`, `fetch_pncp`, `search_pncp`, `search_juris`), **8 `HYBRID/write_behind`** (`inspect_doc`, `fetch_juris` e as 6 tools Gen5/Gen6) e **4 `SUMMARY/sync`** (compiladores binários);
+  - `fitBlockingTagsToBudget(..., 880)` aplicado sobre o JSON final já acrescido dos campos bimodais;
+  - Drenagem obrigatória `await flushPendingWrites()` em `src/mcp/server.ts` (`transport.onclose`, `stdin` `end`/`close`, `SIGTERM`, `SIGINT`) e `src/index.ts` (saída CLI), além de atualização do handshake `DOCX_ENGINE_INSTRUCTIONS` e descrições das tools (`<= 600` chars).
+
+### Fixed
+- **Isolamento de Erros em `enqueueWrite` (`src/utils/fs_safe_io.ts`):** Encadeamento seguro via `next.catch(() => undefined).finally(...)` + emissão exclusiva em `stderr` no modo *write-behind* (zero vazamento em `stdout`, zero `UnhandledPromiseRejection`).
+
+---
+
 ## [1.7.4] - 2026-11-26 — Blindagem ENG-10, Escopos Efêmeros Isolados, Proteção de `inputs/` e Camada Universal de I/O
 
 ### Added

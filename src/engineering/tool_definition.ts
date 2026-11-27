@@ -8,7 +8,7 @@ export const ENGINEERING_WORKS_TOOL_DEFINITION = {
   description:
     "Auditoria matemática de obras/engenharia: BDI (Acórdão TCU 2.622/2013, Súmulas 253/254, Adm. Local), Curva ABC SINAPI/SICRO (Decreto 7.983/2013), simetria CPRB (Lei 14.973/2024), front-loading, Matriz de Riscos (Integrada/Semi-Integrada) e inexequibilidade 75%/85% + Jogo de Planilha (aceita aninhado/flat).\n" +
     "- Quando usar: Para auditar orçamentos, BDI, cronogramas e propostas de obras/engenharia.\n" +
-    "- Próximo Passo: Inspecione engineering_works_audit.json/.md e laudo_pericial_obras_engenharia.docx/.pdf. Retorno <= 880B.",
+    "- Próximo Passo: Use inline_markdown (INLINE) ou read_file em artifact_path (POINTER) e confira DOCX/PDF. Retorno bimodal <=8KB/<=880B.",
   inputSchema: {
     type: "object",
     properties: {

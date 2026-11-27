@@ -9,9 +9,12 @@ Este documento estabelece as 9 Leis Invioláveis de Engenharia do motor standalo
 - Nenhum arquivo ou teste do repositório deve conter caminhos absolutos hardcoded de máquinas locais.
 - Na interação com o desenvolvedor, adapte a execução dos comandos com flexibilidade ao ambiente informado no diálogo (ex.: WSL, terminal nativo ou container).
 
-## Lei 2: Teto Estrito de Payload MCP (< 1024 bytes)
-- Todo retorno sintético de ferramentas via stdio MCP DEVE ter menos de 1024 bytes (UTF-8, margem segura recomendada < 920 bytes) para evitar truncamento em `output.txt` pelas IDEs consumidoras.
-- Documentos grandes, mapas estruturais completos (`toc_map`), dossiês de hotspots (`dossie_hotspots_*.md`) e espelhos de leitura linear (`visao_auditoria_*.md`) são persistidos em disco (`state/estrutura_*.json`, `state/visao_auditoria_*.md`) e apenas referenciados por caminho no JSON sintético.
+## Lei 2: Teto Bimodal de Payload MCP & Paridade CLI/MCP (`INLINE <= 8192 B` / `POINTER <= 1024 B`)
+- Todo retorno JSON de ferramentas via stdio MCP e CLI (`JSON.stringify` minificado) segue o contrato bimodal centralizado em `src/config/mcp_limits.ts` e `src/utils/mcp_hybrid_output.ts`:
+  - **`INLINE` (`<= MCP_INLINE_MAX_BYTES`, default `8192` bytes UTF-8 no JSON final):** entrega `inline_markdown` 100% integral (`\n`-normalizado) com `read_file_required: false`; ferramentas idempotentes de saída única usam *write-behind* (`enqueueWrite`, erros isolados em `stderr`) drenado via `flushPendingWrites()` no encerramento do MCP e da CLI.
+  - **`POINTER` (`> MCP_INLINE_MAX_BYTES`):** executa **`await` síncrono obrigatório** do arquivo principal e de eventuais `companionWrites` antes de responder, omite `inline_markdown`, define `read_file_required: true` e mantém o envelope JSON final `< 1024 bytes` (margem de estresse `<= 880 bytes` preservando `[+N_TAGS_NO_DOSSIE]`).
+  - **`SUMMARY` (4 compiladores binários):** retorno `< 1024 bytes` com `read_file_required: false` e gravação síncrona.
+- Documentos grandes, mapas estruturais completos (`toc_map`), dossiês de hotspots (`dossie_hotspots_*.md`) e espelhos de leitura linear (`visao_auditoria_*.md`) são sempre persistidos em disco (`state/`) e referenciados por `artifact_path` + chaves legadas preservadas.
 
 ## Lei 3: Padrão Exact Copy-Paste Error (Zero Silent No-Op e Fail-Fast Estrito)
 - É estritamente proibido retornar `status: "success"` se `applied_slots_count === 0`.
@@ -87,7 +90,7 @@ Todo plano técnico elaborado pelo agente deve incluir explicitamente uma seçã
 ### 4. Definition of Done (DoD) Global do Motor
 Nenhuma tarefa ou issue é considerada concluída sem o cumprimento integral do checklist abaixo:
 - [ ] **1. Testes Automatizados:** 100% de aprovação na suíte de testes (`bun run test`, padrão compacto via `scripts/run_tests.ts`);
-- [ ] **2. Teto MCP (Lei 2):** Resposta sintética de ferramentas MCP abaixo de 1024 bytes (folga preventiva garantida `< 900 bytes`);
+- [ ] **2. Teto Bimodal MCP/CLI (Lei 2):** Retorno `INLINE <= 8192 B` com `inline_markdown` integral (`write-behind` drenado em shutdown) ou `POINTER < 1024 B` (`<= 880 B` em Gen5/Gen6) com `await` síncrono, ou `SUMMARY < 1024 B` nos 4 compiladores;
 - [ ] **3. Self-Discovery & Lockstep Documental (Lei 4 & Lei 7):** `--dump-spec` (`docs/especificacao_motor.md`), `DOCX_ENGINE_INSTRUCTIONS`, `DOCX_WORKFLOW_GUIDE_TEXT`, prompts MCP, help da CLI, `docs/ARCHITECTURE_AND_MODULES.md` e `README.md` sincronizados com `VERSION`;
 - [ ] **4. Neutralidade Institucional (Lei 5):** Ausência de nomes específicos de órgãos/localidades;
 - [ ] **5. Micro-Commits Semânticos (Lei 8):** Fatiamento atômico registrado no Git;
