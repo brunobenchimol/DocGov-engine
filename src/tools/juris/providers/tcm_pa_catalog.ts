@@ -15,7 +15,7 @@ export function normalizeTcmPaId(ref: string): string {
   const clean = ref.trim().toUpperCase().replace(/\s+/g, " ");
 
   const acMatch = clean.match(
-    /(?:(?:TCM[-_]?PA|TCMPA)[-_ ]+(?:AC[OÓ]RD[AÃ]O|AC)|AC[OÓ]RD[AÃ]O[-_ ]+(?:(?:TCM[-_]?PA|TCMPA)[-_ ]+)?(?:N[Oº°]?\s*)?)([\d.]{1,8})[-_/](\d{2,4})/i
+    /(?:(?:TCM[-_]?PA|TCMPA)[-_ ]+(?:AC[OÓ]RD[AÃ]O|AC)[-_ ]+|AC[OÓ]RD[AÃ]O[-_ ]+(?:(?:TCM[-_]?PA|TCMPA)[-_ ]+)?(?:N[Oº°]?\s*)?)([\d.]{1,8})[-_/](\d{2,4})/i
   );
   if (acMatch) {
     return `TCM-PA-ACORDAO-${stripNumberPunctuation(acMatch[1])}-${expandYear(acMatch[2])}`;

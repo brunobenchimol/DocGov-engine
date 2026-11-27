@@ -178,8 +178,8 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
       extractReliableYear({
         id: "SUMULA-TST-331",
         court: "TST",
-        ano: 2011,
-        origin: "CURATED_CATALOG",
+        dataSessao: "2011-05-31",
+        origin: "LIVE",
       })
     ).toBe(2011);
 
@@ -218,7 +218,7 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
         id: "SUMULA-TST-331",
         court: "TST",
         colegiado: "Tribunal Pleno",
-        origin: "CURATED_CATALOG",
+        origin: "LIVE",
         indexacao: "Terceirização; Responsabilidade Subsidiária",
         tese: "Responsabilidade subsidiária da Administração Pública na terceirização.",
       },
@@ -256,7 +256,7 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
           id: "SUMULA-TST-331",
           court: "TST",
           colegiado: "Tribunal Pleno",
-          origin: "CURATED_CATALOG",
+          origin: "LIVE",
           tese: "terceirização responsabilidade subsidiária",
         },
         {
@@ -276,7 +276,7 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
           id: "SUMULA-TST-331",
           court: "TST",
           colegiado: "Tribunal Pleno",
-          origin: "CURATED_CATALOG",
+          origin: "LIVE",
           tese: "terceirização responsabilidade subsidiária",
         },
         {
@@ -331,7 +331,7 @@ describe("TST Precedent Triage v1.7.2 — Módulo Puro (4 Baldes, Year, Pertinê
     };
 
     const payload = makeSyntheticBase(heavyTriage, {
-      liveDegraded: ["TST(short_circuit->curated; force_live=true p/ live)"],
+      liveDegraded: ["TST(ttl_cache->force_live=true)"],
     });
     compactTstTriageToBudget(payload, "cases/caso_demo/state/juris_search_results.md", 880);
 
@@ -348,7 +348,7 @@ describe("TST Precedent Triage v1.7.2 — Integração A/B, Isolamento & Invaria
   function buildSampleHits(): RawJurisSearchResult[] {
     return [
       { id: "TST-TEMA-1118-ONUS-PROVA", court: "TST", colegiado: "SBDI-1 / STF Repercussão Geral", dataSessao: "2025-02-13", indexacao: "Tema 1118; Ônus da Prova", tese: "Terceirização responsabilidade subsidiária administração pública.", origin: "LIVE" },
-      { id: "SUMULA-TST-331", court: "TST", colegiado: "Tribunal Pleno", dataSessao: "2011-05-31", indexacao: "Súmula 331; Terceirização", tese: "Terceirização e culpa in vigilando.", origin: "CURATED_CATALOG" },
+      { id: "SUMULA-TST-331", court: "TST", colegiado: "Tribunal Pleno", dataSessao: "2011-05-31", indexacao: "Súmula 331; Terceirização", tese: "Terceirização e culpa in vigilando.", origin: "LIVE" },
       { id: "TST-RR-100123-45.2020.5.02.0001", court: "TST", colegiado: "3ª Turma", dataSessao: "2024-06-10", indexacao: "Responsabilidade subsidiária", tese: "Aplicação da Súmula 331 na terceirização.", origin: "LIVE" },
       { id: "TST-AIRR-999-11.2023.5.01.0001", court: "TST", colegiado: "4ª Turma", indexacao: "Motoboy periculosidade", tese: "Adicional de periculosidade motocicleta.", origin: "LIVE" },
     ];

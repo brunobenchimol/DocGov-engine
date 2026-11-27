@@ -228,8 +228,8 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
               {
                 id: `${c}-SUMULA-1`,
                 court: c,
-                tese: "Enunciado normativo curado com texto extenso para testar poda progressiva de payload.",
-                origin: "CURATED_CATALOG",
+                tese: "Enunciado recuperado do cache TTL 24h com texto extenso para testar poda progressiva.",
+                origin: "LIVE",
               },
             ],
             diagnostic: {
@@ -238,7 +238,9 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
               hits: 1,
               latency_ms: 4501,
               error: null,
-              source_mode: "CURATED_FALLBACK",
+              source_mode: "CACHE_TTL_FALLBACK",
+              cache_hit: true,
+              fetched_at: "2026-11-26T12:00:00.000Z",
               live_error: "The operation timed out.",
             },
           };
@@ -259,8 +261,9 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       customReg
     );
 
-    expect(res.fileResult.results[0]?.origin).toBe("CURATED_CATALOG");
-    expect(res.fileResult.court_diagnostics?.[0]?.source_mode).toBe("CURATED_FALLBACK");
+    expect(res.fileResult.results[0]?.origin).toBe("LIVE");
+    expect(res.fileResult.court_diagnostics?.[0]?.source_mode).toBe("CACHE_TTL_FALLBACK");
+    expect(res.fileResult.court_diagnostics?.[0]?.cache_hit).toBe(true);
     expect(res.fileResult.court_diagnostics?.[0]?.live_error).toContain("timed out");
 
     const synthetic = formatSearchJurisSyntheticResult(res.fileResult, res.mdPath, process.cwd(), res.currentHits);
@@ -269,7 +272,7 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
     expect(synthetic.live_degraded).toBeDefined();
     expect(synthetic.live_degraded!.length).toBeGreaterThan(0);
 
-    // Verifica pior caso em formatFetchJurisSyntheticResult com source: CURATED_CATALOG
+    // Verifica pior caso em formatFetchJurisSyntheticResult com source: LIVE
     const fetchSynth = formatFetchJurisSyntheticResult({
       slicedResult: {
         layers: {
@@ -303,10 +306,9 @@ describe("Jurisprudência v1.4.0 — search_juris e fetch_juris (Teto < 900 byte
       fullPath: "cases/caso_grande_teste/state/juris_tst_sumula_331/inteiro_teor_anatomico.md",
       court: "TST",
       canonicalId: "ACORDAO-TST-SUMULA_331-2011-TRIBUNAL_PLENO",
-      source: "CURATED_CATALOG",
+      source: "LIVE",
     });
-    expect(fetchSynth.source).toBe("CURATED_CATALOG");
-    expect(fetchSynth.next_step_hint).toContain("force_live=true");
+    expect(fetchSynth.source).toBe("LIVE");
     expect(Buffer.byteLength(JSON.stringify(fetchSynth), "utf-8")).toBeLessThan(900);
   });
 });

@@ -24,7 +24,6 @@ export class TceSpProvider extends BaseJurisdictionProvider {
   public readonly envOverrideKey = "DOCGOV_JURIS_TCESP_URL";
   protected override readonly mockEnvKeys = [
     "DOCGOV_JURIS_TCESP_URL",
-    "DOCGOV_TCE_SP_BASE_URL",
   ];
   protected override readonly baseUrlEnvKeys = [
     "DOCGOV_JURIS_TCESP_URL",

@@ -1,18 +1,28 @@
 import { describe, it, expect, afterEach } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defaultJurisdictionRegistry } from "../../src/tools/juris/provider_registry.ts";
 import { TstProvider } from "../../src/tools/juris/providers/tst_provider.ts";
-import { searchAguCatalog } from "../../src/tools/juris/providers/agu_catalog.ts";
 import { parseCanonicalAcordaoRef } from "../../src/tools/juris/providers/http_client.ts";
 import { assertAuthenticAcordao, sliceAcordaoAnatomically } from "../../src/tools/juris/anatomical_slicer.ts";
-import { scoreJurisItem } from "../../src/tools/juris/relevance_scorer.ts";
+import { fetchJuris } from "../../src/tools/juris/fetch_juris.ts";
 
-describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () => {
+describe("Jurisprudência v1.7.6 — Cortes Federais (Corte Limpo, Zero Viés e Zero Ano Fabricado)", () => {
+  const dirs: string[] = [];
   const originalAguEnv = process.env.DOCGOV_JURIS_AGU_URL;
   const originalTstEnv = process.env.DOCGOV_TST_BASE_URL;
   const originalTcuEnv = process.env.DOCGOV_TCU_BASE_URL;
   const originalStfEnv = process.env.DOCGOV_STF_BASE_URL;
   const originalStjEnv = process.env.DOCGOV_STJ_BASE_URL;
   const originalJurisEnv = process.env.DOCGOV_JURIS_BASE_URL;
+  const originalCacheEnv = process.env.DOCGOV_JURIS_CACHE_DIR;
+
+  function makeTempDir(prefix: string): string {
+    const d = mkdtempSync(join(tmpdir(), prefix));
+    dirs.push(d);
+    return d;
+  }
 
   afterEach(() => {
     if (originalAguEnv === undefined) delete process.env.DOCGOV_JURIS_AGU_URL;
@@ -27,56 +37,38 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     else process.env.DOCGOV_STJ_BASE_URL = originalStjEnv;
     if (originalJurisEnv === undefined) delete process.env.DOCGOV_JURIS_BASE_URL;
     else process.env.DOCGOV_JURIS_BASE_URL = originalJurisEnv;
+    if (originalCacheEnv === undefined) delete process.env.DOCGOV_JURIS_CACHE_DIR;
+    else process.env.DOCGOV_JURIS_CACHE_DIR = originalCacheEnv;
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
     defaultJurisdictionRegistry.resetAllCircuits();
   });
-  it("TstProvider v1.4.2: deve integrar conector TST, auto-trigger trabalhista e fatiamento anatômico", async () => {
+
+  it("TstProvider & Router: sem autoTriggerKeywords, roteamento explícito TST e reconhecimento CNJ", () => {
     const tst = defaultJurisdictionRegistry.get("TST");
     expect(tst).toBeDefined();
     expect(tst?.courtId).toBe("TST");
     expect(tst?.tier).toBe("FEDERAL");
     expect(tst?.defaultFederal).toBe(false);
 
-    // 1. Auto-trigger em query trabalhista/terceirização
-    const routeLabor = defaultJurisdictionRegistry.resolveRouting(
+    // Roteamento sem courts explícitas NÃO aciona TST/AGU automaticamente por keyword
+    const routeDefault = defaultJurisdictionRegistry.resolveRouting(
       undefined,
       undefined,
-      "fiscalização de terceirização e responsabilidade subsidiária da súmula 331"
+      "fiscalização de terceirização súmula 331 orientação normativa agu"
     );
-    expect(routeLabor.routingInfo.executed_courts).toContain("TST");
-    expect(routeLabor.routingInfo.executed_courts).toContain("TCU");
-    expect(routeLabor.routingInfo.executed_courts).toContain("STJ");
-    expect(routeLabor.routingInfo.executed_courts).toContain("STF");
+    expect(routeDefault.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
 
-    // 2. Não-acionamento em query puramente de hardware/software
-    const routeTech = defaultJurisdictionRegistry.resolveRouting(
-      undefined,
-      undefined,
-      "aquisição de switches ethernet e servidores em lote único"
-    );
-    expect(routeTech.routingInfo.executed_courts).not.toContain("TST");
-    expect(routeTech.routingInfo.executed_courts).toContain("TCU");
+    // Roteamento explícito
+    expect(defaultJurisdictionRegistry.resolveRouting(["TST"]).routingInfo.executed_courts).toEqual(["TST"]);
+    expect(defaultJurisdictionRegistry.resolveRouting(["AGU"]).routingInfo.executed_courts).toEqual(["AGU"]);
 
-    // 3. Acionamento quando courts incluir TST explicitamente
-    const routeExplicit = defaultJurisdictionRegistry.resolveRouting(["TST"]);
-    expect(routeExplicit.routingInfo.executed_courts).toEqual(["TST"]);
-
-    // 4. Reconhecimento de padrão de ID do TST
-    const detected = defaultJurisdictionRegistry.detectCourtFromRef("TST-RR-21474-45.2015.5.04.0202");
-    expect(detected).toBe("TST");
-
-    const detectedRef = defaultJurisdictionRegistry.detectCourtFromRef("AIRR - 100123-45.2020.5.02.0001");
-    expect(detectedRef).toBe("TST");
-
-    // 5. Roteamento de CNJ trabalhista puro (J=5) pontuado e 20 dígitos
-    expect(defaultJurisdictionRegistry.detectCourtFromRef("TST-Ag-Ag-RR-959-81.2015.5.05.0033")).toBe("TST");
+    // Reconhecimento de padrão de ID do TST (CNJ J=5)
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("TST-RR-21474-45.2015.5.04.0202")).toBe("TST");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("AIRR - 100123-45.2020.5.02.0001")).toBe("TST");
     expect(defaultJurisdictionRegistry.detectCourtFromRef("959-81.2015.5.05.0033")).toBe("TST");
     expect(defaultJurisdictionRegistry.detectCourtFromRef("00009598120155050033")).toBe("TST");
-    expect(defaultJurisdictionRegistry.detectCourtFromRef("1000201-25.2017.5.02.0025")).toBe("TST");
-
     expect(parseCanonicalAcordaoRef("959-81.2015.5.05.0033").court).toBe("TST");
-    expect(parseCanonicalAcordaoRef("00009598120155050033").court).toBe("TST");
 
-    // 6. Resiliência de mapTstHitToResult com elementos nulos em arrays
     const rawHitWithNulls = {
       id: "abc123",
       numFormatado: "RR - 0000697-62.2024.5.10.0006",
@@ -85,119 +77,59 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     };
     const mapped = (tst as any).mapTstHitToResult(rawHitWithNulls);
     expect(mapped.indexacao).toContain("Ente Público");
-    expect(mapped.indexacao).toContain("Lei 13.467/2017");
+    expect(mapped.ano).toBeUndefined();
   });
 
-  it("Jurisprudência v1.4.3 — AguProvider: deve integrar conector AGU, catálogo curado, auto-trigger e trava anti-alucinação", async () => {
-    const agu = defaultJurisdictionRegistry.get("AGU")!;
-    expect(agu).toBeDefined();
-    expect(agu.courtId).toBe("AGU");
-    expect(agu.tier).toBe("FEDERAL");
-    expect(agu.defaultFederal).toBe(false);
+  it("Regressão STF: zero injeção bool.must licitatória, zero must_not bitributação e zero ano 2024 fabricado", async () => {
+    process.env.DOCGOV_JURIS_CACHE_DIR = makeTempDir("docgov-stf-cache-");
+    let capturedBody: any = null;
+    const server = Bun.serve({
+      port: 0,
+      async fetch(req) {
+        capturedBody = await req.json();
+        return Response.json({
+          result: {
+            hits: {
+              hits: [
+                {
+                  _source: {
+                    id: "STF-RE-999",
+                    processo_numero: "999",
+                    ementa_texto: "Bitributação ICMS e ISS.",
+                  },
+                },
+              ],
+            },
+          },
+        });
+      },
+    });
 
-    // 1. Auto-trigger contextual por palavras-chave de normas e pareceres
-    const routeNormativa = defaultJurisdictionRegistry.resolveRouting(
-      undefined,
-      undefined,
-      "impugnação baseada em orientação normativa da AGU sobre prorrogação"
-    );
-    expect(routeNormativa.routingInfo.executed_courts).toContain("AGU");
+    try {
+      process.env.DOCGOV_STF_BASE_URL = `http://127.0.0.1:${server.port}`;
+      const stf = defaultJurisdictionRegistry.get("STF")!;
+      const res = await stf.searchWithDiagnostic!("ICMS ISS bitributação");
 
-    const routeParecer = defaultJurisdictionRegistry.resolveRouting(
-      undefined,
-      undefined,
-      "parecer referencial da cnlca dispensa de licitação"
-    );
-    expect(routeParecer.routingInfo.executed_courts).toContain("AGU");
+      expect(capturedBody?.query?.bool?.must).toEqual([
+        { query_string: { query: "ICMS ISS bitributação" } },
+      ]);
+      expect(capturedBody?.query?.bool?.must_not).toBeUndefined();
+      expect(res.hits[0]?.ano).toBeUndefined();
+      expect(res.hits[0]?.entidade).toBe("NAO_INFORMADA");
+    } finally {
+      server.stop(true);
+    }
+  });
 
-    const routeSumula = defaultJurisdictionRegistry.resolveRouting(
-      undefined,
-      undefined,
-      "aplicação da súmula da AGU aos contratos federais"
-    );
-    expect(routeSumula.routingInfo.executed_courts).toContain("AGU");
+  it("AguProvider: aceita AGU-PARECER-V176-NEUTRO, suporta Mock Server e zero Art. 40 hardcoded no slicer", async () => {
+    const cacheDir = makeTempDir("docgov-agu-cache-");
+    process.env.DOCGOV_JURIS_CACHE_DIR = cacheDir;
+    const caseDir = join(makeTempDir("docgov-agu-case-"), "cases", "agu_v176");
 
-    // 2. Roteamento explícito
-    const routeExplicit = defaultJurisdictionRegistry.resolveRouting(["AGU"]);
-    expect(routeExplicit.routingInfo.executed_courts).toEqual(["AGU"]);
-
-    // 3. Reconhecimento de padrões de ID (idPatterns)
     expect(defaultJurisdictionRegistry.detectCourtFromRef("ON-AGU-050-2014")).toBe("AGU");
-    expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-ON-0046-2014")).toBe("AGU");
     expect(defaultJurisdictionRegistry.detectCourtFromRef("SUMULA-AGU-072")).toBe("AGU");
-    expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-SUMULA-34")).toBe("AGU");
-    expect(defaultJurisdictionRegistry.detectCourtFromRef("PARECER-CNLCA-001-2024")).toBe("AGU");
+    expect(defaultJurisdictionRegistry.detectCourtFromRef("AGU-PARECER-V176-NEUTRO")).toBe("AGU");
 
-    // 4. Busca no catálogo curado oficial (100% offline/hermético)
-    const searchResults = searchAguCatalog("prorrogação serviços contínuos vigência");
-    expect(searchResults.length).toBeGreaterThan(0);
-    const item50 = searchResults.find((r) => r.id.includes("050") || r.id.includes("50"));
-    expect(item50).toBeDefined();
-    expect(item50?.enunciado).toContain("serviço contínuo");
-
-    // 5. Fetch determinístico no catálogo curado (suportando lookup canônico e aliases)
-    const fetched50 = await agu.fetch("ON-AGU-050-2014");
-    expect(fetched50).not.toBeNull();
-    expect(fetched50?.exists).toBe(true);
-    expect(fetched50?.rawTextOrJson.numero).toBe("50");
-
-    const fetched46 = await agu.fetch("AGU-ON-0046-2014");
-    expect(fetched46).not.toBeNull();
-    expect(fetched46?.exists).toBe(true);
-    expect(fetched46?.rawTextOrJson.numero).toBe("46");
-
-    // 6. Trava anti-alucinação estrita
-    const invalidId = await agu.fetch("AGU-ON-999999");
-    expect(invalidId).toBeNull();
-    expect(() => assertAuthenticAcordao(false, "AGU-ON-999999", "AGU")).toThrow(
-      /\[ANTI_HALLUCINATION_BLOCK\]/
-    );
-
-    // 7. Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas
-    const sliced50 = sliceAcordaoAnatomically(fetched50!.rawTextOrJson, { court: "AGU" });
-    expect(sliced50.layers.layer_1A_metadata.tribunal).toBe("AGU");
-    expect(sliced50.layers.layer_1A_metadata.colegiado).toBe("Advogado-Geral da União");
-    expect(sliced50.layers.layer_1B_entity_regime.entidade).toBe("ADMINISTRAÇÃO_PÚBLICA_FEDERAL");
-    expect(sliced50.layers.layer_5A_operative_commands.length).toBeGreaterThan(0);
-    expect(sliced50.layers.layer_6A_closing_quorum.quorum).toContain("Vinculante");
-
-    // 8. Relevance Scorer determinístico e precedência da Camada 5A
-    const scored50 = scoreJurisItem(
-      {
-        court: "AGU",
-        colegiado: "Advogado-Geral da União",
-        ano: 2024,
-        indexacao: ["SERVIÇOS CONTÍNUOS", "PRORROGAÇÃO"],
-        tese: fetched50!.rawTextOrJson.enunciado,
-        dispositivo: fetched50!.rawTextOrJson.dispositivo,
-      },
-      "prorrogação serviços contínuos vigência",
-      { stance: "DEFENSE" }
-    );
-    expect(scored50.breakdown.quorum).toBe(10);
-    expect(scored50.outcome).toBe("IMPROCEDENTE / MANUTENCAO_CERTAME");
-    expect(scored50.stance_alignment).toBe("FAVORABLE");
-
-    // 9. Desfecho adverso / distinguishing em stance DEFENSE
-    const fetched84 = await agu.fetch("ON-AGU-084-2024");
-    expect(fetched84).not.toBeNull();
-    const scored84 = scoreJurisItem(
-      {
-        court: "AGU",
-        colegiado: "Advogado-Geral da União",
-        ano: 2024,
-        indexacao: ["PAGAMENTO ANTECIPADO", "VEDAÇÃO"],
-        tese: fetched84!.rawTextOrJson.enunciado,
-        dispositivo: fetched84!.rawTextOrJson.dispositivo,
-      },
-      "pagamento antecipado edital",
-      { stance: "DEFENSE" }
-    );
-    expect(scored84.outcome).toBe("PROCEDENTE / DETERMINACAO");
-    expect(scored84.stance_alignment).toBe("ADVERSE_DISTINGUISHING_REQUIRED");
-  });
-
-  it("AguProvider (Mock Server DOCGOV_JURIS_AGU_URL): deve suportar /search, /fetch e anti-alucinação offline", async () => {
     const server = Bun.serve({
       port: 0,
       fetch(req) {
@@ -206,12 +138,11 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
           return Response.json({
             items: [
               {
-                id: "ON-AGU-050-2014",
-                numero: "50",
-                ano: 2014,
+                id: "AGU-PARECER-V176-NEUTRO",
+                numero: "V176",
                 colegiado: "Advogado-Geral da União",
-                tese: "Serviço contínuo não pode ser prorrogado após encerramento da vigência.",
-                dispositivo: "Vedada a prorrogação retroativa de serviço contínuo.",
+                tese: "Serviço contínuo e vigência contratual.",
+                dispositivo: "Parecer consultivo.",
               },
             ],
           });
@@ -221,11 +152,10 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
             return new Response(JSON.stringify({ error: "not_found" }), { status: 404 });
           }
           return Response.json({
-            id: "ON-AGU-050-2014",
-            numero: "50",
-            ano: 2014,
-            tese: "Serviço contínuo",
-            dispositivo: "Vedada prorrogação retroativa.",
+            id: "AGU-PARECER-V176-NEUTRO",
+            numero: "V176",
+            tese: "Serviço contínuo.",
+            dispositivo: "Parecer consultivo.",
           });
         }
         return new Response("Not Found", { status: 404 });
@@ -235,138 +165,45 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
     try {
       process.env.DOCGOV_JURIS_AGU_URL = `http://127.0.0.1:${server.port}`;
       const agu = defaultJurisdictionRegistry.get("AGU")!;
-      const hits = await agu.search("prorrogação serviços contínuos vigência");
+      const hits = await agu.search("serviço contínuo");
       expect(hits.length).toBe(1);
-      expect(hits[0].court).toBe("AGU");
-      expect(hits[0].tese).toContain("Serviço contínuo");
+      expect(hits[0].ano).toBeUndefined();
+      expect(hits[0].entidade).toBe("NAO_INFORMADA");
 
-      const okFetch = await agu.fetch("ON-AGU-050-2014");
-      expect(okFetch?.exists).toBe(true);
-      expect(okFetch?.rawTextOrJson.numero).toBe("50");
+      const fetched = await fetchJuris({
+        caseDir,
+        acordaoIdOrUrl: "AGU-PARECER-V176-NEUTRO",
+      });
+      expect(fetched.court).toBe("AGU");
+      expect(fetched.canonicalId).not.toContain("undefined");
+      expect(fetched.slicedResult.layers.layer_1B_entity_regime.entidade).toBe("NAO_INFORMADA");
+      expect(fetched.slicedResult.layers.layer_6A_closing_quorum.quorum).toBe(
+        "Eficácia condicionada à esfera federal e ao regime de direito público (não presumida)"
+      );
+      expect(fetched.slicedResult.layers.layer_6A_closing_quorum.quorum).not.toContain("Art. 40");
 
       const fakeFetch = await agu.fetch("AGU-ON-999999");
       expect(fakeFetch).toBeNull();
+      expect(() => assertAuthenticAcordao(false, "AGU-ON-999999", "AGU")).toThrow(
+        /\[ANTI_HALLUCINATION_BLOCK\]/
+      );
+
+      const slicedOnly = sliceAcordaoAnatomically({ tese: "Teste AGU" }, { court: "AGU" });
+      expect(slicedOnly.layers.layer_1A_metadata.ano).toBeUndefined();
     } finally {
       server.stop(true);
     }
   });
 
-  it("TstProvider — Cache TTL 24h Live-Backed, HTTP 503 sem fallback estático, force_live e Trava Anti-Alucinação", async () => {
-    const { mkdtempSync, rmSync } = await import("node:fs");
-    const { tmpdir } = await import("node:os");
-    const { join } = await import("node:path");
-    const cacheRoot = mkdtempSync(join(tmpdir(), "docgov-tst-fed-"));
-    const prevCacheEnv = process.env.DOCGOV_JURIS_CACHE_DIR;
-    process.env.DOCGOV_JURIS_CACHE_DIR = cacheRoot;
-
-    let return503 = true;
-    const server = Bun.serve({
-      port: 0,
-      async fetch(req) {
-        const url = new URL(req.url);
-        if (url.pathname.startsWith("/rest/pesquisa-textual")) {
-          if (return503) return new Response("Service Unavailable", { status: 503 });
-          const body: any = await req.json();
-          if (Array.isArray(body?.tipos) && body.tipos.includes("SUM")) {
-            return Response.json({
-              registros: [
-                {
-                  registro: {
-                    id: 570,
-                    numero: 331,
-                    tipo: { codigoTipoJurisprudencia: "SUM", nome: "Súmula" },
-                    titulo: "CONTRATO DE PRESTAÇÃO DE SERVIÇOS. LEGALIDADE.",
-                    tese: "Súmula 331 atualizada ao vivo.",
-                    situacao: { codigo: 2, descricao: "ALTERADA" },
-                    observacao: "Item I cancelado pela Res. 225/2025.",
-                    dtaPublicacao: "2025-07-02",
-                  },
-                },
-              ],
-            });
-          }
-          return Response.json({
-            registros: [
-              {
-                registro: {
-                  id: "0123456789abcdef0123456789abcdef",
-                  numFormatado: "AIRR - 0000590-72.2025.5.10.0009",
-                  ementa: "Terceirização. Responsabilidade subsidiária da Administração Pública.",
-                },
-              },
-            ],
-          });
-        }
-        if (url.pathname.startsWith("/search")) {
-          if (return503) return new Response("Service Unavailable", { status: 503 });
-          return Response.json({
-            items: [{ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock TST Live Terceirização" }],
-          });
-        }
-        if (url.pathname.startsWith("/fetch")) {
-          if (url.pathname.includes("999999")) {
-            return new Response("Not Found", { status: 404 });
-          }
-          if (return503) return new Response("Service Unavailable", { status: 503 });
-          return Response.json({ id: "TST-AIRR-100-2025", numero: "100", ano: 2025, ementa: "Mock OK" });
-        }
-        return new Response("Not Found", { status: 404 });
-      },
-    });
-
-    try {
-      const tst = defaultJurisdictionRegistry.get("TST")!;
-      // 1. Modo Produção simulando 503 em DOCGOV_TST_BASE_URL -> LIVE_FAILED sem catálogo estático
-      process.env.DOCGOV_TST_BASE_URL = `http://127.0.0.1:${server.port}`;
-      const deg = await tst.searchWithDiagnostic!("terceirização administração pública", { limit: 3 });
-      expect(deg.diagnostic.status).toBe("error");
-      expect(deg.diagnostic.source_mode).toBe("LIVE_FAILED");
-      expect(deg.diagnostic.live_error).toContain("HTTP 503");
-      expect(deg.hits).toEqual([]);
-
-      // 2. Recuperação com force_live (Live-First) + Súmula 331 ao vivo
-      return503 = false;
-      const flOk = await tst.searchWithDiagnostic!("terceirização", { force_live: true });
-      expect(flOk.diagnostic.status).toBe("ok");
-      expect(flOk.hits[0]?.id).toBe("TST-AIRR-0000590-72.2025.5.10.0009");
-      expect(flOk.hits[0]?.origin).toBe("LIVE");
-
-      const sum331 = await tst.fetch("SUMULA-TST-331");
-      expect(sum331?.exists).toBe(true);
-      expect(sum331?.source).toBe("LIVE");
-      expect(sum331?.rawTextOrJson.tese).toContain("Súmula 331 atualizada ao vivo");
-
-      const fakeProd = await tst.fetch("TST-AIRR-9999999-99.2099.5.01.0001");
-      expect(fakeProd).toBeNull();
-
-      // 3. Modo Mock (DOCGOV_JURIS_BASE_URL) -> 503 sem cache válido retorna LIVE_FAILED / [LIVE_UNAVAILABLE] e 404 retorna null
-      delete process.env.DOCGOV_TST_BASE_URL;
-      process.env.DOCGOV_JURIS_BASE_URL = `http://127.0.0.1:${server.port}`;
-      return503 = true;
-      const mock503 = await tst.searchWithDiagnostic!("terceirização nova consulta");
-      expect(mock503.diagnostic.status).toBe("error");
-      expect(mock503.diagnostic.source_mode).toBe("LIVE_FAILED");
-      expect(mock503.hits).toEqual([]);
-
-      await expect(tst.fetch("SUMULA-TST-363")).rejects.toThrow(/\[LIVE_UNAVAILABLE\]/);
-
-      const mock404 = await tst.fetch("TST-999999");
-      expect(mock404).toBeNull();
-    } finally {
-      server.stop(true);
-      if (prevCacheEnv === undefined) delete process.env.DOCGOV_JURIS_CACHE_DIR;
-      else process.env.DOCGOV_JURIS_CACHE_DIR = prevCacheEnv;
-      rmSync(cacheRoot, { recursive: true, force: true });
-    }
-  });
-
-  it("TCU, STF e STJ — Resiliência Dupla com Catálogos Curados, HTTP 503 e Anti-Alucinação", async () => {
+  it("TCU, STF e STJ — HTTP 503 sem cache quente retorna LIVE_FAILED / [LIVE_UNAVAILABLE] sem catálogo estático", async () => {
+    process.env.DOCGOV_JURIS_CACHE_DIR = makeTempDir("docgov-fed-503-");
     const server503 = Bun.serve({
       port: 0,
       fetch() {
         return new Response("Service Unavailable", { status: 503 });
       },
     });
+
     try {
       process.env.DOCGOV_TCU_BASE_URL = `http://127.0.0.1:${server503.port}`;
       process.env.DOCGOV_STF_BASE_URL = `http://127.0.0.1:${server503.port}`;
@@ -376,34 +213,13 @@ describe("Jurisprudência — Cortes Federais Especializadas (TST e AGU)", () =>
       const stf = defaultJurisdictionRegistry.get("STF")!;
       const stj = defaultJurisdictionRegistry.get("STJ")!;
 
-      const tcuDeg = await tcu.searchWithDiagnostic!("parcelamento lote único");
-      expect(tcuDeg.diagnostic.status).toBe("ok");
-      expect(tcuDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(tcuDeg.hits.some((h) => h.id === "SUMULA-TCU-247")).toBe(true);
-
-      const stfDeg = await stf.searchWithDiagnostic!("terceirização administração pública");
-      expect(stfDeg.diagnostic.status).toBe("ok");
-      expect(stfDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(stfDeg.hits.some((h) => h.id === "STF-ADC-16" || h.id === "STF-TEMA-246")).toBe(true);
-
-      const stjDeg = await stj.searchWithDiagnostic!("licitação sociedade economia mista");
-      expect(stjDeg.diagnostic.status).toBe("ok");
-      expect(stjDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(stjDeg.hits.some((h) => h.id === "SUMULA-STJ-333")).toBe(true);
-
-      expect((await tcu.fetch("SUMULA-TCU-247"))?.source).toBe("CURATED_CATALOG");
-      expect((await stf.fetch("SUMULA-STF-473"))?.source).toBe("CURATED_CATALOG");
-      expect((await stj.fetch("SUMULA-STJ-333"))?.source).toBe("CURATED_CATALOG");
-
-      // Trava anti-alucinação em todos os 3
-      expect(await tcu.fetch("TCU-999999")).toBeNull();
-      expect(await stf.fetch("STF-999999")).toBeNull();
-      expect(await stj.fetch("STJ-999999")).toBeNull();
-
-      // force_live sob 503 falha explicitamente sem mascarar
-      const tcuFl = await tcu.searchWithDiagnostic!("licitação", { force_live: true });
-      expect(tcuFl.diagnostic.status).toBe("error");
-      expect(tcuFl.diagnostic.source_mode).toBe("LIVE_FAILED");
+      for (const prov of [tcu, stf, stj]) {
+        const res = await prov.searchWithDiagnostic!("parcelamento lote único");
+        expect(res.diagnostic.status).toBe("error");
+        expect(res.diagnostic.source_mode).toBe("LIVE_FAILED");
+        expect(res.hits).toEqual([]);
+        await expect(prov.fetch(`${prov.courtId}-999999`)).rejects.toThrow(/\[LIVE_UNAVAILABLE\]/);
+      }
     } finally {
       server503.stop(true);
     }

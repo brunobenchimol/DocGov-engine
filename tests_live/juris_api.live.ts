@@ -34,31 +34,16 @@ function getCanonicalFallbackId(courtId: string): string {
   }
 }
 
-const CURATED_ID_REGEX =
-  /^(SUMULA|CONSULTA|ON-AGU|PARECER|OJ-TST|TST-TEMA|STF-(?:ADC|ADI|TEMA)|STJ-TEMA|TCE-PA-(?:RESOLUCAO|PREJULGADO)|TCM-PA-(?:ACORDAO|RESOLUCAO|IN|CONSULTA|SUMULA)|TCE-PR-(?:PREJULGADO|CONSULTA))/i;
-
 /**
- * Classifica a origem real dos resultados (Live API, Híbrido ou Fallback Curado).
+ * Classifica a origem real dos resultados (API Live Direta vs Fallback Cache TTL 24h).
  */
 function classifyOrigin(
   courtId: string,
-  results: any[]
-): "API Live Direta" | "Híbrido (Live + Curado)" | "Fallback Curado Local" {
+  results: any[],
+  isCacheFallback: boolean
+): "API Live Direta" | "Fallback Cache TTL 24h" {
   if (!results || results.length === 0) return "API Live Direta";
-  const allCurated = results.every(
-    (r) => r.origin === "CURATED_CATALOG" || CURATED_ID_REGEX.test(r.id || "")
-  );
-  const someCurated = results.some(
-    (r) => r.origin === "CURATED_CATALOG" || CURATED_ID_REGEX.test(r.id || "")
-  );
-
-  if (allCurated) {
-    return "Fallback Curado Local";
-  }
-  if (someCurated) {
-    return "Híbrido (Live + Curado)";
-  }
-  return "API Live Direta";
+  return isCacheFallback ? "Fallback Cache TTL 24h" : "API Live Direta";
 }
 
 /**
@@ -150,7 +135,7 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
           const diagStatus = diag ? diag.status : "ok";
           const diagLatency = diag ? `${diag.latency_ms}ms` : `${durationS1}ms`;
           const isDegraded =
-            diag?.source_mode === "CURATED_FALLBACK" ||
+            diag?.source_mode === "CACHE_TTL_FALLBACK" ||
             diag?.source_mode === "CIRCUIT_OPEN_FALLBACK" ||
             !!diag?.live_error;
           if (isDegraded) searchDegradedToCurated = true;
@@ -159,7 +144,7 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
             firstHitId = rawJson.results[0].id;
           }
 
-          const origin = classifyOrigin(prov.courtId, rawJson.results || []);
+          const origin = classifyOrigin(prov.courtId, rawJson.results || [], isDegraded);
 
           if (diagStatus === "error") {
             probes.push({
@@ -226,8 +211,6 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
         const fetchOrigin =
           fetchRes.source === "LIVE"
             ? "API Live Direta"
-            : fetchRes.source === "CURATED_CATALOG" || CURATED_ID_REGEX.test(targetId)
-            ? "Catálogo Normativo Curado"
             : "API Live Direta";
 
         if (hasAntiHallucination) {
@@ -246,12 +229,12 @@ export async function runJurisLiveProbes(courtFilter?: string): Promise<LiveProb
             details: `[${fetchOrigin}] Payload MCP excedeu teto da Lei 2: ${synth2Bytes}B >= 900B.`,
             error: `MCP Payload ceiling exceeded: ${synth2Bytes} bytes`,
           });
-        } else if (searchDegradedToCurated && fetchRes.source === "CURATED_CATALOG") {
+        } else if (searchDegradedToCurated) {
           probes.push({
             name: `Sonda [${prov.courtId}] 2: fetchJuris (${prov.courtId})`,
             status: "WARN",
             durationMs: durationS2,
-            details: `[DEGRADED -> CURATED] Decisão [${targetId}] fatiada via fallback curado após falha live na Sonda 1. Payload MCP: ${synth2Bytes}B.`,
+            details: `[DEGRADED -> TTL_CACHE] Decisão [${targetId}] fatiada após degradação na Sonda 1. Payload MCP: ${synth2Bytes}B.`,
           });
         } else {
           probes.push({

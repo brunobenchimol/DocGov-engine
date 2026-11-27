@@ -3,12 +3,15 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { TstProvider } from "../../src/tools/juris/providers/tst_provider.ts";
-import { buildTstCacheFilePath, TST_TTL_MS } from "../../src/tools/juris/providers/tst_ttl_cache.ts";
+import {
+  buildJurisCacheFilePath,
+  JURIS_TTL_MS,
+} from "../../src/tools/juris/providers/juris_ttl_cache.ts";
 import { classifyTstHit } from "../../src/tools/juris/tst_precedent_triage.ts";
 import { searchJuris } from "../../src/tools/juris/search_juris.ts";
 import { JurisdictionProviderRegistry } from "../../src/tools/juris/provider_registry.ts";
 
-describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catálogo Estático", () => {
+describe("TST v1.7.6 — Cache Global TTL 24h (Live-First -> Fallback TTL), Súmulas/OJs Live & Zero Catálogo Estático", () => {
   const dirs: string[] = [];
   const origCache = process.env.DOCGOV_JURIS_CACHE_DIR;
   const origTstBase = process.env.DOCGOV_TST_BASE_URL;
@@ -30,18 +33,19 @@ describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catá
     return d;
   }
 
-  it("1. hit < 24h usa cache sem chamar HTTP, expirado >= 24h refaz fetch live, e force_live ignora cache válido", async () => {
+  it("1. Live-First grava TTL 24h, 503 com cache quente serve CACHE_TTL_FALLBACK e expirado >= 24h / force_live falha explicitamente", async () => {
     const cacheDir = makeTempDir("docgov-tst-ttl-");
     process.env.DOCGOV_JURIS_CACHE_DIR = cacheDir;
 
     let searchCalls = 0;
-    let fetchCalls = 0;
+    let statusMode: 200 | 503 = 200;
     const server = Bun.serve({
       port: 0,
       fetch(req) {
         const url = new URL(req.url);
         if (url.pathname.startsWith("/rest/pesquisa-textual")) {
           searchCalls++;
+          if (statusMode === 503) return new Response("Unavailable", { status: 503 });
           return Response.json({
             registros: [
               {
@@ -56,10 +60,6 @@ describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catá
             ],
           });
         }
-        if (url.pathname.startsWith("/rest/documentos/")) {
-          fetchCalls++;
-          return Response.json({});
-        }
         return new Response("Not Found", { status: 404 });
       },
     });
@@ -68,42 +68,48 @@ describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catá
       process.env.DOCGOV_TST_BASE_URL = `http://127.0.0.1:${server.port}`;
       const tst = new TstProvider();
 
-      // 1a chamada: miss -> bate ao vivo e grava cache
+      // 1a chamada: Live-First -> bate ao vivo e grava cache em <cacheDir>/tst/
       const r1 = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5 });
       expect(searchCalls).toBe(1);
       expect(r1.diagnostic.source_mode).toBe("LIVE");
       expect(r1.diagnostic.cache_hit).toBeUndefined();
       expect(r1.hits.length).toBe(1);
 
-      // 2a chamada (< 24h): hit de cache -> ZERO chamada HTTP
+      // 2a chamada sob 503 com cache quente (< 24h) -> CACHE_TTL_FALLBACK
+      statusMode = 503;
       const r2 = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5 });
-      expect(searchCalls).toBe(1);
-      expect(r2.diagnostic.source_mode).toBe("LIVE");
+      expect(searchCalls).toBe(2);
+      expect(r2.diagnostic.status).toBe("ok");
+      expect(r2.diagnostic.source_mode).toBe("CACHE_TTL_FALLBACK");
       expect(r2.diagnostic.cache_hit).toBe(true);
       expect(r2.hits[0]?.id).toBe(r1.hits[0]?.id);
 
-      // Expirar arquivo manualmente (>= 24h) -> força novo fetch ao vivo
-      const cacheFile = buildTstCacheFilePath("search", "teletrabalho retorno presencial|5");
+      // force_live=true ignora cache válido e falha sob 503
+      const rForced = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5, force_live: true });
+      expect(rForced.diagnostic.status).toBe("error");
+      expect(rForced.diagnostic.source_mode).toBe("LIVE_FAILED");
+
+      // Expirar arquivo manualmente (>= 24h) -> 503 não serve fallback
+      const cacheFile = buildJurisCacheFilePath("TST", "search", "teletrabalho retorno presencial|5");
       const entry = JSON.parse(readFileSync(cacheFile, "utf-8"));
-      entry.fetched_at = Date.now() - TST_TTL_MS - 1000;
+      entry.fetched_at = Date.now() - JURIS_TTL_MS - 1000;
       writeFileSync(cacheFile, JSON.stringify(entry), "utf-8");
 
-      const r3 = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5 });
-      expect(searchCalls).toBe(2);
-      expect(r3.diagnostic.cache_hit).toBeUndefined();
-      expect(r3.hits[0]?.id).not.toBe(r1.hits[0]?.id);
+      const rExpired = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5, force_live: false });
+      expect(rExpired.diagnostic.status).toBe("error");
+      expect(rExpired.diagnostic.source_mode).toBe("LIVE_FAILED");
 
-      // force_live: true ignora cache < 24h válido
-      const r4 = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5, force_live: true });
-      expect(searchCalls).toBe(3);
-      expect(r4.diagnostic.cache_hit).toBeUndefined();
-      expect(fetchCalls).toBe(0);
+      // Recupera com force_live=true quando live volta a 200
+      statusMode = 200;
+      const r3 = await tst.searchWithDiagnostic("teletrabalho retorno presencial", { limit: 5, force_live: true });
+      expect(r3.diagnostic.status).toBe("ok");
+      expect(r3.diagnostic.source_mode).toBe("LIVE");
     } finally {
       server.stop(true);
     }
   });
 
-  it("2. Mock Mode com DOCGOV_JURIS_CACHE_DIR ativo segue exatamente o fluxo TTL 24h (hit, expiração e 503 -> LIVE_FAILED)", async () => {
+  it("2. Mock Mode com DOCGOV_JURIS_CACHE_DIR ativo segue fluxo Live-First -> CACHE_TTL_FALLBACK -> expirado LIVE_FAILED", async () => {
     const cacheDir = makeTempDir("docgov-tst-mock-ttl-");
     process.env.DOCGOV_JURIS_CACHE_DIR = cacheDir;
 
@@ -151,7 +157,6 @@ describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catá
       process.env.DOCGOV_JURIS_BASE_URL = `http://127.0.0.1:${server.port}`;
       const tst = new TstProvider();
 
-      // Search & Fetch populam cache em Mock Mode
       const s1 = await tst.searchWithDiagnostic("teletrabalho mock", { limit: 5 });
       expect(mockSearchCalls).toBe(1);
       expect(s1.diagnostic.source_mode).toBe("LIVE");
@@ -160,27 +165,30 @@ describe("TST v1.7.3 — Cache Dinâmico TTL 24h, Súmulas/OJs Live & Zero Catá
       expect(mockFetchCalls).toBe(1);
       expect(f1?.source).toBe("LIVE");
 
-      // 503 ainda com cache < 24h -> serve cache sem erro
+      // 503 ainda com cache < 24h -> serve CACHE_TTL_FALLBACK
       statusMode = 503;
       const sCached = await tst.searchWithDiagnostic("teletrabalho mock", { limit: 5 });
-      expect(mockSearchCalls).toBe(1);
+      expect(mockSearchCalls).toBe(2);
+      expect(sCached.diagnostic.source_mode).toBe("CACHE_TTL_FALLBACK");
       expect(sCached.diagnostic.cache_hit).toBe(true);
 
+      const fCached = await tst.fetch("TST-RR-1-2025");
+      expect(fCached?.cache_hit).toBe(true);
+
       // Expirar cache de search e fetch -> 503 falha sem fallback estático!
-      const sCacheFile = buildTstCacheFilePath("search", "teletrabalho mock|5");
+      const sCacheFile = buildJurisCacheFilePath("TST", "search", "teletrabalho mock|5");
       const sEntry = JSON.parse(readFileSync(sCacheFile, "utf-8"));
-      sEntry.fetched_at = Date.now() - TST_TTL_MS - 5000;
+      sEntry.fetched_at = Date.now() - JURIS_TTL_MS - 5000;
       writeFileSync(sCacheFile, JSON.stringify(sEntry), "utf-8");
 
       const sFail = await tst.searchWithDiagnostic("teletrabalho mock", { limit: 5 });
-      expect(mockSearchCalls).toBe(2);
       expect(sFail.diagnostic.status).toBe("error");
       expect(sFail.diagnostic.source_mode).toBe("LIVE_FAILED");
       expect(sFail.hits).toEqual([]);
 
-      const fCacheFile = buildTstCacheFilePath("fetch", "TST-RR-1-2025");
+      const fCacheFile = buildJurisCacheFilePath("TST", "fetch", "TST-RR-1-2025");
       const fEntry = JSON.parse(readFileSync(fCacheFile, "utf-8"));
-      fEntry.fetched_at = Date.now() - TST_TTL_MS - 5000;
+      fEntry.fetched_at = Date.now() - JURIS_TTL_MS - 5000;
       writeFileSync(fCacheFile, JSON.stringify(fEntry), "utf-8");
 
       await expect(tst.fetch("TST-RR-1-2025")).rejects.toThrow(/\[LIVE_UNAVAILABLE\]/);

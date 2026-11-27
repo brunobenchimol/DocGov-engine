@@ -137,4 +137,39 @@ Ministra Relatora
     expect(l.layer_5A_operative_commands[0]).toContain("ACORDAM");
     expect(res.dossieMarkdown).not.toContain("(VAZIO — ZERO CONTEÚDO EXTRAÍDO)");
   });
+
+  it("v1.7.6 regressões: AGU sem Art. 40 hardcoded, quorum/entidade neutros e ano undefined nunca vira string 'undefined'", () => {
+    const aguSliced = sliceAcordaoAnatomically(
+      {
+        tribunal: "AGU",
+        numero: "12",
+        ementa: "Orientação consultiva sem indicação de ano ou unidade.",
+      },
+      { court: "AGU" }
+    );
+    expect(aguSliced.layers.layer_1A_metadata.ano).toBeUndefined();
+    expect(aguSliced.layers.layer_1B_entity_regime.entidade).toBe("NAO_INFORMADA");
+    expect(aguSliced.layers.layer_6A_closing_quorum.quorum).toBe(
+      "Eficácia condicionada à esfera federal e ao regime de direito público (não presumida)"
+    );
+    expect(aguSliced.layers.layer_6A_closing_quorum.quorum).not.toContain("Art. 40");
+    expect(aguSliced.layers.layer_6A_closing_quorum.quorum).not.toContain("LC 73/1993");
+    expect(aguSliced.dossieMarkdown).not.toContain("undefined");
+    expect(aguSliced.fullMarkdown).not.toContain("undefined");
+
+    const tcuNoQuorum = sliceAcordaoAnatomically(
+      {
+        tribunal: "TCU",
+        numero: "888",
+        ementa: "Decisão sem menção a quórum nem ano.",
+      },
+      { court: "TCU" }
+    );
+    expect(tcuNoQuorum.layers.layer_1A_metadata.ano).toBeUndefined();
+    expect(tcuNoQuorum.layers.layer_6A_closing_quorum.quorum).toBe("NAO_INFORMADO");
+    expect(tcuNoQuorum.layers.layer_6A_closing_quorum.votos).toBe("NAO_INFORMADO");
+    expect(tcuNoQuorum.layers.layer_6A_closing_quorum.quorum).not.toBe("Por Maioria");
+    expect(tcuNoQuorum.dossieMarkdown).not.toContain("undefined");
+    expect(tcuNoQuorum.fullMarkdown).not.toContain("undefined");
+  });
 });

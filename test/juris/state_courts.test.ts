@@ -1,37 +1,31 @@
 import { describe, it, expect, afterEach } from "bun:test";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { defaultJurisdictionRegistry } from "../../src/tools/juris/provider_registry.ts";
 import { TceSpProvider } from "../../src/tools/juris/providers/tce_sp_provider.ts";
-import {
-  searchTceSpCatalog,
-  normalizeTceSpId,
-} from "../../src/tools/juris/providers/tce_sp_catalog.ts";
+import { normalizeTceSpId } from "../../src/tools/juris/providers/tce_sp_catalog.ts";
 import { TceMgProvider } from "../../src/tools/juris/providers/tce_mg_provider.ts";
-import {
-  searchTceMgCatalog,
-  normalizeTceMgId,
-} from "../../src/tools/juris/providers/tce_mg_catalog.ts";
 import { TcePrProvider } from "../../src/tools/juris/providers/tce_pr_provider.ts";
-import {
-  searchTcePrCatalog,
-  normalizeTcePrId,
-} from "../../src/tools/juris/providers/tce_pr_catalog.ts";
-import { assertAuthenticAcordao, sliceAcordaoAnatomically } from "../../src/tools/juris/anatomical_slicer.ts";
-import {
-  searchJuris,
-  formatSearchJurisSyntheticResult,
-} from "../../src/tools/juris/search_juris.ts";
-import {
-  fetchJuris,
-  formatFetchJurisSyntheticResult,
-} from "../../src/tools/juris/index.ts";
-import { existsSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
+import { assertAuthenticAcordao } from "../../src/tools/juris/anatomical_slicer.ts";
+import { searchJuris, formatSearchJurisSyntheticResult } from "../../src/tools/juris/search_juris.ts";
+import { fetchJuris, formatFetchJurisSyntheticResult } from "../../src/tools/juris/index.ts";
 
-describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TCMs)", () => {
+describe("Jurisprudência v1.7.6 — Cortes de Contas Estaduais (Corte Limpo, Zero Catálogo Estático)", () => {
+  const dirs: string[] = [];
   const origTcdf = process.env.DOCGOV_TCDF_BASE_URL;
   const origTceCe = process.env.DOCGOV_TCE_CE_BASE_URL;
   const origTcePa = process.env.DOCGOV_TCE_PA_BASE_URL;
+  const origTceSp = process.env.DOCGOV_JURIS_TCESP_URL;
+  const origTceMg = process.env.DOCGOV_JURIS_TCEMG_URL;
+  const origTcePr = process.env.DOCGOV_JURIS_TCE_PR_URL;
+  const origCache = process.env.DOCGOV_JURIS_CACHE_DIR;
+
+  function makeTempDir(prefix: string): string {
+    const d = mkdtempSync(join(tmpdir(), prefix));
+    dirs.push(d);
+    return d;
+  }
 
   afterEach(() => {
     if (origTcdf === undefined) delete process.env.DOCGOV_TCDF_BASE_URL;
@@ -40,390 +34,178 @@ describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TC
     else process.env.DOCGOV_TCE_CE_BASE_URL = origTceCe;
     if (origTcePa === undefined) delete process.env.DOCGOV_TCE_PA_BASE_URL;
     else process.env.DOCGOV_TCE_PA_BASE_URL = origTcePa;
+    if (origTceSp === undefined) delete process.env.DOCGOV_JURIS_TCESP_URL;
+    else process.env.DOCGOV_JURIS_TCESP_URL = origTceSp;
+    if (origTceMg === undefined) delete process.env.DOCGOV_JURIS_TCEMG_URL;
+    else process.env.DOCGOV_JURIS_TCEMG_URL = origTceMg;
+    if (origTcePr === undefined) delete process.env.DOCGOV_JURIS_TCE_PR_URL;
+    else process.env.DOCGOV_JURIS_TCE_PR_URL = origTcePr;
+    if (origCache === undefined) delete process.env.DOCGOV_JURIS_CACHE_DIR;
+    else process.env.DOCGOV_JURIS_CACHE_DIR = origCache;
+    for (const d of dirs.splice(0)) rmSync(d, { recursive: true, force: true });
     defaultJurisdictionRegistry.resetAllCircuits();
   });
-  it("Jurisprudência v1.4.4 — TceSpProvider: deve integrar conector TCE-SP, catálogo curado, auto-trigger e Sub-Assert 29.9", async () => {
+
+  it("Roteamento explícito por UF, zero autoTriggerKeywords e normalização pura TCE-SP", () => {
     const tcesp = new TceSpProvider();
-    expect(tcesp.courtId).toBe("TCE-SP");
-    expect(tcesp.tier).toBe("STATE");
+    const tcemg = new TceMgProvider();
+    const tcepr = new TcePrProvider();
     expect(tcesp.uf).toBe("SP");
-    expect(tcesp.defaultFederal).toBe(false);
+    expect(tcemg.uf).toBe("MG");
+    expect(tcepr.uf).toBe("PR");
 
-    // 1. Roteamento explícito por UF: "SP"
-    const routingSp = defaultJurisdictionRegistry.resolveRouting(undefined, "SP");
-    expect(routingSp.routingInfo.executed_courts).toContain("TCE-SP");
-    expect(routingSp.routingInfo.unimplemented_uf_requested).toBeNull();
-    expect(routingSp.routingInfo.supported_ufs).toContain("SP");
+    // Roteamento explícito por UF
+    expect(defaultJurisdictionRegistry.resolveRouting(undefined, "SP").routingInfo.executed_courts).toContain("TCE-SP");
+    expect(defaultJurisdictionRegistry.resolveRouting(undefined, "MG").routingInfo.executed_courts).toContain("TCE-MG");
+    expect(defaultJurisdictionRegistry.resolveRouting(undefined, "PR").routingInfo.executed_courts).toContain("TCE-PR");
 
-    // 2. Auto-Trigger Contextual Plug-and-Play (com higiene estrita anti-falso-positivo)
-    const triggerSim = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "súmula 50 do tce-sp");
-    expect(triggerSim.routingInfo.executed_courts).toContain("TCE-SP");
+    // Zero auto-trigger por keyword sem UF/courts
+    const noAuto = defaultJurisdictionRegistry.resolveRouting(
+      undefined,
+      undefined,
+      "súmula 50 do tce-sp súmula 114 do tce-mg prejulgado 28 do tce-pr"
+    );
+    expect(noAuto.routingInfo.executed_courts).toEqual(["TCU", "STJ", "STF"]);
 
-    const triggerTcesp = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "processo licitatório no tcesp");
-    expect(triggerTcesp.routingInfo.executed_courts).toContain("TCE-SP");
-
-    // Higiene: busca genérica por "súmula 20" sem mencionar SP NÃO deve acionar TCE-SP
-    const triggerNao = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "qualificação técnica súmula 20");
-    expect(triggerNao.routingInfo.executed_courts).not.toContain("TCE-SP");
-
-    // 3. Normalização canônica de identificadores e aliases
+    // Normalizador puro TCE-SP (sem IDs sintéticos)
     expect(normalizeTceSpId("SÚMULA 50 DO TCE-SP")).toBe("SUMULA-TCESP-50");
     expect(normalizeTceSpId("TCE-SP-SUMULA-24")).toBe("SUMULA-TCESP-24");
     expect(normalizeTceSpId("SUMULA-TCESP-033")).toBe("SUMULA-TCESP-33");
-    expect(normalizeTceSpId("TCE-SP-TC-000123-2024")).toBe("TCE-SP-TC-000123-2024");
-    expect(normalizeTceSpId("TC-000123/026/24")).toBe("TCE-SP-TC-000123-2024");
+    expect(normalizeTceSpId("TC-014892.989.24-3")).toBe("TCE-SP-TC-014892-2024");
+    expect(normalizeTceSpId("TCE-SP-TC-014892-2024")).toBe("TCE-SP-TC-014892-2024");
+  });
 
-    // 4. Busca no catálogo curado de alto valor
-    const hits50 = searchTceSpCatalog("recuperação judicial");
-    expect(hits50.some((h) => h.id === "SUMULA-TCESP-50")).toBe(true);
+  it("TCE-SP HTML parser retorna apenas texto real (zero 5 linhas sintéticas, zero ano 2024/ORGAO_CONTRATANTE)", async () => {
+    process.env.DOCGOV_JURIS_CACHE_DIR = makeTempDir("docgov-tcesp-html-");
+    const server = Bun.serve({
+      port: 0,
+      fetch() {
+        return new Response(
+          `<html><body><table>
+            <tr><td>Relator:</td><td>Conselheiro Teste Real</td></tr>
+            <tr><td>Matéria:</td><td>Licitação</td></tr>
+            <tr><td>Objeto:</td><td>Pregão Eletrônico Real</td></tr>
+          </table><p>Processo 014892/989/24 julgado conforme texto oficial da fonte.</p></body></html>`,
+          { headers: { "Content-Type": "text/html" } }
+        );
+      },
+    });
 
-    const hits33 = searchTceSpCatalog("adesão carona registro de preços");
-    expect(hits33.some((h) => h.id === "SUMULA-TCESP-33")).toBe(true);
-
-    const hits24 = searchTceSpCatalog("parcelas maior relevância 50%");
-    expect(hits24.some((h) => h.id === "SUMULA-TCESP-24")).toBe(true);
-
-    // 5. Fetch determinístico no catálogo curado
-    const fetched50 = await tcesp.fetch("SUMULA-TCESP-50");
-    expect(fetched50).not.toBeNull();
-    expect(fetched50?.exists).toBe(true);
-    expect(fetched50?.rawTextOrJson.numero).toBe("50");
-    expect(fetched50?.rawTextOrJson.entidade).toBe("ORGAO_CONTRATANTE");
-
-    // Sub-Assert 29.9 (.NET Gen4 cross-check)
-    const fetchedProc = await tcesp.fetch("TCE-SP-TC-000123-2024");
-    expect(fetchedProc).not.toBeNull();
-    expect(fetchedProc?.exists).toBe(true);
-    expect(fetchedProc?.rawTextOrJson.numero).toBe("000123/026/24");
-
-    // 6. Trava anti-alucinação estrita
-    const invalidId = await tcesp.fetch("TCE-SP-999999");
-    expect(invalidId?.exists).toBe(false);
-    expect(() => assertAuthenticAcordao(false, "TCE-SP-999999", "TCE-SP")).toThrow(
-      /\[ANTI_HALLUCINATION_BLOCK\]/
-    );
-
-    // 7. Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas
-    const sliced50 = sliceAcordaoAnatomically(fetched50!.rawTextOrJson, { court: "TCE-SP" });
-    expect(sliced50.layers.layer_1A_metadata.tribunal).toBe("TCE-SP");
-    expect(sliced50.layers.layer_1A_metadata.colegiado).toBe("Tribunal Pleno");
-    expect(sliced50.layers.layer_1B_entity_regime.entidade).toBe("ORGAO_CONTRATANTE");
-    expect(sliced50.layers.layer_5A_operative_commands.length).toBeGreaterThan(0);
-    expect(sliced50.layers.layer_6A_closing_quorum.quorum).toBeDefined();
-    expect(sliced50.layers.layer_6A_closing_quorum.data).toBe("2018-05-30");
-
-    // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `docgov_test_tce_sp_${Date.now()}`);
     try {
-      const searchRes = await searchJuris({
-        caseDir: testDir,
-        query: "recuperação judicial súmula 50 do tce-sp",
-        courts: ["TCE-SP"],
-        limit: 3,
-        stance: "DEFENSE",
-      });
-      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-      expect(synthSearchBytes).toBeLessThan(900);
-
-      const fetchRes = await fetchJuris({
-        caseDir: testDir,
-        acordaoIdOrUrl: "SUMULA-TCESP-50",
-        court: "TCE-SP",
-        stance: "DEFENSE",
-      });
-      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-      expect(synthFetchBytes).toBeLessThan(900);
+      process.env.DOCGOV_TCE_SP_BASE_URL = `http://127.0.0.1:${server.port}`;
+      const tcesp = new TceSpProvider();
+      const fetched = await tcesp.fetch("TC-014892.989.24-3");
+      expect(fetched?.exists).toBe(true);
+      expect(fetched?.rawTextOrJson.ano).toBeUndefined();
+      expect(fetched?.rawTextOrJson.entidade).toBe("NAO_INFORMADA");
+      expect(fetched?.rawTextOrJson.inteiroTeorTexto).not.toContain(
+        "Inteiro teor do procedimento submetido a julgamento."
+      );
+      expect(fetched?.rawTextOrJson.inteiroTeorTexto).toContain("julgado conforme texto oficial da fonte");
     } finally {
-      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+      delete process.env.DOCGOV_TCE_SP_BASE_URL;
+      server.stop(true);
     }
   });
 
-  it("Jurisprudência v1.4.5 — TceMgProvider: deve integrar conector TCE-MG, catálogo curado, auto-trigger e Sub-Assert 29.10", async () => {
-    const tcemg = new TceMgProvider();
-    expect(tcemg.courtId).toBe("TCE-MG");
-    expect(tcemg.tier).toBe("STATE");
-    expect(tcemg.uf).toBe("MG");
-    expect(tcemg.defaultFederal).toBe(false);
-    expect(tcemg.envOverrideKey).toBe("DOCGOV_JURIS_TCEMG_URL");
+  it("Mock Server TCE-SP, TCE-MG e TCE-PR: search/fetch, anti-alucinação 404 e teto MCP < 900B", async () => {
+    process.env.DOCGOV_JURIS_CACHE_DIR = makeTempDir("docgov-state-mock-");
+    const caseDir = join(makeTempDir("docgov-state-case-"), "cases", "state_mock");
 
-    // 1. Roteamento explícito por UF: "MG"
-    const routingMg = defaultJurisdictionRegistry.resolveRouting(undefined, "MG");
-    expect(routingMg.routingInfo.executed_courts).toContain("TCE-MG");
-    expect(routingMg.routingInfo.unimplemented_uf_requested).toBeNull();
-    expect(routingMg.routingInfo.supported_ufs).toContain("MG");
+    const server = Bun.serve({
+      port: 0,
+      fetch(req) {
+        const url = new URL(req.url);
+        const court = url.searchParams.get("court") || "TCE-SP";
+        if (url.pathname === "/search") {
+          return Response.json({
+            items: [
+              {
+                id: `${court}-ACORDAO-101-2025`,
+                numero: "101",
+                ano: 2025,
+                colegiado: "Tribunal Pleno",
+                tese: "Precedente estadual mock para testes de integração.",
+                dispositivo: "Julgada regular a licitação.",
+              },
+            ],
+          });
+        }
+        if (url.pathname === "/fetch") {
+          const id = url.searchParams.get("id") || "";
+          if (id.includes("999999")) return new Response(JSON.stringify({ exists: false }), { status: 404 });
+          return Response.json({
+            id,
+            tribunal: court,
+            colegiado: "Tribunal Pleno",
+            numero: "101",
+            ano: 2025,
+            enunciado: "Precedente estadual mock.",
+            dispositivo: "Julgada regular a licitação.",
+          });
+        }
+        return new Response("Not Found", { status: 404 });
+      },
+    });
 
-    // 2. Auto-Trigger Contextual Plug-and-Play (com higiene estrita anti-falso-positivo)
-    const triggerSumula = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "súmula 114 do tce-mg");
-    expect(triggerSumula.routingInfo.executed_courts).toContain("TCE-MG");
-
-    const triggerTcemg = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "contratação na cemig pelo tcemg");
-    expect(triggerTcemg.routingInfo.executed_courts).toContain("TCE-MG");
-
-    const triggerDecreto = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "decreto estadual 48.723 em minas gerais");
-    expect(triggerDecreto.routingInfo.executed_courts).toContain("TCE-MG");
-
-    // Higiene: busca genérica por "súmula 114" sem mencionar MG NÃO deve acionar TCE-MG
-    const triggerGenerico = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "parcelamento do objeto súmula 114");
-    expect(triggerGenerico.routingInfo.executed_courts).not.toContain("TCE-MG");
-
-    // 3. Normalização canônica de identificadores e aliases (incluindo Assert 29.10 do .NET)
-    expect(normalizeTceMgId("SÚMULA 114 DO TCE-MG")).toBe("SUMULA-TCEMG-114");
-    expect(normalizeTceMgId("TCE-MG-SUMULA-126")).toBe("SUMULA-TCEMG-126");
-    expect(normalizeTceMgId("CONSULTA 1160667 TCE-MG")).toBe("CONSULTA-TCEMG-1160667");
-    expect(normalizeTceMgId("TCE-MG-CONSULTA-123456")).toBe("TCE-MG-CONSULTA-123456");
-    expect(normalizeTceMgId("TCE-MG-999999")).toBe("TCE-MG-999999");
-
-    // 4. Busca no catálogo curado de alto valor (Súmulas e Consultas com Força Normativa)
-    const hits114 = searchTceMgCatalog("parcelamento do objeto divisível");
-    expect(hits114.some((h) => h.id === "SUMULA-TCEMG-114")).toBe(true);
-
-    const hits126 = searchTceMgCatalog("manutenção frota quarteirização rede credenciada");
-    expect(hits126.some((h) => h.id === "SUMULA-TCEMG-126")).toBe(true);
-
-    const hitsCarona = searchTceMgCatalog("adesão carona registro de preços");
-    expect(hitsCarona.some((h) => h.id === "CONSULTA-TCEMG-1160667")).toBe(true);
-
-    const hitsTaxaCarona = searchTceMgCatalog("taxa de adesão tarifas administrativas consórcio");
-    expect(hitsTaxaCarona.some((h) => h.id === "CONSULTA-TCEMG-1177447")).toBe(true);
-
-    const hitsQualif = searchTceMgCatalog("qualificação técnica atestados 50%");
-    expect(hitsQualif.some((h) => h.id === "CONSULTA-TCEMG-1092348")).toBe(true);
-
-    const hitsTic = searchTceMgCatalog("tecnologia da informação ans sla");
-    expect(hitsTic.some((h) => h.id === "CONSULTA-TCEMG-1007492")).toBe(true);
-
-    // 5. Fetch determinístico no catálogo curado
-    const fetched114 = await tcemg.fetch("SUMULA-TCEMG-114");
-    expect(fetched114).not.toBeNull();
-    expect(fetched114?.exists).toBe(true);
-    expect(fetched114?.rawTextOrJson.numero).toBe("114");
-    expect(fetched114?.rawTextOrJson.entidade).toBe("ORGAO_CONTRATANTE");
-
-    const fetchedCons = await tcemg.fetch("CONSULTA-TCEMG-1160667");
-    expect(fetchedCons).not.toBeNull();
-    expect(fetchedCons?.exists).toBe(true);
-    expect(fetchedCons?.rawTextOrJson.numero).toBe("1160667");
-    expect(fetchedCons?.rawTextOrJson.entidade).toBe("ORGAO_CONTRATANTE");
-
-    // 6. Trava anti-alucinação estrita
-    const invalidId = await tcemg.fetch("TCE-MG-999999");
-    expect(invalidId?.exists).toBe(false);
-    expect(() => assertAuthenticAcordao(false, "TCE-MG-999999", "TCE-MG")).toThrow(
-      /\[ANTI_HALLUCINATION_BLOCK\]/
-    );
-
-    // 7. Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas
-    const sliced114 = sliceAcordaoAnatomically(fetched114!.rawTextOrJson, { court: "TCE-MG" });
-    expect(sliced114.layers.layer_1A_metadata.tribunal).toBe("TCE-MG");
-    expect(sliced114.layers.layer_1A_metadata.colegiado).toBe("Tribunal Pleno");
-    expect(sliced114.layers.layer_1B_entity_regime.entidade).toBe("ORGAO_CONTRATANTE");
-    expect(sliced114.layers.layer_5A_operative_commands.length).toBeGreaterThan(0);
-    expect(sliced114.layers.layer_6A_closing_quorum.quorum).toBeDefined();
-
-    // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `docgov_test_tce_mg_${Date.now()}`);
     try {
-      const searchRes = await searchJuris({
-        caseDir: testDir,
-        query: "parcelamento do objeto súmula 114 do tce-mg",
-        courts: ["TCE-MG"],
-        limit: 3,
-        stance: "DEFENSE",
-      });
-      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-      expect(synthSearchBytes).toBeLessThan(900);
+      process.env.DOCGOV_JURIS_TCESP_URL = `http://127.0.0.1:${server.port}`;
+      process.env.DOCGOV_JURIS_TCEMG_URL = `http://127.0.0.1:${server.port}`;
+      process.env.DOCGOV_JURIS_TCE_PR_URL = `http://127.0.0.1:${server.port}`;
 
-      const fetchRes = await fetchJuris({
-        caseDir: testDir,
-        acordaoIdOrUrl: "SUMULA-TCEMG-114",
-        court: "TCE-MG",
-        stance: "DEFENSE",
-      });
-      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-      expect(synthFetchBytes).toBeLessThan(900);
+      for (const court of ["TCE-SP", "TCE-MG", "TCE-PR"] as const) {
+        const sRes = await searchJuris({
+          caseDir: join(caseDir, court),
+          query: "licitação",
+          courts: [court],
+          limit: 3,
+          stance: "DEFENSE",
+        });
+        const synthS = formatSearchJurisSyntheticResult(sRes.fileResult, sRes.mdPath, caseDir);
+        expect(Buffer.byteLength(JSON.stringify(synthS), "utf-8")).toBeLessThan(900);
+
+        const fRes = await fetchJuris({
+          caseDir: join(caseDir, court),
+          acordaoIdOrUrl: `${court}-ACORDAO-101-2025`,
+          court,
+        });
+        const synthF = formatFetchJurisSyntheticResult(fRes, caseDir);
+        expect(Buffer.byteLength(JSON.stringify(synthF), "utf-8")).toBeLessThan(900);
+
+        const prov = defaultJurisdictionRegistry.get(court)!;
+        const missing = await prov.fetch(`${court}-999999`);
+        expect(missing?.exists).toBe(false);
+        expect(() => assertAuthenticAcordao(false, `${court}-999999`, court)).toThrow(
+          /\[ANTI_HALLUCINATION_BLOCK\]/
+        );
+      }
     } finally {
-      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+      server.stop(true);
     }
-  }, 15000);
+  });
 
-  it("Jurisprudência v1.4.6 — TcePrProvider: deve integrar conector TCE-PR, catálogo curado, auto-trigger e Sub-Assert 29.11", async () => {
-    const tcepr = new TcePrProvider();
-    expect(tcepr.courtId).toBe("TCE-PR");
-    expect(tcepr.tier).toBe("STATE");
-    expect(tcepr.uf).toBe("PR");
-    expect(tcepr.defaultFederal).toBe(false);
-    expect(tcepr.envOverrideKey).toBe("DOCGOV_JURIS_TCE_PR_URL");
-
-    // 1. Roteamento explícito por UF: "PR"
-    const routingPr = defaultJurisdictionRegistry.resolveRouting(undefined, "PR");
-    expect(routingPr.routingInfo.executed_courts).toContain("TCE-PR");
-    expect(routingPr.routingInfo.unimplemented_uf_requested).toBeNull();
-    expect(routingPr.routingInfo.supported_ufs).toContain("PR");
-
-    // 2. Auto-Trigger Contextual Plug-and-Play (com higiene estrita anti-falso-positivo)
-    const triggerPrej = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "prejulgado 28 do tce-pr");
-    expect(triggerPrej.routingInfo.executed_courts).toContain("TCE-PR");
-
-    const triggerViajuris = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "pesquisa no viajuris");
-    expect(triggerViajuris.routingInfo.executed_courts).toContain("TCE-PR");
-
-    const triggerCelepar = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "contrato na celepar");
-    expect(triggerCelepar.routingInfo.executed_courts).toContain("TCE-PR");
-
-    // Higiene: termo isolado 'parana' ou busca genérica NÃO deve acionar TCE-PR
-    const triggerGenerico = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "parcelamento lote unico");
-    expect(triggerGenerico.routingInfo.executed_courts).not.toContain("TCE-PR");
-
-    const triggerParanaIsolado = defaultJurisdictionRegistry.resolveRouting(undefined, undefined, "comarca no estado do parana");
-    expect(triggerParanaIsolado.routingInfo.executed_courts).not.toContain("TCE-PR");
-
-    // 3. Normalização canônica de identificadores e aliases (incluindo Sub-Assert 29.11 do .NET)
-    expect(normalizeTcePrId("Prejulgado nº 28-TCE-PR-Pleno")).toBe("TCE-PR-PREJULGADO-28");
-    expect(normalizeTcePrId("PREJULGADO-TCEPR-28")).toBe("TCE-PR-PREJULGADO-28");
-    expect(normalizeTcePrId("PREJULGADO 25 DO TCE-PR")).toBe("PREJULGADO-TCEPR-25");
-    expect(normalizeTcePrId("SÚMULA 5 DO TCE-PR")).toBe("SUMULA-TCEPR-5");
-    expect(normalizeTcePrId("TCE-PR-SUMULA-8")).toBe("SUMULA-TCEPR-8");
-    expect(normalizeTcePrId("CONSULTA 2804/2024 TCE-PR")).toBe("TCE-PR-CONSULTA-2804-2024");
-    expect(normalizeTcePrId("ACÓRDÃO 2804/2026")).toBe("TCE-PR-ACORDAO-2804-2026");
-
-    // 4. Busca no catálogo curado de alto valor (Prejulgados e Súmulas com Força Normativa)
-    const hits28 = searchTcePrCatalog("parcelamento lote unico software");
-    expect(hits28.some((h) => h.id === "TCE-PR-PREJULGADO-28")).toBe(true);
-
-    const hits25 = searchTcePrCatalog("qualificação econômico-financeira patrimônio líquido 10%");
-    expect(hits25.some((h) => h.id === "PREJULGADO-TCEPR-25")).toBe(true);
-
-    const hits6 = searchTcePrCatalog("terceirização serviços contínuos mão de obra");
-    expect(hits6.some((h) => h.id === "PREJULGADO-TCEPR-6")).toBe(true);
-
-    const hits26 = searchTcePrCatalog("inexigibilidade serviços jurídicos contábeis");
-    expect(hits26.some((h) => h.id === "PREJULGADO-TCEPR-26")).toBe(true);
-
-    const hits11 = searchTcePrCatalog("pagamento antecipado garantia contratual");
-    expect(hits11.some((h) => h.id === "PREJULGADO-TCEPR-11")).toBe(true);
-
-    const hitsSum5 = searchTcePrCatalog("taxa de administração negativa taxa zero");
-    expect(hitsSum5.some((h) => h.id === "SUMULA-TCEPR-5")).toBe(true);
-
-    const hitsSum8 = searchTcePrCatalog("regularidade fiscal trabalhista habilitação");
-    expect(hitsSum8.some((h) => h.id === "SUMULA-TCEPR-8")).toBe(true);
-
-    const hitsCarona = searchTcePrCatalog("adesão carona registro de preços 50% 200%");
-    expect(hitsCarona.some((h) => h.id === "TCE-PR-CONSULTA-3154-2023")).toBe(true);
-
-    // 5. Fetch determinístico no catálogo curado (Lockstep Sub-Assert 29.11)
-    const fetched28 = await tcepr.fetch("TCE-PR-PREJULGADO-28");
-    expect(fetched28).not.toBeNull();
-    expect(fetched28?.exists).toBe(true);
-    expect(fetched28?.rawTextOrJson.numero).toBe("28");
-    expect(fetched28?.rawTextOrJson.entidade).toBe("ORGAO_CONTRATANTE");
-
-    const fetchedAlias28 = await tcepr.fetch("Prejulgado nº 28-TCE-PR-Pleno");
-    expect(fetchedAlias28).not.toBeNull();
-    expect(fetchedAlias28?.exists).toBe(true);
-    expect(fetchedAlias28?.rawTextOrJson.numero).toBe("28");
-
-    const fetched25 = await tcepr.fetch("PREJULGADO-TCEPR-25");
-    expect(fetched25).not.toBeNull();
-    expect(fetched25?.exists).toBe(true);
-    expect(fetched25?.rawTextOrJson.numero).toBe("25");
-
-    // 6. Trava anti-alucinação estrita
-    const invalidId = await tcepr.fetch("TCE-PR-999999");
-    expect(invalidId?.exists).toBe(false);
-    expect(() => assertAuthenticAcordao(false, "TCE-PR-999999", "TCE-PR")).toThrow(
-      /\[ANTI_HALLUCINATION_BLOCK\]/
-    );
-
-    // 7. Fatiamento anatômico nas 6 Macro-Partes / 10 Sub-Camadas
-    const sliced28 = sliceAcordaoAnatomically(fetched28!.rawTextOrJson, { court: "TCE-PR" });
-    expect(sliced28.layers.layer_1A_metadata.tribunal).toBe("TCE-PR");
-    expect(sliced28.layers.layer_1A_metadata.colegiado).toBe("Tribunal Pleno");
-    expect(sliced28.layers.layer_1B_entity_regime.entidade).toBe("ORGAO_CONTRATANTE");
-    expect(sliced28.layers.layer_5A_operative_commands.length).toBeGreaterThan(0);
-    expect(sliced28.layers.layer_6A_closing_quorum.quorum).toBeDefined();
-
-    // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `docgov_test_tce_pr_${Date.now()}`);
-    try {
-      const searchRes = await searchJuris({
-        caseDir: testDir,
-        query: "parcelamento lote unico software prejulgado tce-pr",
-        courts: ["TCE-PR"],
-        limit: 3,
-        stance: "DEFENSE",
-      });
-      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-      expect(synthSearchBytes).toBeLessThan(900);
-
-      // Verifica que Prejulgado 28 pontua com alto score e stance favorável em defesa
-      expect(searchRes.fileResult.results.some((r) => r.id === "TCE-PR-PREJULGADO-28")).toBe(true);
-      const item28Result = searchRes.fileResult.results.find((r) => r.id === "TCE-PR-PREJULGADO-28");
-      expect(item28Result?.stance_alignment).toBe("FAVORABLE");
-
-      const fetchRes = await fetchJuris({
-        caseDir: testDir,
-        acordaoIdOrUrl: "TCE-PR-PREJULGADO-28",
-        court: "TCE-PR",
-        stance: "DEFENSE",
-      });
-      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-      expect(synthFetchBytes).toBeLessThan(900);
-    } finally {
-      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
-    }
-  }, 15000);
-
-  it("TCDF, TCE-CE e TCE-PA — Resiliência Dupla com Catálogos Curados, HTTP 503 e Anti-Alucinação", async () => {
+  it("TCDF, TCE-CE e TCE-PA — HTTP 503 sem cache quente retorna LIVE_FAILED / [LIVE_UNAVAILABLE]", async () => {
+    process.env.DOCGOV_JURIS_CACHE_DIR = makeTempDir("docgov-state-503-");
     const server503 = Bun.serve({
       port: 0,
       fetch() {
         return new Response("Service Unavailable", { status: 503 });
       },
     });
+
     try {
       process.env.DOCGOV_TCDF_BASE_URL = `http://127.0.0.1:${server503.port}`;
       process.env.DOCGOV_TCE_CE_BASE_URL = `http://127.0.0.1:${server503.port}`;
       process.env.DOCGOV_TCE_PA_BASE_URL = `http://127.0.0.1:${server503.port}`;
 
-      const tcdf = defaultJurisdictionRegistry.get("TCDF")!;
-      const tcece = defaultJurisdictionRegistry.get("TCE-CE")!;
-      const tcepa = defaultJurisdictionRegistry.get("TCE-PA")!;
-
-      const tcdfDeg = await tcdf.searchWithDiagnostic!("inexigibilidade exclusividade");
-      expect(tcdfDeg.diagnostic.status).toBe("ok");
-      expect(tcdfDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(tcdfDeg.hits.some((h) => h.id === "SUMULA-TCDF-69")).toBe(true);
-
-      const tceceDeg = await tcece.searchWithDiagnostic!("obras engenharia menor relevância");
-      expect(tceceDeg.diagnostic.status).toBe("ok");
-      expect(tceceDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(tceceDeg.hits.some((h) => h.id === "SUMULA-TCECE-2")).toBe(true);
-
-      const tcepaDeg = await tcepa.searchWithDiagnostic!("suprimento de fundos 14.133");
-      expect(tcepaDeg.diagnostic.status).toBe("ok");
-      expect(tcepaDeg.diagnostic.source_mode).toBe("CURATED_FALLBACK");
-      expect(tcepaDeg.hits.some((h) => h.id === "TCE-PA-RESOLUCAO-19669-2024")).toBe(true);
-
-      expect((await tcdf.fetch("SUMULA-TCDF-13"))?.source).toBe("CURATED_CATALOG");
-      expect((await tcece.fetch("SUMULA-TCECE-2"))?.source).toBe("CURATED_CATALOG");
-      expect((await tcepa.fetch("TCE-PA-RESOLUCAO-19669-2024"))?.source).toBe("CURATED_CATALOG");
-
-      // Trava anti-alucinação em todos os 3
-      expect(await tcdf.fetch("TCDF-999999")).toBeNull();
-      expect(await tcece.fetch("TCE-CE-999999")).toBeNull();
-      expect(await tcepa.fetch("TCE-PA-999999")).toBeNull();
-
-      // force_live sob 503 falha explicitamente
-      const tceceFl = await tcece.searchWithDiagnostic!("licitação", { force_live: true });
-      expect(tceceFl.diagnostic.status).toBe("error");
-      expect(tceceFl.diagnostic.source_mode).toBe("LIVE_FAILED");
+      for (const court of ["TCDF", "TCE-CE", "TCE-PA"] as const) {
+        const prov = defaultJurisdictionRegistry.get(court)!;
+        const deg = await prov.searchWithDiagnostic!("licitação");
+        expect(deg.diagnostic.status).toBe("error");
+        expect(deg.diagnostic.source_mode).toBe("LIVE_FAILED");
+        expect(deg.hits).toEqual([]);
+        await expect(prov.fetch(`${court}-999999`)).rejects.toThrow(/\[LIVE_UNAVAILABLE\]/);
+      }
     } finally {
       server503.stop(true);
     }
