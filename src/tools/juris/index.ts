@@ -11,4 +11,5 @@ export * from "./search_juris.ts";
 export * from "./fetch_juris.ts";
 export * from "./juris_hybrid_envelopes.ts";
 export * from "./tactical_compiler.ts";
+export * from "./precedent_triage_core.ts";
 export * from "./tst_precedent_triage.ts";
