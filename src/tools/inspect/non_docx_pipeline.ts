@@ -40,6 +40,7 @@ export async function inspectSpreadsheetDocument(
   inScope?: boolean,
   options: {
     skipAuditArtifacts?: boolean;
+    skipOutputWrite?: boolean;
     resolvedOutDir?: string;
     resolvedTargetOutputPath?: string;
   } = {}
@@ -65,7 +66,9 @@ export async function inspectSpreadsheetDocument(
       )
     : basename(resolvedDocx).replace(/\.(?:xlsx|xls|csv)$/i, "");
 
-  const scopeOut = options.resolvedOutDir
+  const scopeOut = options.skipOutputWrite
+    ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+    : options.resolvedOutDir
     ? {
         outDir: options.resolvedOutDir,
         targetOutputPath: options.resolvedTargetOutputPath,
@@ -80,7 +83,7 @@ export async function inspectSpreadsheetDocument(
   const outDir = scopeOut.outDir;
   const targetOutputPath = scopeOut.targetOutputPath;
 
-  if (!existsSync(outDir)) {
+  if (!options.skipOutputWrite && !existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
 
@@ -161,6 +164,7 @@ export async function inspectPdfDocument(
   options: {
     compareWithPath?: string;
     skipAuditArtifacts?: boolean;
+    skipOutputWrite?: boolean;
     resolvedOutDir?: string;
     resolvedTargetOutputPath?: string;
   } = {}
@@ -180,7 +184,9 @@ export async function inspectPdfDocument(
       )
     : basename(resolvedDocx).replace(/\.pdf$/i, "");
 
-  const scopeOut = options.resolvedOutDir
+  const scopeOut = options.skipOutputWrite
+    ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+    : options.resolvedOutDir
     ? {
         outDir: options.resolvedOutDir,
         targetOutputPath: options.resolvedTargetOutputPath,
@@ -195,7 +201,7 @@ export async function inspectPdfDocument(
   const outDir = scopeOut.outDir;
   const targetOutputPath = scopeOut.targetOutputPath;
 
-  if (!existsSync(outDir)) {
+  if (!options.skipOutputWrite && !existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
 
@@ -218,7 +224,9 @@ export async function inspectPdfDocument(
   let auditViewPath: string | undefined;
   let dossieHotspotsPath: string | undefined;
   let extractedImagesManifest =
-    extraction.extracted_images && extraction.extracted_images.length > 0
+    !options.skipOutputWrite &&
+    extraction.extracted_images &&
+    extraction.extracted_images.length > 0
       ? materializeExtractedPdfImages({
           extractedImages: extraction.extracted_images,
           outDir,
@@ -328,6 +336,7 @@ export async function inspectTextOrMarkdownDocument(
   options: {
     compareWithPath?: string;
     skipAuditArtifacts?: boolean;
+    skipOutputWrite?: boolean;
     resolvedOutDir?: string;
     resolvedTargetOutputPath?: string;
   } = {}
@@ -377,7 +386,9 @@ export async function inspectTextOrMarkdownDocument(
       )
     : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
 
-  const scopeOut = options.resolvedOutDir
+  const scopeOut = options.skipOutputWrite
+    ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+    : options.resolvedOutDir
     ? {
         outDir: options.resolvedOutDir,
         targetOutputPath: options.resolvedTargetOutputPath,
@@ -392,7 +403,7 @@ export async function inspectTextOrMarkdownDocument(
   const outDir = scopeOut.outDir;
   const targetOutputPath = scopeOut.targetOutputPath;
 
-  if (!existsSync(outDir)) {
+  if (!options.skipOutputWrite && !existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
 

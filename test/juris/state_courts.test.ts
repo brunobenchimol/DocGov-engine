@@ -24,6 +24,7 @@ import {
   fetchJuris,
   formatFetchJurisSyntheticResult,
 } from "../../src/tools/juris/index.ts";
+import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 
@@ -112,27 +113,31 @@ describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TC
     expect(sliced50.layers.layer_6A_closing_quorum.data).toBe("2018-05-30");
 
     // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `tce_sp_test_${Date.now()}`);
-    const searchRes = await searchJuris({
-      caseDir: testDir,
-      query: "recuperação judicial súmula 50 do tce-sp",
-      courts: ["TCE-SP"],
-      limit: 3,
-      stance: "DEFENSE",
-    });
-    const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-    const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-    expect(synthSearchBytes).toBeLessThan(900);
+    const testDir = join(tmpdir(), `docgov_test_tce_sp_${Date.now()}`);
+    try {
+      const searchRes = await searchJuris({
+        caseDir: testDir,
+        query: "recuperação judicial súmula 50 do tce-sp",
+        courts: ["TCE-SP"],
+        limit: 3,
+        stance: "DEFENSE",
+      });
+      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
+      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
+      expect(synthSearchBytes).toBeLessThan(900);
 
-    const fetchRes = await fetchJuris({
-      caseDir: testDir,
-      acordaoIdOrUrl: "SUMULA-TCESP-50",
-      court: "TCE-SP",
-      stance: "DEFENSE",
-    });
-    const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-    const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-    expect(synthFetchBytes).toBeLessThan(900);
+      const fetchRes = await fetchJuris({
+        caseDir: testDir,
+        acordaoIdOrUrl: "SUMULA-TCESP-50",
+        court: "TCE-SP",
+        stance: "DEFENSE",
+      });
+      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
+      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
+      expect(synthFetchBytes).toBeLessThan(900);
+    } finally {
+      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+    }
   });
 
   it("Jurisprudência v1.4.5 — TceMgProvider: deve integrar conector TCE-MG, catálogo curado, auto-trigger e Sub-Assert 29.10", async () => {
@@ -218,27 +223,31 @@ describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TC
     expect(sliced114.layers.layer_6A_closing_quorum.quorum).toBeDefined();
 
     // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `tce_mg_test_${Date.now()}`);
-    const searchRes = await searchJuris({
-      caseDir: testDir,
-      query: "parcelamento do objeto súmula 114 do tce-mg",
-      courts: ["TCE-MG"],
-      limit: 3,
-      stance: "DEFENSE",
-    });
-    const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-    const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-    expect(synthSearchBytes).toBeLessThan(900);
+    const testDir = join(tmpdir(), `docgov_test_tce_mg_${Date.now()}`);
+    try {
+      const searchRes = await searchJuris({
+        caseDir: testDir,
+        query: "parcelamento do objeto súmula 114 do tce-mg",
+        courts: ["TCE-MG"],
+        limit: 3,
+        stance: "DEFENSE",
+      });
+      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
+      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
+      expect(synthSearchBytes).toBeLessThan(900);
 
-    const fetchRes = await fetchJuris({
-      caseDir: testDir,
-      acordaoIdOrUrl: "SUMULA-TCEMG-114",
-      court: "TCE-MG",
-      stance: "DEFENSE",
-    });
-    const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-    const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-    expect(synthFetchBytes).toBeLessThan(900);
+      const fetchRes = await fetchJuris({
+        caseDir: testDir,
+        acordaoIdOrUrl: "SUMULA-TCEMG-114",
+        court: "TCE-MG",
+        stance: "DEFENSE",
+      });
+      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
+      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
+      expect(synthFetchBytes).toBeLessThan(900);
+    } finally {
+      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+    }
   }, 15000);
 
   it("Jurisprudência v1.4.6 — TcePrProvider: deve integrar conector TCE-PR, catálogo curado, auto-trigger e Sub-Assert 29.11", async () => {
@@ -339,32 +348,36 @@ describe("Jurisprudência — Cortes de Contas Estaduais e Municipais (TCEs e TC
     expect(sliced28.layers.layer_6A_closing_quorum.quorum).toBeDefined();
 
     // 8. Teto Estrito MCP (< 900 bytes) tanto na busca quanto no fatiamento
-    const testDir = join(tmpdir(), `tce_pr_test_${Date.now()}`);
-    const searchRes = await searchJuris({
-      caseDir: testDir,
-      query: "parcelamento lote unico software prejulgado tce-pr",
-      courts: ["TCE-PR"],
-      limit: 3,
-      stance: "DEFENSE",
-    });
-    const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
-    const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
-    expect(synthSearchBytes).toBeLessThan(900);
+    const testDir = join(tmpdir(), `docgov_test_tce_pr_${Date.now()}`);
+    try {
+      const searchRes = await searchJuris({
+        caseDir: testDir,
+        query: "parcelamento lote unico software prejulgado tce-pr",
+        courts: ["TCE-PR"],
+        limit: 3,
+        stance: "DEFENSE",
+      });
+      const synthSearch = formatSearchJurisSyntheticResult(searchRes.fileResult, searchRes.mdPath, testDir);
+      const synthSearchBytes = Buffer.byteLength(JSON.stringify(synthSearch), "utf-8");
+      expect(synthSearchBytes).toBeLessThan(900);
 
-    // Verifica que Prejulgado 28 pontua com alto score e stance favorável em defesa
-    expect(searchRes.fileResult.results.some((r) => r.id === "TCE-PR-PREJULGADO-28")).toBe(true);
-    const item28Result = searchRes.fileResult.results.find((r) => r.id === "TCE-PR-PREJULGADO-28");
-    expect(item28Result?.stance_alignment).toBe("FAVORABLE");
+      // Verifica que Prejulgado 28 pontua com alto score e stance favorável em defesa
+      expect(searchRes.fileResult.results.some((r) => r.id === "TCE-PR-PREJULGADO-28")).toBe(true);
+      const item28Result = searchRes.fileResult.results.find((r) => r.id === "TCE-PR-PREJULGADO-28");
+      expect(item28Result?.stance_alignment).toBe("FAVORABLE");
 
-    const fetchRes = await fetchJuris({
-      caseDir: testDir,
-      acordaoIdOrUrl: "TCE-PR-PREJULGADO-28",
-      court: "TCE-PR",
-      stance: "DEFENSE",
-    });
-    const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-    const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
-    expect(synthFetchBytes).toBeLessThan(900);
+      const fetchRes = await fetchJuris({
+        caseDir: testDir,
+        acordaoIdOrUrl: "TCE-PR-PREJULGADO-28",
+        court: "TCE-PR",
+        stance: "DEFENSE",
+      });
+      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
+      const synthFetchBytes = Buffer.byteLength(JSON.stringify(synthFetch), "utf-8");
+      expect(synthFetchBytes).toBeLessThan(900);
+    } finally {
+      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+    }
   }, 15000);
 
   it("TCDF, TCE-CE e TCE-PA — Resiliência Dupla com Catálogos Curados, HTTP 503 e Anti-Alucinação", async () => {

@@ -1,5 +1,6 @@
 import { describe, it, expect, afterEach } from "bun:test";
 import { join } from "node:path";
+import { existsSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { defaultJurisdictionRegistry } from "../../src/tools/juris/provider_registry.ts";
 import { TcmPaProvider } from "../../src/tools/juris/providers/tcm_pa_provider.ts";
@@ -153,34 +154,38 @@ describe("Jurisprudência — Onda 3: Cortes de Contas Municipais (TCMs)", () =>
     expect(sliced.layers.layer_6A_closing_quorum.data).toBe("2024-08-14");
 
     // 8. Rankeamento, stance_alignment FAVORABLE e teto MCP (< 900 bytes)
-    const testDir = join(tmpdir(), `tcm_pa_test_${Date.now()}`);
-    const searchRes = await searchJuris({
-      caseDir: testDir,
-      query: "acórdão 42110 lote único software gestão municipal tcm-pa",
-      courts: ["TCM-PA"],
-      limit: 3,
-      stance: "DEFENSE",
-    });
-    const synthSearch = formatSearchJurisSyntheticResult(
-      searchRes.fileResult,
-      searchRes.mdPath,
-      testDir
-    );
-    expect(Buffer.byteLength(JSON.stringify(synthSearch), "utf-8")).toBeLessThan(900);
-    const mainHit = searchRes.fileResult.results.find(
-      (r) => r.id === "TCM-PA-ACORDAO-42110-2024"
-    );
-    expect(mainHit).toBeDefined();
-    expect(mainHit?.stance_alignment).toBe("FAVORABLE");
+    const testDir = join(tmpdir(), `docgov_test_tcm_pa_${Date.now()}`);
+    try {
+      const searchRes = await searchJuris({
+        caseDir: testDir,
+        query: "acórdão 42110 lote único software gestão municipal tcm-pa",
+        courts: ["TCM-PA"],
+        limit: 3,
+        stance: "DEFENSE",
+      });
+      const synthSearch = formatSearchJurisSyntheticResult(
+        searchRes.fileResult,
+        searchRes.mdPath,
+        testDir
+      );
+      expect(Buffer.byteLength(JSON.stringify(synthSearch), "utf-8")).toBeLessThan(900);
+      const mainHit = searchRes.fileResult.results.find(
+        (r) => r.id === "TCM-PA-ACORDAO-42110-2024"
+      );
+      expect(mainHit).toBeDefined();
+      expect(mainHit?.stance_alignment).toBe("FAVORABLE");
 
-    const fetchRes = await fetchJuris({
-      caseDir: testDir,
-      acordaoIdOrUrl: "TCM-PA-AC-42110-2024",
-      court: "TCM-PA",
-      stance: "DEFENSE",
-    });
-    const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
-    expect(Buffer.byteLength(JSON.stringify(synthFetch), "utf-8")).toBeLessThan(900);
+      const fetchRes = await fetchJuris({
+        caseDir: testDir,
+        acordaoIdOrUrl: "TCM-PA-AC-42110-2024",
+        court: "TCM-PA",
+        stance: "DEFENSE",
+      });
+      const synthFetch = formatFetchJurisSyntheticResult(fetchRes, testDir);
+      expect(Buffer.byteLength(JSON.stringify(synthFetch), "utf-8")).toBeLessThan(900);
+    } finally {
+      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
+    }
   }, 15000);
 
   it("v1.6.8 — TcmPaProvider (Mock Server DOCGOV_JURIS_TCM_PA_URL): deve suportar /search, /fetch e HTTP 404 anti-alucinação", async () => {
@@ -223,9 +228,9 @@ describe("Jurisprudência — Onda 3: Cortes de Contas Municipais (TCMs)", () =>
       },
     });
 
+    const testDir = join(tmpdir(), `docgov_test_tcm_pa_mock_${Date.now()}`);
     try {
       process.env.DOCGOV_JURIS_TCM_PA_URL = `http://127.0.0.1:${server.port}`;
-      const testDir = join(tmpdir(), `tcm_pa_mock_${Date.now()}`);
 
       const searchRes = await searchJuris({
         caseDir: testDir,
@@ -259,6 +264,7 @@ describe("Jurisprudência — Onda 3: Cortes de Contas Municipais (TCMs)", () =>
       ).rejects.toThrow(/\[ANTI_HALLUCINATION_BLOCK\]/);
     } finally {
       server.stop(true);
+      if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
     }
   });
 });

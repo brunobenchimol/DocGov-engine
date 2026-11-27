@@ -98,6 +98,7 @@ async function applyStructuralDiffIfRequested(
   }
   const oldInspection = await inspectDocx(resolvedOld, undefined, true, {
     skipAuditArtifacts: true,
+    skipOutputWrite: true,
   });
   const diff = computeStructuralDiff(
     oldInspection,
@@ -137,6 +138,7 @@ export async function inspectDocx(
     registryDir?: string;
     compareWithPath?: string;
     skipAuditArtifacts?: boolean;
+    skipOutputWrite?: boolean;
   } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolveExistingPathNfc(resolve(docxPath));
@@ -172,13 +174,15 @@ export async function inspectDocx(
     const pdfStem = outputPath
       ? basename(resolve(outputPath), ".json").replace(/^(?:estrutura_|inspecao_)/, "")
       : basename(resolvedDocx).replace(/\.pdf$/i, "");
-    const pdfScope = resolveInspectOutputDir({
-      resolvedSource: resolvedDocx,
-      outputPath,
-      inScope,
-      baseStem: pdfStem,
-      prefix: "inspect",
-    });
+    const pdfScope = options.skipOutputWrite
+      ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+      : resolveInspectOutputDir({
+          resolvedSource: resolvedDocx,
+          outputPath,
+          inScope,
+          baseStem: pdfStem,
+          prefix: "inspect",
+        });
     const res = await inspectPdfDocument(resolvedDocx, buffer, outputPath, inScope, {
       ...options,
       resolvedOutDir: pdfScope.outDir,
@@ -198,13 +202,15 @@ export async function inspectDocx(
     const txtStem = outputPath
       ? basename(resolve(outputPath), ".json").replace(/^(?:estrutura_|inspecao_)/, "")
       : basename(resolvedDocx).replace(/\.(?:md|markdown|txt|text|log)$/i, "");
-    const txtScope = resolveInspectOutputDir({
-      resolvedSource: resolvedDocx,
-      outputPath,
-      inScope,
-      baseStem: txtStem,
-      prefix: "inspect",
-    });
+    const txtScope = options.skipOutputWrite
+      ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+      : resolveInspectOutputDir({
+          resolvedSource: resolvedDocx,
+          outputPath,
+          inScope,
+          baseStem: txtStem,
+          prefix: "inspect",
+        });
     const res = await inspectTextOrMarkdownDocument(resolvedDocx, buffer, outputPath, compact, inScope, {
       ...options,
       resolvedOutDir: txtScope.outDir,
@@ -255,15 +261,17 @@ export async function inspectDocx(
       )
     : basename(resolvedDocx, ".docx");
 
-  const { outDir, targetOutputPath } = resolveInspectOutputDir({
-    resolvedSource: resolvedDocx,
-    outputPath,
-    inScope,
-    baseStem,
-    prefix: "inspect",
-  });
+  const { outDir, targetOutputPath } = options.skipOutputWrite
+    ? { outDir: dirname(resolvedDocx), targetOutputPath: undefined }
+    : resolveInspectOutputDir({
+        resolvedSource: resolvedDocx,
+        outputPath,
+        inScope,
+        baseStem,
+        prefix: "inspect",
+      });
 
-  if (!existsSync(outDir)) {
+  if (!options.skipOutputWrite && !existsSync(outDir)) {
     mkdirSync(outDir, { recursive: true });
   }
 
@@ -348,7 +356,9 @@ export async function inspectDocx(
       );
       const adaptedFileName = `adapted_slots_manifest_${baseStem.normalize("NFC")}.json`;
       const adaptedPath = resolve(outDir, adaptedFileName);
-      writeFileSync(adaptedPath, JSON.stringify(adapted, null, 2), "utf-8");
+      if (!options.skipOutputWrite && !options.skipAuditArtifacts) {
+        writeFileSync(adaptedPath, JSON.stringify(adapted, null, 2), "utf-8");
+      }
 
       template_match = {
         status: "MODIFIED",
