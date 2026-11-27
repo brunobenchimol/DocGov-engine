@@ -71,6 +71,8 @@ Servidor MCP standalone determinístico (docgov-engine v${VERSION}) para manipul
 - Loops em Tabelas e Listas: {{FOR item IN lista}} ... {{$item.prop}} ... {{END-FOR item}}
 - Condicionais: {{IF condicao}} ... {{END-IF}}
 - Negrito Seletivo: **texto em negrito** dentro de strings é convertido automaticamente em runs <w:b/> sem herança indevida do estilo do subtítulo.
+- Destaque Visual & Placeholders (OpenXML CT_RPr): Marcação \`==texto==\` (ou \`==[cor]texto==\`) e placeholders \`[A DEFINIR...]\` / \`[INSERIR...]\` recebem \`<w:highlight w:val="..."/>\` em ordem estrita CT_RPr (\`highlightPlaceholders: true\` por padrão).
+- Comentários Nativos Word (word/comments.xml): Suporte a \`comments\` na tool \`fill_docx_template\` e \`_comments\` no \`estado_caso.json\` com ancoragem segura por \`slot_key\`/\`anchor_text\` e reporte não-bloqueante de \`comments_unmatched\`.
 - Quebras de Linha: Quebras '\\n' em variáveis de texto são desmembradas em parágrafos <w:p> reais preservando formatação de corpo.
 - Listas Hierárquicas Multinível: Suporte nativo híbrido a subitens numerados (1.1, 1.1.1, 1.1.1.1, 1.1.1.1.1) com 'word/numbering.xml' fora de tabelas, Hanging Indent com '<w:tab/>' dentro de tabelas e achatamento recursivo de árvores de subitens.
 - Tolerância a JSON: Parser tolerante automático (safeReadJsonFile) com auto-reparo de BOM, trailing commas e quebras de linha literais em strings, além de diagnóstico cirúrgico com linha/coluna e snippet de 5 linhas numeradas com marcador <-- ERRO AQUI.

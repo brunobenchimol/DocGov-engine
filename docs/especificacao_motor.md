@@ -122,6 +122,8 @@ Injeta os dados de `estado_caso.json` no template .docx gerado.
 - Desaninhamento (*unflatten*) automático e expansão de arrays indexados (ex.: `"etp.necessidade"`, `"itens.0.qtd"` ou `"itens[0].qtd"`).
 - Auto-sanitização prévia de templates legados contendo tags com pontos numéricos antes da compilação pelo `docx-templates`.
 - Negrito seletivo: strings com `**texto**` são convertidas em runs <w:b/> sem contaminação de estilo.
+- Destaque visual e placeholders (`CT_RPr` estrito): `==texto==` / `==[cor]texto==` (16 cores oficiais do Word, fallback `yellow`) e placeholders `[A DEFINIR...]` / `[INSERIR...]` (`highlightPlaceholders: true` por padrão, removendo backticks externos) recebem `<w:highlight w:val="..."/>`.
+- Comentários nativos (`word/comments.xml`): aceita `comments` na tool e/ou `_comments` no `estado_caso.json`, ancorando por `slot_key` e `anchor_text` (com `maxId + 1` sobre doadores e reporte *fail-safe* de `comments_unmatched`).
 - Quebras de linha: `\n` em variáveis geram múltiplos parágrafos <w:p> preservando estilos de corpo.
 - **Motor Híbrido de Lista Multinível Nativa (v0.7.0) & Parent Section Prefix Resolver (v1.3.9):**
   - Reancora automaticamente itens multinível pelo prefixo da seção ativa (`4.4.1.`, `5.1.1.`, `6.1.`) e previne colisão com subseções irmãs (convertendo para Bullet '• ').

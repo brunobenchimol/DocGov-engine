@@ -224,14 +224,29 @@ export async function handleCallToolRequest(request: {
       }
 
       if (toolName === "fill_docx_template") {
-        const { templatePath, statePath, outputPath, autoInspect, outputFormat } =
-          request.params.arguments as {
-            templatePath: string;
-            statePath: string;
-            outputPath: string;
-            autoInspect?: boolean;
-            outputFormat?: "docx" | "pdf" | "both";
-          };
+        const {
+          templatePath,
+          statePath,
+          outputPath,
+          autoInspect,
+          outputFormat,
+          highlightPlaceholders,
+          comments,
+        } = request.params.arguments as {
+          templatePath: string;
+          statePath: string;
+          outputPath: string;
+          autoInspect?: boolean;
+          outputFormat?: "docx" | "pdf" | "both";
+          highlightPlaceholders?: boolean;
+          comments?: Array<{
+            slot_key?: string;
+            anchor_text: string;
+            author?: string;
+            initials?: string;
+            text: string;
+          }>;
+        };
         const resolvedTemplate = resolveWorkspacePath(templatePath);
         const resolvedState = resolveWorkspacePath(statePath);
         const resolvedOutput = resolveWorkspacePath(outputPath);
@@ -239,7 +254,7 @@ export async function handleCallToolRequest(request: {
           resolvedTemplate,
           resolvedState,
           resolvedOutput,
-          { autoInspect, outputFormat }
+          { autoInspect, outputFormat, highlightPlaceholders, comments }
         );
         const synthetic = formatFillDocxTemplateSyntheticResult(result);
         return mcpTextResponse(buildSummaryMcpEnvelope(synthetic).json);

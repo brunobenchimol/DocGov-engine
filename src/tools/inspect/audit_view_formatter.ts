@@ -112,6 +112,18 @@ export function generateLinearAuditViewMarkdown(
   lines.push(
     `> Espelho estrutural gerado por docgov-docx v${VERSION} para leitura integral em turno único.`
   );
+  if (
+    (inspection.comments_count ?? 0) > 0 ||
+    (inspection.comments_unmatched && inspection.comments_unmatched.length > 0)
+  ) {
+    const countPart = `Comentários nativos (word/comments.xml): ${inspection.comments_count ?? 0}`;
+    const unmatchedList = inspection.comments_unmatched ?? [];
+    const unmatchedPart =
+      unmatchedList.length > 0
+        ? ` | Não ancorados (${unmatchedList.length}): ${unmatchedList.map((u) => `"${u}"`).join("; ")}`
+        : "";
+    lines.push(`> 💬 **${countPart}${unmatchedPart}**`);
+  }
   lines.push("");
 
   lines.push(...formatCompactForensicMetaMarkdown(inspection.forensic_meta));

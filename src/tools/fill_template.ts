@@ -57,6 +57,11 @@ export {
 } from "./openxml/list_numbering_processor.ts";
 
 import { postProcessRichTextAndLineBreaksInXmlDoc } from "./openxml/list_numbering_processor.ts";
+import {
+  extractCommentsFromState,
+  stripReservedUnderscoreKeys,
+  injectDocxCommentsIntoBuffer,
+} from "./openxml/docx_comments_injector.ts";
 
 import {
   extractTemplateForLoopTargets,
@@ -75,12 +80,14 @@ export {
 // ============================================================================
 
 async function postProcessInjectedDocxBuffer(
-  rawBuffer: Uint8Array
+  rawBuffer: Uint8Array,
+  options?: { highlightPlaceholders?: boolean }
 ): Promise<Buffer> {
   const zip = await JSZip.loadAsync(rawBuffer);
   const parser = new DOMParser();
   const serializer = new XMLSerializer();
   let anyModified = false;
+  const highlightPlaceholders = options?.highlightPlaceholders !== false;
 
   const existingNumberingFile = zip.file("word/numbering.xml");
   const existingNumberingXml = existingNumberingFile
@@ -104,7 +111,8 @@ async function postProcessInjectedDocxBuffer(
         postProcessRichTextAndLineBreaksInXmlDoc(
           xmlDoc,
           managerForPart,
-          existingNumberingXml
+          existingNumberingXml,
+          { highlightPlaceholders }
         )
       ) {
         zip.file(name, serializer.serializeToString(xmlDoc));
@@ -154,7 +162,10 @@ export async function processDocument(
   const rawTemplateBuffer = readFileSync(resolvedTemplate);
   const templateBuffer = await sanitizeTemplateDocxBuffer(rawTemplateBuffer);
   const rawStateData = safeReadJsonFile<Record<string, any>>(resolvedState);
-  const unflattenedState = unflattenDotKeys(rawStateData);
+  const stateComments = extractCommentsFromState(rawStateData);
+  const mergedComments = [...(options?.comments ?? []), ...stateComments];
+  const sanitizedRawState = stripReservedUnderscoreKeys(rawStateData);
+  const unflattenedState = unflattenDotKeys(sanitizedRawState);
   const forLoopTargets = await extractTemplateForLoopTargets(templateBuffer);
   const stateData = normalizeNestedListsInState(
     unflattenedState,
@@ -169,7 +180,15 @@ export async function processDocument(
     noSandbox: true,
   });
 
-  const finalBuffer = await postProcessInjectedDocxBuffer(outputBuffer);
+  const postProcessedBuffer = await postProcessInjectedDocxBuffer(outputBuffer, {
+    highlightPlaceholders: options?.highlightPlaceholders !== false,
+  });
+  const commentsResult = await injectDocxCommentsIntoBuffer(
+    postProcessedBuffer,
+    mergedComments,
+    stateData
+  );
+  const finalBuffer = commentsResult.buffer;
 
   const outputFormat = options?.outputFormat || "docx";
   if (!["docx", "pdf", "both"].includes(outputFormat)) {
@@ -232,7 +251,9 @@ export async function processDocument(
 
       const inspectTarget =
         outPaths.isExclusivePdf && pdfPath ? pdfPath : outPaths.docxPath;
-      const inspResult = await inspectDocx(inspectTarget, inspectionPath, true);
+      const inspResult = await inspectDocx(inspectTarget, inspectionPath, true, {
+        commentsUnmatched: commentsResult.unmatched,
+      });
       auditViewPath =
         inspResult.audit_view_path ?? resolve(stateDir, `visao_auditoria_${stem}.md`);
 
@@ -286,6 +307,12 @@ export async function processDocument(
     ...(tierUsed ? { tier_used: tierUsed } : {}),
     ...(inspectionPath ? { inspection_path: inspectionPath } : {}),
     ...(auditViewPath ? { visao_auditoria_path: auditViewPath } : {}),
+    ...(commentsResult.commentsCount > 0 || mergedComments.length > 0
+      ? { comments_count: commentsResult.commentsCount }
+      : {}),
+    ...(commentsResult.unmatched.length > 0
+      ? { comments_unmatched: commentsResult.unmatched }
+      : {}),
     next_step_hint: nextHint,
   };
 }
@@ -331,6 +358,12 @@ export function formatFillDocxTemplateSyntheticResult(
     ...(relPdf ? { pdf_path: relPdf } : {}),
     ...(relInspection ? { inspection_path: relInspection } : {}),
     ...(relVisao ? { visao_auditoria_path: relVisao } : {}),
+    ...(result.comments_count !== undefined
+      ? { comments_count: result.comments_count }
+      : {}),
+    ...(result.comments_unmatched && result.comments_unmatched.length > 0
+      ? { comments_unmatched: result.comments_unmatched }
+      : {}),
     message: result.message,
     next_step_hint: nextHint,
   };
@@ -338,6 +371,29 @@ export function formatFillDocxTemplateSyntheticResult(
   const summary = buildSummaryMcpEnvelope(payload).payload;
   if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 1000) {
     summary.message = "Documento compilado com sucesso.";
+  }
+  if (
+    Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 1000 &&
+    Array.isArray(summary.comments_unmatched) &&
+    summary.comments_unmatched.length > 0
+  ) {
+    const totalUnmatched = summary.comments_unmatched.length;
+    const preview = summary.comments_unmatched
+      .slice(0, 3)
+      .map((item) => (item.length > 36 ? `${item.slice(0, 33)}...` : item));
+    if (totalUnmatched > 3) {
+      preview.push(`... (+${totalUnmatched - 3} na visao_auditoria)`);
+    }
+    summary.comments_unmatched = preview;
+    if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 1000) {
+      summary.comments_unmatched = [
+        `${summary.comments_unmatched[0].slice(0, 28)}...`,
+        `+${totalUnmatched - 1} na visao_auditoria`,
+      ];
+    }
+    if (Buffer.byteLength(JSON.stringify(summary), "utf-8") >= 1000) {
+      summary.comments_unmatched = [`+${totalUnmatched} na visao_auditoria`];
+    }
   }
 
   return summary;

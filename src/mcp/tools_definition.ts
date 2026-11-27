@@ -93,9 +93,9 @@ export function getMcpToolsDefinition() {
     {
       name: "fill_docx_template",
       description:
-        "Injeta estado_caso.json (com auto-reparo JSON e unflatten de chaves com ponto) em template .docx, resolvendo variáveis, FOR/IF, tabelas Markdown para <w:tbl>, listas multinível (word/numbering.xml / hanging indent) e saída DOCX/PDF.\n" +
-        "- Quando usar: Após build_docx_template e elaboração do estado_caso.json (restrito a cases/<slug>/).\n" +
-        "- Próximo Passo: Gera minuta final e auto-inspeciona em state/visao_auditoria_<stem>.md (pronto para auditoria, sem reexecutar inspect_doc).",
+        "Injeta estado_caso.json (auto-reparo e unflatten) em .docx: FOR/IF, <w:tbl>, listas (word/numbering.xml), highlight ([A DEFINIR]/==texto==), comments.xml e DOCX/PDF.\n" +
+        "- Quando usar: Após build_docx_template e estado_caso.json (cases/<slug>/).\n" +
+        "- Próximo Passo: Gera minuta final e state/visao_auditoria_<stem>.md (sem reexecutar inspect_doc).",
       inputSchema: {
         type: "object",
         required: ["templatePath", "statePath", "outputPath"],
@@ -105,6 +105,22 @@ export function getMcpToolsDefinition() {
           outputPath: { type: "string", description: "Caminho de saída da minuta final." },
           autoInspect: { type: "boolean", description: "Executa auto-inspeção gerando visao_auditoria. Padrão: true." },
           outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída: docx, pdf ou both." },
+          highlightPlaceholders: { type: "boolean", description: "Destaca em amarelo [A DEFINIR]/[INSERIR]. Padrão: true." },
+          comments: {
+            type: "array",
+            description: "Comentários Word (word/comments.xml), mesclados após _comments.",
+            items: {
+              type: "object",
+              required: ["anchor_text", "text"],
+              properties: {
+                slot_key: { type: "string", description: "Slot para delimitar busca." },
+                anchor_text: { type: "string", description: "Texto âncora no documento." },
+                author: { type: "string", description: "Autor do comentário." },
+                initials: { type: "string", description: "Iniciais do autor." },
+                text: { type: "string", description: "Texto do comentário." },
+              },
+            },
+          },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },

@@ -145,6 +145,7 @@ export async function inspectDocx(
     skipAuditArtifacts?: boolean;
     skipOutputWrite?: boolean;
     deferMarkdownWrite?: boolean;
+    commentsUnmatched?: string[];
   } = {}
 ): Promise<DocxInspectionResult> {
   const resolvedDocx = resolveExistingPathNfc(resolve(docxPath));
@@ -251,7 +252,7 @@ export async function inspectDocx(
     );
   }
 
-  const { headers, footers, paragraphs, tables } = await extractDocxXmlParts(zip, resolvedDocx);
+  const { headers, footers, paragraphs, tables, commentsCount } = await extractDocxXmlParts(zip, resolvedDocx);
 
   const toc_map = buildTocMap(paragraphs, tables);
   const docxCartography = buildDocxCartography(paragraphs, tables, toc_map);
@@ -317,6 +318,10 @@ export async function inspectDocx(
     footers,
     paragraphs,
     tables,
+    ...(commentsCount !== undefined && commentsCount > 0 ? { comments_count: commentsCount } : {}),
+    ...(options.commentsUnmatched && options.commentsUnmatched.length > 0
+      ? { comments_unmatched: options.commentsUnmatched }
+      : {}),
     ...(budgetAudit.has_budget_table ? { budget_audit: budgetAudit } : {}),
   };
 

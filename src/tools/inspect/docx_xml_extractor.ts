@@ -26,6 +26,7 @@ export interface DocxXmlExtractionOutput {
   footers: HeaderFooterParagraphInfo[];
   paragraphs: BodyParagraphInfo[];
   tables: TableInfo[];
+  commentsCount?: number;
 }
 
 export async function extractDocxXmlParts(
@@ -212,5 +213,24 @@ export async function extractDocxXmlParts(
       });
     }
   }
-  return { headers, footers, paragraphs, tables };
+  let commentsCount: number | undefined;
+  const commentsFile = zip.file("word/comments.xml");
+  if (commentsFile) {
+    try {
+      const commentsXmlStr = sanitizeXmlString(await commentsFile.async("string"));
+      const commentsDoc = parser.parseFromString(commentsXmlStr, "application/xml");
+      const count = getAllElements(commentsDoc, "w:comment").length;
+      if (count > 0) commentsCount = count;
+    } catch {
+      // Ignora caso word/comments.xml esteja malformado
+    }
+  }
+
+  return {
+    headers,
+    footers,
+    paragraphs,
+    tables,
+    ...(commentsCount !== undefined ? { commentsCount } : {}),
+  };
 }

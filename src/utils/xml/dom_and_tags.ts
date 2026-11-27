@@ -103,6 +103,12 @@ export function extractParagraphText(p: Element): string {
         } else {
           parts.push(val);
         }
+      } else if (
+        isElementMatch(child, "w:commentReference") ||
+        isElementMatch(child, "w:commentRangeStart") ||
+        isElementMatch(child, "w:commentRangeEnd")
+      ) {
+        continue;
       } else if (child.nodeType === 1) {
         const nowInsideWT = insideWT || isElementMatch(child, "w:t");
         walk(child, nowInsideWT);
