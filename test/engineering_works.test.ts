@@ -133,7 +133,9 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
     expect(pdfBuf.subarray(0, 5).toString("latin1")).toBe("%PDF-");
 
     const syntheticText = JSON.stringify(synthetic);
-    expect(Buffer.byteLength(syntheticText, "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(syntheticText, "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 20000);
 
   test("2. Cenário CONFORME via MCP (Rodoviária SICRO Não Desonerado)", async () => {
@@ -179,8 +181,10 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
     const mcpRes = await handleCallTool("docgov_audit_engineering_works", input);
     expect(mcpRes.isError).toBeUndefined();
     const mcpText = mcpRes.content[0].text;
-    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(8192);
     const parsedMcp = JSON.parse(mcpText);
+    expect(parsedMcp.delivery_mode).toBe("INLINE");
+    expect(parsedMcp.read_file_required).toBe(false);
     expect(parsedMcp.status).toBe("CONFORME");
     expect(parsedMcp.blocking_tags).toEqual([]);
   }, 20000);
@@ -258,19 +262,28 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
       },
     };
 
-    // 1. Invocação MCP
-    const mcpRes = await handleCallTool("docgov_audit_engineering_works", hostileInput);
-    expect(mcpRes.isError).toBeUndefined();
-    const mcpText = mcpRes.content[0].text;
-    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    // 1. Invocação MCP (forçando modo POINTER para validar guarda <= 880B)
+    const prevInline = process.env.MCP_INLINE_MAX_BYTES;
+    process.env.MCP_INLINE_MAX_BYTES = "512";
+    try {
+      const mcpRes = await handleCallTool("docgov_audit_engineering_works", hostileInput);
+      expect(mcpRes.isError).toBeUndefined();
+      const mcpText = mcpRes.content[0].text;
+      expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
 
-    const parsedMcp = JSON.parse(mcpText);
-    expect(parsedMcp.status).toBe("NAO_CONFORME");
-    expect(
-      parsedMcp.blocking_tags.some((t: string) =>
-        /^\[\+\d+_TAGS_NO_DOSSIE\]$/.test(t)
-      )
-    ).toBe(true);
+      const parsedMcp = JSON.parse(mcpText);
+      expect(parsedMcp.delivery_mode).toBe("POINTER");
+      expect(parsedMcp.read_file_required).toBe(true);
+      expect(parsedMcp.status).toBe("NAO_CONFORME");
+      expect(
+        parsedMcp.blocking_tags.some((t: string) =>
+          /^\[\+\d+_TAGS_NO_DOSSIE\]$/.test(t)
+        )
+      ).toBe(true);
+    } finally {
+      if (prevInline === undefined) delete process.env.MCP_INLINE_MAX_BYTES;
+      else process.env.MCP_INLINE_MAX_BYTES = prevInline;
+    }
 
     // 2. Verificar 100% das 15 tags no JSON e MD em disco
     const jsonDiskPath = join(ws, "engineering_works_audit.json");
@@ -313,20 +326,25 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
     const inputPath = join(tempDir, "hostile_eng_input.json");
     writeFileSync(inputPath, JSON.stringify(hostileInput), "utf-8");
 
-    const proc = Bun.spawnSync([
-      process.execPath,
-      "run",
-      "src/index.ts",
-      "audit-engineering-works",
-      "--input",
-      inputPath,
-      "--workspace",
-      cliWs,
-    ]);
+    const proc = Bun.spawnSync(
+      [
+        process.execPath,
+        "run",
+        "src/index.ts",
+        "audit-engineering-works",
+        "--input",
+        inputPath,
+        "--workspace",
+        cliWs,
+      ],
+      { env: { ...process.env, MCP_INLINE_MAX_BYTES: "512" } }
+    );
     expect(proc.exitCode).toBe(0);
     const cliStdout = proc.stdout.toString("utf-8");
     expect(Buffer.byteLength(cliStdout, "utf-8")).toBeLessThanOrEqual(880);
     const cliJson = JSON.parse(cliStdout.trim());
+    expect(cliJson.delivery_mode).toBe("POINTER");
+    expect(cliJson.read_file_required).toBe(true);
     expect(cliJson.status).toBe("NAO_CONFORME");
     expect(
       cliJson.blocking_tags.some((t: string) =>
@@ -378,7 +396,9 @@ describe("Geração 6.5 Eixo 2 (v1.6.6) — Obras e Serviços de Engenharia (doc
       "[ENG_INTEGRATED_CONTRACTING_ILLEGAL_DESIGN_ADDENDUM_BLOCK]"
     );
     expect(output.sinapi_schedule_summary.max_front_loading_gap_bps).toBe(1050);
-    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 15000);
 
   test("5. Exact Copy-Paste Error (Lei 3) & Autodescoberta Completa de Subcampos (inputSchema + --dump-spec)", async () => {

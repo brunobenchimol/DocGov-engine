@@ -87,7 +87,10 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
       isg: 2.4,
       eg: 0.42,
     });
-    expect(Buffer.byteLength(serializeBiddingSyntheticResult(synthetic), "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(serializeBiddingSyntheticResult(synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
+    expect(synthetic.inline_markdown).toBeTruthy();
     expect(existsSync(join(outDir, "dossie_julgamento_proposta_tic.json"))).toBe(true);
     expect(existsSync(join(outDir, "relatorio_julgamento_tic.json"))).toBe(true);
     expect(existsSync(join(outDir, "visao_julgamento_proposta_tic.md"))).toBe(true);
@@ -228,7 +231,9 @@ describe("Marco 9 (Gen6) — Eixo A: Seleção do Fornecedor 360º TIC & ACT For
     expect(docXml).not.toContain("VETOR_1_PORTE_CNAE");
 
     const serialized = serializeBiddingSyntheticResult(synthetic);
-    expect(Buffer.byteLength(serialized, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(serialized, "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 30000);
 
   it("deve compilar Parecer Jurídico-Pericial TIC em Lei 13.303 com BRL formatado e perfis sem logs crus", async () => {

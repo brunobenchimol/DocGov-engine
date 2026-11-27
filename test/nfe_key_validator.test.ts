@@ -189,7 +189,8 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
     );
     expect(bidRes.dossier.unknown_keys).toEqual(["invented_root_alias", "act_forensic_items[0].fake_nfe_field"]);
     expect(bidRes.synthetic.unknown_keys).toEqual(["invented_root_alias", "act_forensic_items[0].fake_nfe_field"]);
-    expect(Buffer.byteLength(serializeBiddingSyntheticResult(bidRes.synthetic), "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(serializeBiddingSyntheticResult(bidRes.synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(bidRes.synthetic.delivery_mode).toBe("INLINE");
 
     const dirRes = await auditDirectContracting(
       {
@@ -207,7 +208,8 @@ describe("Pilar 5.1 (v1.7.0) — Validador Algorítmico NF-e 44 Dígitos & Guard
       "inexigibility_details.supplier_market_price_proofs[0].chave_nfe_alias",
     ]);
     expect(dirRes.synthetic.unknown_keys).toEqual(dirRes.dossier.unknown_keys);
-    expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(dirRes.synthetic), "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(dirRes.synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(dirRes.synthetic.delivery_mode).toBe("INLINE");
   });
 
   test("6. Polimento R4: dicionário jurídico das 6 tags v1.7.0 no Parecer DOCX (sem fallback genérico)", () => {

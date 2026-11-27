@@ -124,6 +124,8 @@ describe("Governança de ARP — Livro-Razão e Travas 50% / 200% (Marco 8.4)", 
     expect(synthetic.blocking_tags).toContain("[ARP_GLOBAL_LIMIT_EXCEEDED_200PCT]");
 
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
-    expect(byteLength).toBeLessThan(900);
+    expect(byteLength).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   });
 });

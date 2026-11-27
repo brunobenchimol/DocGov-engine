@@ -117,7 +117,9 @@ describe("Geração 6.5 (v1.6.5) — Regime DEMO (docgov_audit_demo_regime & aud
     expect(existsSync(output.artifacts.pdf_path)).toBe(true);
 
     const syntheticText = JSON.stringify(synthetic);
-    expect(Buffer.byteLength(syntheticText, "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(syntheticText, "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 20000);
 
   test("2. Cenário CONFORME (Simples Nacional Anexo IV — Limpeza com 20% CPP + Fato Gerador via MCP)", async () => {
@@ -178,8 +180,10 @@ describe("Geração 6.5 (v1.6.5) — Regime DEMO (docgov_audit_demo_regime & aud
     const mcpRes = await handleCallTool("docgov_audit_demo_regime", input);
     expect(mcpRes.isError).toBeUndefined();
     const mcpText = mcpRes.content[0].text;
-    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(8192);
     const parsedMcp = JSON.parse(mcpText);
+    expect(parsedMcp.delivery_mode).toBe("INLINE");
+    expect(parsedMcp.read_file_required).toBe(false);
     expect(parsedMcp.status).toBe("CONFORME");
     expect(parsedMcp.blocking_tags).toEqual([]);
 
@@ -267,19 +271,28 @@ describe("Geração 6.5 (v1.6.5) — Regime DEMO (docgov_audit_demo_regime & aud
       },
     };
 
-    // 1. Invocação via MCP tool handler
-    const mcpRes = await handleCallTool("docgov_audit_demo_regime", hostileInput);
-    expect(mcpRes.isError).toBeUndefined();
-    const mcpText = mcpRes.content[0].text;
-    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    // 1. Invocação via MCP tool handler (forçando modo POINTER para validar guarda <= 880B)
+    const prevInline = process.env.MCP_INLINE_MAX_BYTES;
+    process.env.MCP_INLINE_MAX_BYTES = "512";
+    try {
+      const mcpRes = await handleCallTool("docgov_audit_demo_regime", hostileInput);
+      expect(mcpRes.isError).toBeUndefined();
+      const mcpText = mcpRes.content[0].text;
+      expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
 
-    const parsedMcp = JSON.parse(mcpText);
-    expect(parsedMcp.status).toBe("NAO_CONFORME");
-    expect(
-      parsedMcp.blocking_tags.some((t: string) =>
-        /^\[\+\d+_TAGS_NO_DOSSIE\]$/.test(t)
-      )
-    ).toBe(true);
+      const parsedMcp = JSON.parse(mcpText);
+      expect(parsedMcp.delivery_mode).toBe("POINTER");
+      expect(parsedMcp.read_file_required).toBe(true);
+      expect(parsedMcp.status).toBe("NAO_CONFORME");
+      expect(
+        parsedMcp.blocking_tags.some((t: string) =>
+          /^\[\+\d+_TAGS_NO_DOSSIE\]$/.test(t)
+        )
+      ).toBe(true);
+    } finally {
+      if (prevInline === undefined) delete process.env.MCP_INLINE_MAX_BYTES;
+      else process.env.MCP_INLINE_MAX_BYTES = prevInline;
+    }
 
     // 2. Verificar integridade integral em disco (100% das 16 tags sem truncamento)
     const jsonDiskPath = join(ws, "demo_regime_audit.json");
@@ -323,20 +336,25 @@ describe("Geração 6.5 (v1.6.5) — Regime DEMO (docgov_audit_demo_regime & aud
     const inputPath = join(tempDir, "hostile_input.json");
     writeFileSync(inputPath, JSON.stringify(hostileInput), "utf-8");
 
-    const proc = Bun.spawnSync([
-      process.execPath,
-      "run",
-      "src/index.ts",
-      "audit-demo-regime",
-      "--input",
-      inputPath,
-      "--workspace",
-      cliWs,
-    ]);
+    const proc = Bun.spawnSync(
+      [
+        process.execPath,
+        "run",
+        "src/index.ts",
+        "audit-demo-regime",
+        "--input",
+        inputPath,
+        "--workspace",
+        cliWs,
+      ],
+      { env: { ...process.env, MCP_INLINE_MAX_BYTES: "512" } }
+    );
     expect(proc.exitCode).toBe(0);
     const cliStdout = proc.stdout.toString("utf-8");
     expect(Buffer.byteLength(cliStdout, "utf-8")).toBeLessThanOrEqual(880);
     const cliJson = JSON.parse(cliStdout.trim());
+    expect(cliJson.delivery_mode).toBe("POINTER");
+    expect(cliJson.read_file_required).toBe(true);
     expect(cliJson.status).toBe("NAO_CONFORME");
     expect(existsSync(join(cliWs, "demo_regime_audit.json"))).toBe(true);
     expect(existsSync(join(cliWs, "laudo_pericial_planilha_demo.docx"))).toBe(true);

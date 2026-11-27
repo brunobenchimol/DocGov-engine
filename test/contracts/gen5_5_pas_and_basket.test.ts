@@ -286,9 +286,11 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
 
     const rawStdout = mcpRes.content[0].text;
     const byteLen = Buffer.byteLength(rawStdout, "utf-8");
-    expect(byteLen).toBeLessThan(900);
+    expect(byteLen).toBeLessThanOrEqual(8192);
 
     const parsed = JSON.parse(rawStdout);
+    expect(parsed.delivery_mode).toBe("INLINE");
+    expect(parsed.read_file_required).toBe(false);
     expect(parsed.blocking_tags).toContain("[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]");
     expect(parsed.blocking_tags).toContain("[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]");
     expect(parsed.blocking_tags).toContain("[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]");
@@ -303,6 +305,7 @@ describe("Fiscalização Contratual Gen5.5 — PAS, ANS/IMR, Garantias e Cesta (
     }
 
     const { synthetic } = await auditContractExecution(jsonPath, { outputDir: outDir });
-    expect(Buffer.byteLength(JSON.stringify(synthetic, null, 2), "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
   });
 });

@@ -63,9 +63,11 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
 
     const text = res.content[0].text;
     const byteLength = Buffer.byteLength(text, "utf-8");
-    expect(byteLength).toBeLessThan(900);
+    expect(byteLength).toBeLessThanOrEqual(8192);
 
     const synthetic = JSON.parse(text);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
     expect(synthetic.status).toBe("blocked");
     expect(synthetic.contract_id).toBe("CT-MCP-01");
     expect(synthetic.blocking_tags).toContain("[ADDENDUM_COMPENSATION_FORBIDDEN]");
@@ -108,9 +110,11 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
 
     const text = res.content[0].text;
     const byteLength = Buffer.byteLength(text, "utf-8");
-    expect(byteLength).toBeLessThan(900);
+    expect(byteLength).toBeLessThanOrEqual(8192);
 
     const synthetic = JSON.parse(text);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
     expect(synthetic.status).toBe("blocked");
     expect(synthetic.decision).toBe("REJECTED");
     expect(synthetic.blocking_tags).toContain("[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]");
@@ -224,63 +228,74 @@ describe("Integração MCP & CLI — Ferramentas Gen5 (Marco 8)", () => {
       })
     );
 
-    const auditRes: any = await handleCallTool("docgov_audit_contract_execution", {
-      contractJsonPath: stressContractPath,
-      outputDir: longTestDir,
-      compilationMode: "BOTH",
-      outputFormat: "both",
-    });
-    const auditText = auditRes.content[0].text;
-    expect(Buffer.byteLength(auditText, "utf-8")).toBeLessThan(900);
-    const auditSynthetic = JSON.parse(auditText);
-    expect(auditSynthetic.status).toBe("blocked");
+    const prevInline = process.env.MCP_INLINE_MAX_BYTES;
+    process.env.MCP_INLINE_MAX_BYTES = "512";
+    try {
+      const auditRes: any = await handleCallTool("docgov_audit_contract_execution", {
+        contractJsonPath: stressContractPath,
+        outputDir: longTestDir,
+        compilationMode: "BOTH",
+        outputFormat: "both",
+      });
+      const auditText = auditRes.content[0].text;
+      expect(Buffer.byteLength(auditText, "utf-8")).toBeLessThanOrEqual(880);
+      const auditSynthetic = JSON.parse(auditText);
+      expect(auditSynthetic.delivery_mode).toBe("POINTER");
+      expect(auditSynthetic.read_file_required).toBe(true);
+      expect(auditSynthetic.status).toBe("blocked");
 
-    const diskReport = JSON.parse(
-      readFileSync(join(longTestDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
-    );
-    expect(diskReport.blocking_tags.length).toBeGreaterThanOrEqual(17);
-    expect(auditSynthetic.blocking_tags.some((t: string) => t.endsWith("_TAGS_NO_DOSSIE]"))).toBe(true);
+      const diskReport = JSON.parse(
+        readFileSync(join(longTestDir, "relatorio_fiscalizacao_contratual.json"), "utf-8")
+      );
+      expect(diskReport.blocking_tags.length).toBeGreaterThanOrEqual(17);
+      expect(auditSynthetic.blocking_tags.some((t: string) => t.endsWith("_TAGS_NO_DOSSIE]"))).toBe(true);
 
-    const stressArpPath = join(longTestDir, "arp_6_tags.json");
-    writeFileSync(
-      stressArpPath,
-      JSON.stringify({
-        arp_number: "ARP-ESTRESSE-6-TAGS-2026",
-        manager_sphere: "MUNICIPAL",
-        manager_regime: "LEI_14133",
-        adherent_sphere: "FEDERAL",
-        adherent_regime: "LEI_13303",
-        is_tic: true,
-        is_umbrella_or_single_lot: true,
-        has_granulated_calculation_memory: false,
-        validity: {
-          validity_months: 12,
-          is_renewed_year_2: true,
-          renew_quantities_second_year: true,
-          has_edital_renewal_clause: false,
-          has_advantage_proof: false,
-        },
-        items: [
-          {
-            item_id: "IT-01",
-            registered_qty: 100,
-            prior_adhesions_qty: 180,
-            requested_adhesion_qty: 60,
+      const stressArpPath = join(longTestDir, "arp_6_tags.json");
+      writeFileSync(
+        stressArpPath,
+        JSON.stringify({
+          arp_number: "ARP-ESTRESSE-6-TAGS-2026",
+          manager_sphere: "MUNICIPAL",
+          manager_regime: "LEI_14133",
+          adherent_sphere: "FEDERAL",
+          adherent_regime: "LEI_13303",
+          is_tic: true,
+          is_umbrella_or_single_lot: true,
+          has_granulated_calculation_memory: false,
+          validity: {
+            validity_months: 12,
+            is_renewed_year_2: true,
+            renew_quantities_second_year: true,
+            has_edital_renewal_clause: false,
+            has_advantage_proof: false,
           },
-        ],
-      })
-    );
+          items: [
+            {
+              item_id: "IT-01",
+              registered_qty: 100,
+              prior_adhesions_qty: 180,
+              requested_adhesion_qty: 60,
+            },
+          ],
+        })
+      );
 
-    const arpRes: any = await handleCallTool("docgov_govern_arp", {
-      arpJsonPath: stressArpPath,
-      outputDir: longTestDir,
-      compilationMode: "ARP_ADHESION_GRANT_NOTE",
-      outputFormat: "both",
-    });
-    const arpText = arpRes.content[0].text;
-    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThan(900);
-    const arpSynthetic = JSON.parse(arpText);
-    expect(arpSynthetic.decision).toBe("REJECTED");
-    expect(arpSynthetic.blocking_tags).toHaveLength(6);
+      const arpRes: any = await handleCallTool("docgov_govern_arp", {
+        arpJsonPath: stressArpPath,
+        outputDir: longTestDir,
+        compilationMode: "ARP_ADHESION_GRANT_NOTE",
+        outputFormat: "both",
+      });
+      const arpText = arpRes.content[0].text;
+      expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThanOrEqual(880);
+      const arpSynthetic = JSON.parse(arpText);
+      expect(arpSynthetic.delivery_mode).toBe("POINTER");
+      expect(arpSynthetic.read_file_required).toBe(true);
+      expect(arpSynthetic.decision).toBe("REJECTED");
+      expect(arpSynthetic.blocking_tags).toHaveLength(6);
+    } finally {
+      if (prevInline === undefined) delete process.env.MCP_INLINE_MAX_BYTES;
+      else process.env.MCP_INLINE_MAX_BYTES = prevInline;
+    }
   }, 45000);
 });

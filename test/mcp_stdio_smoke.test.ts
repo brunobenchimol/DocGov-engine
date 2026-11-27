@@ -95,10 +95,13 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(inspectRes.isError).toBeFalsy();
     const inspectText = extractFirstTextContent(inspectRes);
-    expect(Buffer.byteLength(inspectText, "utf-8")).toBeLessThan(1024);
+    expect(Buffer.byteLength(inspectText, "utf-8")).toBeLessThanOrEqual(8192);
     const inspectJson = JSON.parse(inspectText);
     expect(inspectJson.status).toBe("success");
     expect(inspectJson.engine_version).toBe(VERSION);
+    expect(inspectJson.delivery_mode).toBe("INLINE");
+    expect(inspectJson.read_file_required).toBe(false);
+    expect(inspectJson.inline_markdown).toBeTruthy();
 
     const contractJsonPath = join(tempDir, "contrato_valido.json");
     writeFileSync(
@@ -119,8 +122,10 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(contractRes.isError).toBeFalsy();
     const contractText = extractFirstTextContent(contractRes);
-    expect(Buffer.byteLength(contractText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(contractText, "utf-8")).toBeLessThanOrEqual(8192);
     const contractJson = JSON.parse(contractText);
+    expect(contractJson.delivery_mode).toBe("INLINE");
+    expect(contractJson.read_file_required).toBe(false);
     expect(contractJson.status).toBe("blocked");
     expect(contractJson.engine_version).toBe(VERSION);
     expect(contractJson.blocking_tags).toContain("[ADDENDUM_LIMIT_EXCEEDED_25PCT]");
@@ -144,8 +149,10 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(arpRes.isError).toBeFalsy();
     const arpText = extractFirstTextContent(arpRes);
-    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThanOrEqual(8192);
     const arpJson = JSON.parse(arpText);
+    expect(arpJson.delivery_mode).toBe("INLINE");
+    expect(arpJson.read_file_required).toBe(false);
     expect(arpJson.decision).toBe("REJECTED");
     expect(arpJson.engine_version).toBe(VERSION);
     expect(arpJson.blocking_tags).toContain("[ARP_INDIVIDUAL_LIMIT_EXCEEDED_50PCT]");
@@ -230,9 +237,11 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(contractRes.isError).toBeFalsy();
     const contractText = extractFirstTextContent(contractRes);
-    expect(Buffer.byteLength(contractText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(contractText, "utf-8")).toBeLessThanOrEqual(8192);
 
     const contractJson = JSON.parse(contractText);
+    expect(contractJson.delivery_mode).toBe("INLINE");
+    expect(contractJson.read_file_required).toBe(false);
     expect(contractJson.unknown_keys).toEqual(["addendums[0].compensation_attempted"]);
 
     const diskContractReport = JSON.parse(
@@ -259,9 +268,11 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(arpRes.isError).toBeFalsy();
     const arpText = extractFirstTextContent(arpRes);
-    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(arpText, "utf-8")).toBeLessThanOrEqual(8192);
 
     const arpJson = JSON.parse(arpText);
+    expect(arpJson.delivery_mode).toBe("INLINE");
+    expect(arpJson.read_file_required).toBe(false);
     expect(arpJson.unknown_keys).toContain("adhesions");
     expect(arpJson.unknown_keys).toContain("adhesions[0].unmapped_flag");
     expect(arpJson.unknown_keys).toContain("adhesions[0].requesting_organ(string_must_be_object)");
@@ -303,8 +314,10 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(bidRes.isError).toBeFalsy();
     const bidText = extractFirstTextContent(bidRes);
-    expect(Buffer.byteLength(bidText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(bidText, "utf-8")).toBeLessThanOrEqual(8192);
     const bidJson = JSON.parse(bidText);
+    expect(bidJson.delivery_mode).toBe("INLINE");
+    expect(bidJson.read_file_required).toBe(false);
     expect(bidJson.decision).toBe("REJECTED");
     expect(bidJson.blocking_tags).toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
     expect(bidJson.unknown_keys).toEqual(["invented_bidding_alias"]);
@@ -341,10 +354,58 @@ describe("Smoke Test MCP Real via stdio (Handshake, Schemas, Tetos e Exact Copy-
     });
     expect(dirRes.isError).toBeFalsy();
     const dirText = extractFirstTextContent(dirRes);
-    expect(Buffer.byteLength(dirText, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(dirText, "utf-8")).toBeLessThanOrEqual(8192);
     const dirJson = JSON.parse(dirText);
+    expect(dirJson.delivery_mode).toBe("INLINE");
+    expect(dirJson.read_file_required).toBe(false);
     expect(dirJson.decision).toBe("REJECTED");
     expect(dirJson.blocking_tags).toContain("[FORENSIC_NFE_44_DIGIT_CHECK_DIGIT_INVALID_BLOCK]");
     expect(dirJson.unknown_keys).toEqual(["inexigibility_details.supplier_market_price_proofs[0].alias_inventado"]);
   });
+
+  test("8. Drenagem real via stdio: flushPendingWrites() persiste .md íntegro (!= 0B) no fechamento imediato após INLINE write-behind", async () => {
+    const drainDir = join(tempDir, "stdio_drain_case");
+    const drainContractJson = join(tempDir, "contrato_drain.json");
+    writeFileSync(
+      drainContractJson,
+      JSON.stringify({
+        contract_id: "CT-DRAIN-STDIO-01",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICE",
+        initial_value: 250000,
+      }),
+      "utf-8"
+    );
+
+    const isolatedTransport = new StdioClientTransport({
+      command: process.execPath,
+      args: ["run", resolve(ROOT_DIR, "src", "index.ts")],
+      cwd: ROOT_DIR,
+      stderr: "pipe",
+    });
+    const isolatedClient = new Client({
+      name: "docgov-stdio-drain-client",
+      version: "1.0.0",
+    });
+    await isolatedClient.connect(isolatedTransport);
+
+    const res = await isolatedClient.callTool({
+      name: "docgov_audit_contract_execution",
+      arguments: { contractJsonPath: drainContractJson, outputDir: drainDir },
+    });
+    expect(res.isError).toBeFalsy();
+    const payload = JSON.parse(extractFirstTextContent(res));
+    expect(payload.delivery_mode).toBe("INLINE");
+    expect(payload.read_file_required).toBe(false);
+    expect(typeof payload.inline_markdown).toBe("string");
+
+    // Fecha imediatamente o transporte stdio (disparando stdin end/close + flushPendingWrites)
+    await isolatedClient.close();
+    await new Promise((r) => setTimeout(r, 250));
+
+    const mdDiskPath = join(drainDir, "dossie_fiscalizacao_contratual.md");
+    const diskContent = readFileSync(mdDiskPath, "utf-8");
+    expect(Buffer.byteLength(diskContent, "utf-8")).toBeGreaterThan(0);
+    expect(diskContent).toBe(payload.inline_markdown);
+  }, 15000);
 });

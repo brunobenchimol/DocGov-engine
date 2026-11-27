@@ -154,6 +154,8 @@ describe("Fiscalização Contratual — Batimento Tripartite e Reajustes (Marcos
     expect(synthetic.blocking_tags).toContain("[READJUSTMENT_INTERREGNUM_VIOLATION_12M]");
 
     const byteLen = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
-    expect(byteLen).toBeLessThan(900);
+    expect(byteLen).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   });
 });

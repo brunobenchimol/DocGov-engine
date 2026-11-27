@@ -179,6 +179,8 @@ describe("Governança de ARP — Matriz de Compatibilidade e Compilação DOCX/P
     expect(docxBuf[1]).toBe(0x4b);
 
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
-    expect(byteLength).toBeLessThan(900);
+    expect(byteLength).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 15000);
 });

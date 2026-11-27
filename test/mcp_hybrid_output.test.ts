@@ -8,6 +8,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { runCli } from "../src/cli/index.ts";
 import {
   DEFAULT_MCP_INLINE_MAX_BYTES,
   DEFAULT_MCP_POINTER_MAX_BYTES,
@@ -271,5 +272,83 @@ describe("MCP Híbrido 8 KB & Lei 2 Bimodal (mcp_limits + mcp_hybrid_output)", (
     expect(stdoutChunks.join("")).toBe("");
     expect(stderrChunks.join("")).toContain("[docgov-engine][write-behind]");
     expect(unhandledCount).toBe(0);
+  });
+
+  test("6. Paridade estrita CLI + MCP: --inspect --compact e audit-contract via CLI emitem envelope bimodal completo", async () => {
+    const dir = makeTempDir("cli_parity");
+    const caseDir = join(dir, "cases", "caso_cli_paridade");
+    const mdPath = join(caseDir, "inputs", "minuta_paridade.md");
+    const jsonOutPath = join(caseDir, "state", "estrutura_minuta.json");
+    const contractPath = join(caseDir, "state", "contrato.json");
+
+    writeFileSync(
+      join(dir, "dummy_init.txt"),
+      "init",
+      "utf8"
+    );
+    const { mkdirSync } = await import("node:fs");
+    mkdirSync(join(caseDir, "inputs"), { recursive: true });
+    mkdirSync(join(caseDir, "state"), { recursive: true });
+    writeFileSync(
+      mdPath,
+      "# Termo de Referência\n\n1. Objeto: Contratação padrão de TIC.\n",
+      "utf8"
+    );
+    writeFileSync(
+      contractPath,
+      JSON.stringify({
+        contract_id: "CT-CLI-PAR-01",
+        legal_regime: "LEI_14133",
+        object_type: "SERVICE",
+        initial_value: 100000,
+      }),
+      "utf8"
+    );
+
+    const logs: string[] = [];
+    const origLog = console.log;
+    console.log = (msg?: any) => {
+      logs.push(String(msg ?? ""));
+    };
+
+    try {
+      await runCli([
+        "--inspect",
+        mdPath,
+        "--out",
+        jsonOutPath,
+        "--compact",
+      ]);
+      await flushPendingWrites();
+
+      const inspectCli = JSON.parse(logs[0]);
+      expect(inspectCli.delivery_mode).toBe("INLINE");
+      expect(inspectCli.read_file_required).toBe(false);
+      expect(inspectCli.artifact_path).toBeTruthy();
+      expect(inspectCli.audit_view_path).toBeTruthy();
+      expect(typeof inspectCli.artifact_size_kb).toBe("number");
+      expect(inspectCli.artifact_lines).toBeGreaterThan(0);
+      expect(inspectCli.inline_markdown).toContain("Termo de Referência");
+      expect(inspectCli.next_step_hint).toBe(MCP_INLINE_HINT);
+
+      await runCli([
+        "audit-contract",
+        "--input",
+        contractPath,
+        "--output-dir",
+        join(caseDir, "state"),
+      ]);
+      await flushPendingWrites();
+
+      const contractCli = JSON.parse(logs[1]);
+      expect(contractCli.delivery_mode).toBe("INLINE");
+      expect(contractCli.read_file_required).toBe(false);
+      expect(contractCli.artifact_path).toBeTruthy();
+      expect(contractCli.dossier_md_path).toBeTruthy();
+      expect(contractCli.inline_markdown).toContain("CT-CLI-PAR-01");
+      expect(contractCli.next_step_hint).toBe(MCP_INLINE_HINT);
+    } finally {
+      console.log = origLog;
+    }
   });
 });

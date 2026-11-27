@@ -240,9 +240,9 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
     });
 
     const rawStdout = mcpRes.content[0].text;
-    expect(Buffer.byteLength(rawStdout, "utf-8")).toBeLessThan(900);
-
+    expect(Buffer.byteLength(rawStdout, "utf-8")).toBeLessThanOrEqual(8192);
     const parsed = JSON.parse(rawStdout);
+    expect(parsed.delivery_mode).toBe("INLINE");
     expect(parsed.blocking_tags).toContain("[PAS_SANCTION_TERRITORIAL_SCOPE_MISMATCH_BLOCK]");
     expect(parsed.blocking_tags).toContain("[PAS_EXTERNAL_CONTROL_REGISTRY_OMISSION_ALERT]");
     expect(parsed.blocking_tags).toContain("[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]");
@@ -329,11 +329,9 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
 
     const mcpRes: any = await handleCallTool("docgov_audit_contract_execution", { contractJsonPath: jsonPath, outputDir: outDir });
     const rawStdout = mcpRes.content[0].text;
-    const byteLen = Buffer.byteLength(rawStdout, "utf-8");
-    expect(byteLen).toBeLessThan(900);
-    expect(byteLen).toBeLessThanOrEqual(850);
-
+    expect(Buffer.byteLength(rawStdout, "utf-8")).toBeLessThanOrEqual(8192);
     const parsed = JSON.parse(rawStdout);
+    expect(parsed.delivery_mode).toBe("INLINE");
     const expected12Tags = [
       "[SLA_GLOSA_MISCLASSIFIED_AS_PENALTY_BLOCK]", "[MULTA_BELOW_LEGAL_FLOOR_0_5PCT_OR_ABOVE_30PCT_BLOCK]",
       "[PAS_CONTRADICTORY_15_DAYS_VIOLATION_BLOCK]", "[SURETY_INSURER_NOTIFICATION_REQUIRED_BLOCK]",
@@ -386,7 +384,8 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
       compilationMode: "BOTH",
       outputFormat: "both",
     });
-    expect(Buffer.byteLength(mcpRes.content[0].text, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(mcpRes.content[0].text, "utf-8")).toBeLessThanOrEqual(8192);
+    expect(JSON.parse(mcpRes.content[0].text).delivery_mode).toBe("INLINE");
 
     const reportJson = JSON.parse(readFileSync(join(outDir, "relatorio_fiscalizacao_contratual.json"), "utf-8"));
     expect(reportJson.blocking_tags).toContain("[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]");
@@ -453,7 +452,8 @@ describe("Fiscalização Contratual Gen5.6 — PAS Federativo e Dosimetria LINDB
       } as any,
       { outputDir: outDir, compilationMode: "NONE" }
     );
-    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(JSON.stringify(synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
     for (const tag of [
       "[PRICE_BASKET_HIGH_DISPERSION_USE_MEDIAN]",
       "[PAS_DISPROPORTIONATE_SANCTION_OUTLIER_BLOCK]",

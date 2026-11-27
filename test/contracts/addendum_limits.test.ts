@@ -156,6 +156,8 @@ describe("Fiscalização Contratual — Limites de Aditamento e Vedações (Marc
     expect(synthetic.dossier_md_path).toBeTruthy();
 
     const byteLength = Buffer.byteLength(JSON.stringify(synthetic), "utf-8");
-    expect(byteLength).toBeLessThan(900);
+    expect(byteLength).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   });
 });

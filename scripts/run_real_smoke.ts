@@ -147,9 +147,10 @@ async function main() {
       const envBytes = Buffer.byteLength(serializeBiddingSyntheticResult(bidRes.synthetic), "utf-8");
       const mismatchOk = bidRes.dossier.decision === "REJECTED"
         && bidRes.dossier.blocking_tags.includes("[FORENSIC_SIGNER_IDENTITY_MISMATCH_BLOCK]")
-        && envBytes < 900;
+        && bidRes.synthetic.delivery_mode === "INLINE"
+        && envBytes <= 8192;
       outcomes.push({
-        name: "1C. Integrada evaluateBiddingProposals (Signer Mismatch + <900B)",
+        name: "1C. Integrada evaluateBiddingProposals (Signer Mismatch + Bimodal <=8KB)",
         status: mismatchOk ? "PASS" : "FAIL",
         detail: `decision=${bidRes.dossier.decision}, envelope=${envBytes}B, tags=[${bidRes.dossier.blocking_tags.join(", ")}]`,
       });
@@ -252,9 +253,11 @@ async function main() {
         },
       });
       const dirBytes = Buffer.byteLength(serializeDirectContractingSyntheticResult(dirRes.synthetic), "utf-8");
-      const dirOk = dirRes.dossier.blocking_tags.includes("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]") && dirBytes < 900;
+      const dirOk = dirRes.dossier.blocking_tags.includes("[PRICE_QUOTATION_SHARED_METADATA_SIMULATION_BLOCK]")
+        && dirRes.synthetic.delivery_mode === "INLINE"
+        && dirBytes <= 8192;
       outcomes.push({
-        name: "4B. Integrada auditDirectContracting (Cotações XLSX + <900B)",
+        name: "4B. Integrada auditDirectContracting (Cotações XLSX + Bimodal <=8KB)",
         status: dirOk ? "PASS" : "FAIL",
         detail: `decision=${dirRes.dossier.decision}, envelope=${dirBytes}B, tags=[${dirRes.dossier.blocking_tags.join(", ")}]`,
       });

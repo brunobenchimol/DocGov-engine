@@ -61,7 +61,9 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
     expect(existsSync(join(outDir, "relatorio_contratacao_direta.json"))).toBe(true);
     expect(existsSync(join(outDir, "visao_contratacao_direta.md"))).toBe(true);
     expect(existsSync(join(outDir, "dossie_contratacao_direta.md"))).toBe(true);
-    expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(synthetic), "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(serializeDirectContractingSyntheticResult(synthetic), "utf-8")).toBeLessThanOrEqual(8192);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
   }, 30000);
 
   it("deve bloquear Dispensa por Valor com fracionamento anual na mesma UG e PDM/CATMAT/CATSER e compilar BRL formatado", async () => {
@@ -293,8 +295,10 @@ describe("Marco 9 (Gen6) — Eixo B: Contratação Direta & Oportunidade Estatal
       ],
     });
     const mcpText = mcpRes.content[0].text;
-    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(880);
+    expect(Buffer.byteLength(mcpText, "utf-8")).toBeLessThanOrEqual(8192);
     const mcpParsed = JSON.parse(mcpText);
+    expect(mcpParsed.delivery_mode).toBe("INLINE");
+    expect(mcpParsed.read_file_required).toBe(false);
     expect(mcpParsed.status).toBe("blocked");
   }, 20000);
 });

@@ -67,8 +67,10 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
     });
 
     const text = mcpRes.content[0].text;
-    expect(Buffer.byteLength(text, "utf-8")).toBeLessThan(900);
+    expect(Buffer.byteLength(text, "utf-8")).toBeLessThanOrEqual(8192);
     const synthetic = JSON.parse(text);
+    expect(synthetic.delivery_mode).toBe("INLINE");
+    expect(synthetic.read_file_required).toBe(false);
     expect(synthetic.status).toBe("blocked");
     expect(synthetic.decision).toBe("REJECTED");
     expect(synthetic.blocking_tags).toContain("[APPEAL_INTENTION_SUMMARY_REJECTION_ILLEGAL_BLOCK]");
@@ -105,97 +107,106 @@ describe("Marco 9 (Gen6 v1.6.4) — Jogo de Planilha & Fase Recursal Completa Ar
     const outDir = join(tempRoot, `test_sonda_gen6d_${Date.now()}`);
     mkdirSync(outDir, { recursive: true });
 
-    const mcpRes: any = await handleCallTool("docgov_evaluate_bidding_proposals", {
-      outputDir: outDir,
-      evaluationStance: "ATTACK",
-      compilationMode: "APPEALS_BUNDLE",
-      outputFormat: "both",
-      process_id: "PE-055/2026-ENG",
-      bidder_name: "CONSTRUTORA_SONDA_GEN6D",
-      is_engineering_or_works: true,
-      estimated_budget_value: 1000000,
-      offered_proposal_value: 700000,
-      summary_disqualification_attempted: true,
-      has_unit_price_overpricing: true,
-      proposal_exequibility: {
-        unit_items: [{ item_id: "1.1", estimated_unit_price: 100, offered_unit_price: 130 }],
-      },
-      act_forensic_items: [
-        {
-          certificate_id: "ACT-S6D-01",
-          issuer_name: "ORGAO_A",
-          issuer_cnpj: "11.111.111/0001-11",
-          act_issue_date: "2025-01-01",
-          pdf_creation_date: "2026-10-01",
-          editing_software_traces: ["iLovePDF", "SmallPDF"],
+    const prevInline = process.env.MCP_INLINE_MAX_BYTES;
+    process.env.MCP_INLINE_MAX_BYTES = "512";
+    try {
+      const mcpRes: any = await handleCallTool("docgov_evaluate_bidding_proposals", {
+        outputDir: outDir,
+        evaluationStance: "ATTACK",
+        compilationMode: "APPEALS_BUNDLE",
+        outputFormat: "both",
+        process_id: "PE-055/2026-ENG",
+        bidder_name: "CONSTRUTORA_SONDA_GEN6D",
+        is_engineering_or_works: true,
+        estimated_budget_value: 1000000,
+        offered_proposal_value: 700000,
+        summary_disqualification_attempted: true,
+        has_unit_price_overpricing: true,
+        proposal_exequibility: {
+          unit_items: [{ item_id: "1.1", estimated_unit_price: 100, offered_unit_price: 130 }],
         },
-      ],
-      competing_proposals_meta: [
-        {
-          bidder_name: "EMPRESA_A",
-          proposal_file_name: "prop_a.pdf",
-          forensic_meta: {
-            source_format: "pdf",
-            title: "Proposta A",
-            author: "Autor_Conluio_S6D",
-            last_modified_by: null,
-            creator_tool: "LibreOffice",
-            producer: "LibreOffice PDF",
-            company: null,
-            template: null,
-            revision_count: null,
-            creation_date_iso: "2026-11-10T10:00:00.000Z",
-            mod_date_iso: null,
-            has_digital_signature: false,
-            signature_date_iso: null,
-            editing_software_traces: [],
-            forensic_anomalies: [],
+        act_forensic_items: [
+          {
+            certificate_id: "ACT-S6D-01",
+            issuer_name: "ORGAO_A",
+            issuer_cnpj: "11.111.111/0001-11",
+            act_issue_date: "2025-01-01",
+            pdf_creation_date: "2026-10-01",
+            editing_software_traces: ["iLovePDF", "SmallPDF"],
           },
-        },
-        {
-          bidder_name: "EMPRESA_B",
-          proposal_file_name: "prop_b.pdf",
-          forensic_meta: {
-            source_format: "pdf",
-            title: "Proposta B",
-            author: "Autor_Conluio_S6D",
-            last_modified_by: null,
-            creator_tool: "LibreOffice",
-            producer: "LibreOffice PDF",
-            company: null,
-            template: null,
-            revision_count: null,
-            creation_date_iso: "2026-11-10T10:00:25.000Z",
-            mod_date_iso: null,
-            has_digital_signature: false,
-            signature_date_iso: null,
-            editing_software_traces: [],
-            forensic_anomalies: [],
+        ],
+        competing_proposals_meta: [
+          {
+            bidder_name: "EMPRESA_A",
+            proposal_file_name: "prop_a.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Proposta A",
+              author: "Autor_Conluio_S6D",
+              last_modified_by: null,
+              creator_tool: "LibreOffice",
+              producer: "LibreOffice PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-10T10:00:00.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
           },
+          {
+            bidder_name: "EMPRESA_B",
+            proposal_file_name: "prop_b.pdf",
+            forensic_meta: {
+              source_format: "pdf",
+              title: "Proposta B",
+              author: "Autor_Conluio_S6D",
+              last_modified_by: null,
+              creator_tool: "LibreOffice",
+              producer: "LibreOffice PDF",
+              company: null,
+              template: null,
+              revision_count: null,
+              creation_date_iso: "2026-11-10T10:00:25.000Z",
+              mod_date_iso: null,
+              has_digital_signature: false,
+              signature_date_iso: null,
+              editing_software_traces: [],
+              forensic_anomalies: [],
+            },
+          },
+        ],
+        appeal_context: {
+          appeal_type: "RAZOES",
+          intent_manifested_timely: false,
+          intent_summary_rejection_attempted: true,
+          edital_appeal_deadline_days: 2,
+          reasons_business_days_elapsed: 5,
+          declared_intent_scope: "exequibilidade BDI",
+          appeal_reasons_scope: "certidao ambiental",
+          pre_existing_document_submitted_on_appeal: true,
+          reconsider_decision: false,
         },
-      ],
-      appeal_context: {
-        appeal_type: "RAZOES",
-        intent_manifested_timely: false,
-        intent_summary_rejection_attempted: true,
-        edital_appeal_deadline_days: 2,
-        reasons_business_days_elapsed: 5,
-        declared_intent_scope: "exequibilidade BDI",
-        appeal_reasons_scope: "certidao ambiental",
-        pre_existing_document_submitted_on_appeal: true,
-        reconsider_decision: false,
-      },
-    });
+      });
 
-    const text = mcpRes.content[0].text;
-    const byteLen = Buffer.byteLength(text, "utf-8");
-    expect(byteLen).toBeLessThanOrEqual(880);
-    expect(byteLen).toBeLessThan(900);
+      const text = mcpRes.content[0].text;
+      const byteLen = Buffer.byteLength(text, "utf-8");
+      expect(byteLen).toBeLessThanOrEqual(880);
+      expect(byteLen).toBeLessThan(900);
 
-    const synthetic = JSON.parse(text);
-    expect(synthetic.status).toBe("blocked");
-    expect(synthetic.decision).toBe("REJECTED");
-    expect(synthetic.blocking_tags.some((t: string) => t.endsWith("_TAGS_NO_DOSSIE]"))).toBe(true);
+      const synthetic = JSON.parse(text);
+      expect(synthetic.delivery_mode).toBe("POINTER");
+      expect(synthetic.read_file_required).toBe(true);
+      expect(synthetic.status).toBe("blocked");
+      expect(synthetic.decision).toBe("REJECTED");
+      expect(synthetic.blocking_tags.some((t: string) => t.endsWith("_TAGS_NO_DOSSIE]"))).toBe(true);
+    } finally {
+      if (prevInline === undefined) delete process.env.MCP_INLINE_MAX_BYTES;
+      else process.env.MCP_INLINE_MAX_BYTES = prevInline;
+    }
 
     const diskDossier = JSON.parse(
       readFileSync(join(outDir, "dossie_julgamento_proposta_tic.json"), "utf-8")
