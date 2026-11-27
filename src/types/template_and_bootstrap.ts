@@ -354,12 +354,22 @@ export interface BuildDocxTemplateSyntheticResult extends McpDeliveryEnvelopeFie
   next_step_hint: string;
 }
 
+export interface DocxCommentInput {
+  slot_key?: string;
+  anchor_text: string;
+  author?: string;
+  initials?: string;
+  text: string;
+}
+
 export interface ProcessDocumentOptions {
   autoInspect?: boolean;
   stateDir?: string;
   inspectionOutputPath?: string;
   outputFormat?: "docx" | "pdf" | "both";
   pdfTimeoutMs?: number;
+  highlightPlaceholders?: boolean;
+  comments?: DocxCommentInput[];
 }
 
 export interface ProcessDocumentResult {
@@ -370,6 +380,8 @@ export interface ProcessDocumentResult {
   tier_used?: string;
   inspection_path?: string;
   visao_auditoria_path?: string;
+  comments_count?: number;
+  comments_unmatched?: string[];
   next_step_hint: string;
 }
 
@@ -380,6 +392,8 @@ export interface FillDocxTemplateSyntheticResult extends McpDeliveryEnvelopeFiel
   pdf_path?: string;
   inspection_path?: string;
   visao_auditoria_path?: string;
+  comments_count?: number;
+  comments_unmatched?: string[];
   message: string;
   next_step_hint: string;
 }

@@ -348,6 +348,8 @@ export interface DocxInspectionResult {
   detected_subtables?: DetectedItemSubtable[];
   detected_checkboxes?: DetectedCheckboxGroup[];
   post_compile_alerts?: PostCompileIntegrityAlert[];
+  comments_count?: number;
+  comments_unmatched?: string[];
 }
 
 export type InspectResult = DocxInspectionResult;
