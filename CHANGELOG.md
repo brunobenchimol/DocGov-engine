@@ -6,7 +6,7 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 
 ---
 
-## [Unreleased]
+## [1.7.7] - 2026-11-27 — Hotfix OpenXML (Highlight & Comentários) & Poda Calibrada MCP `tools/list`
 
 ### Added
 - **Auto-Highlight de Placeholders e Sintaxe Inline `==texto==` (`src/tools/openxml/rich_text_highlight.ts`, `fill_docx_template`):**
@@ -174,7 +174,7 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
 - **Suítes de Testes Modulares & Smoke `stdio` (`test/pades_signature_auditor.test.ts`, `test/nfe_key_validator.test.ts`, `test/rsid_and_xlsx_forensics.test.ts`, `test/mcp_stdio_smoke.test.ts`):**
   - Cobertura ponta a ponta das 6 novas tags, `unknown_keys` na Gen6, manutenção de **16 tools MCP** com `description <= 600` chars e envelopes `< 900B`.
 - **Runner Compacto de Testes (`scripts/run_tests.ts` — `bun run test`):**
-  - Wrapper determinístico consolidado de `## [Unreleased]` com saída compacta padrão (~95% de economia de tokens na suíte completa), heartbeat anti-travamento, preservação integral de falhas, ranking *Top 3* arquivos mais lentos e modo completo sob demanda (`bun run test:verbose`). *(Commit `1000793`)*
+  - Wrapper determinístico consolidado de `## [1.7.7] - 2026-11-27 — Hotfix OpenXML (Highlight & Comentários) & Poda Calibrada MCP `tools/list`` com saída compacta padrão (~95% de economia de tokens na suíte completa), heartbeat anti-travamento, preservação integral de falhas, ranking *Top 3* arquivos mais lentos e modo completo sob demanda (`bun run test:verbose`). *(Commit `1000793`)*
 
 ### Changed
 - **Elevação de Decisão & Auditoria Física Lei 9 (`src/bidding/evaluate_bidding_proposals.ts`, `scripts/check_lines.ts`, `src/mcp/spec.ts`):**

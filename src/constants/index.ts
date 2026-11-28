@@ -1,4 +1,4 @@
-export const VERSION = "1.7.6";
+export const VERSION = "1.7.7";
 export const GITHUB_REPO = "brunobenchimol/DocGov-engine";
 
 // ============================================================================

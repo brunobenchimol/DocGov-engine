@@ -1,4 +1,4 @@
-# Arquitetura e Índice de Módulos — docgov-engine (v1.7.6)
+# Arquitetura e Índice de Módulos — docgov-engine (v1.7.7)
 
 Este documento é o **Mapa Canônico de Navegação para Agentes IA e Desenvolvedores**. Consulte-o antes de buscar arquivos no repositório para localizar exatamente os módulos de implementação (`src/`), scripts (`scripts/`) e suítes de validação (`test/`, `tests_live/`) de cada domínio.
 
