@@ -21,27 +21,24 @@ export function getMcpToolsDefinition() {
     {
       name: "bootstrap_case",
       description:
-        "Inicializa a árvore do caso (inputs/, state/, templates/, output/, assets/), descompacta pacotes (.zip/.tar/.tgz), auto-batiza anexos opacos (media_*) ou aplica fileRenameMap, inspeciona .docx/.pdf/.xlsx/.csv (com OCR e auditoria orçamentária) e gera state/indice_mestre_caso.md.\n" +
-        "- Quando usar: 1º passo obrigatório em todo caso DocGov (restrito a cases/<slug>/).\n" +
-        "- Próximo Passo: Leia indice_mestre_caso.md, visao_auditoria_*.md ou dossie_hotspots_*.md, ou chame inspect_doc / build_docx_template.",
+        "Inicializa caso (inputs/, state/, templates/, output/, assets/), descompacta pacotes, auto-batiza media_* ou aplica fileRenameMap, inspeciona documentos e gera indice_mestre_caso.md.\n" +
+        "- Quando usar: 1º passo obrigatório (restrito a cases/<slug>/).\n" +
+        "- Próximo Passo: Leia indice_mestre_caso.md ou chame inspect_doc / build_docx_template.",
       inputSchema: {
         type: "object",
         required: ["caseDir"],
         properties: {
           caseDir: {
             type: "string",
-            description:
-              "Caminho absoluto ou relativo da pasta raiz do caso (ex.: 'cases/caso_exemplo').",
+            description: "Diretório raiz do caso.",
           },
           uploadsDir: {
             type: "string",
-            description:
-              "Caminho opcional da pasta contendo os uploads originais do usuário.",
+            description: "Pasta opcional de uploads.",
           },
           fileRenameMap: {
             type: "object",
-            description:
-              "Mapeamento explícito opcional de nomes de arquivos originais para nomes canônicos.",
+            description: "Mapa opcional de renomeação de arquivos.",
             additionalProperties: { type: "string" },
           },
         },
@@ -51,18 +48,18 @@ export function getMcpToolsDefinition() {
     {
       name: "inspect_doc",
       description:
-        "Engenharia reversa de .docx, .pdf (OCR), .xlsx, .csv e .md/.txt (rejeita .zip/.tar). Gera toc_map, Z1..Z14, auditoria orçamentária, structure_fingerprint, cache matching (created_at/Auto-Offset), visao_auditoria_<nome>.md, dossie_hotspots_<nome>.md e toc_summary bimodal (<=8KB/<=1KB).\n" +
-        "- Quando usar: Após bootstrap_case para inspecionar documento individual ou diff (fora de cases/<slug>/, isola em %TEMP%).\n" +
-        "- Próximo Passo: Em EXACT/MODIFIED, chame build_docx_template; em NEW/PDF, leia o dossiê ou a visão.",
+        "Engenharia reversa de .docx/.pdf/.xlsx/.csv/.md/.txt: toc_map, Z1..Z14, orçamento, structure_fingerprint, cache (created_at/Auto-Offset), visao_auditoria_*.md, dossie_hotspots_*.md e toc_summary.\n" +
+        "- Quando usar: Inspecionar documento ou diff.\n" +
+        "- Próximo Passo: Em EXACT/MODIFIED, chame build_docx_template; em NEW/PDF, leia o dossiê/visão.",
       inputSchema: {
         type: "object",
         required: ["filePath"],
         properties: {
-          filePath: { type: "string", description: "Caminho do arquivo a ser inspecionado." },
-          docxPath: { type: "string", description: "Alias retrocompatível para filePath." },
-          outputPath: { type: "string", description: "Caminho onde o mapa JSON será gravado." },
-          compact: { type: "boolean", description: "Se true, omite parágrafos e células vazias." },
-          compareWithPath: { type: "string", description: "Caminho opcional de um documento base/anterior para Diff Estrutural." },
+          filePath: { type: "string", description: "Caminho do arquivo alvo." },
+          docxPath: { type: "string", description: "Alias para filePath." },
+          outputPath: { type: "string", description: "Caminho de saída do JSON." },
+          compact: { type: "boolean", description: "Omite parágrafos/células vazias." },
+          compareWithPath: { type: "string", description: "Documento base para Diff." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -70,22 +67,22 @@ export function getMcpToolsDefinition() {
     {
       name: "build_docx_template",
       description:
-        "Parametriza .docx bruto em template {{...}} via slots_manifest.json (coordenadas compactas ou canônicas, remove_table_rows) com auto-reparo de JSON, preservação visual, Heading Guard, validação fail-fast Exact Copy-Paste Error (Zero Silent No-Op) e saveToRegistry opcional.\n" +
-        "- Quando usar: Após inspect_doc e criação/adaptação do slots_manifest.json (restrito a cases/<slug>/).\n" +
+        "Parametriza .docx em template {{...}} via slots_manifest.json (auto-reparo, Heading Guard, Exact Copy-Paste Error / Zero Silent No-Op, saveToRegistry).\n" +
+        "- Quando usar: Após inspect_doc e slots_manifest.json (cases/<slug>/).\n" +
         "- Próximo Passo: Preencha estado_caso.json e chame fill_docx_template.",
       inputSchema: {
         type: "object",
         required: ["sourcePath", "manifestPath", "outputPath"],
         properties: {
-          sourcePath: { type: "string", description: "Caminho do Word (.docx) bruto original." },
+          sourcePath: { type: "string", description: "Caminho do .docx bruto." },
           manifestPath: {
             type: "string",
             description:
-              "Caminho do arquivo JSON de manifesto contendo as regras de slots (ex.: 'state/slots_manifest.json' ou 'state/adapted_slots_manifest_<stem>.json'). Suporta notação compacta com { slots: [{ coord: 'T0.R1.C1', tag: '...' }, { coord: 'P2', tag: '...' }] } ou arrays canônicos como replace_paragraphs, replace_table_cells, loop_table_rows e replace_inline. Validação estrita: proíbe propriedades inventadas.",
+              "JSON de slots (coord: 'T0.R1.C1'/'P2' ou arrays canônicos).",
           },
-          outputPath: { type: "string", description: "Caminho do novo template .docx parametrizado." },
-          saveToRegistry: { type: "boolean", description: "Se true, salva no cache global." },
-          templateId: { type: "string", description: "Identificador único opcional no registro global." },
+          outputPath: { type: "string", description: "Caminho do template .docx." },
+          saveToRegistry: { type: "boolean", description: "Salva no cache global." },
+          templateId: { type: "string", description: "ID opcional no registro." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -93,27 +90,27 @@ export function getMcpToolsDefinition() {
     {
       name: "fill_docx_template",
       description:
-        "Injeta estado_caso.json (auto-reparo e unflatten) em .docx: FOR/IF, <w:tbl>, listas (word/numbering.xml), highlight ([A DEFINIR]/==texto==), comments.xml e DOCX/PDF.\n" +
-        "- Quando usar: Após build_docx_template e estado_caso.json (cases/<slug>/).\n" +
-        "- Próximo Passo: Gera minuta final e state/visao_auditoria_<stem>.md (sem reexecutar inspect_doc).",
+        "Injeta estado_caso.json (auto-reparo, unflatten) em .docx: FOR/IF, <w:tbl>, listas (word/numbering.xml), highlight, comments.xml e DOCX/PDF.\n" +
+        "- Quando usar: Após build_docx_template (cases/<slug>/).\n" +
+        "- Próximo Passo: Gera minuta final e state/visao_auditoria_<stem>.md.",
       inputSchema: {
         type: "object",
         required: ["templatePath", "statePath", "outputPath"],
         properties: {
-          templatePath: { type: "string", description: "Caminho do template Word (.docx)." },
-          statePath: { type: "string", description: "Caminho do JSON contendo os dados do caso." },
-          outputPath: { type: "string", description: "Caminho de saída da minuta final." },
-          autoInspect: { type: "boolean", description: "Executa auto-inspeção gerando visao_auditoria. Padrão: true." },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída: docx, pdf ou both." },
-          highlightPlaceholders: { type: "boolean", description: "Destaca em amarelo [A DEFINIR]/[INSERIR]. Padrão: true." },
+          templatePath: { type: "string", description: "Caminho do template .docx." },
+          statePath: { type: "string", description: "Caminho do JSON de estado." },
+          outputPath: { type: "string", description: "Caminho da minuta final." },
+          autoInspect: { type: "boolean", description: "Gera visao_auditoria (padrão: true)." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato (padrão: docx)." },
+          highlightPlaceholders: { type: "boolean", description: "Destaca [A DEFINIR] (padrão: true)." },
           comments: {
             type: "array",
-            description: "Comentários Word (word/comments.xml), mesclados após _comments.",
+            description: "Comentários Word (mesclados após _comments).",
             items: {
               type: "object",
               required: ["anchor_text", "text"],
               properties: {
-                slot_key: { type: "string", description: "Slot para delimitar busca." },
+                slot_key: { type: "string", description: "Slot p/ delimitar busca." },
                 anchor_text: { type: "string", description: "Texto âncora no documento." },
                 author: { type: "string", description: "Autor do comentário." },
                 initials: { type: "string", description: "Iniciais do autor." },
@@ -128,16 +125,16 @@ export function getMcpToolsDefinition() {
     {
       name: "generate_audit_docx",
       description:
-        "Compila Relatório de Auditoria, Matriz de Riscos (Lei 14.133/2021), Checklist (TCU/AGU/MGI) ou Peça de Impugnação (Modo ATTACK) em DOCX/PDF A4 vertical (zero tabelas), com validação fail-fast Exact Copy-Paste Error e citações probatórias.\n" +
-        "- Quando usar: Após consolidar relatorio_auditoria.json ou peca_impugnacao.json (restrito a cases/<slug>/).\n" +
-        "- Próximo Passo: Gera o parecer/peça executiva em outputPath e conclui o ciclo de auditoria.",
+        "Compila Relatório de Auditoria, Matriz de Riscos, Checklist ou Impugnação em DOCX/PDF A4 vertical (Exact Copy-Paste Error).\n" +
+        "- Quando usar: Após relatorio_auditoria.json ou peca_impugnacao.json (cases/<slug>/).\n" +
+        "- Próximo Passo: Gera parecer/peça em outputPath.",
       inputSchema: {
         type: "object",
         required: ["auditJsonPath", "outputPath"],
         properties: {
-          auditJsonPath: { type: "string", description: "Caminho do arquivo relatorio_auditoria.json ou peca_impugnacao.json." },
-          outputPath: { type: "string", description: "Caminho onde o arquivo do parecer/peça será salvo." },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída: docx, pdf ou both." },
+          auditJsonPath: { type: "string", description: "Caminho do JSON de auditoria/peça." },
+          outputPath: { type: "string", description: "Caminho de saída do arquivo." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato: docx, pdf ou both." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -145,17 +142,17 @@ export function getMcpToolsDefinition() {
     {
       name: "generate_technical_note_docx",
       description:
-        "Compila Nota Técnica Comparativa ('Antes vs. Depois') ou de Contrarrazões Jurídicas (Modo DEFENSE) em DOCX/PDF A4 vertical (cards coloridos e diff granular inline), via noteJsonPath e/ou comparação direta entre oldPath e newPath.\n" +
-        "- Quando usar: Após revisões substantivas em TR/ETP/Edital para justificar alterações ao controle (restrito a cases/<slug>/).\n" +
-        "- Próximo Passo: Gera a Nota Técnica executiva em outputPath (.docx/.pdf) concluindo a governança de alterações.",
+        "Compila Nota Técnica ('Antes vs. Depois') ou Contrarrazões em DOCX/PDF A4 com diff granular via noteJsonPath ou oldPath/newPath.\n" +
+        "- Quando usar: Justificar revisões de TR/ETP/Edital (cases/<slug>/).\n" +
+        "- Próximo Passo: Gera Nota Técnica em outputPath.",
       inputSchema: {
         type: "object",
         required: ["outputPath"],
         properties: {
-          outputPath: { type: "string", description: "Caminho onde a nota técnica será gerada." },
-          noteJsonPath: { type: "string", description: "Caminho do JSON com evolução ou contrarrazões." },
-          oldPath: { type: "string", description: "Caminho do documento base para diff automático." },
-          newPath: { type: "string", description: "Caminho do documento revisado para diff automático." },
+          outputPath: { type: "string", description: "Caminho de saída da nota." },
+          noteJsonPath: { type: "string", description: "Caminho do JSON da nota." },
+          oldPath: { type: "string", description: "Documento base para diff." },
+          newPath: { type: "string", description: "Documento revisado para diff." },
           outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato: docx, pdf ou both." },
         },
       },
@@ -164,16 +161,16 @@ export function getMcpToolsDefinition() {
     {
       name: "fetch_pncp",
       description:
-        "Baixa metadados e anexos públicos de uma contratação no PNCP (número de controle, URL, tupla ou link Google Grounding), isolando em inputs/pncp_<shortname>/ com descompactação automática e catalogação para pesquisa de mercado (IN 65/2021).\n" +
-        "- Quando usar: Quando já possuir o identificador/URL PNCP para benchmarking (restrito a cases/<slug>/).\n" +
-        "- Próximo Passo: Consulte state/indice_pncp_<shortname>.md e state/pncp_<shortname>_meta.json para leitura seletiva.",
+        "Baixa metadados e anexos de contratação no PNCP para inputs/pncp_<shortname>/ com descompactação e catalogação (IN 65/2021).\n" +
+        "- Quando usar: Com identificador/URL PNCP (cases/<slug>/).\n" +
+        "- Próximo Passo: Leia state/indice_pncp_<shortname>.md.",
       inputSchema: {
         type: "object",
         required: ["caseDir", "pncpIdOrUrl"],
         properties: {
-          caseDir: { type: "string", description: "Diretório do caso de trabalho." },
-          pncpIdOrUrl: { type: "string", description: "Identificador oficial do PNCP ou URL." },
-          shortname: { type: "string", description: "Apelido curto opcional para a subpasta." },
+          caseDir: { type: "string", description: "Diretório raiz do caso." },
+          pncpIdOrUrl: { type: "string", description: "ID oficial ou URL PNCP." },
+          shortname: { type: "string", description: "Apelido curto opcional." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -181,19 +178,19 @@ export function getMcpToolsDefinition() {
     {
       name: "search_pncp",
       description:
-        "Busca textual multi-query (separada por '|') no endpoint /api/search/ do PNCP para localizar editais e contratações de referência (IN 65/2021), desduplicando e acumulando resultados da sessão (fora de cases/<slug>/, isola em %TEMP%).\n" +
-        "- Quando usar: Para descobrir contratações similares por objeto, órgão, UF ou modalidade.\n" +
-        "- Próximo Passo: Inspecione state/pncp_search_results.md, escolha o pncp_id aderente e chame fetch_pncp.",
+        "Busca textual multi-query ('|') no PNCP para editais de referência (IN 65/2021), acumulando resultados (fora de cases/, usa %TEMP%).\n" +
+        "- Quando usar: Descobrir contratações similares.\n" +
+        "- Próximo Passo: Leia state/pncp_search_results.md e chame fetch_pncp.",
       inputSchema: {
         type: "object",
         required: ["caseDir", "query"],
         properties: {
-          caseDir: { type: "string", description: "Diretório do caso de trabalho." },
-          query: { type: "string", description: "Termos de busca textual (aceita pipe '|')." },
+          caseDir: { type: "string", description: "Diretório raiz do caso." },
+          query: { type: "string", description: "Termos de busca (aceita '|')." },
           status: { type: "string", enum: ["todas", "recebendo_proposta", "encerradas"], description: "Filtro de situação." },
           uf: { type: "string", description: "Filtro de UF." },
           modalidade: { type: "string", description: "Filtro de modalidade." },
-          limit: { type: "number", description: "Quantidade máxima de resultados." },
+          limit: { type: "number", description: "Máximo de resultados." },
         },
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
@@ -320,38 +317,38 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_contract_execution",
       description:
-        "Auditoria determinística de execução contratual: limites de aditivos (25%/50%), batimento quadripartite (bloqueio aditivo em ARP), reajustes (12m), PAS (dosimetria LINDB Art. 22, adequação federativa, glosa ANS vs. multa, seguro-garantia), cesta de preços (IN 65/2021) e álea extraordinária (contrato JSON em --dump-spec).\n" +
-        "- Quando usar: Para fiscalizar aditivos, sobrepreço, reajustes, PAS, cesta de preços ou reequilíbrio.\n" +
-        "- Próximo Passo: Consulte inline_markdown (em INLINE) ou leia relatorio/dossiê via read_file (em POINTER). Retorno <=8KB/<=880B.",
+        "Auditoria contratual: aditivos (25%/50%), batimento quadripartite (ARP), reajustes (12m), PAS (LINDB Art. 22, glosa ANS), IN 65/2021 e álea.\n" +
+        "- Quando usar: Fiscalizar aditivos, sobrepreço, reajustes, PAS ou reequilíbrio.\n" +
+        "- Próximo Passo: Use inline_markdown ou read_file; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
           contractJsonPath: {
             type: "string",
-            description: "Caminho para o JSON de dados contratuais, histórico de aditivos/faturamento, PAS/ANS-IMR, cesta de preços e pleitos de reequilíbrio.",
+            description: "Caminho do JSON contratual/PAS.",
           },
           caseDir: {
             type: "string",
-            description: "Diretório do caso DocGov (ex.: 'cases/meu_caso').",
+            description: "Diretório raiz do caso.",
           },
           outputDir: {
             type: "string",
-            description: "Diretório de saída para os relatórios detalhados e artefatos compilados.",
+            description: "Diretório de saída.",
           },
           auditType: {
             type: "string",
             enum: ["FULL", "ADDENDUM_LIMITS", "TRIPARTITE_MATCH", "READJUSTMENT", "PAS_SANCTIONS", "PRICE_BASKET"],
-            description: "Foco ou tipo da auditoria contratual/sancionatória/estatística (padrão: FULL).",
+            description: "Foco da auditoria (padrão: FULL).",
           },
           compilationMode: {
             type: "string",
             enum: ["NONE", "PAS_NOTIFICATION", "SANCTION_DOSIMETRY_OPINION", "DOSIMETRY_OPINION", "BOTH"],
-            description: "Modo opcional de compilação documental OpenXML para Notificação Prévia de PAS e/ou Parecer de Dosimetria/Glosa ANS (padrão: NONE).",
+            description: "Modo documental OpenXML/PDF (padrão: NONE).",
           },
           outputFormat: {
             type: "string",
             enum: ["docx", "pdf", "both"],
-            description: "Formato de saída dos documentos compilados quando compilationMode != NONE (padrão: both).",
+            description: "Formato de saída (padrão: both).",
           },
         },
       },
@@ -360,33 +357,33 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_govern_arp",
       description:
-        "Governança determinística de ARP e adesões (caronas): livro-razão 50% individual / 200% global, compatibilidade federativa/jurídica, travas TIC, vigência (12+12m) e compilação DOCX/PDF de notas de adesão e estudos de vantajosidade (contrato JSON em --dump-spec).\n" +
-        "- Quando usar: Para instruir ou auditar pedidos de adesão a ARP (Gerenciador ou Carona).\n" +
-        "- Próximo Passo: Consulte inline_markdown (em INLINE) ou inspecione visao_governanca_arp.md/JSON (em POINTER) e DOCX/PDF. <=8KB/<=880B.",
+        "Governança de ARP e adesões (caronas): livro-razão 50%/200%, compatibilidade federativa/TIC, vigência (12+12m) e notas DOCX/PDF.\n" +
+        "- Quando usar: Instruir ou auditar adesões a ARP (Gerenciador/Carona).\n" +
+        "- Próximo Passo: Use inline_markdown ou read_file em artifact_path; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
           arpJsonPath: {
             type: "string",
-            description: "Caminho para o JSON de dados da ARP e solicitação de adesão.",
+            description: "Caminho do JSON da ARP/adesão.",
           },
           caseDir: {
             type: "string",
-            description: "Diretório do caso DocGov (ex.: 'cases/meu_caso').",
+            description: "Diretório raiz do caso.",
           },
           outputDir: {
             type: "string",
-            description: "Diretório de saída para os artefatos compilados.",
+            description: "Diretório de saída.",
           },
           compilationMode: {
             type: "string",
             enum: ["ARP_ADHESION_GRANT_NOTE", "ARP_ADVANTAGE_STUDY", "NONE"],
-            description: "Modo documental de compilação OpenXML/PDF.",
+            description: "Modo documental OpenXML/PDF.",
           },
           outputFormat: {
             type: "string",
             enum: ["docx", "pdf", "both"],
-            description: "Formato do documento compilado (padrão: both).",
+            description: "Formato de saída (padrão: both).",
           },
         },
       },
@@ -395,22 +392,24 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_evaluate_bidding_proposals",
       description:
-        "Quando usar: Para julgar propostas TIC sem DEMO (UST/HST/PF/SQUAD), inexequibilidade 75%/85% (Art. 59 §§ 4º–5º, Súmula 262), ACT (Súmula 263), ILG/ILC/ISG/EG, conluio por metadados, Perícia ACT em 7 vetores e fase recursal (Art. 165/168). Próximo Passo: Use inline_markdown ou read_file em artifact_path; <=8KB/<=880B.",
+        "Julga propostas TIC (UST/HST/PF/SQUAD), inexequibilidade 75%/85%, ACT (Súm. 263), ILG/ILC/ISG, conluio, perícia 7 vetores e recursos.\n" +
+        "- Quando usar: Julgar propostas, ACT e recursos TIC sem DEMO.\n" +
+        "- Próximo Passo: Use inline_markdown ou read_file em artifact_path; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
-          proposalJsonPath: { type: "string", description: "Caminho do JSON de proposta/habilitação/ACT." },
+          proposalJsonPath: { type: "string", description: "Caminho do JSON da proposta." },
           bidding_json_path: { type: "string", description: "Alias para proposalJsonPath." },
           input_json_path: { type: "string", description: "Alias para proposalJsonPath." },
           biddingJsonPath: { type: "string", description: "Alias para proposalJsonPath." },
-          outputDir: { type: "string", description: "Diretório de saída dos dossiês e peças compiladas." },
+          outputDir: { type: "string", description: "Diretório de saída." },
           output_dir: { type: "string", description: "Alias para outputDir." },
-          caseDir: { type: "string", description: "Diretório raiz do caso DocGov." },
+          caseDir: { type: "string", description: "Diretório raiz do caso." },
           case_dir: { type: "string", description: "Alias para caseDir." },
           evaluationStance: {
             type: "string",
             enum: ["DEFENSE", "ATTACK"],
-            description: "Postura de julgamento (DEFENSE ou ATTACK).",
+            description: "Postura (DEFENSE ou ATTACK).",
           },
           evaluation_stance: { type: "string", enum: ["DEFENSE", "ATTACK"], description: "Alias para evaluationStance." },
           compilationMode: {
@@ -431,7 +430,7 @@ export function getMcpToolsDefinition() {
             description: "Modo documental OpenXML/PDF.",
           },
           compilation_mode: { type: "string", description: "Alias para compilationMode." },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída (docx, pdf ou both)." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato (docx, pdf ou both)." },
           output_format: { type: "string", enum: ["docx", "pdf", "both"], description: "Alias para outputFormat." },
         },
       },
@@ -440,17 +439,19 @@ export function getMcpToolsDefinition() {
     {
       name: "docgov_audit_direct_contracting",
       description:
-        "Quando usar: Para auditar Contratação Direta — Inexigibilidade (Súmula TCU 255 e mínimo de 3 NFs/contratos), Dispensa por Valor com controle anti-fracionamento (UG e PDM/CATMAT/CATSER) e Oportunidade de Negócio Estatal (Art. 28, § 3º, II Lei 13.303/2016). Próximo Passo: Use inline_markdown ou read_file em artifact_path e confira DOCX/PDF em outputDir; <=8KB/<=880B.",
+        "Audita Contratação Direta: Inexigibilidade (Súm. 255, 3 NFs), Dispensa (anti-fracionamento UG/CATMAT) e Oportunidade Estatal (Art. 28 §3º II).\n" +
+        "- Quando usar: Auditar processos de inexigibilidade, dispensa ou estatal.\n" +
+        "- Próximo Passo: Use inline_markdown ou read_file em artifact_path; <=8KB/<=880B.",
       inputSchema: {
         type: "object",
         properties: {
-          directContractingJsonPath: { type: "string", description: "Caminho do JSON da contratação direta." },
+          directContractingJsonPath: { type: "string", description: "Caminho do JSON da dispensa/inex." },
           direct_json_path: { type: "string", description: "Alias para directContractingJsonPath." },
           input_json_path: { type: "string", description: "Alias para directContractingJsonPath." },
           directJsonPath: { type: "string", description: "Alias para directContractingJsonPath." },
-          outputDir: { type: "string", description: "Diretório de saída dos dossiês e parecer compilado." },
+          outputDir: { type: "string", description: "Diretório de saída." },
           output_dir: { type: "string", description: "Alias para outputDir." },
-          caseDir: { type: "string", description: "Diretório raiz do caso DocGov." },
+          caseDir: { type: "string", description: "Diretório raiz do caso." },
           case_dir: { type: "string", description: "Alias para caseDir." },
           compilationMode: {
             type: "string",
@@ -458,7 +459,7 @@ export function getMcpToolsDefinition() {
             description: "Modo documental OpenXML/PDF.",
           },
           compilation_mode: { type: "string", description: "Alias para compilationMode." },
-          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato de saída (docx, pdf ou both)." },
+          outputFormat: { type: "string", enum: ["docx", "pdf", "both"], description: "Formato (docx, pdf ou both)." },
           output_format: { type: "string", enum: ["docx", "pdf", "both"], description: "Alias para outputFormat." },
         },
       },
