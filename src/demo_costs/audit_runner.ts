@@ -36,91 +36,91 @@ import type {
 export const DEMO_REGIME_TOOL_DEFINITION = {
   name: "docgov_audit_demo_regime",
   description:
-    "Auditoria matemática em centavos inteiros de planilhas DEMO (Módulos 1–6 da IN SEGES 05/2017, CCT, Súmula 448 TST, RAT×FAP, APT, Gross-Up, EFD Lucro Real, Simples Anexo IV), produtividade m², Decreto 12.174/2024 e execução (expurgo APT, Conta Vinculada/Fato Gerador, Repactuação).\n" +
-    "- Quando usar: Para auditar planilhas de mão de obra exclusiva e sua execução contratual.\n" +
-    "- Próximo Passo: Use inline_markdown (INLINE) ou read_file em artifact_path (POINTER) e confira DOCX/PDF. Retorno bimodal <=8KB/<=880B.",
+    "Auditoria em centavos de planilhas DEMO (Módulos 1–6 IN 05/2017, CCT, RAT×FAP, APT, Gross-Up, EFD), m², Dec. 12.174/2024 e execução.\n" +
+    "- Quando usar: Auditar planilhas de mão de obra exclusiva e sua execução.\n" +
+    "- Próximo Passo: Use inline_markdown ou read_file; <=8KB/<=880B.",
   inputSchema: {
     type: "object",
     properties: {
       demoJsonPath: {
         type: "string",
-        description: "Caminho do arquivo JSON contendo os dados da planilha DEMO e governança contratual.",
+        description: "Caminho do JSON DEMO.",
       },
       inputPath: {
         type: "string",
-        description: "Alias para demoJsonPath ou string JSON inline.",
+        description: "Alias ou JSON inline.",
       },
       workspaceDir: {
         type: "string",
-        description: "Diretório de saída onde os artefatos JSON, MD, DOCX e PDF serão gravados.",
+        description: "Diretório de saída.",
       },
       workspace_dir: {
         type: "string",
-        description: "Alias canônico de workspaceDir para persistência dos artefatos.",
+        description: "Alias para workspaceDir.",
       },
       case_id: {
         type: "string",
-        description: "Identificador do processo ou caso administrativo auditado.",
+        description: "ID do caso ou processo.",
       },
       contract_regime: {
         type: "string",
         enum: ["LEI_14133", "LEI_13303"],
-        description: "Regime jurídico regente do contrato (LEI_14133 ou LEI_13303).",
+        description: "Regime jurídico contratual.",
       },
       service_category: {
         type: "string",
         enum: ["LIMPEZA", "VIGILANCIA", "APOIO_ADMINISTRATIVO", "OUTROS_DEMO"],
-        description: "Categoria do serviço continuado com dedicação exclusiva de mão de obra.",
+        description: "Categoria do serviço DEMO.",
       },
       tax_regime: {
         type: "string",
         enum: ["LUCRO_REAL", "LUCRO_PRESUMIDO", "SIMPLES_NACIONAL"],
-        description: "Regime de tributação da licitante ou contratada.",
+        description: "Regime tributário da licitante.",
       },
       simples_anexo_iv_compliant: {
         type: "boolean",
-        description: "Indica conformidade estrita no Anexo IV do Simples Nacional com CPP 20%.",
+        description: "Simples Anexo IV c/ CPP 20%.",
       },
       module1_remuneration: {
         type: "object",
-        description: "Dados do Módulo 1 (salário-base, piso CCT, adicionais e LTCAT).",
+        description: "Módulo 1 (salário, CCT, LTCAT).",
       },
       module2_charges_benefits: {
         type: "object",
-        description: "Dados do Módulo 2 (Submódulos 2.1, 2.2 RAT x FAP e 2.3 VT/VA).",
+        description: "Módulo 2 (2.1, RAT×FAP, VT/VA).",
       },
       module3_termination: {
         type: "object",
-        description: "Dados do Módulo 3 (API, multa FGTS e APT do 1º ano).",
+        description: "Módulo 3 (API, FGTS, APT 1º ano).",
       },
       module4_replacement: {
         type: "object",
-        description: "Dados do Módulo 4 (reposição de profissional ausente e encargos).",
+        description: "Módulo 4 (reposição de ausentes).",
       },
       module5_inputs: {
         type: "object",
-        description: "Dados do Módulo 5 (uniformes, EPIs, materiais e depreciação).",
+        description: "Módulo 5 (uniformes, EPI, insumo).",
       },
       module6_indirect_profit_taxes: {
         type: "object",
-        description: "Dados do Módulo 6 (custos indiretos, lucro, PIS/COFINS/ISS e EFD).",
+        description: "Módulo 6 (indiretos, lucro, tributos).",
       },
       productivity_m2: {
         type: "object",
-        description: "Parâmetros opcionais de produtividade por m² segundo o Anexo VI-B.",
+        description: "Produtividade m² (Anexo VI-B).",
       },
       decree_12174_compliance: {
         type: "object",
-        description: "Parâmetros opcionais de conformidade ao Decreto Federal nº 12.174/2024.",
+        description: "Conformidade Dec. 12.174/2024.",
       },
       execution_governance: {
         type: "object",
-        description: "Parâmetros opcionais de execução (expurgo APT, Conta Vinculada/Fato Gerador, Repactuação).",
+        description: "Execução (APT, Conta Vinc., Repact.).",
       },
       outputFormat: {
         type: "string",
         enum: ["docx", "pdf", "both"],
-        description: "Formato de emissão do laudo pericial (padrão: both).",
+        description: "Formato do laudo (padrão: both).",
       },
     },
   },
