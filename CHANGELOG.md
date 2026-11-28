@@ -16,6 +16,12 @@ O formato é baseado no [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.
   - Suporte a `comments` na tool `fill_docx_template` e/ou chave reservada `_comments` no `estado_caso.json` (`{ slot_key?, anchor_text, author?, initials?, text }`), com strip de chaves iniciadas por `_` antes da compilação e concatenação ordenada quando ambos forem informados;
   - Ancoragem segura dentro do mesmo `<w:p>` (suportando `anchor_text` fragmentado entre múltiplos `<w:r>` e escopo por `slot_key` com strip prévio de marcações Markdown), preservação de comentários pré-existentes do doador (`maxId + 1`), criação/atualização idempotente de `word/comments.xml`, `[Content_Types].xml` e `word/_rels/document.xml.rels`, e reporte *fail-safe* de `comments_unmatched` no cabeçalho de `visao_auditoria_*.md` e no envelope `SUMMARY < 1024 B` (com truncamento seguro do preview JSON quando necessário).
 
+### Changed
+- **Poda Calibrada de Orçamento MCP `tools/list` (`src/mcp/tools_definition.ts`, `src/engineering/tool_definition.ts`, `src/demo_costs/audit_runner.ts`):**
+  - Redução calibrada do payload JSON bruto RPC `tools/list` de `33.373` para `25.512` caracteres (`-7.861` chars / `-23,6%`, abaixo do teto rígido `<= 27.000`), mantendo `search_juris` (`3.091` chars) e `fetch_juris` (`1.618` chars) 100% intocadas (`JURIS_DIFF=IDENTICAL`) e zero breaking changes em nomes, tipos, `enum`, `items` ou `required` (`CONTRACT_DIFF=IDENTICAL`);
+  - Concentração de convenções de unidade (`*_bps`, `*_cents`, `BRL`) nos objetos-pai em `docgov_audit_engineering_works` (`9.152 -> 5.724` chars) com remoção de `description` apenas nas folhas autoexplicativas e preservação de notas normativas compactas nos campos folha não óbvios (incluindo `fill_docx_template.comments.items.properties`);
+  - Compactação telegráfica de `docgov_audit_demo_regime` (`3.141 -> 2.232` chars), `compilationMode` em `docgov_audit_contract_execution` (`131 -> 43` chars), campos comuns (`outputFormat`, `caseDir`, `outputPath`, `outputDir`) e `TopDesc` das 14 tools não-`juris` (média `453,8 -> 279,9` chars).
+
 ---
 
 ## [1.7.6] - 2026-11-27 — Corte Limpo Global JURIS, Cache TTL 24h Universal & Desarme de Vieses
